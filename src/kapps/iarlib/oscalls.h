@@ -34,14 +34,15 @@ unsigned long OS_GETTIME(void); // out: bc=date, hl=time
 unsigned int OS_NEWPAGE(void);
 unsigned int OS_CHDIR(unsigned char *trgPathPtr);
 unsigned int OS_GETPATH(unsigned int curPathPtr); // in: de = ptr to buffer out: hl = ptr to last symbol of path
-unsigned int OS_SETSYSDRV(void);				  // out: H: H!=0 -- á¨áâ¥¬­ë© ¤¨áª ­¥ ¯à¨¬®­â¨à®¢ ­. L: -- ®¡é¥¥ ª®«¨ç¥áâ¢® ¯à¨¬®­â¨à®¢ ­­ëå ¤¨áª®¢.
+unsigned int OS_SETSYSDRV(void);				  // out: H: H!=0 -- ï¿½ï¿½â¥¬ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½à¨¬ï¿½ï¿½ï¿½à®¢ï¿½ï¿½. L: -- ï¿½ï¿½é¥¥ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½â¢® ï¿½à¨¬ï¿½ï¿½ï¿½à®¢ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½áª®ï¿½.
 unsigned int OS_NEWAPP(unsigned int trgPathPtr);
-unsigned int OS_RUNAPP(unsigned char pId); //e=id ;ACTIVATE DISABLED APP
-unsigned int OS_WAITPID (unsigned char pId);
-unsigned int OS_HIDEFROMPARENT (void);
-unsigned long OS_STARTAPP(unsigned long appParamsPtr); 	// out: b=id, a=error, dehl=newapp pages in 0000,4000,8000,c000 ;MAKE NEW DISABLED APP
-unsigned int OS_RENAME(unsigned char *oldName, unsigned char *newName);	// DE - áâ à®¥ ¨¬ï, ¢®§¬®¦­® á ¯®«­ë¬ ¨«¨ ®â­®á¨â¥«ì­ë¬ ¯ãâñ¬ (ASCIIZ). HL - ­®¢®¥ ¨¬ï, ¯®ª  çâ® âà¥¡ã¥âáï â ª®© ¦¥ ¯ãâì, ª ª ¢ DE. // out HL - ãª § â¥«ì ­  ¯®á«¥¤­¨© í«¥¬¥­â ¯ãâ¨ ¢ íâ®¬ ¡ãä¥à¥ (NOT MSXDOS compatible! with Drive/path!)
-unsigned int OS_DELETE(unsigned char *fileName);		// DE - ¨¬ï ä ©« , ¢®§¬®¦­® á ¯®«­ë¬ ¨«¨ ®â­®á¨â¥«ì­ë¬ ¯ãâñ¬ (ASCIIZ).; € - ®è¨¡ª . …á«¨ 0x00, â® ®è¨¡ª¨ ­¥â.												
+unsigned int OS_RUNAPP(unsigned char pId); // e=id ;ACTIVATE DISABLED APP
+unsigned int OS_WAITPID(unsigned char pId);
+unsigned int OS_HIDEFROMPARENT(void);
+unsigned long OS_STARTAPP(unsigned long appParamsPtr);					// out: b=id, a=error, dehl=newapp pages in 0000,4000,8000,c000 ;MAKE NEW DISABLED APP
+unsigned int OS_RENAME(unsigned char *oldName, unsigned char *newName); // DE - ï¿½ï¿½à®¥ ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½â­®ï¿½â¥«ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ASCIIZ). HL - ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½à¥¡ï¿½ï¿½ï¿½ï¿½ â ªï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ ï¿½ DE. // out HL - ãª ï¿½ï¿½â¥«ï¿½ ï¿½ï¿½ ï¿½ï¿½á«¥ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ ï¿½â®¬ ï¿½ï¿½ï¿½ï¿½ (NOT MSXDOS compatible! with Drive/path!)
+unsigned int OS_DELETE(unsigned char *fileName);						// DE - ï¿½ï¿½ï¿½ ä ©ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½â­®ï¿½â¥«ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ASCIIZ).; ï¿½ - ï¿½è¨¡ï¿½ï¿½. ï¿½á«¨ 0x00, ï¿½ ï¿½è¨¡ï¿½ï¿½ ï¿½ï¿½ï¿½.
+void OS_DIHALT(void);
 // End of Kulich area
 
 void SETPG32KHIGH(unsigned char page);

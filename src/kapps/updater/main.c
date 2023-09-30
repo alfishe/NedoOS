@@ -39,9 +39,8 @@ unsigned char kernelName[32];
 unsigned char machineName[32];
 unsigned char kernelLink[256];
 
-unsigned int bufSize = 2000; // Some memory corruption at this point, some QnD
-unsigned char netbuf[3000];
-
+unsigned int bufSize = 2048; // Some memory corruption at this point, some QnD
+unsigned char netbuf[2500];
 
 void clearStatus(void)
 {
@@ -79,6 +78,7 @@ void delay(unsigned long counter)
 	while (start < finish)
 	{
 		start = time();
+		YIELD();
 	}
 }
 
@@ -114,7 +114,7 @@ void drawWindow(struct window w)
 		AT(tempx, w.y + wcount);
 		putchar(186);
 	}
- 
+
 	AT(w.x, w.y + 2);
 	putchar(199);
 	for (wcount = 0; wcount < w.w; wcount++)
@@ -178,19 +178,19 @@ unsigned char OS_SHELL(unsigned char *command)
 {
 	unsigned char fileName[] = "bin/cmd.com";
 	unsigned char appCmd[128] = "cmd.com ";
-	unsigned char diskBuf[1024];
-	unsigned int shellSize, loaded, loop;
+	unsigned int shellSize, loaded, loop, adr;
 	unsigned char pgbak;
 	union APP_PAGES shell_pg;
 	union APP_PAGES main_pg;
-
+	FILE *fp3;
 	main_pg.l = OS_GETMAINPAGES();
-	pgbak = main_pg.pgs.window_0;
-
+	pgbak = main_pg.pgs.window_3;
+//	printf("OS_GETMAINPAGES()\r\n");
+//	printf("main_pg.pgs.window_0=%u\r\nmain_pg.pgs.window_1=%u\r\nmain_pg.pgs.window_2=%u\r\nmain_pg.pgs.window_3=%u\r\n", main_pg.pgs.window_0, main_pg.pgs.window_1, main_pg.pgs.window_2, main_pg.pgs.window_3);
 	OS_GETPATH((unsigned int)&curPath);
 	strcat(appCmd, command);
-	fp2 = OS_OPENHANDLE(fileName, 0x80);
-	if (((int)fp2) & 0xff)
+	fp3 = OS_OPENHANDLE(fileName, 0x80);
+	if (((int)fp3) & 0xff)
 	{
 		clearStatus();
 		AT(1, 24);
@@ -199,27 +199,49 @@ unsigned char OS_SHELL(unsigned char *command)
 		getchar();
 		exit(0);
 	}
-	shellSize = OS_GETFILESIZE(fp2);
+	shellSize = OS_GETFILESIZE(fp3);
+
 	OS_NEWAPP((unsigned int)&shell_pg);
-	SETPG32KHIGH(shell_pg.pgs.window_3);
-	memcpy((char *)(0xC080), &appCmd, sizeof(appCmd));
-	for (loop = 0; loop < shellSize; loop = loop + loaded)
+
+//	printf("OS_NEWAPP [iD:%u]\r\n", shell_pg.pgs.pId);
+//	printf("shell_pg.pgs.window_0=%u\r\nshell_pg.pgs.window_1=%u\r\nshell_pg.pgs.window_2=%u\r\nshell_pg.pgs.window_3=%u\r\n", shell_pg.pgs.window_0, shell_pg.pgs.window_1, shell_pg.pgs.window_2, shell_pg.pgs.window_3);
+	shell_pg.l = OS_GETAPPMAINPAGES(shell_pg.pgs.pId);
+//	printf("OS_GETAPPMAINPAGES\r\n");
+//	printf("shell_pg.pgs.window_0=%u (0000)\r\nshell_pg.pgs.window_1=%u\r\nshell_pg.pgs.window_2=%u\r\nshell_pg.pgs.window_3=%u\r\n", shell_pg.pgs.window_0, shell_pg.pgs.window_1, shell_pg.pgs.window_2, shell_pg.pgs.window_3);
+
+	SETPG32KHIGH(shell_pg.pgs.window_0);
+//	printf("memcpy(");
+//	printf("%u", (char *)(0xC080));
+//	printf(",");
+//	printf("%u", (char *)(&appCmd));
+//	printf(",");
+//	printf("%u)\r\n", sizeof(appCmd));
+
+	memcpy((char *)(0xC080), (char *)(&appCmd), sizeof(appCmd));
+
+	loop = 0;
+	while (loop < shellSize)
 	{
-		loaded = OS_READHANDLE(diskBuf, fp2, sizeof(diskBuf));
-		memcpy((char *)(0xC100 + loop), &diskBuf, loaded);
+		loaded = OS_READHANDLE(netbuf, fp3, sizeof(netbuf));
+		adr = 0xC100 + loop;
+		memcpy((char *)(adr), &netbuf, loaded);
+		loop = loop + loaded;
 	}
-	OS_CLOSEHANDLE(fp2);
+	//OS_DIHALT();
+	//printf("shellSize = %u loop(sum)=%u adr=%u\r\n\r\n", shellSize, loop, adr);
+
+	OS_CLOSEHANDLE(fp3);
 	SETPG32KHIGH(pgbak);
 
 	clearStatus();
-	AT(1, 24);
 	printf("Running shell [pId:%u][%s][%s]", shell_pg.pgs.pId, curPath, appCmd);
-	YIELD();
 	AT(1, 24);
-	delay(250);
-
+	delay(300);
 	OS_RUNAPP(shell_pg.pgs.pId);
+//	printf("\r\nOS_RUNAPP finished\r\n");
 	OS_WAITPID(shell_pg.pgs.pId);
+//	getchar();
+//	exit(0);
 	return shell_pg.pgs.pId;
 }
 //////////////// NETWORK PART //////////////////////
@@ -382,7 +404,7 @@ void restoreConfig(unsigned char oldBinExt)
 		OS_SHELL((void *)name);
 
 		sprintf(name, "copy bin.%u/nv.pth bin/nv.pth", oldBinExt);
-		OS_SHELL((void *)name);		
+		OS_SHELL((void *)name);
 	}
 
 	errn = OS_RENAME("bin/autoexec.new", "bin/autoexec.bat");

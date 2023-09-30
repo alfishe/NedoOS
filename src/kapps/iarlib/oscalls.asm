@@ -209,18 +209,17 @@ OS_GETMAINPAGES:
 	ld c,CMD_GETMAINPAGES
 l1
 	push de
- 	push ix
+	push ix
  	push iy
-	 call BDOS
- 	ld b,d ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, a=error
+	call BDOS
+	ld b,d ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, a=error
  	ld c,e
  	pop iy
  	pop ix
- 	pop de
-    LD (errno), a
+	pop de
+ 	LD (errno), a
  	ret
  	ENDMOD
-
 
 	MODULE SETPG32KHIGH
 	PUBLIC SETPG32KHIGH
@@ -237,7 +236,7 @@ SETPG32KHIGH:
 	pop bc
 	ret
 	ENDMOD
-	
+
 	MODULE MAIN_ARGS
 	PUBLIC main_args
 	RSEG CODE
@@ -666,7 +665,15 @@ OS_CLS:
 	pop bc
 	pop hl
 	ret
-//	ENDMOD
+	ENDMOD
 
+	MODULE OS_DIHALT
+	PUBLIC OS_DIHALT
+	RSEG CODE
+OS_DIHALT:
+	DI
+	HALT
+	ret
+	//ENDMOD
 	END
 	

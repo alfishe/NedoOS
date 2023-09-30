@@ -181,14 +181,10 @@ wizread:
 			fatalError("ERROR CONNECTION TO SERVER");
 		}
 		retry--;
-		YIELD();
-		YIELD();
-
 		cancel();
-
 		delay(300);
-		YIELD();
-		YIELD();
+		AT(60,24);
+		printf("RETRY READ:[%u]   ",retry);
 		goto wizread;
 	}
 	return todo;
@@ -257,9 +253,10 @@ wizwrite:
 			exit(0);
 		}
 		retry--;
-		YIELD();
 		cancel();
 		delay(250);
+		AT(60,24);
+		printf("RETRY WRITE:[%u]   ",retry);
 		goto wizwrite;
 	}
 
