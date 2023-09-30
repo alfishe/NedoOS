@@ -1,0 +1,10 @@
+===
+и ещё кстати, какие реги сохраняет OS_READHANDLE?
+никакие
+типа af bc de hl af' bc' de' hl' ix iy -- все киляет? 
+да
+===
+MAXPATH_sz=256;64
+DIRMAXFILENAME64=64 ;including EOL
+===
+

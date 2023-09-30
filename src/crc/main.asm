@@ -2,9 +2,16 @@
         include "../_sdk/sys_h.asm"
 
 STACK=0x4000
-TCRC=0x6800 ;size 0x400, divisible by 0x400
+
+TCRC=0x4000 ;size 0x400, divisible by 0x100
+
+LISTBUF		equ	0x4400
+LISTBUFsz	equ	0x200
+
 DISKBUF=0xc000
 DISKBUFsz=0x4000
+
+CHKSYMLEN	equ	8 ;length of checksum in hex: 8 for CRC32
 
         org PROGSTART
 cmd_begin
@@ -100,6 +107,8 @@ successful_exit:
 
 
 AST_DFLT	equ	0
+AST_FILES	equ	1
+AST_CHK		equ	2
 
 process_arg:	;args parsing routine, has state
 		;in: HL=asciiz of current argument
@@ -113,25 +122,31 @@ process_arg:	;args parsing routine, has state
 		; check for -h or --help
 		ld	hl,[curr_arg]
 		push	hl
-		ld	de,help_arg1
+		ld	de,help_arg
 		call	strcmp
 		jr	z,.arg_help
+
 		pop	hl
-		ld	de,help_arg2
+		ld	de,chk_arg
 		call	strcmp
-		jr	z,.arg_help
+		jr	z,.arg_chk
 
-		;if not -h or --help -- file to CRC
-		;(preliminary, until -c mode is implemented)
-
+		; set FILES mode
+		ld	a,AST_FILES
+		ld	[argp_state],a
+.chksum_arg
 		ld	hl,[curr_arg]
-		call	process_file
-		
-
-		ret
-
-
+		jp	process_file
 .no_dflt
+		dec	a
+		jr	z,.chksum_arg
+		; FILES mode -- go to .chksum_arg
+.no_files
+		dec	a
+		jr	nz,.no_check
+		;CHECK mode
+		call	process_list
+.no_check
 		jp	error_exit
 
 
@@ -146,14 +161,280 @@ process_arg:	;args parsing routine, has state
 		jr	successful_exit
 
 
+.arg_chk	;check mode
+
+		ld	a,AST_CHK
+		ld	[argp_state],a
+		ret
 
 
 
+
+process_list:	;argument = filename, open it, read crcs and filenames, check
+
+		;open file by name
+		;
+		ld	de,[curr_arg]
+		OS_OPENHANDLE
+		;b - handle, a!=0 - error
+		or	a
+		jp	nz,.error_open
+		ld	a,b
+		ld	[list_hndl],a
+
+		xor	a
+		ld	[lpush],a
+		ld	h,a
+		ld	l,a
+		ld	[lsz],hl
+
+
+
+		;main loop: FSM to parse the file with checksums and filenames.
+		;format:
+		;
+		;<BOL>XXXXXXXX<space><space><filename><EOL>
+		;
+		;<BOL> -- not a real symbol, just an indication that this is the beginning of line
+		;XXXXXXXX -- checksum in hex, must be of predefined length (8 for CRC32)
+		;<space> -- 0x20
+		;<filename> -- file that will be attempted to open.
+		;<EOL> -- <crlf> or <cr> or <lf>, last line from file is not obliged to end with these
+
+.new_line
+		;parse checksum
+		ld	b,CHKSYMLEN
+		ld	hl,CHKSUM
+.chksum_loop
+		call	my_getc
+		jp	c,.line_unexp_end
+		call	is_hex
+		jp	c,.line_format_error
+
+		ld	[hl],a
+		inc	hl
+		djnz	.chksum_loop
+		ld	[hl],0
+
+		;parse two spaces
+		ld	b,2
+.chkspc_loop
+		call	my_getc
+		jr	c,.full_end
+		cp	' '
+		jr	nz,.line_format_error
+		djnz	.chkspc_loop
+
+		;parse filepath/name
+		ld	b,MAXPATH_sz&255 ;now it is 256
+		ld	hl,FNAME
+.chkfname_loop
+		call	my_getc
+		jr	c,.line_last_end
+		cp	' '	;space -- end of path/fname
+		jr	z,.end_fname
+		cp	13	;13 or 10 -- end of path/fname
+		jr	z,.end_fname
+		cp	10
+		jr	z,.end_fname
+		
+		ld	[hl],a
+		inc	hl
+		djnz	.chkfname_loop
+		ld	[hl],0
+
+		;check whether there's more in input stream
+		call	my_getc
+		jr	c,.line_last_end
+		cp	' '
+		jr	z,.end_fname
+		cp	13
+		jr	z,.end_fname
+		cp	10
+		jr	z,.end_fname
+
+.fname_error	;if path/filename seems to be greater than MAXPATH_sz or zero-sized
+		jr	$	;STUB
+
+.line_last_end	;here if EOF condition while parsing '-c filename'
+		ld	[hl],0
+
+		;check for zero-length path/filename
+		exd	
+		ld	hl,FNAME
+		or	a
+		sbc	hl,de
+		exd
+		jr	z,.fname_error
+		jr	.no_errs
+
+.end_fname
+		call	my_ungetc	;return space/13/10 to the input stream;
+					;will be used later as to look for a new line
+		
+		;check for zero-length path/filename
+		exd
+		ld	hl,FNAME
+		or	a
+		sbc	hl,de
+		exd
+		jr	z,.fname_error
+
+		;no errors here
+.no_errs	;hl=FNAME
+		ld	[hl],0
+		ld	hl,FNAME
+		call	process_file
+
+.skip_line	;scan till end of filename/whatever, skip extra spaces/etc., skip line end
+		call	my_getc
+		jr	c,.full_end
+		cp	13
+		jr	z,.eol_13
+		cp	10
+		jr	nz,.skip_line
+.eol_10
+		jr	.new_line2
+.eol_13
+		call	my_getc
+		cp	10
+		jr	z,.new_line2
+		call	my_ungetc
+.new_line2
+		jp	.new_line
+
+.full_end	;input filename exhausted
+		jr	$	;STUB
+
+
+.line_format_error
+.line_unexp_end
+		ld	hl,[name_ptr]
+		call	prtext
+		ld	hl,name_to_file
+		call	prtext
+		ld	hl,[curr_arg]
+		call	prtext
+		ld	hl,format_error
+		jr	.prtext2
+
+
+
+.error_open
+		ld	hl,[name_ptr]
+		call	prtext
+		ld	hl,name_to_file
+		call	prtext
+		ld	hl,[curr_arg]
+		call	prtext
+		ld	hl,file_error
+.prtext2
+		jp	prtext
+
+
+
+
+
+my_getc:	;get a symbol from list_hdnl:lptr:lsz:etc. construction
+		;
+		;out: A - symbol
+		;     cy=1 - no more symbols or error
+
+		ld	a,[lpush]
+		or	a
+		jr	z,.no_ununget
+		;
+		xor	a
+		ld	[lpush],a
+		ld	a,[lpbyte]
+		ret
+.no_ununget
+		push	hl
+		ld	hl,[lsz]
+		ld	a,h
+		or	l
+		jr	z,.buf_empty
+.no_ununget2
+		dec	hl
+		ld	[lsz],hl
+		ld	hl,[lptr]
+		ld	a,[hl]
+		inc	hl
+		ld	[lptr],hl
+		pop	hl
+		ret
+.buf_empty
+		push	ix
+		push	iy
+		push	bc
+		push	de
+		
+		ld	a,[list_hndl]
+		ld	b,a
+		ld	de,LISTBUF
+		ld	[lptr],de
+		ld	hl,LISTBUFsz
+		OS_READHANDLE
+		ld	a,h
+		or	l
+		ld	[lsz],hl
+		
+		pop	de
+		pop	bc
+		pop	iy
+		pop	ix
+		
+		jr	nz,.no_ununget2
+.nothing_more
+		pop	hl
+		scf
+		ret
+
+
+
+my_ungetc:	;unget a symbol (there can be only a single ungot symbol!)
+		;in: A - symbol
+
+		push	af
+		ld	a,[lpush]
+		or	a
+		jr	nz,$
+		inc	a
+		ld	[lpush],a
+		pop	af
+		ld	[lpbyte],a
+		ret
+
+
+
+is_hex:		;check that A is hex, i.e. [0-9][A-F][a-f]
+		;in: A
+		;out: cy=1: *NOT* hex. A is saved
+
+		cp	'0'
+		ret	c
+		cp	'9'+1
+		ccf
+		ret	nc
+
+		cp	'A'
+		ret	c
+		cp	'F'+1
+		ccf
+		ret	nc
+		
+		cp	'a'
+		ret	c
+		cp	'f'+1
+		ccf
+		ret
 
 
 process_file:
+		;hl = asciiz filename
+		ld	[file_name],hl
 
-	ld	de,[curr_arg]
+	ld	de,[file_name]
         call openstream_file
         or	a
         jr	nz,.file_error
@@ -220,7 +501,7 @@ process_file:
 		jr	.prtext
 
 .file_error
-		ld	hl,[curr_arg]
+		ld	hl,[file_name]
 		call	prtext
 		ld	hl,file_error
 .prtext
@@ -258,19 +539,24 @@ help_msg1:	db	"Usage: ",0
 help_msg2:	db	" [OPTION] [FILE]...",13,10
 		db	"Print CRC-32 (0xEDB88320) checksums.",13,10,13,10
 ;		db	"With no FILE or when file is -, read standard input.",13,10,13,10
-;		db	"  -c, --check     read CRCs from the FILEs and check them",13,10
-		db	"  -h, --help      display this help and exit",13,10
+		db	"  -c   read CRCs from the FILEs and check them.",13,10
+		db	"       file format: ^<CRC><space><space><filename><EOL>",13,10
+		db	"  -h   display this help and exit",13,10
 		db	13,10
 		db	0
 
 
-help_arg1:	db	"-h",0
-help_arg2:	db	"--help",0
+help_arg:	db	"-h",0
+chk_arg:	db	"-c",0
 
 txtdblspc:	db	"  ",0
 txtcrlf:        db	13,10,0
 
 file_error:	db	": Error opening or reading file",13,10,0
+format_error:	db	": File format error",13,10,0
+
+name_to_file:	db	": ",0
+
 
 
 strcmp:		;compare strings pointed by HL and DE, case-sensitive.
@@ -293,6 +579,9 @@ strcmp:		;compare strings pointed by HL and DE, case-sensitive.
 .lastcmp
 		cp	[hl]
 		ret
+
+
+
 
 
 
@@ -353,7 +642,17 @@ prtext
 
 name_ptr:	dw	0
 curr_arg:	dw	0
+file_name:	dw	0
 argp_state:	db	0
+
+list_hndl:	db	0
+
+lpush:		db	0
+lpbyte:		db	0
+lptr:		dw	0
+lsz:		dw	0
+
+
 
 
 	;bc - size
@@ -398,6 +697,13 @@ crc_loop
 
 CRCArea
         ds 4,0xff
+
+
+
+CHKSUM	ds	CHKSYMLEN+1	;checksum to check, taken from '-c filename' file
+FNAME	ds	MAXPATH_sz+1	;file/path to check, taken from '-c filename' file
+
+
 
 cmd_end
 
