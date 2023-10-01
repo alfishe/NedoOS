@@ -1,3 +1,4 @@
+//("Откиньтесь на спинку кресла и отдохните, пока");
 #include <stdio.h>
 #include <string.h>
 #include <intrz80.h>
@@ -45,7 +46,7 @@ unsigned char netbuf[3000];
 void clearStatus(void)
 {
 	AT(1, 24);
-	printf("                                                                                \r");
+	printf("                                                                                ");
 }
 
 void printTable(void)
@@ -81,6 +82,8 @@ void delay(unsigned long counter)
 		YIELD();
 	}
 }
+
+#include <printNews().c>
 
 void drawWindow(struct window w)
 {
@@ -185,8 +188,6 @@ unsigned char OS_SHELL(unsigned char *command)
 	FILE *fp3;
 	main_pg.l = OS_GETMAINPAGES();
 	pgbak = main_pg.pgs.window_3;
-	//	printf("OS_GETMAINPAGES()\r\n");
-	//	printf("main_pg.pgs.window_0=%u\r\nmain_pg.pgs.window_1=%u\r\nmain_pg.pgs.window_2=%u\r\nmain_pg.pgs.window_3=%u\r\n", main_pg.pgs.window_0, main_pg.pgs.window_1, main_pg.pgs.window_2, main_pg.pgs.window_3);
 	OS_GETPATH((unsigned int)&curPath);
 	strcat(appCmd, command);
 	fp3 = OS_OPENHANDLE(fileName, 0x80);
@@ -203,19 +204,9 @@ unsigned char OS_SHELL(unsigned char *command)
 
 	OS_NEWAPP((unsigned int)&shell_pg);
 
-	//	printf("OS_NEWAPP [iD:%u]\r\n", shell_pg.pgs.pId);
-	//	printf("shell_pg.pgs.window_0=%u\r\nshell_pg.pgs.window_1=%u\r\nshell_pg.pgs.window_2=%u\r\nshell_pg.pgs.window_3=%u\r\n", shell_pg.pgs.window_0, shell_pg.pgs.window_1, shell_pg.pgs.window_2, shell_pg.pgs.window_3);
 	shell_pg.l = OS_GETAPPMAINPAGES(shell_pg.pgs.pId);
-	//	printf("OS_GETAPPMAINPAGES\r\n");
-	//	printf("shell_pg.pgs.window_0=%u (0000)\r\nshell_pg.pgs.window_1=%u\r\nshell_pg.pgs.window_2=%u\r\nshell_pg.pgs.window_3=%u\r\n", shell_pg.pgs.window_0, shell_pg.pgs.window_1, shell_pg.pgs.window_2, shell_pg.pgs.window_3);
 
 	SETPG32KHIGH(shell_pg.pgs.window_0);
-	//	printf("memcpy(");
-	//	printf("%u", (char *)(0xC080));
-	//	printf(",");
-	//	printf("%u", (char *)(&appCmd));
-	//	printf(",");
-	//	printf("%u)\r\n", sizeof(appCmd));
 
 	memcpy((char *)(0xC080), (char *)(&appCmd), sizeof(appCmd));
 
@@ -227,13 +218,11 @@ unsigned char OS_SHELL(unsigned char *command)
 		memcpy((char *)(adr), &netbuf, loaded);
 		loop = loop + loaded;
 	}
-	// OS_DIHALT();
-	// printf("shellSize = %u loop(sum)=%u adr=%u\r\n\r\n", shellSize, loop, adr);
 
 	OS_CLOSEHANDLE(fp3);
 	SETPG32KHIGH(pgbak);
+	clearStatus();
 	AT(1, 24);
-	// clearStatus();
 	printf("Running shell [pId:%u][%s][%s]", shell_pg.pgs.pId, curPath, appCmd);
 	AT(1, 24);
 	delay(300);
@@ -371,6 +360,8 @@ void ren2bin(void)
 	}
 }
 
+
+
 void restoreConfig(unsigned char oldBinExt)
 {
 	unsigned char *name = "0000000000000000000000000000000000";
@@ -406,7 +397,7 @@ void restoreConfig(unsigned char oldBinExt)
 		OS_SHELL((void *)name);
 	}
 
-	errn = OS_RENAME("bin/autoexec.new", "bin/autoexec.bat");
+	errn = OS_RENAME("bin/autoexec.new", "bin/autoexec.bat"); // If file already exist we dont rename
 	errn = OS_RENAME("bin/net.new", "bin/net.ini");
 	errn = OS_RENAME("bin/nv.new", "bin/nv.ext");
 }
@@ -445,13 +436,13 @@ void fullUpdate(void)
 
 	clearStatus();
 	AT(cw.x + 2, cw.y + 3);
-	printf("Downloading release.zip...");
+	printf("1.Downloading release.zip...");
 
 	errn = getFile(relLink, "release.zip"); //  Downloading the file
 
 	clearStatus();
 	AT(cw.x + 2, cw.y + 4);
-	printf("Backuping old system...\r\n");
+	printf("2.Backuping old system...\r\n");
 
 	oldBinExt = ren2old("bin");
 	ren2old("doc");
@@ -460,13 +451,15 @@ void fullUpdate(void)
 
 	clearStatus();
 	AT(cw.x + 2, cw.y + 5);
-	printf("Downloading tools...\r\n");
+	printf("3.Downloading tools...\r\n");
 
 	getTools();
 
 	BOX(1, 1, 80, 25, 40, 32);
 	AT(1, 1);
 	printf("Depacking release. Its take about 10 hours. Please wait.\r\n");
+	printf("First hours going without signs of life.\r\n");
+	printNews();
 	YIELD();
 	OS_SHELL("pkunzip.com release.zip");
 	drawWindow(cw);
@@ -474,7 +467,6 @@ void fullUpdate(void)
 	ATRIB(cw.text);
 	ATRIB(cw.back);
 	printf("Restoring configs...");
-	OS_DELETE("release.zip");
 }
 // Updating only BIN folders, where is OS lives.
 void binUpdate(void)
@@ -503,13 +495,13 @@ void binUpdate(void)
 
 	clearStatus();
 	AT(cw.x + 2, cw.y + 3);
-	printf("Downloading bin.zip...");
+	printf("1.Downloading bin.zip...");
 
 	errn = getFile(binLink, "bin.zip"); //  Downloading the file
 
 	clearStatus();
 	AT(cw.x + 2, cw.y + 4);
-	printf("Downloading tools...");
+	printf("2.Downloading tools...");
 
 	getTools();
 
@@ -517,6 +509,8 @@ void binUpdate(void)
 	AT(1, 1);
 	printf("Please, make sure you don't have bin.r* folder on disk!!!\r\n");
 	printf("Depacking release. Its take about 10 minutes. Please wait...\r\n");
+
+	printNews();
 	YIELD();
 
 	OS_SHELL("pkunzip.com bin.zip");
@@ -526,46 +520,46 @@ void binUpdate(void)
 	AT(cw.x + 2, cw.y + 3);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("Renaming bin.r?? to bin.tar...");
+	printf("3.Renaming bin.r?? to bin.tar...");
 
 	ren2tar();
 
 	AT(cw.x + 2, cw.y + 4);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("Untaring bin.tar, please wait...");
+	printf("4.Untaring bin.tar, please wait...");
 	clearStatus();
 	OS_SHELL("tar.com bin.tar");
 
 	AT(cw.x + 2, cw.y + 5);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("Backuping old bin to bin.old...");
+	printf("5.Backuping old bin to bin.old...");
 
 	oldBinExt = ren2old("bin");
 
 	AT(cw.x + 2, cw.y + 6);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("Renaming NEW BIN...");
+	printf("6.Renaming NEW BIN...");
 
 	ren2bin();
 
 	AT(cw.x + 2, cw.y + 7);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("Deleting zip & tar...");
+	printf("7.Deleting zip & tar...");
 
 	AT(cw.x + 2, cw.y + 8);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("Downloading kernel [%s]...", machineName);
+	printf("8.Downloading kernel [%s]...", machineName);
 	errn = OS_CHDIR("/");
 	errn = getFile(kernelLink, kernelName); //  Downloading the file
 	AT(cw.x + 2, cw.y + 9);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("Restoring configs...");
+	printf("9.Restoring configs...");
 }
 
 C_task main(int argc, char *argv[])
@@ -593,6 +587,7 @@ C_task main(int argc, char *argv[])
 	clearStatus();
 	infoBox("System Updated successfully!");
 	getchar();
+	OS_DELETE("release.zip");
 	ATRIB(40);
 	ATRIB(32);
 	exit(0);
