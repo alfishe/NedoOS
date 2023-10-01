@@ -34,9 +34,22 @@ playerinit
 ;hl = GPSETTINGS
 ;a = player page
 ;out: zf=1 if init is successful, hl=init message
+	call setdefaultpanning
+	ld ix,modplayer
+	call opl4initwave
+	ret z
+	ld a,255
+	ld (modsupported),a ;writes 255 disabling the extension
+	ret
+
+setdefaultpanning
+;hl = GPSETTINGS
 	push hl
 	pop ix
 	ld de,(ix+GPSETTINGS.moonmoddefaultpanning)
+	ld a,d
+	or e
+	ret z
 	ld b,4
 	ld hl,moddefaultpanning
 .setpanningloop
@@ -50,12 +63,6 @@ playerinit
 	inc hl
 	inc de
 	djnz .setpanningloop
-;check if MoonSound is available
-	ld ix,modplayer
-	call opl4initwave
-	ret z
-	ld a,255
-	ld (modsupported),a ;writes 255 disabling the extension
 	ret
 
 playerdeinit

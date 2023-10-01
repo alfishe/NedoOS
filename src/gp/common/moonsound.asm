@@ -26,17 +26,6 @@ ismoonsoundpresent
 	cp 255
 	ccf
 	sbc a,a
-	ret nz
-;FIXME: f***ing kempston joystick in Unreal :-\
-	ld bc,0
-.loop	in a,(MOON_STAT)
-	and 3
-	ret z
-	dec bc
-	ld a,b
-	or c
-	jr nz,.loop
-	dec a
 	ret
 
 MOONSOUNDROMSIZE = 0x200000

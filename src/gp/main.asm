@@ -1094,6 +1094,10 @@ loadplayer
 ;de = code size
 ;hl = settings variable addr
 	ld (.codesize),de
+	ld a,h
+	or l
+	ld a,'1' ;default for Use<Player> variable is 1
+	jr z,$+3
 	ld a,(hl)
 	ld (.settingsvalue),a
 	OS_NEWPAGE
@@ -1149,12 +1153,7 @@ loadplayers
 	ld a,(filehandle)
 	ld b,a
 	OS_GETFILESIZE
-	ld a,d
-	or e
-	ex de,hl
-	ld hl,invalidplayerfilestr
-	ret nz
-	ld hl,plrend-plrbegin
+	ld de,plrend-plrbegin
 	sub hl,de
 	ld hl,invalidplayerfilestr
 	ret nz
