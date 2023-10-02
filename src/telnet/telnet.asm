@@ -277,7 +277,7 @@ telnet_noresolve
 telnet_loop
 	YIELDGETKEY
 	ld a,c
-	cp key_esc
+	cp extD ;key_esc ;Sayman
 	jp z,telnet_end
 	cp NOKEY
 	jr z,telnet_purge
