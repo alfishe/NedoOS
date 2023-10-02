@@ -575,8 +575,8 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
     strcat(netbuf, userAgent);
     break;
 
-  case 1: 
-    strcat(netbuf, "GET /api/types:zxPicture/export:zxPicture/language:eng/start:0/limit:1/order:votes,rand/filter:zxPictureMinRating=4");
+  case 1:
+    strcat(netbuf, "GET /api/types:zxPicture/export:zxPicture/language:eng/start:0/limit:1/order:votes,rand/filter:zxPictureMinRating=4;zxPictureType=standard");
     strcat(netbuf, userAgent);
     break;
 
@@ -847,6 +847,14 @@ start:
   if (keypress == 'r' || keypress == 'R')
   {
     randomPic = !randomPic;
+    if (randomPic == 1)
+    {
+      printf("    Random mode enabled...\r\n");
+    }
+    else
+    {
+      printf("    Sequental mode enabled...\r\n");
+    }
   }
   goto start;
 }

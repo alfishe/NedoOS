@@ -41,7 +41,7 @@ unsigned char machineName[32];
 unsigned char kernelLink[256];
 
 unsigned int bufSize = 2048; // Some memory corruption at this point, some QnD
-unsigned char netbuf[3000];
+unsigned char netbuf[4000];
 
 void clearStatus(void)
 {
