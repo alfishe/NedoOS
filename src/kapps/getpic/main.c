@@ -24,7 +24,7 @@ struct fileStruct
   unsigned char pfn[128];
   unsigned char fileName[128];
 } curFileStruct;
-unsigned char ver[] = "1.7";
+unsigned char ver[] = "1.8";
 unsigned char netbuf[2048];
 unsigned char picture[16384];
 unsigned char crlf[2] = {13, 10};
@@ -574,12 +574,19 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
     strcat(netbuf, "/order:date,desc");
     strcat(netbuf, userAgent);
     break;
+
+  case 1: 
+    strcat(netbuf, "GET /api/types:zxPicture/export:zxPicture/language:eng/start:0/limit:1/order:votes,rand/filter:zxPictureMinRating=4");
+    strcat(netbuf, userAgent);
+    break;
+
   case 3: // /api/export:author/filter:authorId=2202
     strcat(netbuf, "GET /api/export:author/filter:authorId=");
     sprintf(buffer, "%lu", startPos);
     strcat(netbuf, buffer);
     strcat(netbuf, userAgent);
     break;
+
   case 99: // GET /jsonElementData/elementId:182798
     strcpy(netbuf, "GET /jsonElementData/elementId:");
     sprintf(buffer, "%lu", startPos);
@@ -704,13 +711,14 @@ void printData(void)
 
 C_task main(void)
 {
-  unsigned char errno, keypress, verbose;
+  unsigned char errno, keypress, verbose, randomPic;
   unsigned long ipadress;
   long iddqd, idkfa;
   os_initstdio();
 
   count = 0;
   verbose = 1;
+  randomPic = 0;
 
   BOX(1, 1, 80, 25, 40);
   AT(1, 1);
@@ -727,20 +735,30 @@ C_task main(void)
   printf("	'I' Просмотр экрана информации о картинках\n\r");
   printf("	'S' Сохранить картинку на диск в текущую папку\n\r");
   printf("	'V' не выводить информацию об авторах\n\r");
+  printf("	'R' переход в режим  случайная картинка с рейтингом 4+\n\r");
   printf("	----------------Нажмите любую кнопку----------------\n\r");
   /*
     ipadress = OS_DNSRESOLVE("zxart.ee");
     printf("\n\r  OS_DNSRESOLVE =  %lu \n\r", ipadress);
     printf("------------------------\n\r");
   */
-  AT(1, 11);
+  AT(1, 12);
   do
   {
     key = _low_level_get();
   } while (key == 0);
 
 start:
-  iddqd = processJson(count, 1, 0);
+  switch (randomPic)
+  {
+  case 0:
+    iddqd = processJson(count, 1, 0);
+    break;
+  case 1:
+    iddqd = processJson(0, 1, 1);
+    break;
+  }
+
   if (iddqd < 0)
   {
     exit(0);
@@ -748,7 +766,7 @@ start:
   idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
   if (idkfa < 0)
   {
-    printf("curFileStruct.authorIds = %s \r\n", curFileStruct.authorIds);
+    printf(" Cant find curFileStruct.authorIds = %s \r\n\r\n", curFileStruct.authorIds);
     // exit(0);
   }
 
@@ -824,6 +842,11 @@ start:
   if (keypress == 'v' || keypress == 'V')
   {
     verbose = !verbose;
+  }
+
+  if (keypress == 'r' || keypress == 'R')
+  {
+    randomPic = !randomPic;
   }
   goto start;
 }

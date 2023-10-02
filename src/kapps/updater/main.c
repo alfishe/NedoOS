@@ -10,7 +10,7 @@
 #include <intrz80.h>
 #include <ctype.h>
 #include <math.h>
-unsigned char uVer[] = "0.35";
+unsigned char uVer[] = "0.36";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -228,10 +228,7 @@ unsigned char OS_SHELL(unsigned char *command)
 	delay(300);
 	OS_RUNAPP(shell_pg.pgs.pId);
 	AT(1, 4);
-	//	printf("\r\nOS_RUNAPP finished\r\n");
 	OS_WAITPID(shell_pg.pgs.pId);
-	//	getchar();
-	//	exit(0);
 	return shell_pg.pgs.pId;
 }
 //////////////// NETWORK PART //////////////////////
@@ -360,11 +357,10 @@ void ren2bin(void)
 	}
 }
 
-
-
 void restoreConfig(unsigned char oldBinExt)
 {
 	unsigned char *name = "0000000000000000000000000000000000";
+	unsigned char count;
 	errn = OS_CHDIR("/");
 	errn = OS_RENAME("bin/autoexec.bat", "bin/autoexec.new");
 	errn = OS_RENAME("bin/net.ini", "bin/net.new");
@@ -392,11 +388,14 @@ void restoreConfig(unsigned char oldBinExt)
 
 		sprintf(name, "copy bin.%u/nv.ext bin/nv.ext", oldBinExt);
 		OS_SHELL((void *)name);
-
 		sprintf(name, "copy bin.%u/nv.pth bin/nv.pth", oldBinExt);
 		OS_SHELL((void *)name);
 	}
-
+	AT(1, 4);
+	for (count = 0; count < 15; count++)
+	{
+		putchar(176);
+	}
 	errn = OS_RENAME("bin/autoexec.new", "bin/autoexec.bat"); // If file already exist we dont rename
 	errn = OS_RENAME("bin/net.new", "bin/net.ini");
 	errn = OS_RENAME("bin/nv.new", "bin/nv.ext");
@@ -462,6 +461,7 @@ void fullUpdate(void)
 	printNews();
 	YIELD();
 	OS_SHELL("pkunzip.com release.zip");
+	BOX(1, 1, 80, 25, 40, 176);
 	drawWindow(cw);
 	AT(cw.x + 2, cw.y + 3);
 	ATRIB(cw.text);
