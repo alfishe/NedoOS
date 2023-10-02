@@ -576,7 +576,7 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
     break;
 
   case 1:
-    strcat(netbuf, "GET /api/types:zxPicture/export:zxPicture/language:eng/start:0/limit:1/order:votes,rand/filter:zxPictureMinRating=4;zxPictureType=standard");
+    strcat(netbuf, "GET /api/types:zxPicture/export:zxPicture/language:eng/start:0/limit:1/order:date,rand/filter:zxPictureMinRating=4;zxPictureType=standard");
     strcat(netbuf, userAgent);
     break;
 
@@ -761,12 +761,15 @@ start:
 
   if (iddqd < 0)
   {
-    exit(0);
+     count++;
+    goto start;
   }
   idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
   if (idkfa < 0)
   {
-    printf(" Cant find curFileStruct.authorIds = %s \r\n\r\n", curFileStruct.authorIds);
+    printf(" Cant parse curFileStruct.authorIds = %s \r\n\r\n", curFileStruct.authorIds);
+    count++;
+    goto start;
     // exit(0);
   }
 
