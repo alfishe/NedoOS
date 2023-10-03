@@ -29,7 +29,7 @@ unsigned char netbuf[2048];
 unsigned char picture[16384];
 unsigned char crlf[2] = {13, 10};
 unsigned long bytecount;
-unsigned char status, key;
+unsigned char status, key, keypress;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 unsigned long contLen;
@@ -399,8 +399,9 @@ unsigned char savePic(unsigned long fileId)
   str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "&lt;", "(");
   str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "\"", "'");
 
-  sprintf(curFileStruct.fileName, "%s-%s-%ld.scr", curFileStruct.afn, curFileStruct.pfn, fileId);
-
+  sprintf(curFileStruct.fileName, "../downloads/getpic/%s-%s-%ld.scr", curFileStruct.afn, curFileStruct.pfn, fileId);
+  OS_SETSYSDRV();
+  OS_MKDIR("../downloads/getpic"); // Create if not exist
   fp2 = OS_CREATEHANDLE(curFileStruct.fileName, 0x80);
   if (((int)fp2) & 0xff)
   {
@@ -576,7 +577,7 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
     break;
 
   case 1:
-    strcat(netbuf, "GET /api/types:zxPicture/export:zxPicture/language:eng/start:0/limit:1/order:date,rand/filter:zxPictureMinRating=4;zxPictureType=standard");
+    strcat(netbuf, "GET /api/types:zxPicture/export:zxPicture/language:eng/start:0/limit:1/order:rand/filter:zxPictureMinRating=4;zxPictureType=standard");
     strcat(netbuf, userAgent);
     break;
 
@@ -665,6 +666,29 @@ rejson:
   return curFileStruct.picId;
 }
 
+void printHelp(void)
+{
+  ATRIB(95);
+  printf("              GETPIC [%s] zxart.ee picture viewer for nedoNET\n\r", ver);
+  ATRIB(33);
+  ATRIB(40);
+  printf(" Управление:\n\r");
+  printf("	'ESC' - выход из программы;\n\r");
+  printf("	'<-' или 'B' к последним картинкам;\n\r");
+  printf("	'->' или 'Пробел' к более старым картинкам\n\r");
+  printf("	'J' Прыжок на  указанную по счету картинку\n\r");
+  printf("	'I' Просмотр экрана информации о картинках\n\r");
+  printf("	'S' Сохранить картинку на диск в текущую папку\n\r");
+  printf("	'V' не выводить информацию об авторах\n\r");
+  printf("	'R' переход в режим  случайная картинка с рейтингом 4+\n\r");
+  printf("	'H' Данная справочная информация\n\r");
+  printf("	----------------Нажмите любую кнопку----------------\n\r");
+  do
+  {
+    keypress = _low_level_get();
+  } while (keypress == 0);
+}
+
 void printData(void)
 {
   ATRIB(93);
@@ -711,7 +735,7 @@ void printData(void)
 
 C_task main(void)
 {
-  unsigned char errno, keypress, verbose, randomPic;
+  unsigned char errno, verbose, randomPic;
   unsigned long ipadress;
   long iddqd, idkfa;
   os_initstdio();
@@ -724,29 +748,15 @@ C_task main(void)
   AT(1, 1);
   ATRIB(97);
   ATRIB(40);
-  printf("              GETPIC [%s] zxart.ee picture viewer for nedoNET\n\r", ver);
-  ATRIB(33);
-  ATRIB(40);
-  printf(" Управление:\n\r");
-  printf("	'ESC' - выход из программы;\n\r");
-  printf("	'<-' или 'B' к последним картинкам;\n\r");
-  printf("	'->' или 'Пробел' к более старым картинкам\n\r");
-  printf("	'J' Прыжок на  указанную по счету картинку\n\r");
-  printf("	'I' Просмотр экрана информации о картинках\n\r");
-  printf("	'S' Сохранить картинку на диск в текущую папку\n\r");
-  printf("	'V' не выводить информацию об авторах\n\r");
-  printf("	'R' переход в режим  случайная картинка с рейтингом 4+\n\r");
-  printf("	----------------Нажмите любую кнопку----------------\n\r");
+  printHelp();
+  AT(1, 13);
   /*
     ipadress = OS_DNSRESOLVE("zxart.ee");
     printf("\n\r  OS_DNSRESOLVE =  %lu \n\r", ipadress);
     printf("------------------------\n\r");
   */
-  AT(1, 12);
-  do
-  {
-    key = _low_level_get();
-  } while (key == 0);
+
+  goto safeKeys;
 
 start:
   switch (randomPic)
@@ -761,7 +771,7 @@ start:
 
   if (iddqd < 0)
   {
-     count++;
+    count++;
     goto start;
   }
   idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
@@ -786,6 +796,8 @@ start:
 
   {
     errno = getPic(iddqd);
+
+    ///// Keys only for pictures
   review:
     keypress = viewScreen6912((unsigned int)&picture);
   }
@@ -803,13 +815,6 @@ start:
     count++;
   }
 
-  if (keypress == 27)
-  {
-    printf("Good bye...\r\n");
-    ATRIB(37);
-    ATRIB(40);
-    exit(0);
-  }
   if (keypress == 248 || keypress == 'b' || keypress == 'B')
   {
     if (count > 0)
@@ -822,6 +827,24 @@ start:
   {
     count++;
   }
+  if (keypress == 'i' || keypress == 'I')
+  {
+    do
+    {
+      key = _low_level_get();
+    } while (key == 0);
+    goto review;
+  }
+
+///////////////// Safe for start keys
+safeKeys:
+  if (keypress == 27)
+  {
+    printf("Good bye...\r\n");
+    ATRIB(37);
+    ATRIB(40);
+    exit(0);
+  }
 
   if (keypress == 'j' || keypress == 'J')
   {
@@ -833,18 +856,14 @@ start:
     }
   }
 
-  if (keypress == 'i' || keypress == 'I')
-  {
-    do
-    {
-      key = _low_level_get();
-    } while (key == 0);
-    goto review;
-  }
-
   if (keypress == 'v' || keypress == 'V')
   {
     verbose = !verbose;
+  }
+
+  if (keypress == 'h' || keypress == 'H')
+  {
+    printHelp();
   }
 
   if (keypress == 'r' || keypress == 'R')
