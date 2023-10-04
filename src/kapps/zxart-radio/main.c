@@ -546,6 +546,13 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
     str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "\"", "'");
 
     sprintf(curFileStruct.fileName, "../downloads/radio/%s-%s.%s", curFileStruct.afn, curFileStruct.tfn, formats[curFormat]);
+  
+    if (strlen(curFileStruct.fileName) > 64)
+    {
+      curFileStruct.fileName[63] = '\0';
+      strcat(curFileStruct.fileName, formats[curFormat]);
+      // printf("filename = [%s]",curFileStruct.fileName);
+    }
   }
 
   if (operation == 00)
