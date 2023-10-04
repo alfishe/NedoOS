@@ -309,7 +309,10 @@ IST=$+1
         ld a,(savefilehandle)
         ld b,a
         push iy
+       inc a
+       jr z,skipbadsave
         OS_WRITEHANDLE
+skipbadsave
         pop iy
         
         else;RE_READ
@@ -332,7 +335,10 @@ IST=$+1
         ld a,(savefilehandle)
         ld b,a
         push iy
+       inc a
+       jr z,skipbadsave
         OS_WRITEHANDLE
+skipbadsave
         pop iy
                 LD DE,#4000        LD HL,(IST)        ADD HL,DE        LD (IST),HL        pop hl ;remaining size
         ld a,h
@@ -360,7 +366,7 @@ findslash_or_zero0
 SAVECREATE
         ;jr $
         push iy
-SAVECREATE_retry
+;SAVECREATE_retry
         ld de,filename
         OS_CREATEHANDLE
          or a
@@ -371,7 +377,7 @@ SAVECREATE_retry
 SAVECREATE_mkdir0
         call findslash_or_zero ;hl=at slash or zero, a=code
         or a
-        jr z,SAVECREATE_retry ;path created
+        jr z,SAVECREATE_aftermd;SAVECREATE_retry ;path created
         push hl ;hl=at slash or zero
         ld (hl),0 ;end path at this slash
         ld de,filename
@@ -385,6 +391,12 @@ SAVECREATE_mkdir0
 SAVECREATE_mkdir_exist
         inc hl ;after slash
         jr SAVECREATE_mkdir0
+SAVECREATE_aftermd
+        ld de,filename
+        OS_CREATEHANDLE
+         or a
+         jr z,SAVECREATE_nomkdir
+         ld b,0xff ;badsavehandle
 SAVECREATE_nomkdir
 ;b=new file handle
         ld a,b
