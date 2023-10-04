@@ -335,7 +335,7 @@ telnet_read
 	jr z,telnet_esc
 	cp 0x20
 	jp c,telnet_read
-	cp 223;128 ;TODO 240?
+	cp 242;223;128 ;TODO 240?
 	jp nc,telnet_noprintable
 telnet_read_prchar
 	PRCHAR
