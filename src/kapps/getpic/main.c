@@ -400,6 +400,12 @@ unsigned char savePic(unsigned long fileId)
   str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "\"", "'");
 
   sprintf(curFileStruct.fileName, "../downloads/getpic/%s-%s-%ld.scr", curFileStruct.afn, curFileStruct.pfn, fileId);
+  if (strlen (curFileStruct.fileName) > 64)
+  {
+   curFileStruct.fileName[63] = '\0';
+   strcat(curFileStruct.fileName,".scr");
+   //printf("filename = [%s]",curFileStruct.fileName);
+  }
   OS_SETSYSDRV();
   OS_MKDIR("../downloads/getpic"); // Create if not exist
   fp2 = OS_CREATEHANDLE(curFileStruct.fileName, 0x80);
