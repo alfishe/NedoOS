@@ -10,7 +10,7 @@
 #include <graphic.h>
 #include <terminal.c>
 #define COMMANDLINE 0x0080
-unsigned char ver[] = "1.7";
+unsigned char ver[] = "1.8";
 unsigned char queryType[64];
 unsigned char netbuf[1452];
 unsigned char dataBuffer[6096];
@@ -500,63 +500,70 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
   FILE *fp2;
   unsigned long fileSize;
   unsigned char afnSize, tfnSize;
-
-  if (saveFlag == 0)
-  {
-    sprintf(curFileStruct.fileName, "../downloads/radio/temp.%s", formats[curFormat]);
-  }
-  else
-  {
-    afnSize = sizeof(curFileStruct.afn) - 1;
-    tfnSize = sizeof(curFileStruct.tfn) - 1;
-
-    strcpy(curFileStruct.afn, curFileStruct.authorTitle);
-    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "\\", "_");
-    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "/", "_");
-    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, ":", "_");
-    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "*", "_");
-    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "?", "_");
-    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "<", "_");
-    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, ">", "_");
-    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "|", "_");
-    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, " ", "_");
-    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&#039;", "'");
-    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&amp;", "&");
-    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&quot;", "'");
-    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&gt;", ")");
-    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&lt;", "(");
-    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "\"", "'");
-
-    strcpy(curFileStruct.tfn, curFileStruct.trackName);
-
-    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "\\", "_");
-    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "/", "_");
-    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, ":", "_");
-    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "*", "_");
-    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "?", "_");
-    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "<", "_");
-    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, ">", "_");
-    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "|", "_");
-    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, " ", "_");
-    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&#039;", "'");
-    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&amp;", "&");
-    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&quot;", "'");
-    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&gt;", ")");
-    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&lt;", "(");
-    str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "\"", "'");
-
-    sprintf(curFileStruct.fileName, "../downloads/radio/%s-%s.%s", curFileStruct.afn, curFileStruct.tfn, formats[curFormat]);
-  
-    if (strlen(curFileStruct.fileName) > 64)
-    {
-      curFileStruct.fileName[63] = '\0';
-      strcat(curFileStruct.fileName, formats[curFormat]);
-      // printf("filename = [%s]",curFileStruct.fileName);
-    }
-  }
+  unsigned char fileIdChar[10];
 
   if (operation == 00)
   {
+
+    if (saveFlag == 0)
+    {
+      sprintf(curFileStruct.fileName, "temp.%s", formats[curFormat]);
+    }
+    else
+    {
+      afnSize = sizeof(curFileStruct.afn) - 1;
+      tfnSize = sizeof(curFileStruct.tfn) - 1;
+
+      strcpy(curFileStruct.afn, curFileStruct.authorTitle);
+
+      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "\\", "_");
+      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "/", "_");
+      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, ":", "_");
+      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "*", "_");
+      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "?", "_");
+      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "<", "_");
+      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, ">", "_");
+      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "|", "_");
+      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, " ", "_");
+      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&#039;", "'");
+      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&amp;", "&");
+      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&quot;", "'");
+      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&gt;", ")");
+      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&lt;", "(");
+      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "\"", "'");
+
+      strcpy(curFileStruct.tfn, curFileStruct.trackName);
+
+      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "\\", "_");
+      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "/", "_");
+      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, ":", "_");
+      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "*", "_");
+      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "?", "_");
+      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "<", "_");
+      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, ">", "_");
+      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "|", "_");
+      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, " ", "_");
+      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&#039;", "'");
+      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&amp;", "&");
+      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&quot;", "'");
+      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&gt;", ")");
+      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&lt;", "(");
+      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "\"", "'");
+
+      sprintf(curFileStruct.fileName, "%s-%s.%s", curFileStruct.afn, curFileStruct.tfn, formats[curFormat]);
+
+      if (strlen(curFileStruct.fileName) > 63)
+      {
+        curFileStruct.fileName[50] = '\0';
+        sprintf(fileIdChar, "-%ld", fileId);
+        strcat(curFileStruct.fileName, fileIdChar);
+        strcat(curFileStruct.fileName, formats[curFormat]);
+        // printf("filename = [%s]",curFileStruct.fileName);
+      }
+    }
+    OS_SETSYSDRV();
+    OS_MKDIR("../downloads/radio"); // Create if not exist
+    OS_CHDIR("../downloads/radio");
     fp2 = OS_CREATEHANDLE(curFileStruct.fileName, 0x80);
     if (((int)fp2) & 0xff)
     {
@@ -898,7 +905,7 @@ unsigned char runPlayer(void)
   pgbak = main_pg.pgs.window_3;
   loaded = 0;
   OS_GETPATH((unsigned int)&curPath);
-  // OS_SETSYSDRV();
+  OS_SETSYSDRV();
   fp2 = OS_OPENHANDLE(fileName, 0x80);
   if (((int)fp2) & 0xff)
   {
@@ -1270,7 +1277,7 @@ rekey:
       errn = getTrack(iddqd); // Downloading the track
       saveFlag = saveBak;
       clearStatus();
-      printf("Saving file %s...", curFileStruct.fileName);
+      printf("File saved: [%s]...", curFileStruct.fileName);
       goto rekey;
     }
   }

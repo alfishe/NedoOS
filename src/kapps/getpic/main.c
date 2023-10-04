@@ -360,6 +360,7 @@ unsigned char savePic(unsigned long fileId)
 {
   FILE *fp2;
   unsigned char afnSize, tfnSize;
+  unsigned char fileIdChar[10];
 
   afnSize = sizeof(curFileStruct.afn) - 1;
   tfnSize = sizeof(curFileStruct.pfn) - 1;
@@ -399,15 +400,18 @@ unsigned char savePic(unsigned long fileId)
   str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "&lt;", "(");
   str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "\"", "'");
 
-  sprintf(curFileStruct.fileName, "../downloads/getpic/%s-%s-%ld.scr", curFileStruct.afn, curFileStruct.pfn, fileId);
+  sprintf(curFileStruct.fileName, "%s-%s-%ld.scr", curFileStruct.afn, curFileStruct.pfn, fileId);
   if (strlen (curFileStruct.fileName) > 64)
   {
-   curFileStruct.fileName[63] = '\0';
+   curFileStruct.fileName[50] = '\0';
+   sprintf(fileIdChar,"-%ld", fileId);
+   strcat(curFileStruct.fileName, fileIdChar);
    strcat(curFileStruct.fileName,".scr");
-   //printf("filename = [%s]",curFileStruct.fileName);
+   // printf("filename = [%s]",curFileStruct.fileName);
   }
   OS_SETSYSDRV();
   OS_MKDIR("../downloads/getpic"); // Create if not exist
+  OS_CHDIR ("../downloads/getpic");
   fp2 = OS_CREATEHANDLE(curFileStruct.fileName, 0x80);
   if (((int)fp2) & 0xff)
   {
