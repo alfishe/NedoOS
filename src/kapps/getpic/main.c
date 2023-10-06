@@ -339,6 +339,35 @@ void fillPicture(unsigned char socket)
   }
   netShutDown(socket);
 }
+void nameRepair(unsigned char *pfn, unsigned int tfnSize)
+{
+
+  str_replace(pfn, tfnSize, pfn, "\\", "_");
+  str_replace(pfn, tfnSize, pfn, "/", "_");
+  str_replace(pfn, tfnSize, pfn, ":", "_");
+  str_replace(pfn, tfnSize, pfn, "*", "_");
+  str_replace(pfn, tfnSize, pfn, "?", "_");
+  str_replace(pfn, tfnSize, pfn, "<", "_");
+  str_replace(pfn, tfnSize, pfn, ">", "_");
+  str_replace(pfn, tfnSize, pfn, "|", "_");
+  str_replace(pfn, tfnSize, pfn, " ", "_");
+  str_replace(pfn, tfnSize, pfn, "&#039;", "'");
+  str_replace(pfn, tfnSize, pfn, "&amp;", "&");
+  str_replace(pfn, tfnSize, pfn, "&quot;", "'");
+  str_replace(pfn, tfnSize, pfn, "&gt;", ")");
+  str_replace(pfn, tfnSize, pfn, "&lt;", "(");
+  str_replace(pfn, tfnSize, pfn, "\"", "'");
+}
+
+void stringRepair(unsigned char *pfn, unsigned int tSize)
+{
+  str_replace(pfn, tSize, pfn, "&#039;", "'");
+  str_replace(pfn, tSize, pfn, "&amp;", "&");
+  str_replace(pfn, tSize, pfn, "&gt;", ">");
+  str_replace(pfn, tSize, pfn, "&lt;", "<");
+  str_replace(pfn, tSize, pfn, "&quot;", "\"");
+  str_replace(pfn, tSize, pfn, "\\/", "/");
+}
 
 unsigned char getPic(unsigned long fileId)
 {
@@ -366,52 +395,56 @@ unsigned char savePic(unsigned long fileId)
   tfnSize = sizeof(curFileStruct.pfn) - 1;
 
   strcpy(curFileStruct.afn, curFileStruct.authorTitle);
-  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "\\", "_");
-  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "/", "_");
-  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, ":", "_");
-  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "*", "_");
-  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "?", "_");
-  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "<", "_");
-  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, ">", "_");
-  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "|", "_");
-  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, " ", "_");
-  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&#039;", "'");
-  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&amp;", "&");
-  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&quot;", "'");
-  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&gt;", ")");
-  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&lt;", "(");
-  str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "\"", "'");
-
+  nameRepair(curFileStruct.afn, afnSize);
+  /*
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "\\", "_");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "/", "_");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, ":", "_");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "*", "_");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "?", "_");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "<", "_");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, ">", "_");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "|", "_");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, " ", "_");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&#039;", "'");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&amp;", "&");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&quot;", "'");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&gt;", ")");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&lt;", "(");
+    str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "\"", "'");
+  */
   strcpy(curFileStruct.pfn, curFileStruct.picName);
+  nameRepair(curFileStruct.pfn, tfnSize);
 
-  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "\\", "_");
-  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "/", "_");
-  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, ":", "_");
-  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "*", "_");
-  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "?", "_");
-  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "<", "_");
-  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, ">", "_");
-  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "|", "_");
-  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, " ", "_");
-  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "&#039;", "'");
-  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "&amp;", "&");
-  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "&quot;", "'");
-  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "&gt;", ")");
-  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "&lt;", "(");
-  str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "\"", "'");
-
+  /*
+    str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "\\", "_");
+    str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "/", "_");
+    str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, ":", "_");
+    str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "*", "_");
+    str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "?", "_");
+    str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "<", "_");
+    str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, ">", "_");
+    str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "|", "_");
+    str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, " ", "_");
+    str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "&#039;", "'");
+    str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "&amp;", "&");
+    str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "&quot;", "'");
+    str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "&gt;", ")");
+    str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "&lt;", "(");
+    str_replace(curFileStruct.pfn, tfnSize, curFileStruct.pfn, "\"", "'");
+  */
   sprintf(curFileStruct.fileName, "%s-%s-%ld.scr", curFileStruct.afn, curFileStruct.pfn, fileId);
-  if (strlen (curFileStruct.fileName) > 64)
+  if (strlen(curFileStruct.fileName) > 62)
   {
-   curFileStruct.fileName[50] = '\0';
-   sprintf(fileIdChar,"-%ld", fileId);
-   strcat(curFileStruct.fileName, fileIdChar);
-   strcat(curFileStruct.fileName,".scr");
-   // printf("filename = [%s]",curFileStruct.fileName);
+    sprintf(fileIdChar, "-%ld", fileId);
+    str_replace(curFileStruct.fileName, sizeof(curFileStruct.fileName) - 1, curFileStruct.fileName, fileIdChar, "");
+    curFileStruct.fileName[50] = '\0';
+    strcat(curFileStruct.fileName, fileIdChar);
+    strcat(curFileStruct.fileName, ".scr");
   }
   OS_SETSYSDRV();
   OS_MKDIR("../downloads/getpic"); // Create if not exist
-  OS_CHDIR ("../downloads/getpic");
+  OS_CHDIR("../downloads/getpic");
   fp2 = OS_CREATEHANDLE(curFileStruct.fileName, 0x80);
   if (((int)fp2) & 0xff)
   {
@@ -645,13 +678,16 @@ rejson:
     convert866();
     strcpy(curFileStruct.picName, netbuf);
 
+    /*
+      str_replace(curFileStruct.picName, tSize, curFileStruct.picName, "&#039;", "'");
+      str_replace(curFileStruct.picName, tSize, curFileStruct.picName, "&amp;", "&");
+      str_replace(curFileStruct.picName, tSize, curFileStruct.picName, "&gt;", ">");
+      str_replace(curFileStruct.picName, tSize, curFileStruct.picName, "&lt;", "<");
+      str_replace(curFileStruct.picName, tSize, curFileStruct.picName, "&quot;", "\"");
+      str_replace(curFileStruct.picName, tSize, curFileStruct.picName, "\\/", "/");
+      */
     tSize = sizeof(curFileStruct.picName);
-    str_replace(curFileStruct.picName, tSize, curFileStruct.picName, "&#039;", "'");
-    str_replace(curFileStruct.picName, tSize, curFileStruct.picName, "&amp;", "&");
-    str_replace(curFileStruct.picName, tSize, curFileStruct.picName, "&gt;", ">");
-    str_replace(curFileStruct.picName, tSize, curFileStruct.picName, "&lt;", "<");
-    str_replace(curFileStruct.picName, tSize, curFileStruct.picName, "&quot;", "\"");
-    str_replace(curFileStruct.picName, tSize, curFileStruct.picName, "\\/", "/");
+    stringRepair(curFileStruct.picName, tSize);
 
     parseJson(",\"type\":\"");
     strcpy(curFileStruct.picType, netbuf);

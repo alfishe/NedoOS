@@ -495,6 +495,35 @@ unsigned int cutHeader(unsigned int todo)
   return q;
 }
 
+void nameRepair(unsigned char *pfn, unsigned int tfnSize)
+{
+  str_replace(pfn, tfnSize, pfn, "\\", "_");
+  str_replace(pfn, tfnSize, pfn, "/", "_");
+  str_replace(pfn, tfnSize, pfn, ":", "_");
+  str_replace(pfn, tfnSize, pfn, "*", "_");
+  str_replace(pfn, tfnSize, pfn, "?", "_");
+  str_replace(pfn, tfnSize, pfn, "<", "_");
+  str_replace(pfn, tfnSize, pfn, ">", "_");
+  str_replace(pfn, tfnSize, pfn, "|", "_");
+  str_replace(pfn, tfnSize, pfn, " ", "_");
+  str_replace(pfn, tfnSize, pfn, "&#039;", "'");
+  str_replace(pfn, tfnSize, pfn, "&amp;", "&");
+  str_replace(pfn, tfnSize, pfn, "&quot;", "'");
+  str_replace(pfn, tfnSize, pfn, "&gt;", ")");
+  str_replace(pfn, tfnSize, pfn, "&lt;", "(");
+  str_replace(pfn, tfnSize, pfn, "\"", "'");
+}
+
+void stringRepair(unsigned char *pfn, unsigned int tSize)
+{
+  str_replace(pfn, tSize, pfn, "&#039;", "'");
+  str_replace(pfn, tSize, pfn, "&amp;", "&");
+  str_replace(pfn, tSize, pfn, "&gt;", ">");
+  str_replace(pfn, tSize, pfn, "&lt;", "<");
+  str_replace(pfn, tSize, pfn, "&quot;", "\"");
+  str_replace(pfn, tSize, pfn, "\\/", "/");
+}
+
 unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned int sizeOfBuf)
 {
   FILE *fp2;
@@ -515,47 +544,50 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
       tfnSize = sizeof(curFileStruct.tfn) - 1;
 
       strcpy(curFileStruct.afn, curFileStruct.authorTitle);
-
-      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "\\", "_");
-      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "/", "_");
-      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, ":", "_");
-      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "*", "_");
-      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "?", "_");
-      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "<", "_");
-      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, ">", "_");
-      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "|", "_");
-      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, " ", "_");
-      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&#039;", "'");
-      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&amp;", "&");
-      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&quot;", "'");
-      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&gt;", ")");
-      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&lt;", "(");
-      str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "\"", "'");
-
+      nameRepair(curFileStruct.afn, afnSize);
+      /*
+            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "\\", "_");
+            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "/", "_");
+            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, ":", "_");
+            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "*", "_");
+            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "?", "_");
+            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "<", "_");
+            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, ">", "_");
+            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "|", "_");
+            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, " ", "_");
+            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&#039;", "'");
+            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&amp;", "&");
+            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&quot;", "'");
+            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&gt;", ")");
+            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&lt;", "(");
+            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "\"", "'");
+      */
       strcpy(curFileStruct.tfn, curFileStruct.trackName);
-
-      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "\\", "_");
-      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "/", "_");
-      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, ":", "_");
-      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "*", "_");
-      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "?", "_");
-      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "<", "_");
-      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, ">", "_");
-      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "|", "_");
-      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, " ", "_");
-      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&#039;", "'");
-      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&amp;", "&");
-      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&quot;", "'");
-      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&gt;", ")");
-      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&lt;", "(");
-      str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "\"", "'");
-
+      nameRepair(curFileStruct.tfn, tfnSize);
+      /*
+            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "\\", "_");
+            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "/", "_");
+            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, ":", "_");
+            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "*", "_");
+            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "?", "_");
+            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "<", "_");
+            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, ">", "_");
+            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "|", "_");
+            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, " ", "_");
+            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&#039;", "'");
+            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&amp;", "&");
+            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&quot;", "'");
+            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&gt;", ")");
+            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&lt;", "(");
+            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "\"", "'");
+      */
       sprintf(curFileStruct.fileName, "%s-%s.%s", curFileStruct.afn, curFileStruct.tfn, formats[curFormat]);
 
       if (strlen(curFileStruct.fileName) > 63)
       {
-        curFileStruct.fileName[50] = '\0';
         sprintf(fileIdChar, "-%ld", fileId);
+        str_replace(curFileStruct.fileName, sizeof(curFileStruct.fileName) - 1, curFileStruct.fileName, fileIdChar, "");
+        curFileStruct.fileName[50] = '\0';
         strcat(curFileStruct.fileName, fileIdChar);
         strcat(curFileStruct.fileName, formats[curFormat]);
         // printf("filename = [%s]",curFileStruct.fileName);
@@ -685,7 +717,7 @@ wizwrite:
 unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned char queryNum)
 {
   FILE *fp3;
-  unsigned int retry, tnSize;
+  unsigned int retry, tSize;
   unsigned int todo;
   unsigned char buffer[] = "000000000";
   unsigned char *count, socket;
@@ -812,14 +844,17 @@ rejson:
     convert866();
     strcpy(curFileStruct.trackName, netbuf);
 
-    tnSize = sizeof(curFileStruct.trackName);
-    str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "&#039;", "'");
-    str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "&amp;", "&");
-    str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "&gt;", ">");
-    str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "&lt;", "<");
-    str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "&quot;", "\"");
-    str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "\\/", "/");
+    tSize = sizeof(curFileStruct.trackName);
+    stringRepair(curFileStruct.trackName, tSize);
 
+    /*
+        str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "&#039;", "'");
+        str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "&amp;", "&");
+        str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "&gt;", ">");
+        str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "&lt;", "<");
+        str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "&quot;", "\"");
+        str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "\\/", "/");
+    */
     parseJson("\"rating\":\"");
     strcpy(curFileStruct.picRating, netbuf);
     parseJson("\"year\":\"");
