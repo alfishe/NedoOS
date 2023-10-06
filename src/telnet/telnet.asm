@@ -88,8 +88,11 @@ AF_INET EQU 2
 cmd_begin
 ;init
 	ld sp,0x4000
-	ld e,6
+	
+	ld e,0x86
 	OS_SETGFX ;text mode set
+	OS_HIDEFROMPARENT
+
 	OS_GETMAINPAGES ;dehl
 	push de
 	push hl
