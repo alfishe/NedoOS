@@ -279,7 +279,7 @@ telnet_noresolve
 	OS_SETPAL
 telnet_loop
 	YIELDGETKEY
-	ld a,c
+	;ld a,c - Используем языковой модификатор при вводе.
 	cp extD ;key_esc ;Sayman
 	jp z,telnet_end
 	cp NOKEY
