@@ -182,7 +182,7 @@ openstream_http_decodeportq
         ld (curport),de ;BIG ENDIAN
 openstream_http_slash
 
-	ld hl,arg_hostname-1 ;для удобства в цикле
+	ld hl,arg_hostname-1 ;пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ
 	ld de,ip
 
 telnet_nextdig
@@ -940,7 +940,7 @@ telnet_end
 
 telnet_error_hl
 	call print_hl
-	QUIT
+	jp waitquit
 
 telnet_sendleft
 	ld hl,ansi_left

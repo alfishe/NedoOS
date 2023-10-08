@@ -301,7 +301,7 @@ void deleteWorkFiles(void)
 	OS_DELETE("bin.r19");
 	OS_DELETE("bin.r20");
 }
-
+ 
 unsigned char ren2old(unsigned char *name)
 {
 	unsigned char *oldName = "0000000000000000000000000000000000";
@@ -365,6 +365,7 @@ void restoreConfig(unsigned char oldBinExt)
 	errn = OS_RENAME("bin/autoexec.bat", "bin/autoexec.new");
 	errn = OS_RENAME("bin/net.ini", "bin/net.new");
 	errn = OS_RENAME("bin/nv.ext", "bin/nv.new");
+	errn = OS_RENAME("bin/gp/gp.ini", "bin/gp/gpini.new");
 
 	errn = OS_CHDIR("/");
 
@@ -377,6 +378,8 @@ void restoreConfig(unsigned char oldBinExt)
 		errn = OS_SHELL("copy bin.old/nv.ext bin/nv.ext");
 
 		errn = OS_SHELL("copy bin.old/nv.pth bin/nv.pth");
+
+		errn = OS_SHELL("copy bin.old/gp/gp.ini bin/gp/gp.ini");
 	}
 	else
 	{
@@ -390,6 +393,9 @@ void restoreConfig(unsigned char oldBinExt)
 		OS_SHELL((void *)name);
 		sprintf(name, "copy bin.%u/nv.pth bin/nv.pth", oldBinExt);
 		OS_SHELL((void *)name);
+		sprintf(name, "copy bin.%u/gp/gp.ini bin/gp/gp.ini", oldBinExt);
+		OS_SHELL((void *)name);
+
 	}
 	AT(1, 4);
 	for (count = 0; count < 15; count++)
@@ -399,6 +405,7 @@ void restoreConfig(unsigned char oldBinExt)
 	errn = OS_RENAME("bin/autoexec.new", "bin/autoexec.bat"); // If file already exist we dont rename
 	errn = OS_RENAME("bin/net.new", "bin/net.ini");
 	errn = OS_RENAME("bin/nv.new", "bin/nv.ext");
+	errn = OS_RENAME("bin/gp/gpini.new", "bin/gp/gp.ini");
 }
 
 // Download, backup, unpack release.bin
@@ -575,7 +582,10 @@ C_task main(int argc, char *argv[])
 		else
 		{
 			AT(1, 1);
+			//printTable();
+			//getchar();
 			fatalError("Use 'F' key to FULL update");
+
 		}
 	}
 	else
