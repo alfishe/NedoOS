@@ -202,6 +202,17 @@ process_list:	;argument = filename, open it, read crcs and filenames, check
 		;<EOL> -- <crlf> or <cr> or <lf>, last line from file is not obliged to end with these
 
 .new_line
+		;check for EOF
+		call 	my_getc
+		jr	nc,.have_bytes
+
+.full_end	;correct end of the file
+		ld	bc,[list_hndl-1]
+		OS_CLOSEHANDLE
+		ret
+
+.have_bytes	call	my_ungetc
+
 		;parse checksum
 		ld	b,CHKSYMLEN
 		ld	hl,CHKSUM
@@ -220,7 +231,7 @@ process_list:	;argument = filename, open it, read crcs and filenames, check
 		ld	b,2
 .chkspc_loop
 		call	my_getc
-		jr	c,.full_end
+		jr	c,.line_unexp_end
 		cp	' '
 		jr	nz,.line_format_error
 		djnz	.chkspc_loop
@@ -288,7 +299,7 @@ process_list:	;argument = filename, open it, read crcs and filenames, check
 
 .skip_line	;scan till end of filename/whatever, skip extra spaces/etc., skip line end
 		call	my_getc
-		jr	c,.full_end
+		jp	c,.full_end
 		cp	13
 		jr	z,.eol_13
 		cp	10
@@ -303,8 +314,6 @@ process_list:	;argument = filename, open it, read crcs and filenames, check
 .new_line2
 		jp	.new_line
 
-.full_end	;input filename exhausted
-		jr	$	;STUB
 
 
 .line_format_error
