@@ -107,6 +107,8 @@ cmd_begin
 
 ;main
 ;check cmdline
+	ld e,0
+	OS_CLS
 	call print_nl
 	ld hl,COMMANDLINE
 
@@ -279,7 +281,7 @@ telnet_noresolve
 	OS_SETPAL
 telnet_loop
 	YIELDGETKEY
-	;ld a,c - Используем языковой модификатор при вводе.
+	;ld a,c 
 	cp extD ;key_esc ;Sayman
 	jp z,telnet_end
 	cp NOKEY
@@ -961,7 +963,7 @@ telnet_senddown
 	jp telnet_loop0
 
 
-telnet_sendtext_hl ;TODO медлееенно (сделать напрямую а не через putbyte)
+telnet_sendtext_hl ;TODO SLOW  (make direct, not thru putbyte)
 	ld a,(hl)
 	or a
 	ret z
@@ -1186,9 +1188,13 @@ telnet_setkey_d
 	ret
 
 telnet_resolveerror
+	ld e,0
+	OS_CLS
 	ld hl,txt_resolveerror
 	call print_hl
 	ld hl,arg_hostname
+	call print_hl
+	jp waitquit
 
 telnet_iptostr_hltode
 	call bytetostr_hltode
@@ -1207,21 +1213,33 @@ telnet_iptostr_hltode
 	ret
 
 telnet_showusage
+	ld e,0
+	OS_CLS
 	ld hl,txt_usage
 	call print_hl
-	QUIT
+	jp waitquit
 
 telnet_showhelp
+	ld e,0
+	OS_CLS
+	ld hl,txt_version
+	call print_hl
 	ld hl,txt_usage
 	call print_hl
 	ld hl,txt_help
 	call print_hl
-	QUIT
+	jp waitquit
 
 telnet_showversion
+	ld e,0
+	OS_CLS
 	ld hl,txt_version
 	call print_hl
+waitquit
+	call waitkey
 	QUIT
+
+
 
 telnet_debug_a
 	push af
@@ -1372,7 +1390,18 @@ exiterr1
 	ld hl,0
 	ret
 
-
+waitkey
+	push bc
+	push de
+	push hl
+keyloop
+    GET_KEY
+    cp 0
+	jp z, keyloop
+	pop hl
+	pop de
+	pop bc
+	ret
 
 soc1		db 0
 dns_head 	db 0x11,0x22,0x01,0x00,0x00,0x01
@@ -1416,7 +1445,7 @@ txt_usage db "Use telnet [-d] [-h] [-V] <host_name|ip>",0x0D,0x0A,0
 txt_help  db "            -d : Print incoming IAC commands",0x0D,0x0A
           db "            -h : Show this help and exit",0x0D,0x0A
           db "            -V : Show version info and exit",0x0D,0x0A,0
-txt_version db "Telnet v0.1",0x0d,0x0a,"NedoPC group 2019",0x0D,0x0A,0
+txt_version db "Telnet v0.1 NedoPC group 2019",0x0D,0x0A,0x0d,0x0a,0
 txt_resolveerror db "Can not resolve ",0
 txt_socketerror db "IP socket creation error",0x0d,0x0a,0
 txt_socketopenerror db "IP socket opening error",0x0d,0x0a,0
