@@ -1464,7 +1464,11 @@ loadandrun_waitpid
         SETCOLOR_
         ;CLS_
         ;ld de,0
-        ;call nv_setxy ;keeps de,hl,ix
+        ld de,(scrhgt-1) ;d
+        dec d
+        ld e,0
+        call nv_setxy ;keeps de,hl,ix
+        call clearrestofline
        else
 	call nv_copyscreen1to0
         ld e,-1
