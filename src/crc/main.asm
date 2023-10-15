@@ -621,8 +621,8 @@ txtcds:		db	":"	;colon, double space
 txtdblspc:	db	"  ",0
 txtcrlf:        db	13,10,0
 
-txtOK:		db	"OK!",13,10
-txtFAIL:	db	"fail!",13,10
+txtOK:		db	"OK!",13,10,0
+txtFAIL:	db	"fail!",13,10,0
 
 file_error:	db	": Error opening or reading file",13,10,0
 format_error:	db	": File format error",13,10,0
@@ -741,11 +741,8 @@ hexconv
 	inc	de
 	ret
 
-prtext	call	prtext111
-	YIELD
-	ret
 
-prtext111
+prtext
         ld a,(hl)
         or a
         ret z
@@ -755,7 +752,7 @@ prtext111
         pop iy
         pop hl
         inc hl
-        jr prtext111
+        jr prtext
         
 
 
