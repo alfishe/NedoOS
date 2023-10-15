@@ -136,6 +136,7 @@ process_arg:	;args parsing routine, has state
 		ld	[argp_state],a
 .chksum_arg
 		ld	hl,[curr_arg]
+		xor	a
 		jp	process_file
 .no_dflt
 		dec	a
@@ -146,6 +147,7 @@ process_arg:	;args parsing routine, has state
 		jr	nz,.no_check
 		;CHECK mode
 		call	process_list
+		ret
 .no_check
 		jp	error_exit
 
@@ -296,6 +298,7 @@ process_list:	;argument = filename, open it, read crcs and filenames, check
 .no_errs	;hl=FNAME
 		ld	[hl],0
 		ld	hl,FNAME
+		ld	a,1
 		call	process_file
 
 .skip_line	;scan till end of filename/whatever, skip extra spaces/etc., skip line end
@@ -440,14 +443,16 @@ is_hex:		;check that A is hex, i.e. [0-9][A-F][a-f]
 		ret
 
 
-process_file:
-		;hl = asciiz filename
+process_file:	;hl - asciiz filename
+		;a  - mode, 0 print, 1 check
+
+		ld	[.mode+1],a
 		ld	[file_name],hl
 
 	ld	de,[file_name]
         call openstream_file
         or	a
-        jr	nz,.file_error
+        jp	nz,.file_error
 
 		ld	hl,0xFFFF
 		ld	[CRCArea+0],hl
@@ -481,8 +486,8 @@ process_file:
         call closestream_file
 
 	; invert and byte-mirror CRC value
-        ld	hl,CRCArea
-        ld	de,CRCArea+3
+        ld	hl,CRCArea+1
+        ld	de,CRCArea+2
 
 	DUP	2
         ld	a,[hl]
@@ -493,18 +498,41 @@ process_file:
         ld	[hl],a
         ld	a,b
         ld	[de],a
-        inc	hl
-        dec	de
+        dec	hl
+        inc	de
 	EDUP
 	org	$-2
 
-	ld	hl,CRCArea
+	;ld	hl,CRCArea
 	ld	de,CALCSUM
+	push	de
 	call	hexconv4
 	xor	a
 	ld	[de],a
 
-		ld	hl,CALCSUM
+
+.mode		ld	a,#2E
+		or	a
+
+		jr	z,.print
+
+		;compare: first print filename
+		ld	hl,[file_name]
+		call	prtext
+		ld	hl,txtcds
+		call	prtext
+
+		pop	hl
+		ld	de,CHKSUM
+		call	strcasecmp
+
+		ld	hl,txtOK
+		jr	z,.nofail
+		ld	hl,txtFAIL
+.nofail
+		jr	.prtext
+.print
+		pop	hl
 		call	prtext
 
 	        ld	hl,txtdblspc
@@ -589,8 +617,12 @@ help_msg2:	db	" [OPTION] [FILE]...",13,10
 help_arg:	db	"-h",0
 chk_arg:	db	"-c",0
 
+txtcds:		db	":"	;colon, double space
 txtdblspc:	db	"  ",0
 txtcrlf:        db	13,10,0
+
+txtOK:		db	"OK!",13,10
+txtFAIL:	db	"fail!",13,10
 
 file_error:	db	": Error opening or reading file",13,10,0
 format_error:	db	": File format error",13,10,0
@@ -709,7 +741,11 @@ hexconv
 	inc	de
 	ret
 
-prtext
+prtext	call	prtext111
+	YIELD
+	ret
+
+prtext111
         ld a,(hl)
         or a
         ret z
@@ -719,7 +755,7 @@ prtext
         pop iy
         pop hl
         inc hl
-        jr prtext
+        jr prtext111
         
 
 
