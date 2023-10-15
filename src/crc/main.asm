@@ -182,11 +182,12 @@ process_list:	;argument = filename, open it, read crcs and filenames, check
 		ld	a,b
 		ld	[list_hndl],a
 
+		;initialize getc/ungetc state
 		xor	a
-		ld	[lpush],a
+		ld	[lpush],a	;nothing ungetc'ed
 		ld	h,a
 		ld	l,a
-		ld	[lsz],hl
+		ld	[lsz],hl	;nothing in buffer
 
 
 
@@ -349,22 +350,22 @@ my_getc:	;get a symbol from list_hdnl:lptr:lsz:etc. construction
 		;out: A - symbol
 		;     cy=1 - no more symbols or error
 
-		ld	a,[lpush]
+		ld	a,[lpush]	;was smth ungetc'ed?
 		or	a
 		jr	z,.no_ununget
 		;
 		xor	a
 		ld	[lpush],a
-		ld	a,[lpbyte]
+		ld	a,[lpbyte]	;if was, getc it back
 		ret
 .no_ununget
 		push	hl
 		ld	hl,[lsz]
 		ld	a,h
 		or	l
-		jr	z,.buf_empty
+		jr	z,.buf_empty	;smth in the buffer?
 .no_ununget2
-		dec	hl
+		dec	hl		;get from buffer
 		ld	[lsz],hl
 		ld	hl,[lptr]
 		ld	a,[hl]
@@ -373,7 +374,7 @@ my_getc:	;get a symbol from list_hdnl:lptr:lsz:etc. construction
 		pop	hl
 		ret
 .buf_empty
-		push	ix
+		push	ix		;was nothing in buffer, read from file
 		push	iy
 		push	bc
 		push	de
@@ -401,7 +402,7 @@ my_getc:	;get a symbol from list_hdnl:lptr:lsz:etc. construction
 
 
 
-my_ungetc:	;unget a symbol (there can be only a single ungot symbol!)
+my_ungetc:	;'ungetc' a symbol (there can be only a single ungot symbol!)
 		;in: A - symbol
 
 		push	af
@@ -479,27 +480,33 @@ process_file:
 .closequit
         call closestream_file
 
-        ld hl,CRCArea
-        ld a,(hl)
+	; invert and byte-mirror CRC value
+        ld	hl,CRCArea
+        ld	de,CRCArea+3
+
+	DUP	2
+        ld	a,[hl]
         cpl
-        ld (hl),a
-        inc hl
-        ld a,(hl)
+        ld	b,a
+        ld	a,[de]
         cpl
-        ld (hl),a
-        inc hl
-        ld a,(hl)
-        cpl
-        ld (hl),a
-        inc hl
-        ld a,(hl)
-        cpl
-        ld (hl),a
-        call prhexbyte
-        call prhexbyte
-        call prhexbyte
-        call prhexbyte        
-	        
+        ld	[hl],a
+        ld	a,b
+        ld	[de],a
+        inc	hl
+        dec	de
+	EDUP
+	org	$-2
+
+	ld	hl,CRCArea
+	ld	de,CALCSUM
+	call	hexconv4
+	xor	a
+	ld	[de],a
+
+		ld	hl,CALCSUM
+		call	prtext
+
 	        ld	hl,txtdblspc
         	call	prtext
 
@@ -544,7 +551,31 @@ noargs_msg1:	db	": no args given",13,10
 		db	"Try '",0
 noargs_msg2:	db	" -h' for more information",13,10,0
 
-help_msg1:	db	"Usage: ",0
+help_msg1:	db	"CRC rev."
+
+SV=SVNREVISION
+BEG=$
+	WHILE	SV>0
+		db	'0'+(SV%10)
+SV=SV/10
+	ENDW
+CONTINUE=$
+END=$-1
+	WHILE	BEG<END
+V1={b BEG}
+V2={b END}
+	org	BEG
+	db	V2
+	org	END
+	db	V1
+BEG=BEG+1
+END=END-1
+	ENDW
+
+		org	CONTINUE
+		db	13,10
+
+		db	"Usage: ",0
 help_msg2:	db	" [OPTION] [FILE]...",13,10
 		db	"Print CRC-32 (0xEDB88320) checksums.",13,10,13,10
 ;		db	"With no FILE or when file is -, read standard input.",13,10,13,10
@@ -589,6 +620,45 @@ strcmp:		;compare strings pointed by HL and DE, case-sensitive.
 		cp	[hl]
 		ret
 
+strcasecmp:	;same as strcmp, but english letters are compared without case
+		;kills: af,bc,de,hl
+
+		ld	c,'a'
+.loop
+		ld	a,[hl]
+		or	a
+		jr	z,.hl_zero
+
+		cp	c	;'a'
+		jr	c,.hl_nonlower
+		cp	'z'+1
+		jr	nc,.hl_nonlower
+		sub	'a'-'A'
+.hl_nonlower
+		ld	b,a
+
+		ld	a,[de]
+		or	a
+		jr	z,.de_zero
+
+		cp	c	;'a'
+		jr	c,.de_nonlower
+		cp	'z'+1
+		jr	nc,.de_nonlower
+		sub	'a'-'A'
+.de_nonlower
+		cp	b
+		inc	hl
+		inc	de
+		jr	z,.loop
+		ret
+.hl_zero
+		ld	a,[de]
+		cp	[hl]	;cp 0
+		ret
+.de_zero
+		cp	b
+		ret
 
 
 
@@ -616,24 +686,28 @@ skipspaces
         inc hl
         jr skipspaces
 
-prhexbyte
-        ld a,(hl)
-        rrca
-        rrca
-        rrca
-        rrca
-        call prhexdigit
-        ld a,(hl)
-        dec hl
-prhexdigit
-        or 0xf0
-        daa
-        add a,0xa0
-        adc a,0x40
-        push hl
-        PRCHAR_
-        pop hl
-        ret
+
+hexconv4
+	call	hexconv2
+hexconv2
+	call	hexconv
+hexconv
+	ld	a,(hl)
+	rrca
+	rrca
+	rrca
+	rrca
+	call	.digit
+	ld	a,(hl)
+	inc	hl
+.digit
+	or	0xf0
+	daa
+	add	a,0xa0
+	adc	a,0x40
+	ld	[de],a
+	inc	de
+	ret
 
 prtext
         ld a,(hl)
@@ -708,6 +782,8 @@ CRCArea
         ds 4,0xff
 
 
+
+CALCSUM	ds	CHKSYMLEN+1	;checksum calculated by algorithm
 
 CHKSUM	ds	CHKSYMLEN+1	;checksum to check, taken from '-c filename' file
 FNAME	ds	MAXPATH_sz+1	;file/path to check, taken from '-c filename' file
