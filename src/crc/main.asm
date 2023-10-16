@@ -210,7 +210,8 @@ process_list:	;argument = filename, open it, read crcs and filenames, check
 		jr	nc,.have_bytes
 
 .full_end	;correct end of the file
-		ld	bc,[list_hndl-1]
+		ld	a,[list_hndl]
+		ld	b,a
 		OS_CLOSEHANDLE
 		ret
 
@@ -449,10 +450,13 @@ process_file:	;hl - asciiz filename
 		ld	[.mode+1],a
 		ld	[file_name],hl
 
-	ld	de,[file_name]
-        call openstream_file
-        or	a
-        jp	nz,.file_error
+		;ld	de,[file_name]
+		exd
+		OS_OPENHANDLE
+	        or	a
+        	jp	nz,.file_error
+        	ld	a,b
+        	ld	[file_hndl],a
 
 		ld	hl,0xFFFF
 		ld	[CRCArea+0],hl
@@ -463,7 +467,9 @@ process_file:	;hl - asciiz filename
         ld hl,DISKBUFsz
 ;de=buf
 ;hl=size
-        call readstream_file
+        ld	a,[file_hndl]
+        ld	b,a
+        OS_READHANDLE
         ld a,h
         or l
         jr z,.closequit
@@ -483,7 +489,9 @@ process_file:	;hl - asciiz filename
 
         jr	.readloop0
 .closequit
-        call closestream_file
+		ld	a,[file_hndl]
+		ld	b,a
+		OS_CLOSEHANDLE
 
 	; invert and byte-mirror CRC value
         ld	hl,CRCArea+1
@@ -761,6 +769,7 @@ curr_arg:	dw	0
 file_name:	dw	0
 argp_state:	db	0
 
+file_hndl:	db	0
 list_hndl:	db	0
 
 lpush:		db	0
