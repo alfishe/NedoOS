@@ -389,6 +389,9 @@ my_getc:	;get a symbol from list_hdnl:lptr:lsz:etc. construction
 		ld	[lptr],de
 		ld	hl,LISTBUFsz
 		OS_READHANDLE
+		;currently there's only single indication of both error and EOF:
+		; HL=0, A!=0
+.noerr
 		ld	a,h
 		or	l
 		ld	[lsz],hl
@@ -450,14 +453,28 @@ process_file:	;hl - asciiz filename
 		ld	[.mode+1],a
 		ld	[file_name],hl
 
-		;ld	de,[file_name]
-		exd
+		;in mode 0 (print CRCs), the name '-'
+		; is treated as stdin
+		or	a
+		jr	nz,.dofile
+
+		ld	de,stdin_arg
+		call	strcmp
+		jr	nz,.dofile
+
+		;get STDIN
+		OS_GETSTDINOUT
+		ld	a,e
+		ld	[file_hndl],a
+		jr	.dohandle
+.dofile
+		ld	de,[file_name]
 		OS_OPENHANDLE
 	        or	a
         	jp	nz,.file_error
         	ld	a,b
         	ld	[file_hndl],a
-
+.dohandle
 		ld	hl,0xFFFF
 		ld	[CRCArea+0],hl
 		ld	[CRCArea+2],hl
@@ -470,6 +487,7 @@ process_file:	;hl - asciiz filename
         ld	a,[file_hndl]
         ld	b,a
         OS_READHANDLE
+        ;no difference between EOF and error in nedoos, so always treat as an EOF
         ld a,h
         or l
         jr z,.closequit
@@ -614,14 +632,15 @@ END=END-1
 		db	"Usage: ",0
 help_msg2:	db	" [OPTION] [FILE]...",13,10
 		db	"Print CRC-32 (0xEDB88320) checksums.",13,10,13,10
-;		db	"With no FILE or when file is -, read standard input.",13,10,13,10
-		db	"  -c   read CRCs from the FILEs and check them.",13,10
+		db	"When filename is -, read standard input.",13,10
+		db	"Options:",13,10
+		db	"  -c   read CRCs from the FILE(s), but not stdin, and check them.",13,10
 		db	"       file format: ^<CRC><space><space><filename><EOL>",13,10
 		db	"  -h   display this help and exit",13,10
 		db	13,10
 		db	0
 
-
+stdin_arg:	db	"-",0
 help_arg:	db	"-h",0
 chk_arg:	db	"-c",0
 
