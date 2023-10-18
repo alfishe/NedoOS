@@ -3,65 +3,19 @@
 
 STACK=0x4000
 
-TCRC=0x4000 ;size 0x400, divisible by 0x100
-
 LISTBUF		equ	0x4400
 LISTBUFsz	equ	0x200
 
 DISKBUF=0xc000
 DISKBUFsz=0x4000
 
-CHKSYMLEN	equ	8 ;length of checksum in hex: 8 for CRC32
 
         org PROGSTART
 cmd_begin
         ld sp,STACK
         call initstdio
 
-	; precalculate CRC table
-        xor a
-        LD L,A
-MKTCRC0 EXX 
-        LD HL,0
-        ld D,H
-        ld E,A
-        LD B,8
-MKTCRC1 SRL H
-        RR L
-        rr D
-        rr E
-        JR NC,MKTCRCe
-        ex af,af' ;'
-        LD A,E
-        XOR 0x20
-        LD E,A
-        ld A,D
-        XOR 0x83
-        LD D,A
-        ld A,L
-        XOR 0xB8
-        LD L,A
-        ld A,H
-        XOR 0xED
-        LD H,A
-        ex af,af' ;'
-MKTCRCe DJNZ MKTCRC1
-        PUSH HL
-        PUSH DE
-        EXX 
-       LD H,TCRC/256
-        POP DE
-        LD (HL),E
-        INC H
-        LD (HL),D
-        INC H
-        POP DE
-        LD (HL),E
-        INC H
-        LD (HL),D
-        INC L
-        INC A
-        JR NZ,MKTCRC0 
+		call	CS_PREPARE
 
 
 		;get name of the prog as it was called from shell
@@ -218,7 +172,7 @@ process_list:	;argument = filename, open it, read crcs and filenames, check
 .have_bytes	call	my_ungetc
 
 		;parse checksum
-		ld	b,CHKSYMLEN
+		ld	b,CS_SYMLEN
 		ld	hl,CHKSUM
 .chksum_loop
 		call	my_getc
@@ -475,9 +429,7 @@ process_file:	;hl - asciiz filename
         	ld	a,b
         	ld	[file_hndl],a
 .dohandle
-		ld	hl,0xFFFF
-		ld	[CRCArea+0],hl
-		ld	[CRCArea+2],hl
+		call	CS_START
 
 .readloop0
         ld de,DISKBUF
@@ -496,14 +448,7 @@ process_file:	;hl - asciiz filename
 	
 	;BC -- size
         ld	hl,DISKBUF
-        exx
-        LD	DE,(CRCArea+2)
-        LD	BC,(CRCArea)
-        exx
-        call	crc_loop
-        exx
-        LD	(CRCArea),BC
-        LD	(CRCArea+2),DE 
+        call	CS_APPEND
 
         jr	.readloop0
 .closequit
@@ -511,30 +456,10 @@ process_file:	;hl - asciiz filename
 		ld	b,a
 		OS_CLOSEHANDLE
 
-	; invert and byte-mirror CRC value
-        ld	hl,CRCArea+1
-        ld	de,CRCArea+2
 
-	DUP	2
-        ld	a,[hl]
-        cpl
-        ld	b,a
-        ld	a,[de]
-        cpl
-        ld	[hl],a
-        ld	a,b
-        ld	[de],a
-        dec	hl
-        inc	de
-	EDUP
-	org	$-2
-
-	;ld	hl,CRCArea
-	ld	de,CALCSUM
-	push	de
-	call	hexconv4
-	xor	a
-	ld	[de],a
+		ld	hl,CALCSUM
+		push	hl
+		call	CS_FINALIZE
 
 
 .mode		ld	a,#2E
@@ -746,29 +671,6 @@ skipspaces
         jr skipspaces
 
 
-hexconv4
-	call	hexconv2
-hexconv2
-	call	hexconv
-hexconv
-	ld	a,(hl)
-	rrca
-	rrca
-	rrca
-	rrca
-	call	.digit
-	ld	a,(hl)
-	inc	hl
-.digit
-	or	0xf0
-	daa
-	add	a,0xa0
-	adc	a,0x40
-	ld	[de],a
-	inc	de
-	ret
-
-
 prtext
         ld a,(hl)
         or a
@@ -799,56 +701,16 @@ lsz:		dw	0
 
 
 
-	;bc - size
-	;hl - ptr
-	;c'b'e'd' - crc
-crc_loop
-	ld	a,[hl]		;7
-	exx			;4
-
-	xor	c		;4
-	ld	l,a		;4
-
-	ld	h,TCRC/256	;7
-	ld	a,[hl]		;7
-	xor	b		;4
-	ld	c,a		;4
-
-	inc	h		;4
-	ld	a,[hl]		;7
-	xor	e		;4
-	ld	b,a		;4
-
-	inc	h		;4
-	ld	a,[hl]		;7
-	xor	d		;4
-	ld	e,a		;4
-
-	inc	h		;4
-	ld	d,[hl]		;7
-
-	exx			;4
-	cpi			;16
-	jp	pe,crc_loop	;10
-				; == 120 tc/byte
-	ret	;10
-
-
-
 
         include "../_sdk/file.asm"
         include "../_sdk/stdio.asm"
 
-CRCArea
-        ds 4,0xff
+CALCSUM	ds	CS_SYMLEN+1	;checksum calculated by algorithm
 
-
-
-CALCSUM	ds	CHKSYMLEN+1	;checksum calculated by algorithm
-
-CHKSUM	ds	CHKSYMLEN+1	;checksum to check, taken from '-c filename' file
+CHKSUM	ds	CS_SYMLEN+1	;checksum to check, taken from '-c filename' file
 FNAME	ds	MAXPATH_sz+1	;file/path to check, taken from '-c filename' file
 
+	include	"crc.asm"
 
 
 cmd_end
