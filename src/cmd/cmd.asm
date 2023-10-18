@@ -230,54 +230,70 @@ execcmd_pipe
         ld (hl),0
         inc hl
          call skipspaces
-        ex de,hl ;de=app filename
+        ;hl=right app filename
+        ld (rightapp_filename),hl
+        push hl
+        call skipword
+        ld (rightapp_filename_end),hl
+        ld a,(hl)
+        ld (rightapp_filename_endchar),a
+        ld (hl),0
+        pop hl
+        
+        ex de,hl ;de=right app filename
 
         OS_OPENHANDLE
         or a
         jr nz,execcmd_pipe_error
 
-        push bc
+        push bc ;b=right app file handle
         ld de,tpipename
         OS_CREATEHANDLE
         ld a,b
         ld (pipehandle),a
         call setstdouthandle
-        pop bc
+        pop bc ;b=right app file handle
         
-        call readapp ;делает CLOSE ;TODO через loadapp, чтобы дописывать .com и грузить из /bin
-        
-        if 1==1
-        push af
-        ld b,a
-        ;ld a,(stdinhandle)
-        ;ld d,a
+        call readapp ;out: dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error ;делает CLOSE ;TODO через loadapp, чтобы дописывать .com и грузить из /bin
+        push bc ;b=id
+;dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error
+        ld a,d
+        SETPGC000
+rightapp_filename_end=$+1
+        ld hl,0
+rightapp_filename_endchar=$+1
+        ld (hl),0
+rightapp_filename=$+1
+        ld hl,0
+        ld de,0xc000+COMMANDLINE
+        ld bc,COMMANDLINE_sz
+        ldir ;command line       
+        pop bc ;b=id
+        push bc
 pipehandle=$+1
-        ld d,0
-        ld a,(stdouthandle)
-        ld e,a
+        ld e,0 ;stdin for right app
+        ld a,(stdouthandle_wasatstart)
+        ld d,a ;stdout for right app
         ld h,0xff ;rnd
 ;b=id, e=stdin, d=stdout, h=stderr        
         OS_SETSTDINOUT
-        endif
-        
         pop af ;id
-
-        ld e,a ;id
+        ld e,a ;e=id
         ;ld (waitpid_id),a
-        push de
+        push de ;e=id
         OS_RUNAPP
         
         ;call execcmd ;can show errors ;a!=0: no such internal command
         ; or a
         ; call nz,callcmd
          call callcmd ;exec or run
-        pop de
+        pop de ;e=id
         ;push af ;a=error
-        push de
+        push de ;e=id
         ld a,(pipehandle)
         ld b,a
         OS_CLOSEHANDLE ;закрыли источник данных
-        pop de
+        pop de ;e=id
        call waitpid_keepresult
         ;WAITPID ;hl=result
         ;ld (lastresult),hl
@@ -792,13 +808,18 @@ readapp
         pop hl
         pop de
 
+        push de
+        push hl
         call readfile_pages_dehl
-
+       push af
         ld a,(curhandle)
         ld b,a
         OS_CLOSEHANDLE
+       pop af ;error
+        pop hl
+        pop de
 
-        pop af ;id
+        pop bc ;id
         ret
 
 skipword
