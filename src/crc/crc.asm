@@ -5,54 +5,52 @@ CS_SYMLEN	equ	8 ;length of checksum in ascii: 8 for CRC32
 
 CS_PREPARE:	; precalculate CRC table
 
-	xor	a
-	ld	l,a
+	;bcde - rotating value
+	;hl - table pointer & counter
+
+	ld	l,0
 .tbloop
-	exx	
-	ld	hl,0
-	ld	d,h
-	ld	e,a
-	ld	b,8
+	ld	bc,0
+	ld	d,b
+	ld	e,l
+	ld	a,8
 .bitloop
-	srl	h
-	rr	l
+	srl	b
+	rr	c
 	rr	d
 	rr	e
 	jr	nc,.skipxor
-	ex	af,af'
-	ld	a,e
-	xor	0x20
-	ld	e,a
+	exa
+	ld	a,b
+	xor	0xED
+	ld	b,a
+	ld	a,c
+	xor	0xB8
+	ld	c,a
 	ld	a,d
 	xor	0x83
 	ld	d,a
-	ld	a,l
-	xor	0xb8
-	ld	l,a
-	ld	a,h
-	xor	0xed
-	ld	h,a
-	ex	af,af'
+	ld	a,e
+	xor	0x20
+	ld	e,a
+	exa
 .skipxor
-	djnz	.bitloop
-	push	hl
-	push	de
-	exx	
+	dec	a
+	jr	nz,.bitloop
+	
 	ld	h,TCRC/256
-	pop	de
-	ld	(hl),e
+	ld	[hl],e
 	inc	h
-	ld	(hl),d
+	ld	[hl],d
 	inc	h
-	pop	de
-	ld	(hl),e
+	ld	[hl],c
 	inc	h
-	ld	(hl),d
+	ld	[hl],b
 	inc	l
-	inc	a
 	jr	nz,.tbloop
-
+	
 	ret
+
 
 
 
