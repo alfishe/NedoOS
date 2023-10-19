@@ -36,7 +36,7 @@ SVNREVISION := $(subst P,,${SVNREVISION})
 SVNREVISION := $(subst S,,${SVNREVISION})
 SVNREVISION := $(subst Unversioned,0,${SVNREVISION})
 SJASMPLUS	= $(WINTOP)tools/sjasmplus
-SJASMPLUSFLAGS	= --nologo --msg=war -DSVNREVISION=${SVNREVISION}
+SJASMPLUSFLAGS	= --nologo --lst --msg=war -DSVNREVISION=${SVNREVISION}
 DMIMG		= $(WINTOP)tools/dmimg
 EMULIMG		= $(WINTOP)us/sd_nedo.vhd
 
