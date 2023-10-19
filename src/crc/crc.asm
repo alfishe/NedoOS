@@ -10,42 +10,39 @@ CS_PREPARE:	; precalculate CRC table
 
 	ld	l,0
 .tbloop
-	ld	bc,0
-	ld	d,b
-	ld	e,l
-	ld	a,8
+	ld	bc,8*256
+	ld	d,c
+	ld	e,c
+	ld	a,l	;shift/xor value in CDEA
 .bitloop
-	srl	b
-	rr	c
+	srl	c
 	rr	d
 	rr	e
+	rra
 	jr	nc,.skipxor
 	exa
-	ld	a,b
-	xor	0xED
-	ld	b,a
 	ld	a,c
-	xor	0xB8
+	xor	0xED
 	ld	c,a
 	ld	a,d
-	xor	0x83
+	xor	0xB8
 	ld	d,a
 	ld	a,e
-	xor	0x20
+	xor	0x83
 	ld	e,a
 	exa
+	xor	0x20
 .skipxor
-	dec	a
-	jr	nz,.bitloop
-	
+	djnz	.bitloop
+
 	ld	h,TCRC/256
+	ld	[hl],a
+	inc	h
 	ld	[hl],e
 	inc	h
 	ld	[hl],d
 	inc	h
 	ld	[hl],c
-	inc	h
-	ld	[hl],b
 	inc	l
 	jr	nz,.tbloop
 	

@@ -532,7 +532,7 @@ noargs_msg2:	db	" -h' for more information",13,10,0
 
 help_msg1:	db	"CRC rev."
 
-SV=SVNREVISION
+SV=SVNREVISION+1
 BEG=$
 	WHILE	SV>0
 		db	'0'+(SV%10)
