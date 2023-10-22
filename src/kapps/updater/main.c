@@ -1,4 +1,4 @@
-//("Žâª¨­ìâ¥áì ­  á¯¨­ªã ªà¥á«  ¨ ®â¤®å­¨â¥, ¯®ª ");
+//("ï¿½âª¨ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ á¯¨ï¿½ï¿½ï¿½ ï¿½ï¿½á«  ï¿½ ï¿½â¤®å­¨ï¿½, ï¿½ï¿½ï¿½ï¿½");
 #include <stdio.h>
 #include <string.h>
 #include <intrz80.h>
@@ -549,7 +549,7 @@ void binUpdate(void)
 	ATRIB(cw.text);
 	ATRIB(cw.back);
 	printf("6.Renaming NEW BIN...");
-
+ 
 	ren2bin();
 
 	AT(cw.x + 2, cw.y + 7);
