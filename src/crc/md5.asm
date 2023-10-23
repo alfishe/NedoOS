@@ -232,7 +232,7 @@ initABCD:	dh	"01234567"
 
 		;HL H'L' holds a current 32bit value
 
-MD5_ROUND1	MACRO	A,B,C,D,msg,const,shift
+MD5_ROUND1	MACRO	A,B,C,D,key,const,shift
 
 		;calc F = (B&C)|(~B&D) = D^((C^D)&B)
 
@@ -302,15 +302,15 @@ MD5_ROUND1	MACRO	A,B,C,D,msg,const,shift
 		;BCDE holds D^((C^D)&B) = result of F, 248tc
 
 
-		; add msg
+		; add key
 
-		ld	hl,[msg]	;16
+		ld	hl,[key]	;16
 		add	hl,de		;11
 		exd
-		ld	hl,[msg+2]	;16
+		ld	hl,[key+2]	;16
 		adc	hl,bc		;15
 
-		;HLDE contains F + msg[]
+		;HLDE contains F + key[]
 
 
 		; add constant
@@ -322,7 +322,7 @@ MD5_ROUND1	MACRO	A,B,C,D,msg,const,shift
 		ld	bc,const>>16
 		adc	hl,bc	;15
 
-		;HLDE contains F + msg[] + const
+		;HLDE contains F + key[] + const
 
 
 		; add A
@@ -334,7 +334,7 @@ MD5_ROUND1	MACRO	A,B,C,D,msg,const,shift
 		ld	bc,[A+2]	;20
 		adc	hl,bc		;15
 
-		;HLDE contains F + msg[] + const + A, 190tc
+		;HLDE contains F + key[] + const + A, 190tc
 
 
 		 IF	 shift==7
@@ -473,7 +473,7 @@ MD5_COMPRESS	;make transformations in tmp
 		ld	[de],a
 		inc	e
 		inc	l
-		 ENDM
+		 EDUP
 		djnz	.add_result
 
 		ret

@@ -710,13 +710,18 @@ CALCSUM	ds	CS_SYMLEN+1	;checksum calculated by algorithm
 CHKSUM	ds	CS_SYMLEN+1	;checksum to check, taken from '-c filename' file
 FNAME	ds	MAXPATH_sz+1	;file/path to check, taken from '-c filename' file
 
-	include	"crc.asm"
-
+	IFNDEF	MODULE
+	define	MODULE "crc.asm"
+	ENDIF
+	include	MODULE ;"crc.asm"
 
 cmd_end
 
         display "Size ",/d,cmd_end-cmd_begin," bytes"
 
-	savebin "crc.com",cmd_begin,cmd_end-cmd_begin
+	IFNDEF	OUTFNAME
+	define	OUTFNAME "crc.com"
+	ENDIF
+	savebin OUTFNAME,cmd_begin,cmd_end-cmd_begin
 	
 	LABELSLIST "../../us/user.l"
