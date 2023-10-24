@@ -157,7 +157,7 @@ CS_FINALIZE:	;finish calculation, generate asciiz string with checksum
 		ld	a,[phase]
 		ld	l,a
 
-		ld	[hl],0x01
+		ld	[hl],0x80
 		inc	l
 
 		ld	a,64	;must have at least 8 bytes after 0x01 appending to put length there
@@ -195,7 +195,7 @@ CS_FINALIZE:	;finish calculation, generate asciiz string with checksum
 		pop	hl
 		ld	de,stA
 
-		ld	b,32
+		ld	b,16
 .convert
 		call	hexconv
 		djnz	.convert
@@ -285,10 +285,10 @@ MD5_ROUND1	MACRO	A,B,C,D,key,const,shift
 
 		ld	a,d
 		xor	h
-		ld	h,a
+		ld	d,a
 		ld	a,e
 		xor	l
-		ld	l,a
+		ld	e,a
 
 		ld	hl,[D+2]	;16
 
@@ -300,7 +300,7 @@ MD5_ROUND1	MACRO	A,B,C,D,key,const,shift
 		ld	c,a
 
 		;BCDE holds D^((C^D)&B) = result of F, 248tc
-
+	call	LOGBCDE
 
 		; add key
 
@@ -311,7 +311,7 @@ MD5_ROUND1	MACRO	A,B,C,D,key,const,shift
 		adc	hl,bc		;15
 
 		;HLDE contains F + key[]
-
+	call	LOGHLDE
 
 		; add constant
 
@@ -323,6 +323,7 @@ MD5_ROUND1	MACRO	A,B,C,D,key,const,shift
 		adc	hl,bc	;15
 
 		;HLDE contains F + key[] + const
+	call	LOGHLDE
 
 
 		; add A
@@ -335,6 +336,7 @@ MD5_ROUND1	MACRO	A,B,C,D,key,const,shift
 		adc	hl,bc		;15
 
 		;HLDE contains F + key[] + const + A, 190tc
+	call	LOGHLDE
 
 
 		 IF	 shift==7
@@ -412,6 +414,7 @@ MD5_ROUND1	MACRO	A,B,C,D,key,const,shift
 		 ENDIF
 
 		;HLDE is now properly rotated, now add B
+	call	LOGHLDE
 
 		exd	;extra? ROL 17 also has EXD at the end
 		ld	bc,[B]
@@ -421,6 +424,7 @@ MD5_ROUND1	MACRO	A,B,C,D,key,const,shift
 		adc	hl,bc
 
 		;HLDE is new A
+	call	LOGHLDE
 
 		ld	[A],de
 		ld	[A+2],hl
@@ -438,22 +442,39 @@ MD5_COMPRESS	;make transformations in tmp
 		ldir
 
 		; rounds...
+	call	LOGTMP
 		MD5_ROUND1	tmpA,tmpB,tmpC,tmpD, msg+ 0*4, 0xd76aa478,  7
+	call	LOGTMP
 		MD5_ROUND1	tmpD,tmpA,tmpB,tmpC, msg+ 1*4, 0xe8c7b756, 12
+	call	LOGTMP
 		MD5_ROUND1	tmpC,tmpD,tmpA,tmpB, msg+ 2*4, 0x242070db, 17
+	call	LOGTMP
 		MD5_ROUND1	tmpB,tmpC,tmpD,tmpA, msg+ 3*4, 0xc1bdceee, 22
+	call	LOGTMP
 		MD5_ROUND1	tmpA,tmpB,tmpC,tmpD, msg+ 4*4, 0xf57c0faf,  7
+	call	LOGTMP
 		MD5_ROUND1	tmpD,tmpA,tmpB,tmpC, msg+ 5*4, 0x4787c62a, 12
+	call	LOGTMP
 		MD5_ROUND1	tmpC,tmpD,tmpA,tmpB, msg+ 6*4, 0xa8304613, 17
+	call	LOGTMP
 		MD5_ROUND1	tmpB,tmpC,tmpD,tmpA, msg+ 7*4, 0xfd469501, 22
+	call	LOGTMP
 		MD5_ROUND1	tmpA,tmpB,tmpC,tmpD, msg+ 8*4, 0x698098d8,  7
+	call	LOGTMP
 		MD5_ROUND1	tmpD,tmpA,tmpB,tmpC, msg+ 9*4, 0x8b44f7af, 12
+	call	LOGTMP
 		MD5_ROUND1	tmpC,tmpD,tmpA,tmpB, msg+10*4, 0xffff5bb1, 17
+	call	LOGTMP
 		MD5_ROUND1	tmpB,tmpC,tmpD,tmpA, msg+11*4, 0x895cd7be, 22
+	call	LOGTMP
 		MD5_ROUND1	tmpA,tmpB,tmpC,tmpD, msg+12*4, 0x6b901122,  7
+	call	LOGTMP
 		MD5_ROUND1	tmpD,tmpA,tmpB,tmpC, msg+13*4, 0xfd987193, 12
+	call	LOGTMP
 		MD5_ROUND1	tmpC,tmpD,tmpA,tmpB, msg+14*4, 0xa679438e, 17
+	call	LOGTMP
 		MD5_ROUND1	tmpB,tmpC,tmpD,tmpA, msg+15*4, 0x49b40821, 22
+	call	LOGTMP
 
 
 
@@ -477,6 +498,82 @@ MD5_COMPRESS	;make transformations in tmp
 		djnz	.add_result
 
 		ret
+
+
+LOGBCDE
+		push	bc
+		push	de
+		push	hl
+
+		ld	[tmparea],de
+		ld	[tmparea+2],bc
+
+		ld	de,tmparea
+		ld	hl,pri1
+		call	logtmp1
+
+		pop	hl
+		pop	de
+		pop	bc
+		ret
+LOGHLDE
+		push	bc
+		push	de
+		push	hl
+
+		ld	[tmparea],de
+		ld	[tmparea+2],hl
+
+		ld	de,tmparea
+		ld	hl,pri1
+		call	logtmp1
+
+		pop	hl
+		pop	de
+		pop	bc
+		ret
+
+LOGTMP
+		ld	de,tmpA
+		ld	hl,pri1
+		call	hexconv
+		call	hexconv
+		call	hexconv
+		call	hexconv
+		ld	[hl],' '
+		inc	hl
+		call	hexconv
+		call	hexconv
+		call	hexconv
+		call	hexconv
+		ld	[hl],' '
+		inc	hl
+logtmp2
+		call	hexconv
+		call	hexconv
+		call	hexconv
+		call	hexconv
+		ld	[hl],' '
+		inc	hl
+logtmp1
+		call	hexconv
+		call	hexconv
+		call	hexconv
+		call	hexconv
+		ld	[hl],13
+		inc	hl
+		ld	[hl],10
+		inc	hl
+		ld	[hl],0
+
+		ld	hl,pri1
+		jp	prtext
+
+tmparea	ds	4
+
+pri1	ds	40
+
+
 
 
 
