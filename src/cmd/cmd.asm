@@ -1,4 +1,4 @@
-;TODO %~dp0 (драйв и путь запуска)
+        ;TODO %~dp0 (драйв и путь запуска)
 ;TODO %~t1 (дата-время 1-го параметра)
 ;TODO goto и метки :label
 ;TODO if ???==??? goto
@@ -294,7 +294,7 @@ pipehandle=$+1
         ld b,a
         OS_CLOSEHANDLE ;закрыли источник данных
         pop de ;e=id
-       call waitpid_keepresult
+       ;call waitpid_keepresult
         ;WAITPID ;hl=result
         ;ld (lastresult),hl
         ;call prword_hl_crlf
@@ -336,6 +336,10 @@ editcmd0
         ;ld e,CURSORCOLOR;0x38
         ;OS_PRATTR ;нарисовать курсор
         call yieldgetkeyloop ;YIELDGETKEYLOOP
+       ;push af
+       ;ld a,r
+       ;out (0xfe),a
+       ;pop af
          ;ld a,c ;keynolang
         ;push af
         ;call cmdcalccurxy
@@ -1599,7 +1603,7 @@ cmd_type_buf=$+1
         
 cmd_tee
 ;tee filename
-;copy sdtin to filename and to stdout
+;copy stdin to filename and to stdout
         ld hl,(execcmd_pars)
         ld a,(hl)
         or a
