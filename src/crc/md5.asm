@@ -165,12 +165,14 @@ CS_FINALIZE:	;finish calculation, generate asciiz string with checksum
 		sub	8
 		jr	nc,.no_extra_block
 		;append extra block
+		add	a,8
+		jr	z,.no_append
 .append_zeros
 		ld	[hl],0
 		inc	l
 		dec	a
 		jr	nz,.append_zeros
-
+.no_append
 		call	MD5_COMPRESS
 		ld	hl,msg
 		ld	a,64-8
