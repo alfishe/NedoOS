@@ -4,14 +4,14 @@
 # Tools used:
 #   GNU core utilities, tools/aspp, tools/sjasmplus.
 
-include ../_sdk/common.mk
+include ../../_sdk/common.mk
 
 NAME		= md5.com
 OBJECTS		=
-SOURCES		= main.asm
+SOURCES		= ../main.asm
 RESOURCES	=
 DOCS		=
-INSTALLDIR	?= ../../release
+INSTALLDIR	?= ../../../release
 BIN_INSTALLDIR	= ${INSTALLDIR}/bin
 RES_INSTALLDIR	= ${INSTALLDIR}/bin
 DOC_INSTALLDIR	= ${INSTALLDIR}/doc

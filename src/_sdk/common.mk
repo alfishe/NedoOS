@@ -103,7 +103,7 @@ define sjasmplus_odd_rule =
 ${patsubst %${suffix ${2}},%.d,${2}}: ${2}
 	$${RM} $$@ && $${DEPAS} $${DEPAFLAGS} ${addprefix -MT ,${1}} -MT $$@ -MF $$@ $$<
 ${1}: ${2}
-	$${SJASMPLUS} $${SJASMPLUSFLAGS} ${3} $$<
+	$${SJASMPLUS} $${SJASMPLUSFLAGS} ${SJASMOPTS} ${3} $$<
 ifneq "${4}" ""
 ${4}+=${patsubst %${suffix ${2}},%.d,${2}}
 endif
