@@ -1178,14 +1178,14 @@ loadsettings
 	call openstream_file
 	or a
 	ret nz
-	ld de,0x8000
+	ld de,browserpanel
 	ld hl,0x4000
 	call readstream_file
-	ld de,0x8000
+	ld de,browserpanel
 	add hl,de
 	ld (hl),0
 	call closestream_file
-	ld de,0x8000
+	ld de,browserpanel
 .parseloop
 	ld bc,'='*256
 	call findnextchar
@@ -1609,6 +1609,10 @@ page0dataend = $
 
 	assert page0dataend <= 0x3d00 ;reserve 768 bytes for stack
 
+	savebin "gp.com",mainbegin,mainend-mainbegin
+
+	org 0x0000
+
 plrbegin
 modstart
 	incbin "moonmod.bin"
@@ -1627,5 +1631,4 @@ vgmstart
 vgmend
 plrend
 
-	savebin "gp.com",mainbegin,mainend-mainbegin
 	savebin "gp.plr",plrbegin,plrend-plrbegin

@@ -65,6 +65,11 @@ MIDI to SMF 0 automatically, so you'd have to convert MIDI files to SMF 0
 offline using GN1:0 MIDI Converter (or a similar program)
 http://www.gnmidi.com/gn1to0.zip
 
+FastTracker 2 player
+
+The player doesn't support sound samples larger than 64KB and 9xx effect 
+(Sample Offset) due to YMF278B chip limitations.
+
 Collections of chiptunes and tracker music
 
 https://zxart.ee/eng/music/

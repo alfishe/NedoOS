@@ -1,5 +1,4 @@
-; MoonSound .mod player
-; Supports configurable channels panning and up to 24 channels
+; FT2-compatible .mod player for MoonSound
 
 	DEVICE ZXSPECTRUM128
 	include "../_sdk/sys_h.asm"
@@ -37,7 +36,25 @@ playerinit
 	call setdefaultpanning
 	ld ix,modplayer
 	call opl4initwave
-	ret z
+	jr nz,.error
+;init period lookup
+	OS_NEWPAGE
+	or a
+	ld hl,outofmemorystr
+	ret nz
+	ld a,e
+	ld (modperiodlookuppage),a
+	SETPGC000
+;	call modinitperiodlookup
+;load the table from disk, runtime init is very slow on ATM2
+	ld hl,modperiodopl4
+	ld de,0xc000
+	ld bc,modperiodopl4_end-modperiodopl4
+	ldir
+	ld hl,initokstr
+	xor a
+	ret
+.error
 	ld a,255
 	ld (modsupported),a ;writes 255 disabling the extension
 	ret
@@ -66,6 +83,9 @@ setdefaultpanning
 	ret
 
 playerdeinit
+modperiodlookuppage=$+1
+	ld a,0
+	OS_DELPAGE
 	ret
 
 musicload
@@ -119,18 +139,25 @@ musicplay
 	include "../_sdk/file.asm"
 	include "common/memorystream.asm"
 	include "common/opl4utils.asm"
+	include "common/muldiv.asm"
 	include "moonmod/mod.asm"
 	include "progress.asm"
 
 playernamestr
 	db "MoonSound MOD Player",0
-end
+outofmemorystr
+	db "Out of memory!",0
 
 modinfo MODINFO
 modwaveheaderbuffer = $
 modplayer MODPLAYER
 titlestr ds TITLELENGTH+1
 currentposition ds 1
+
+modperiodopl4
+	incbin "moonmod/modperiodopl4.bin"
+modperiodopl4_end
+end
 
 	org MODHEADERADDR
 modheader MODHEADER

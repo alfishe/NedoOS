@@ -10,4 +10,8 @@ sjasmplus --nologo --msg=war main.asm
 if "%currentdir%"=="" (
  copy /Y gp.com "../../release/bin/" > nul
  copy /Y gp.plr "../../release/bin/gp/" > nul
+ "../../tools/dmimg.exe" ../../us/hdd_nedo.vhd put gp.com /bin/gp.com
+ "../../tools/dmimg.exe" ../../us/hdd_nedo.vhd put gp.plr /bin/gp/gp.plr
+ pause
+ if "%makeall%"=="" ..\..\us\emul.exe
 )

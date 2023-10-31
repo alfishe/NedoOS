@@ -3,6 +3,12 @@ MEMORYSTREAMMAXPAGES = 210
 memorystreamloadfile
 ;de = file name
 ;out: zf=1 if successful, zf=0 otherwise
+;must load the whole file
+	ld a,255
+	ld (.errormask),a
+	ld a,MEMORYSTREAMMAXPAGES
+	ld (.maxpages),a
+.startloading
 	call openstream_file
 	or a
 	ret nz
@@ -11,7 +17,8 @@ memorystreamloadfile
 	ld hl,0
 	ld de,hl
 	ld c,l
-	ld b,MEMORYSTREAMMAXPAGES
+.maxpages=$+1
+	ld b,0
 .loadloop
 	push bc
 	push de
@@ -45,6 +52,8 @@ memorystreamloadfile
 	and 0x40
 	jr z,.breakloop
 	djnz .loadloop
+.errormask=$+1
+	and 0
 .breakloop
 	push af
 	ld (memorystreamsize+0),hl
