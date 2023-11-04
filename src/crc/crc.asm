@@ -2,6 +2,8 @@
 
 CS_SYMLEN	equ	8 ;length of checksum in ascii: 8 for CRC32
 
+CS_NAME
+	db	"CRC-32 (0xEDB88320)",0
 
 CS_PREPARE:	; precalculate CRC table
 

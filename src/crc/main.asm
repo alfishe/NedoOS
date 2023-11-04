@@ -114,6 +114,10 @@ process_arg:	;args parsing routine, has state
 		call	prtext
 		ld	hl,help_msg2
 		call	prtext
+		ld	hl,CS_NAME
+		call	prtext
+		ld	hl,help_msg3
+		call	prtext
 		jr	successful_exit
 
 
@@ -185,14 +189,20 @@ process_list:	;argument = filename, open it, read crcs and filenames, check
 		djnz	.chksum_loop
 		ld	[hl],0
 
-		;parse two spaces
-		ld	b,2
-.chkspc_loop
+		;parse >=1 spaces
 		call	my_getc
-		jr	c,.line_unexp_end
+		jr	c,.line_unexp_end2
 		cp	' '
 		jr	nz,.line_format_error
-		djnz	.chkspc_loop
+.chkspc_loop
+		call	my_getc
+.line_unexp_end2
+		jr	c,.line_unexp_end
+		cp	' '
+		jr	z,.chkspc_loop
+		call	my_ungetc
+
+
 
 		;parse filepath/name
 		ld	b,MAXPATH_sz&255 ;now it is 256
@@ -556,11 +566,12 @@ END=END-1
 
 		db	"Usage: ",0
 help_msg2:	db	" [OPTION] [FILE]...",13,10
-		db	"Print CRC-32 (0xEDB88320) checksums.",13,10,13,10
+		db	"Print ",0
+help_msg3:	db	" checksums.",13,10,13,10
 		db	"When filename is -, read standard input.",13,10
 		db	"Options:",13,10
-		db	"  -c   read CRCs from the FILE(s), but not stdin, and check them.",13,10
-		db	"       file format: ^<CRC><space><space><filename><EOL>",13,10
+		db	"  -c   read checksums from the FILE(s) (but not stdin) and check them.",13,10
+		db	"       file format: ^<CHKSUM><spaces><filename><EOL>",13,10
 		db	"  -h   display this help and exit",13,10
 		db	13,10
 		db	0
