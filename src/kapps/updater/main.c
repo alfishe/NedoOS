@@ -25,6 +25,7 @@ struct sockaddr_in targetadr;
 struct readstructure readStruct;
 FILE *fp2;
 
+
 struct window
 {
 	unsigned char x;
