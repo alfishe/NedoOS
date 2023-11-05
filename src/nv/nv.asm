@@ -2571,14 +2571,19 @@ proceditcmd_copy_fcb
 	ld hl,dir2_buf
 	call nv_makefilepath_hltode
         pop hl
-         ;ld hl,dir3_buf
          ld de,wincopy_dest
+       if 1
+        ld b,64
+        call strcopy_maxb
+       else
+         ;ld hl,dir3_buf
          push de
          ld bc,64
          ldir
          pop hl
 	;ld hl,wincopy_dest
 	call nv_fillpathspaces_hl
+       endif
 
 	ld de,dir3_buf;wincopy_src ;update copy window
         push de
@@ -2586,14 +2591,19 @@ proceditcmd_copy_fcb
 	ld hl,dir_buf
 	call nv_makefilepath_hltode
         pop hl
-         ;ld hl,dir3_buf
          ld de,wincopy_src
+       if 1
+        ld b,64
+        call strcopy_maxb
+       else
+         ;ld hl,dir3_buf
          push de
          ld bc,64
          ldir
          pop hl
 	;ld hl,wincopy_src
 	call nv_fillpathspaces_hl
+       endif
 
 	ld hl,wincopy2
 	call upwindow_text
