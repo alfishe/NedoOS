@@ -31,18 +31,29 @@
 	IFDEF NEDONET
 		include "nedowifi.asm"
 	ELSE
+	IFNDEF MSX
 		include "wifi.asm"
+	ENDIF		
 	ENDIF
 
     IFDEF NEDOOS
     	include "rtc-nos.asm"
     ENDIF
 
+
     IFDEF SMUCRTC
     	include "rtc-smuc.asm"
     ENDIF
-	
-	include "proxy.asm"
-	include "memory.asm"
-	include "general-sound.asm"
     
+	IFDEF MSX
+        include "drivers/unapi/unapi.asm"
+    	include "drivers/unapi/tcp.asm"
+		include "rtc-msx.asm"
+    ELSE
+		include "proxy.asm"
+		include "memory.asm"
+	ENDIF
+
+	IFDEF GS
+		include "general-sound.asm"	
+	ENDIF		
