@@ -1,13 +1,9 @@
-MEMORYSTREAMMAXPAGES = 210
-
 memorystreamloadfile
+;a = 0xff to require loading the entire file into memory, 0x00 if only MEMORYSTREAMMAXPAGES needed
 ;de = file name
 ;out: zf=1 if successful, zf=0 otherwise
 ;must load the whole file
-	ld a,255
 	ld (.errormask),a
-	ld a,MEMORYSTREAMMAXPAGES
-	ld (.maxpages),a
 .startloading
 	call openstream_file
 	or a
@@ -17,8 +13,7 @@ memorystreamloadfile
 	ld hl,0
 	ld de,hl
 	ld c,l
-.maxpages=$+1
-	ld b,0
+	ld b,MEMORYSTREAMMAXPAGES
 .loadloop
 	push bc
 	push de

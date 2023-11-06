@@ -16,6 +16,7 @@ HEADER_SAMPLES_COUNT = 0x8018
 HEADER_LOOP_OFFSET = 0x801c
 HEADER_LOOP_SAMPLES_COUNT = 0x8020
 TITLELENGTH = 64
+MEMORYSTREAMMAXPAGES = 210
 
 	org PLAYERSTART
 
@@ -83,6 +84,7 @@ musicload
 	cp 'z'
 	ex de,hl
 	jr z,.loadcompressed
+	ld a,255
 	call memorystreamloadfile
 	jr z,.doneloading
 	ret

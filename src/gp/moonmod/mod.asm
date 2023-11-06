@@ -23,7 +23,7 @@ samplerepeatlength ds 2
 
 	struct MODHEADER
 songname ds 20
-samples ds MODSAMPLEINFO*31
+samples ds MODSAMPLEINFO*MODSAMPLECOUNT
 songlength ds 1
 dummy ds 1
 patterntable ds 128
@@ -55,6 +55,8 @@ wavecontrol ds 1
 patternloopstart ds 1
 patternloopcount ds 1
 pankeyon ds 1
+samplefinetune ds 1
+commandE5 ds 1
 	ends
 
 	struct MODINFO
@@ -62,17 +64,13 @@ patternaddrs ds MODMAXPATTERNS*4
 channelcount ds 1
 patterncount ds 1
 songlength ds 1
-samplefinetunes ds MODSAMPLECOUNT
-samplevolumes ds MODSAMPLECOUNT
 	ends
 
 	struct MODPLAYER
 patterntableindex ds 1
 patternstepindex ds 1
 arpeggio ds 1
-commandE5 ds 1
 commandEE ds 1
-bpm ds 1
 speed ds 1
 speedstep ds 1
 channels ds MODCHANNEL*MODMAXCHANNELS
@@ -91,6 +89,8 @@ stepdatabuffer ds MODSTEPDATA*MODMAXCHANNELS
 modload
 ;de = input file name
 ;out: zf=1 if the file is ready for playing, zf=0 otherwise
+	ld (modloadsamples.filename),de
+	xor a
 	call memorystreamloadfile
 	ret nz
 ;map header to MODHEADERADDR
@@ -103,7 +103,9 @@ modload
 	ld (modinfo.songlength),a
 	call opl4init
 	call modloadpatterns
+	jp nz,memorystreamfree ;sets zf=0
 	call modloadsamples
+	jp nz,memorystreamfree ;sets zf=0
 ;init player state
 	ld hl,modplayer
 	ld de,modplayer+1
@@ -189,8 +191,7 @@ modplay
 	ld a,(modinfo.channelcount)
 .t0loop
 	push af
-	xor a
-	ld (modplayer.commandE5),a
+	ld (iy+MODCHANNEL.commandE5),0
 	call modsetsample
 	call modhandlecommandT0
 	ld d,(ix+MODSTEPDATA.effectcommand)
@@ -243,44 +244,65 @@ modplay
 	djnz .tnloop
 	ret
 
+loadfiledata
+	push af,bc,de
+	exx
+	ex af,af'
+	push af,bc,de,hl,ix,iy
+	ld de,0x8000
+	ld hl,0x4000
+	call readstream_file
+	pop iy,ix,hl,de,bc,af
+	exx
+	ex af,af'
+	pop de,bc,af
+	ld hl,0x8000
+	ret
+
 modloadsamples
 ;input: memory stream at samples data
+;output: memory stream position is unchanged, zf=1 if samples are loaded, zf=0 otherwise
+.filename=$+1
+	ld de,0
+	call openstream_file
+	or a
+	ret nz
+	call memorystreamgetpos
+	ld a,(filehandle)
+	ld b,a
+	OS_SEEKHANDLE
+	ld a,(modfilebufferpage)
+	SETPG8000
+	ld hl,0xffff
+	ld (.filebufferaddr),hl
+;read samples data from file
 	ld hl,MODSAMPLEDATASTART%65536
 	ld a,MODSAMPLEDATASTART/65536
 	ld (.sampleaddresslo),hl
 	ld (.sampleaddresshi),a
 	ld ix,modheader.samples
 	ld iy,modwaveheaderbuffer
-	ld hl,modinfo.samplefinetunes
-	ld de,modinfo.samplevolumes
 	ld b,MODSAMPLECOUNT
 .mainloop
-	ld a,(ix+MODSAMPLEINFO.finetune)
-	ld (hl),a
-	inc hl
-	ld a,(ix+MODSAMPLEINFO.volume)
-	ld (de),a
-	inc de
 	push bc
-	push de
-	push hl
 	ld h,(ix+MODSAMPLEINFO.samplelength+0)
 	ld l,(ix+MODSAMPLEINFO.samplelength+1)
-	ld de,0
+	bit 7,h
+	jr z,.lessthan64k
+;set the bit indicating that sample's data is halved to fit 64KB OPL4 limit
+	set 4,(ix+MODSAMPLEINFO.finetune)
+.lessthan64k
+	jr nz,$+3
 	add hl,hl
-	jr nc,.canfullyload
-	ex de,hl
-	inc de
-	ld hl,0xffff
-.canfullyload
-	ld (.sampletail),de
 	ld (.samplelength),hl
 	ld h,(ix+MODSAMPLEINFO.samplerepeatpoint+0)
 	ld l,(ix+MODSAMPLEINFO.samplerepeatpoint+1)
+	jr nz,$+3
 	add hl,hl
 	ld bc,hl
 	ld h,(ix+MODSAMPLEINFO.samplerepeatlength+0)
 	ld l,(ix+MODSAMPLEINFO.samplerepeatlength+1)
+	jr nz,$+3
 	add hl,hl
 	ex de,hl
 	ld hl,-5
@@ -294,8 +316,10 @@ modloadsamples
 	or c
 	jr nz,.hasvalidloop
 	ld de,(.samplelength)
-	dec de
+;End-address and loop-address must be at least one data sample apart.
+;I'm duplicating the last sample in order to stay within initialized data bounds.
 	ld bc,de
+	dec bc
 .hasvalidloop
 	ld hl,0xffff
 	sub hl,de
@@ -320,7 +344,7 @@ modloadsamples
 	ld a,b
 	or c
 	jr z,.nextsample
-;write sample
+;upload sample
 	push bc
 	push de
 	push hl
@@ -330,33 +354,36 @@ modloadsamples
 	opl4_wait
 	ld a,6
 	out (MOON_WREG),a
-	ld de,ix
 	ld a,c
 	dec bc
 	inc b
 	ld c,b
 	ld b,a
-	ld hl,(memorystreamcurrentaddr)
-.writeloop
-	memory_stream_read_byte d
+	xor a
+	bit 4,(ix+MODSAMPLEINFO.finetune)
+	jr z,$+4
+	ld a,0x23 ;'inc hl' to upload every other byte
+	ld (.skipbyteop),a
+.filebufferaddr=$+1
+	ld hl,0
+.uploadloop
+	bit 6,h
+	call nz,loadfiledata
+	ld d,(hl)
+	inc hl
+.skipbyteop
+	ds 1
 	opl4_wait
 	ld a,d
 	out (MOON_WDAT),a
-	djnz .writeloop
+	djnz .uploadloop
 	dec c
-	jr nz,.writeloop
-	ld (memorystreamcurrentaddr),hl
-.sampletail=$+1
-	ld bc,0
-	ld a,b
-	or c
-	jr z,.fullyloaded
-	call memorystreamgetpos
-	add hl,bc
-	jr nc,$+3
-	inc de
-	call memorystreamseek
-.fullyloaded
+	jr nz,.uploadloop
+	ld (.filebufferaddr),hl
+;duplicate the last data sample
+	opl4_wait
+	ld a,d
+	out (MOON_WDAT),a
 	ld de,0x1002
 	call opl4writewave
 	pop hl
@@ -364,29 +391,35 @@ modloadsamples
 	pop bc
 ;set next write address
 	xor a
-	add hl,bc
+	scf ;add +1 account for duping the last data sample
+	adc hl,bc
 	ld (.sampleaddresslo),hl
 	adc a,d
 	ld (.sampleaddresshi),a
 .nextsample
-	ld de,MODSAMPLEINFO
-	add ix,de
-	ld e,MOONWAVEHEADERSIZE
-	add iy,de
-	pop hl
-	pop de
+	ld bc,MODSAMPLEINFO
+	add ix,bc
+	ld c,MOONWAVEHEADERSIZE
+	add iy,bc
 	pop bc
 	dec b
 	jp nz,.mainloop
+;switch back to memory steam
+	call closestream_file
+	ld a,(memorystreamcurrentpage)
+	SETPG8000
 ;write headers
 	ld ix,modwaveheaderbuffer
 	ld hl,MOONSOUNDROMSIZE%65536
 	ld d,MOONSOUNDROMSIZE/65536
 	ld bc,MODWAVEHEADERBUFFERSIZE
-	jp opl4writememory
+	call opl4writememory
+	xor a
+	ret
 
 modloadpatterns
 ;output: pattern offsets, memory stream is positioned past patterns data
+;output: zf=1 if okay, zf=0 if memory stream out of bounds
 	ld hl,modheader.patterntable
 	ld b,128
 	xor a
@@ -424,7 +457,20 @@ modloadpatterns
 	inc ix
 	dec a
 	jr nz,.patdataloop
-	jp memorystreamseek
+;check for out-of-bounds access
+	ld a,e
+	ld b,h
+	sla b
+	rla
+	sla b
+	rla
+	cp MEMORYSTREAMMAXPAGES
+	ccf
+	sbc a,a
+	ret nz
+	call memorystreamseek
+	xor a
+	ret
 
 modgetnextpatternindex
 ;output: a = pattern index
@@ -632,8 +678,7 @@ modhandlecommandT0
 	rrca
 	rrca
 	and 15
-	call modsetpanning
-	jp modflushpankeyon
+	jp modsetpanning
 .doeffectC
 	ld a,(ix+MODSTEPDATA.effectdata)
 	clamp_volume_in_a
@@ -673,7 +718,8 @@ modhandlecommandT0
 	ret
 .doexteff5
 	ld a,(ix+MODSTEPDATA.effectdata)
-	ld (modplayer.commandE5),a
+	or 16
+	ld (iy+MODCHANNEL.commandE5),a
 	ret
 .doexteff7
 	ld a,(iy+MODCHANNEL.wavecontrol)
@@ -687,8 +733,7 @@ modhandlecommandT0
 	ret
 .doexteff8
 	ld a,(ix+MODSTEPDATA.effectdata)
-	call modsetpanning
-	jp modflushpankeyon
+	jp modsetpanning
 .doexteff9
 	ld a,(ix+MODSTEPDATA.effectdata)
 	ld (iy+MODCHANNEL.tempcommand),a
@@ -697,14 +742,14 @@ modhandlecommandT0
 	ld a,(iy+MODCHANNEL.volume)
 	add a,(ix+MODSTEPDATA.effectdata)
 	clamp_volume_in_a
-	add (iy+MODCHANNEL.volume),a
+	ld (iy+MODCHANNEL.volume),a
 	jp modsetvolume
 .doexteffB
 	ld a,(iy+MODCHANNEL.volume)
 	sub (ix+MODSTEPDATA.effectdata)
 	jr nc,$+3
 	xor a
-	add (iy+MODCHANNEL.volume),a
+	ld (iy+MODCHANNEL.volume),a
 	jp modsetvolume
 .doexteffC
 	ld a,(ix+MODSTEPDATA.effectdata)
@@ -893,8 +938,24 @@ modsetsample
 	or a
 	ret z
 	ld (iy+MODCHANNEL.samplenumber),a
-	get_array_value a,modinfo.samplevolumes-1
+	dec a
+	ld l,a
+	ld h,0
+	add hl,hl
+	ld de,hl
+	add hl,hl
+	add hl,hl
+	add hl,hl
+	add hl,hl
+	sbc hl,de ; samplenumber*MODSAMPLEINFO
+	ld de,modheader.samples+MODSAMPLEINFO.volume
+	add hl,de
+	ld a,(hl)
 	ld (iy+MODCHANNEL.volume),a
+	ld de,MODSAMPLEINFO.finetune-MODSAMPLEINFO.volume
+	add hl,de
+	ld a,(hl)
+	ld (iy+MODCHANNEL.samplefinetune),a
 	ld (iy+MODCHANNEL.vibratotableposition),0
 	ret
 
@@ -945,25 +1006,23 @@ modtuneperiod
 ;iy = channel data
 ;hl = period
 ;out: hl = period
-	ex de,hl
-	ld a,(modplayer.commandE5)
+	ld a,(iy+MODCHANNEL.commandE5)
 	or a
-	jr nz,.computefinetune
-	ld a,(iy+MODCHANNEL.samplenumber)
-	get_array_value a,modinfo.samplefinetunes-1
+	jr nz,$+6
+	ld a,(iy+MODCHANNEL.samplefinetune)
 	and 15
-	jr nz,.computefinetune
+	ret z
 	ex de,hl
-	ret
-.computefinetune
 	add a,a
 	get_array_value c,finetunefactors
 	inc hl
 	ld b,(hl)
+	sla de
 	call uintmul16
-	add hl,hl
+	bit 7,h
+	jr z,$+3
+	inc de
 	ex de,hl
-	adc hl,hl
 	ret
 
 modportaup
@@ -1152,6 +1211,9 @@ modsetsamplenumber
 modsetfrequency
 ;iy = channel data
 ;hl = period
+	bit 4,(iy+MODCHANNEL.samplefinetune)
+	jr z,$+3
+	add hl,hl
 	ld a,(modperiodlookuppage)
 	SETPGC000
 	add hl,hl
@@ -1201,19 +1263,31 @@ modflushpankeyon
 	jp opl4writewave
 
 modsetbpm
-;a = bpm
-	ld (modplayer.bpm),a
-	get_array_value d,modtimertable
+;a = bpm (>=32)
+	ld b,a
+	get_array_value d,modtimertable-32
+	ld a,b
+	cp 125
+	jr nc,.timer1
 	ld e,0x03
 	call opl4writefm1
 	ld de,0x4204
+	call opl4writefm1
+	ld d,0x80
+	jp opl4writefm1
+.timer1
+	ld e,0x02
+	call opl4writefm1
+	ld de,0x2104
+	call opl4writefm1
+	ld d,0x80
 	jp opl4writefm1
 
 modwaittimer
 	in a,(MOON_STAT)
 	rla
 	jr nc,modwaittimer
-	ld de,0x8204
+	ld de,0x8004
 	jp opl4writefm1
 
 modvolumetable
@@ -1231,8 +1305,8 @@ moddefaultpanning
 modpantable
 	db 9,10,11,12,13,14,15,0,0,1,2,3,4,5,6,7
 
-; 2^( -FineTune / 12 / 8 ) as 1.15 fixed point
 finetunefactors
+	; 2^( -FineTune / 12 / 8 ) as 1.15 fixed point
 	dw 0x8000,0x7f14,0x7e2a,0x7d41,0x7c5b,0x7b76
 	dw 0x7a92,0x79b0,0x879c,0x86a2,0x85aa,0x84b4
 	dw 0x83c0,0x82cd,0x81dc,0x80ed
@@ -1244,20 +1318,22 @@ modvibratotable
 	db 180,161,141,120, 97, 74, 49, 24
 
 modtimertable
-	db 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-	db 0x05,0x0d,0x14,0x1b,0x22,0x28,0x2e,0x33,0x39,0x3e,0x42,0x47,0x4b,0x4f,0x53,0x57,0x5a,0x5e
-	db 0x61,0x64,0x67,0x6a,0x6d,0x70,0x72,0x75,0x77,0x7a,0x7c,0x7e,0x80,0x82,0x84,0x86,0x88,0x8a
-	db 0x8b,0x8d,0x8f,0x90,0x92,0x94,0x95,0x96,0x98,0x99,0x9a,0x9c,0x9d,0x9e,0x9f,0xa1,0xa2,0xa3
-	db 0xa4,0xa5,0xa6,0xa7,0xa8,0xa9,0xaa,0xab,0xac,0xad,0xae,0xae,0xaf,0xb0,0xb1,0xb2,0xb2,0xb3
-	db 0xb4,0xb5,0xb5,0xb6,0xb7,0xb7,0xb8,0xb9,0xb9,0xba,0xbb,0xbb,0xbc,0xbc,0xbd,0xbd,0xbe,0xbf
-	db 0xbf,0xc0,0xc0,0xc1,0xc1,0xc2,0xc2,0xc3,0xc3,0xc3,0xc4,0xc4,0xc5,0xc5,0xc6,0xc6,0xc7,0xc7
-	db 0xc7,0xc8,0xc8,0xc8,0xc9,0xc9,0xca,0xca,0xca,0xcb,0xcb,0xcb,0xcc,0xcc,0xcc,0xcd,0xcd,0xcd
-	db 0xce,0xce,0xce,0xcf,0xcf,0xcf,0xd0,0xd0,0xd0,0xd0,0xd1,0xd1,0xd1,0xd1,0xd2,0xd2,0xd2,0xd3
-	db 0xd3,0xd3,0xd3,0xd4,0xd4,0xd4,0xd4,0xd4,0xd5,0xd5,0xd5,0xd5,0xd6,0xd6,0xd6,0xd6,0xd6,0xd7
-	db 0xd7,0xd7,0xd7,0xd8,0xd8,0xd8,0xd8,0xd8,0xd8,0xd9,0xd9,0xd9,0xd9,0xd9,0xda,0xda,0xda,0xda
-	db 0xda,0xda,0xdb,0xdb,0xdb,0xdb,0xdb,0xdb,0xdc,0xdc,0xdc,0xdc,0xdc,0xdc,0xdd,0xdd,0xdd,0xdd
-	db 0xdd,0xdd,0xdd,0xde,0xde,0xde,0xde,0xde,0xde,0xde,0xdf,0xdf,0xdf,0xdf,0xdf,0xdf,0xdf,0xe0
-	db 0xe0,0xe0,0xe0,0xe0,0xe0,0xe0,0xe0,0xe1,0xe1
+	; timer2 = 256 - 1000000 * 5 / (bpm * 2 * 323)
+	db 0x0f,0x16,0x1d,0x23,0x2a,0x2f,0x35,0x3a,0x3f,0x44,0x48,0x4d,0x51,0x55,0x58,0x5c,0x5f,0x63
+	db 0x66,0x69,0x6c,0x6e,0x71,0x74,0x76,0x79,0x7b,0x7d,0x80,0x82,0x84,0x86,0x88,0x89,0x8b,0x8d
+	db 0x8f,0x90,0x92,0x93,0x95,0x96,0x98,0x99,0x9b,0x9c,0x9d,0x9f,0xa0,0xa1,0xa2,0xa3,0xa4,0xa5
+	db 0xa7,0xa8,0xa9,0xaa,0xab,0xab,0xac,0xad,0xae,0xaf,0xb0,0xb1,0xb2,0xb2,0xb3,0xb4,0xb5,0xb5
+	db 0xb6,0xb7,0xb7,0xb8,0xb9,0xb9,0xba,0xbb,0xbb,0xbc,0xbd,0xbd,0xbe,0xbe,0xbf,0xbf,0xc0,0xc1
+	db 0xc1,0xc2,0xc2
+	; timer1 = 256 - 1000000 * 5 / (bpm * 2 * 81)
+	db 0x0a,0x0c,0x0d,0x0f,0x11,0x13,0x15,0x17,0x18,0x1a,0x1c,0x1e,0x1f,0x21,0x22,0x24,0x26,0x27
+	db 0x29,0x2a,0x2c,0x2d,0x2f,0x30,0x31,0x33,0x34,0x35,0x37,0x38,0x39,0x3b,0x3c,0x3d,0x3e,0x40
+	db 0x41,0x42,0x43,0x44,0x45,0x47,0x48,0x49,0x4a,0x4b,0x4c,0x4d,0x4e,0x4f,0x50,0x51,0x52,0x53
+	db 0x54,0x55,0x56,0x57,0x58,0x59,0x5a,0x5b,0x5b,0x5c,0x5d,0x5e,0x5f,0x60,0x61,0x61,0x62,0x63
+	db 0x64,0x65,0x65,0x66,0x67,0x68,0x68,0x69,0x6a,0x6b,0x6b,0x6c,0x6d,0x6e,0x6e,0x6f,0x70,0x70
+	db 0x71,0x72,0x72,0x73,0x74,0x74,0x75,0x75,0x76,0x77,0x77,0x78,0x79,0x79,0x7a,0x7a,0x7b,0x7b
+	db 0x7c,0x7d,0x7d,0x7e,0x7e,0x7f,0x7f,0x80,0x80,0x81,0x81,0x82,0x83,0x83,0x84,0x84,0x85,0x85
+	db 0x86,0x86,0x87,0x87,0x87
 
 modtypetable
 	db "M.K.",4
@@ -1344,12 +1420,10 @@ modfindnotenumber
 ;hl = period
 ;out: a = note number
 ;bc = -hl - 1
-	ld a,h
-	cpl
-	ld b,a
-	ld a,l
-	cpl
-	ld c,a
+	ex de,hl
+	ld hl,-3
+	sub hl,de
+	ld bc,hl
 	ld hl,ft2periods
 	xor a
 .loop	ld e,(hl)

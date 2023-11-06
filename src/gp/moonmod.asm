@@ -5,6 +5,7 @@
 	include "playerdefs.asm"
 
 TITLELENGTH = 64
+MEMORYSTREAMMAXPAGES = 20
 
 	org PLAYERSTART
 
@@ -33,6 +34,8 @@ playerinit
 ;hl = GPSETTINGS
 ;a = player page
 ;out: zf=1 if init is successful, hl=init message
+	ld a,(hl)
+	ld (modfilebufferpage),a
 	call setdefaultpanning
 	ld ix,modplayer
 	call opl4initwave
@@ -41,12 +44,12 @@ playerinit
 	OS_NEWPAGE
 	or a
 	ld hl,outofmemorystr
-	ret nz
+	jr nz,.error
 	ld a,e
 	ld (modperiodlookuppage),a
 	SETPGC000
 ;	call modinitperiodlookup
-;load the table from disk, runtime init is very slow on ATM2
+;load the table from disk, modinitperiodlookup is very slow on ATM2
 	ld hl,modperiodopl4
 	ld de,0xc000
 	ld bc,modperiodopl4_end-modperiodopl4
@@ -84,7 +87,7 @@ setdefaultpanning
 
 playerdeinit
 modperiodlookuppage=$+1
-	ld a,0
+	ld e,0
 	OS_DELPAGE
 	ret
 
@@ -153,6 +156,7 @@ modwaveheaderbuffer = $
 modplayer MODPLAYER
 titlestr ds TITLELENGTH+1
 currentposition ds 1
+modfilebufferpage ds 1
 
 modperiodopl4
 	incbin "moonmod/modperiodopl4.bin"
