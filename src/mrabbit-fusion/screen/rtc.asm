@@ -10,7 +10,7 @@ printRTC
 	ld (oldminutes), a
 
 	ld d,1 ;координаты Y,X
-	ld e,73
+	ld e,SCREEN_WIDTH - 7
 	call TextMode.gotoXY
 	ld a,'['
 	call TextMode.putC
@@ -99,7 +99,7 @@ minutes
 	db 0
 seconds
 	db 0
-decimalS	ds 6 ;десятичные цифры
+decimalS	ds 7 ;десятичные цифры
 	ENDIF	
 	ret
 oldminutes		; не убирать под услоаие
