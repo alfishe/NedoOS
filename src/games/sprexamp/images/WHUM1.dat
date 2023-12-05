@@ -16,6 +16,7 @@
 ;L: 16c 16x16 tiles (N of tiles in "defaultcolor"): N of tile for each square
 ;i: 16c image
 ;P: DDp palette
+;%: mirror sprites, don't generate anything
 
 human0=x,0,0,16,16
 human0step=x,16,0,16,16
@@ -41,11 +42,21 @@ human4hit=x,128,16,16,16
 human5hit=x,160,16,16,16
 herostandright0=x,0,32,32,32
 herostandright1=x,32,32,32,32
-herostandleft0=x,0,64,32,32
-herostandleft1=x,32,64,32,32
+;herostandleft0=x,0,64,32,32
+;herostandleft1=x,32,64,32,32
+herostandleft0=%,0,32,32,32
+herostandleft0=x,0,32,32,32
+herostandleft1=%,32,32,32,32
+herostandleft1=x,32,32,32,32
 herorunright0=x,64,32,32,32
 herorunright1=x,96,32,32,32
 herorunright2=x,128,32,32,32
-herorunleft0=x,64,64,32,32
-herorunleft1=x,96,64,32,32
-herorunleft2=x,128,64,32,32
+;herorunleft0=x,64,64,32,32
+;herorunleft1=x,96,64,32,32
+;herorunleft2=x,128,64,32,32
+herorunleft0=%,64,32,32,32
+herorunleft1=%,96,32,32,32
+herorunleft2=%,128,32,32,32
+herorunleft0=x,64,32,32,32
+herorunleft1=x,96,32,32,32
+herorunleft2=x,128,32,32,32

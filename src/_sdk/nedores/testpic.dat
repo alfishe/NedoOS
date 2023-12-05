@@ -19,6 +19,7 @@
 ;i: 16c image
 ;I: 16c masked image: zonetype(0=empty,1=ld,2=and:or),zonehgt,data...
 ;P: DDp palette
+;%: mirror sprites, don't generate anything
 
 ;bigimg=i,0,0,256,72,7; db 32,72
 bigimg=I,0,0,256,72,7; db 32,72

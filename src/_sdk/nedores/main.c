@@ -638,6 +638,8 @@ int y;
 int x;
 int n;
 int tiles;
+int xi;
+int yi;
 
 BYTE b;
 BYTE bmask;
@@ -776,7 +778,7 @@ UINT color;
               putlabel(labelbuf, fout);
               fputs("\n", fout);
               rowhgt = sprhgt;
-            }else { //'s'
+            }else if (sprformat == 's') { //'s'
               putlabel(labelbuf, fout);
               fputs("\n", fout);
               emitdb((BYTE)(sprwid>>3), fout);
@@ -850,6 +852,20 @@ UINT color;
                   x = x+8;
                 };
                 emitnops((BYTE)(0x100-((BYTE)(sprwid>>3)*0x09)),fout);
+              }else if (sprformat == '%') { //mirror
+                  xi = 0;
+                  while (xi < (sprwid/2)) {
+                    //fprintf(fout, ";0%x ", sprx+xi);
+                    yi = y;
+                    while (yi < (y+sprhgt)) {
+                      b = pic[sprx+xi][yi]; //L
+                      pic[sprx+xi][yi] = pic[sprx+sprwid-1-xi][yi]; //new R
+                      pic[sprx+sprwid-1-xi][yi] = b; //new L
+                      yi = yi+1;
+                    };
+                    xi = xi+1;
+                  };
+                  //fprintf(fout, "\n");
               }else if (sprformat == 's') { //sprite
                 emitspr(sprx/8,y,sprwid/8,sprhgt,fout);
               }else if (sprformat == 'y') { //spritey
@@ -921,8 +937,6 @@ UINT color;
                 BYTE newmode = 0;
                 BYTE transp;
                 int count = 0;
-                int xi;
-                int yi;
                 int sumhgt = 0;
                 y = spry;
                 while (1) { //y
