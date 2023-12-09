@@ -248,7 +248,6 @@ telnet_noresolve
         ld de,conparam_ip
 	ld bc,4
 	ldir ; copy ip address
-
 	ld de,0x0201 ; AF_INET,SOCK_TCP
 	OS_NETSOCKET
 	ld a,l 
@@ -279,8 +278,14 @@ telnet_noresolve
 
 	ld de,ansi_pal
 	OS_SETPAL
+	display "main loop ", $
+	display "telnet_getbyte ", telnet_getbyte
 telnet_loop
+	call telnet_set_cursor
 	YIELDGETKEY
+	push af
+	call telnet_res_cursor
+	pop af
 	;ld a,c 
 	cp extD ;key_esc ;Sayman
 	jp z,telnet_end
@@ -937,6 +942,30 @@ telnet_end
 
 ;------------------functions-----------
 	include "../_sdk/string.asm"
+old_curs_pos
+	defw 0
+	
+telnet_set_cursor
+	OS_GETXY
+	ld (old_curs_pos),de
+	OS_GETATTR
+	cpl
+	ld e,a
+	OS_PRATTR
+	ret
+	
+telnet_res_cursor
+	OS_GETXY
+	push de
+	ld de,(old_curs_pos)
+	OS_SETXY
+	OS_GETATTR
+	cpl
+	ld e,a
+	OS_PRATTR
+	pop de
+	OS_SETXY
+	ret
 
 telnet_error_hl
 	call print_hl
