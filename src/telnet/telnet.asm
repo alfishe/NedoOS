@@ -139,6 +139,7 @@ telnet_keysok
         ld hl,23*256 ;BIG ENDIAN 23
         ld (curport),hl
 
+	display "hostname ", $
         ld hl,arg_hostname
 openstream_http_findslash0
          ld a,(hl)
@@ -214,11 +215,11 @@ telnet_resolve
 	ld bc,4
 	ldir
 
+telnet_noresolve 
 curport=$+1
         ld hl,0
         ld (conparam_port),hl
 
-telnet_noresolve 
 
 	ld hl,ip
 	ld de,txtip ; convert to text
@@ -245,6 +246,7 @@ telnet_noresolve
 	;ld (hl),c ; port 23 
         ;ex de,hl
 	;inc de
+	display "connect ", $
         ld de,conparam_ip
 	ld bc,4
 	ldir ; copy ip address
@@ -279,7 +281,6 @@ telnet_noresolve
 	ld de,ansi_pal
 	OS_SETPAL
 	display "main loop ", $
-	display "telnet_getbyte ", telnet_getbyte
 telnet_loop
 	call telnet_set_cursor
 	YIELDGETKEY
