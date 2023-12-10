@@ -1,0 +1,9 @@
+main program is taken from freebsd's md5 tool, adapted
+to custom hash API.
+
+if named as 'md5', calculates md5 sums
+'speh' - speh sums
+if named as 'md5sum' or 'spehsum' -- acts in a compatible way to GNU's md5sum
+
+Makefile will create symlinks named 'speh', 'spehsum', 'md5sum'
+
