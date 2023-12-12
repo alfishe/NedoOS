@@ -1,0 +1,73 @@
+
+		x = ROL(x,24); \
+		x += y;        \
+		x ^= k;        \
+		y = ROL(y,3);  \
+		y ^= x;        \
+
+--[store k]--
+k1 >>>= 8
+k1 += k
+k1 ^= const
+k <<<= 3
+k ^= k1
+--[store k]--
+k2 >>>= 8
+k2 += k
+k2 ^= const
+k <<<= 3
+k ^= k2
+--[store k]--
+k3 >>>= 8
+k3 += k
+k3 ^= const
+k <<<= 3
+k ^= k3
+--[store k]--
+...
+
+
+kn = dehl, k = bcix
+
+;>>>8
+ld hl,[k1+1]
+ld a,[] x2
+ld x2
+
+;kn+=k
+ld a,lx
+add
+ld
+ld a,hx
+adc
+ld
+exd
+adc hl.bc
+
+;k^=const
+ld x2
+xorimm
+
+;k<<<3
+xora
+dup 3
+add ix,ix
+rl c
+rl b
+rla
+edup
+or a,lx
+ld lx,a
+
+;k^=kn
+ld xor lx ld lx
+ld xor hx ld hx
+ld xor ld
+ld xor ld
+
+;store
+ld []rp
+ld []rp
+ld []hl
+ld []ix
+
