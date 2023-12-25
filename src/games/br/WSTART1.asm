@@ -237,7 +237,7 @@ texfilename
 ntexfilenames=3
 
 loadpic
-        ld e,3
+        ld e,3+0x80
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 	ld e,0
 	OS_SETSCREEN

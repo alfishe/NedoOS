@@ -27,12 +27,7 @@ begin
         
         ld e,0 ;color byte 0bRLrrrlll
         OS_CLS
-
-        ld a,(user_scr0_low) ;ok
-        SETPG8000
-        ld a,(user_scr0_high) ;ok
-        SETPGC000
-        
+       
 ;01          89          01    ;low+0x0000
 ;   23          ab          23 ;high+0x0000
 ;      45          cd          ;low+0x2000
@@ -80,9 +75,13 @@ retb0
 	jr nz,retb0
 	
 loop
-pause_on=$+1
+pause_on=$
 	or a
 	jr c,pauseq
+        ld a,(user_scr0_low) ;ok
+        SETPG8000
+        ld a,(user_scr0_high) ;ok
+        SETPGC000 ;при потере фокуса обе страницы сами восстановиться не могут
 	call drawnotes
         call scrollleft
 pauseq

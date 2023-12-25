@@ -738,18 +738,18 @@ disablescrpg_ok
 enablescrpg
 ;de=page keeping addr
         ld a,(de)
-        cp (iy+app.scr0low)
-        ld c,pgscr0_0
-        jr z,disablescrpg_ok
-        cp (iy+app.scr0high)
+        cp (iy+app.scr0high) ;this order for pg5 games not switching pages
         ld c,pgscr0_1
         jr z,disablescrpg_ok
-        cp (iy+app.scr1low)
-        ld c,pgscr1_0
+        cp (iy+app.scr0low)
+        ld c,pgscr0_0
         jr z,disablescrpg_ok
         cp (iy+app.scr1high)
         ld c,pgscr1_1
         ret nz;jr z,enablescrpg_ok
+        cp (iy+app.scr1low)
+        ld c,pgscr1_0
+        jr z,disablescrpg_ok
 enablescrpg_ok
         ld a,c
         ld (de),a

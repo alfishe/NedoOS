@@ -1150,6 +1150,7 @@ enablescreeninapp_setc000
         ld e,pgscr1_1
         ld a,(iy+app.scr1high)
         call copypage_a_to_e
+enablescreeninapp_nokeep
         call setmainpg_c000
         ld de,curpg16k+0xc000
         call enablescrpg
@@ -1157,7 +1158,7 @@ enablescreeninapp_setc000
         call enablescrpg
         ld  e,0xff&(curpg32khigh+0xc000)
         call enablescrpg
-enablescreeninapp_nokeep
+;enablescreeninapp_nokeep
         call setmainpg_c000
         ld a,pgscr0_0
         ld (0xc000+user_scr0_low),a
