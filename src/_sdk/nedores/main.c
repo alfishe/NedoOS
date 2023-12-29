@@ -16,12 +16,12 @@ char labelbuf[_STRMAX+1];
 char formatlabelbuf[_STRMAX+1];
 char commentlabelbuf[_STRMAX+1];
 BYTE sizeword[4];
-BYTE pic[1024][1024];
-BYTE pixrow[1024/8+1][1024+1024];
+BYTE pic[2048][1024];
+BYTE pixrow[2048/8+1][1024+1024];
 #define PIXROWSHIFT 1024
-BYTE maskrow[1024/8+1][1024];
-//BYTE pixrowshift[1024/8][1024]; //>>4
-BYTE attrrow[1024/8+1];
+BYTE maskrow[2048/8+1][1024];
+//BYTE pixrowshift[2048/8][1024]; //>>4
+BYTE attrrow[2048/8+1];
 BYTE pal[64];
 
 #define CONVORDERSZ 1024
