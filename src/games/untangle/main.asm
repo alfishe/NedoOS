@@ -5,8 +5,9 @@ STACK=0x4000
 MAXVERTICES=256
 MAXEDGES=768;512;256
 scrbase=0x8000
+prarr_scrbase=0x8000
 
-scrwid=320
+scrwidpix=320
 scrhgt=200
 
 COLORS_UNCROSSED=%11001001

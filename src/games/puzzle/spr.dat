@@ -1,0 +1,35 @@
+;label autonumbering: label#8=... or label$4 or label$4#8
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;b: b/w tiles: chrdata...
+;B: colour tiles: chrdata...
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;z: b/w sprites: antipixelsw... (right to left)
+;Z: b/w sprites: antipixelsw... (left to right)
+;w: b/w sprites: antipixelsw, antimaskw...
+;W: b/w image by columns
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+;L: 16c 16x16 tiles (N of tiles in "defaultcolor"): N of tile for each square
+;i: 16c image
+;P: DDp palette
+
+mask00=x,96,64,32,32
+mask10=x,128,64,32,32
+mask20=x,160,64,32,32
+mask30=x,192,64,32,32
+mask01=x,96,96,32,32
+mask11=x,128,96,32,32
+mask21=x,160,96,32,32
+mask31=x,192,96,32,32
+mask02=x,96,128,32,32
+;mask12=x,128,128,32,32
+;mask22=x,160,128,32,32
+mask32=x,192,128,32,32
+mask03=x,96,160,32,32
+mask13=x,128,160,32,32
+mask23=x,160,160,32,32
+mask33=x,192,160,32,32

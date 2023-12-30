@@ -297,9 +297,9 @@ prarr_calccur
         push hl ;x
         rr l
         ld l,a ;l=y
-        ld de,sprarr8c_l
+        ld de,sprarr_l;sprarr8c_l
         jr nc,prarr_nor ;de=спрайт для чётного x
-        ld de,sprarr8c_r ;de=спрайт для нечётного x
+        ld de,sprarr_r;sprarr8c_r ;de=спрайт для нечётного x
 prarr_nor
         pop bc ;x
         ld a,(de)
@@ -352,7 +352,7 @@ prarr_calcscr
 ;ly=200-y
         ret
 
-        if 1==0
+        if 1==1
 sprarr_l
 ;mask,pixels = 0xppmm
 ;%rlrrrlll

@@ -142,6 +142,7 @@ restorer_cursprlist=$+1
         ld l,a
         ld (restorer_cursprlist),hl
        push hl ;curlist
+
 restorer0
         ld e,(hl) ;x/2
         ld a,e
@@ -229,6 +230,8 @@ noprspr
 	ld c,60 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
         call keepspr
 	call prspr
+
+	call endkeepspr
 
         call setpgsmain40008000 ;включили страницы программы в 4000,8000, как было
 
