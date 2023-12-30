@@ -46,6 +46,7 @@ GO
 	ld (rndseed1),a
 	OS_GETTIMER ;dehl=timer
 	ld (rndseed2),hl
+         ld (oldupdtimer),hl
 
         ld de,path
         OS_CHDIR
@@ -962,7 +963,7 @@ genxy_moved
 	add ix,de
 	djnz genxy0
 	ret
-	
+
 swappieces
 ;случайный обмен порядка (если не двигали кусочек)
 	ld c,NPIECES
@@ -972,7 +973,7 @@ swappieces
 	add hl,bc
 	bit 0,(hl)
 	ret nz
-	sbc hl,bc
+	;sbc hl,bc
 	ex de,hl
 	ld c,NPIECES
 	call rnd
@@ -981,7 +982,7 @@ swappieces
 	add hl,bc
 	bit 0,(hl)
 	ret nz
-	sbc hl,bc
+	;sbc hl,bc
 	ld b,PIECESZ
 swappieces0
 	ld c,(hl)
@@ -989,8 +990,8 @@ swappieces0
 	ld (hl),a
 	ld a,c
 	ld (de),a
-	inc hl
-	inc de
+	dec hl
+	dec de
 	djnz swappieces0
 	ret
 getpiece_a
