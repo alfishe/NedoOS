@@ -543,7 +543,7 @@ shuffle
 	ld b,0
 shuffle0
 	push bc
-	call swappieces
+	;call swappieces ;нельзя менять порядок! иначе неправильно разрезается при перезагрузке!
 	pop bc
 	djnz shuffle0
         jp mainloop
