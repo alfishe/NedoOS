@@ -260,6 +260,8 @@ piecelinebottom0
 ;главный цикл
 mainloop
 
+	call prlevel
+
         ld a,(user_scr0_low) ;ok
         SETPGC000 ;включили страницу с данными в c000
         ld a,(user_scr1_low) ;ok
@@ -340,15 +342,13 @@ mouseloop
 ;4. обрабатываем событие (без перерисовки)
 ;5. всё стираем
 
-	if 0
+	if 1
         ld a,(clickstate)
         or a
         jr z,mouseloop_nomove
-        ;call   drawcurpiece
-        
         call ahl_coords
-        cp 8
-        jr nc,$+2+2+3
+        cp 200-32-8
+        jr c,mouseloop_nomove
          ld a,1
          ld (invalidatetime),a
         
@@ -437,9 +437,9 @@ mainloop_something
 	sub 8+8
 	jr nc,$+3
 	xor a
-	cp scrhgt-16
+	cp scrhgt-32
 	jr c,$+4
-	ld a,scrhgt-16
+	ld a,scrhgt-32
 	ld c,a
 ;c=y >=0
         ld b,0
