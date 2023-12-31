@@ -813,6 +813,10 @@ __1=$
         ld c,CMD_SETPAL
 	CALLBDOS_NOPARAM_A
         endm
+        macro OS_GETPAL ;de=palette (32 bytes)
+        ld c,CMD_GETPAL
+	CALLBDOS_NOPARAM_A
+        endm
         macro OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
         ld c,CMD_GETMAINPAGES
 	CALLBDOS_NOPARAM_A

@@ -238,6 +238,16 @@ setpalettechanged
         ld a,55+128 ;"or a"
         ld (palettechanged),a
         ret
+
+BDOS_getpal
+        call BDOS_preparedepage
+        call BDOS_setdepage
+        ld hl,(focusappaddr)
+        ld bc,app.pal ;-app.gfxmode
+        add hl,bc
+        ld bc,32
+        ldir
+	ret
         
 BDOS_scroll_prepare
         ld a,l

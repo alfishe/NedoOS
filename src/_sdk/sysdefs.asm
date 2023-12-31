@@ -53,6 +53,7 @@ CMD_GETPATH=0x5e ;DE = Pointer to MAXPATH_sz byte buffer ;out: DE = Filled in wi
 CMD_DELETE=0x4d ;DE = Drive/path/file ASCIIZ string, out: A = Error
 
 ;invented:
+CMD_GETPAL=0xc8 ;de=palette (32 bytes)
 CMD_SETTIME=0xc9 ;ix=date, hl=time
 CMD_GETMEMPORTS=0xca ;out: ix=memport0000, bc=memport4000, de=memport8000, hl=memportc000
 CMD_GETPAGEOWNER=0x0cb ;e=page ;out: e=owner id (0=free, 0xff=system)

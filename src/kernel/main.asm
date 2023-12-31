@@ -1244,6 +1244,7 @@ wastbdoscmds
         SETHANDLER CMD_GETCONFIG,BDOS_get_config
         SETHANDLER CMD_GETMEMPORTS,BDOS_getmemports
         SETHANDLER CMD_SETTIME,BDOS_settime
+        SETHANDLER CMD_GETPAL,BDOS_getpal
          
          org wastbdoscmds+512
 trecode=tbdoscmds+512
@@ -1331,7 +1332,9 @@ wastbdoscmds
         db CMD_GETCONFIG
         db CMD_GETMEMPORTS
         db CMD_SETTIME
+        db CMD_GETPAL
 nbdoscmds=$-wastbdoscmds
+        dw BDOS_getpal
         dw BDOS_settime
         dw BDOS_getmemports
         dw BDOS_get_config

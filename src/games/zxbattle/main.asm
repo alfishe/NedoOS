@@ -223,14 +223,7 @@ MAINGO
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode) +8=noturbo, +0x80=keep gfx pages
         ld de,path
         OS_CHDIR
-         ld e,1
-         OS_SETSCREEN
-         ld e,0
-         OS_CLS
-         ld e,0
-         OS_SETSCREEN
-         ld e,0
-         OS_CLS
+	call clstwo
 
         OS_GETMAINPAGES
 ;dehl=номера страниц в 0000,4000,8000,c000
@@ -241,42 +234,30 @@ MAINGO
         ld a,l
         LD (pgmainc000),A
 
-        OS_NEWPAGE
-        ld a,e
+	call newpage
         ld (pgmuzmain),a
-        OS_NEWPAGE
-        ld a,e
+	call newpage
         ld (pgmuzend),a
-        OS_NEWPAGE
-        ld a,e
+	call newpage
         ld (pgspr0),a
-        OS_NEWPAGE
-        ld a,e
+	call newpage
         ld (pgspr1),a
-        OS_NEWPAGE
-        ld a,e
+	call newpage
         ld (pgspr2),a
-        OS_NEWPAGE
-        ld a,e
+	call newpage
         ld (pgspr3),a
-        OS_NEWPAGE
-        ld a,e
+	call newpage
         ld (pgtiles),a
-        OS_NEWPAGE
-        ld a,e
+	call newpage
         ld (pglvl0),a
-        OS_NEWPAGE
-        ld a,e
+	call newpage
         ld (pglvl1),a
-        OS_NEWPAGE
-        ld a,e
+	call newpage
         ld (pglvl2),a
-        OS_NEWPAGE
-        ld a,e
+	call newpage
         ld (pgarea),a
 
-        OS_NEWPAGE
-        ld a,e
+	call newpage
         ld (pgfake),a ;эту страницу можно будет запарывать при отрисовке спрайтов с клипированием
         ld (pgfake2),a       
 
@@ -383,6 +364,22 @@ inet_exiterr ;TODO
 
 	JP	PRESTART;S
 
+newpage
+        OS_NEWPAGE
+        ld a,e
+	ret
+
+clstwo
+         ld e,1
+	 call clsone
+         ld e,0
+clsone
+         OS_SETSCREEN
+         ld e,0
+         OS_CLS
+	 ret
+
+	;display $
         ds 0x200-$
 sprlist
 	ds 85*6
