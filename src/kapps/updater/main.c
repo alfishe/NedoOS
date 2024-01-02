@@ -1,4 +1,3 @@
-//("�⪨����� �� ᯨ��� ��᫠ � �⤮孨�, ����");
 #include <stdio.h>
 #include <string.h>
 #include <intrz80.h>
@@ -10,7 +9,7 @@
 #include <intrz80.h>
 #include <ctype.h>
 #include <math.h>
-unsigned char uVer[] = "0.36";
+unsigned char uVer[] = "0.40";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -84,7 +83,7 @@ void delay(unsigned long counter)
 	}
 }
 
-#include <printNews().c>
+#include <printnews.c>
 
 void drawWindow(struct window w)
 {
@@ -301,6 +300,8 @@ void deleteWorkFiles(void)
 	OS_DELETE("bin.r18");
 	OS_DELETE("bin.r19");
 	OS_DELETE("bin.r20");
+	OS_DELETE("bin.r21");
+	
 }
  
 unsigned char ren2old(unsigned char *name)
@@ -421,6 +422,12 @@ void fullUpdate(void)
 	cw.h = 7;
 	cw.text = 97;
 	cw.back = 45;
+	
+	AT(1,1);
+	ATRIB(cw.text);
+	ATRIB(cw.back);
+	printf("                   [FULL UPDATE - UPDATING ALL SYSTEM FILES]                    ");
+
 	strcpy(cw.tittle, "nedoOS FULL updater ");
 	strcat(cw.tittle, uVer);
 
@@ -484,9 +491,15 @@ void binUpdate(void)
 	cw.x = 20;
 	cw.y = 5;
 	cw.w = 40;
-	cw.h = 10;
+	cw.h = 11;
 	cw.text = 97;
 	cw.back = 44;
+
+	AT(1,1);
+	ATRIB(cw.text);
+	ATRIB(cw.back);
+	printf("                  [STANDART UPDATE - UPDATING ONLY BIN FOLDER]                  ");
+
 	strcpy(cw.tittle, "nedoOS BIN updater ");
 	strcat(cw.tittle, uVer);
 	getConfig();
@@ -502,6 +515,10 @@ void binUpdate(void)
 	deleteWorkFiles();
 
 	clearStatus();
+
+	AT(cw.x + 2, cw.y + 10);
+	printf(">To full update start 'updater.com F'<");
+
 	AT(cw.x + 2, cw.y + 3);
 	printf("1.Downloading bin.zip...");
 
