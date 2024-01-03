@@ -147,7 +147,7 @@ depack_gz_pp
 copyname83
 ;hl->de
 copyname83_element
-        ld b,8
+        ld b,64;8
 copyname83_0
         ld a,(hl)
         inc hl
@@ -173,7 +173,7 @@ copyname83_skipname0
 copyname83_ext
         ld (de),a ;'.'
         inc de
-        ld b,3
+        ld b,64;3
 copyname83_ext0
         ld a,(hl)
         inc hl
