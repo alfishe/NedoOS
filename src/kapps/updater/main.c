@@ -326,15 +326,15 @@ unsigned char ren2old(unsigned char *name)
 void ren2tar(void)
 {
 	unsigned char *name = "0000000000000000000000000000000000";
-	unsigned int counter = 1800;
+	unsigned int counter = 3000;
 	errn = 255;
 	sprintf(name, "bin.r%u", counter);
 	while (errn != 0)
 	{
 		errn = OS_RENAME((void *)name, "bin.tar");
-		counter++;
+		counter--;
 		sprintf(name, "bin.r%u", counter);
-		if (counter > 5000)
+		if (counter < 1800)
 		{
 			fatalError("Unable to rename TAR file");
 		}
