@@ -184,7 +184,7 @@ wizread:
 		cancel();
 		AT(76, 24);
 		printf("[%03u]", retry);
-		delay(300);
+		delay(100);
 		goto wizread;
 	}
 	return todo;
@@ -256,7 +256,7 @@ wizwrite:
 		cancel();
 		AT(76, 24);
 		printf("[%03u]", retry);
-		delay(300);
+		delay(100);
 		goto wizwrite;
 	}
 

@@ -9,7 +9,7 @@
 #include <intrz80.h>
 #include <ctype.h>
 #include <math.h>
-unsigned char uVer[] = "0.40";
+unsigned char uVer[] = "0.41";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -326,7 +326,7 @@ unsigned char ren2old(unsigned char *name)
 void ren2tar(void)
 {
 	unsigned char *name = "0000000000000000000000000000000000";
-	unsigned char counter = 17;
+	unsigned int counter = 1800;
 	errn = 255;
 	sprintf(name, "bin.r%u", counter);
 	while (errn != 0)
@@ -334,7 +334,7 @@ void ren2tar(void)
 		errn = OS_RENAME((void *)name, "bin.tar");
 		counter++;
 		sprintf(name, "bin.r%u", counter);
-		if (counter > 99)
+		if (counter > 5000)
 		{
 			fatalError("Unable to rename TAR file");
 		}
