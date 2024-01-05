@@ -7,6 +7,8 @@ sjasmplus --nologo --msg=war music.asm
 copy wolftex.bmp wolf3d
 copy wolfspr.bmp wolf3d
 
+sjasmplus --nologo --msg=war W48.ASM
+
 SET releasedir2=../../../release/
 if "%currentdir%"=="" (
   FOR %%j IN (*.com) DO (
