@@ -9,7 +9,7 @@
 #include <intrz80.h>
 #include <ctype.h>
 #include <math.h>
-unsigned char uVer[] = "0.41";
+unsigned char uVer[] = "0.42";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -23,8 +23,7 @@ unsigned char status, key, curFormat;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 FILE *fp2;
-
-
+FILE *fpNews;
 struct window
 {
 	unsigned char x;
@@ -83,7 +82,53 @@ void delay(unsigned long counter)
 	}
 }
 
+void printNews(void)
+{
+	unsigned char str[1];
+	unsigned char curLine, nbyte;
+
+	fpNews = OS_OPENHANDLE("doc/updater.new", 0x80);
+	if (((int)fpNews) & 0xff)
+	{
+		clearStatus();
+		AT(1, 24);
+		printf("doc/updater.new not found.");
+
 #include <printnews.c>
+
+		return;
+	}
+	AT(20, 5);
+	curLine = 0;
+	while (curLine < 20)
+	{
+		while (1)
+		{
+			OS_READHANDLE(str, fpNews, sizeof(str));
+
+			if (errno != 0)
+			{
+				OS_CLOSEHANDLE(fpNews);
+				return;
+			}
+
+			nbyte = str[0];
+
+			if (nbyte != 13)
+			{
+				putchar(nbyte);
+			}
+			else
+			{
+				break;
+			}
+		}
+		OS_READHANDLE(str, fpNews, sizeof(str));
+		curLine++;
+		AT(20, 5 + curLine);
+	}
+	OS_CLOSEHANDLE(fpNews);
+}
 
 void drawWindow(struct window w)
 {
@@ -280,6 +325,7 @@ void getTools(void)
 	unsigned char cmdLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2Fcmd.com";
 	unsigned char termLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2Fterm.com";
 	unsigned char updLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2Fupdater.com";
+	unsigned char newsLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fdoc%2Fupdater.new";
 
 	errn = OS_MKDIR("bin"); // Create if not exist
 	ATRIB(cw.text);
@@ -289,21 +335,17 @@ void getTools(void)
 	errn = getFile(cmdLink, "bin/cmd.com");
 	errn = getFile(termLink, "bin/term.com");
 	errn = getFile(updLink, "bin/updater.com");
+
+	OS_DELETE("doc/updater.new");
+	errn = getFile(newsLink, "doc/updater.new");
 }
 
 void deleteWorkFiles(void)
 {
 	OS_DELETE("bin.zip");
 	OS_DELETE("bin.tar");
-	OS_DELETE("bin.old"); // deleting not empty folders not supported
-	OS_DELETE("bin.r17");
-	OS_DELETE("bin.r18");
-	OS_DELETE("bin.r19");
-	OS_DELETE("bin.r20");
-	OS_DELETE("bin.r21");
-	
 }
- 
+
 unsigned char ren2old(unsigned char *name)
 {
 	unsigned char *oldName = "0000000000000000000000000000000000";
@@ -397,7 +439,6 @@ void restoreConfig(unsigned char oldBinExt)
 		OS_SHELL((void *)name);
 		sprintf(name, "copy bin.%u/gp/gp.ini bin/gp/gp.ini", oldBinExt);
 		OS_SHELL((void *)name);
-
 	}
 	AT(1, 4);
 	for (count = 0; count < 15; count++)
@@ -422,8 +463,8 @@ void fullUpdate(void)
 	cw.h = 7;
 	cw.text = 97;
 	cw.back = 45;
-	
-	AT(1,1);
+
+	AT(1, 1);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
 	printf("                   [FULL UPDATE - UPDATING ALL SYSTEM FILES]                    ");
@@ -495,7 +536,7 @@ void binUpdate(void)
 	cw.text = 97;
 	cw.back = 44;
 
-	AT(1,1);
+	AT(1, 1);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
 	printf("                  [STANDART UPDATE - UPDATING ONLY BIN FOLDER]                  ");
@@ -567,7 +608,7 @@ void binUpdate(void)
 	ATRIB(cw.text);
 	ATRIB(cw.back);
 	printf("6.Renaming NEW BIN...");
- 
+
 	ren2bin();
 
 	AT(cw.x + 2, cw.y + 7);
@@ -600,10 +641,11 @@ C_task main(int argc, char *argv[])
 		else
 		{
 			AT(1, 1);
-			//printTable();
-			//getchar();
+			// printTable();
+			// printNews();
+			// getchar();
 			fatalError("Use 'F' key to FULL update");
-
+			exit(0);
 		}
 	}
 	else
