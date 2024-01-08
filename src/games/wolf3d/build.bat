@@ -8,6 +8,16 @@ copy wolftex.bmp wolf3d
 copy wolfspr.bmp wolf3d
 
 sjasmplus --nologo --msg=war W48.ASM
+nedotrd basic.trd -eh boot.$b > nul
+rem del test.scl
+rem mhmt -mlz code.c
+rem del code.c
+rem copy /b depkcode.c + code.c.mlz code.c
+nedotrd wolf.trd -n
+nedotrd wolf.trd -ah boot.$b
+nedotrd wolf.trd -ac code.c
+nedotrd wolf.trd -ac hicode.c
+nedotrd wolf.trd -ac hicode2.c
 
 SET releasedir2=../../../release/
 if "%currentdir%"=="" (
