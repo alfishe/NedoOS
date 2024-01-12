@@ -1,0 +1,26 @@
+;label autonumbering: label#8=... or label$4 or label$4#8
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;b: b/w tiles: chrdata...
+;B: colour tiles: chrdata...
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;y: b/w sprites: (column:or,xor...)(column:or,xor...)...
+;z: b/w sprites: antipixelsline... (right to left)
+;Z: b/w sprites: antipixelsline... (left to right)
+;w: b/w sprites: antipixelsline, antimaskline... (right to left)
+;W: b/w sprites: antipixelsline, antimaskline... (left to right)
+;c: b/w image by columns
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+;L: 16c 16x16 tiles (N of tiles in "defaultcolor"): N of tile for each square
+;i: 16c image
+;I: 16c masked image: zonetype(0=empty,1=ld,2=and:or),zonehgt,data...
+;P: DDp palette
+;%: mirror sprites, don't generate anything
+
+line0=c,0,0,256,64,7
+line1=c,0,64,256,64,7
+line2=c,0,128,256,64,7

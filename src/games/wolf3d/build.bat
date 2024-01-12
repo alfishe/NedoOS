@@ -7,6 +7,11 @@ sjasmplus --nologo --msg=war music.asm
 copy wolftex.bmp wolf3d
 copy wolfspr.bmp wolf3d
 
+"../../_sdk/nedores.exe" walls.bmp walls.dat walls.ast
+"../../_sdk/nedores.exe" goods.bmp goods.dat goods.ast
+sjasmplus --nologo --msg=war walls.ast --raw=walls.bin
+sjasmplus --nologo --msg=war goods.ast --raw=goods.bin
+
 sjasmplus --nologo --msg=war W48.ASM
 nedotrd basic.trd -eh boot.$b > nul
 rem del test.scl
@@ -17,7 +22,7 @@ nedotrd wolf.trd -n
 nedotrd wolf.trd -ah boot.$b
 nedotrd wolf.trd -ac code.c
 nedotrd wolf.trd -ac hicode.c
-nedotrd wolf.trd -ac hicode2.c
+rem nedotrd wolf.trd -ac hicode2.c
 
 SET releasedir2=../../../release/
 if "%currentdir%"=="" (
