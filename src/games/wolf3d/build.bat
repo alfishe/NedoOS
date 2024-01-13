@@ -7,7 +7,8 @@ sjasmplus --nologo --msg=war music.asm
 copy wolftex.bmp wolf3d
 copy wolfspr.bmp wolf3d
 
-"../../_sdk/nedores.exe" walls.bmp walls.dat walls.ast
+rem "../../_sdk/nedores.exe" walls.bmp walls.dat walls.ast
+"../../_sdk/nedores.exe" textures_06_64x64_.bmp walls.dat walls.ast
 "../../_sdk/nedores.exe" goods.bmp goods.dat goods.ast
 sjasmplus --nologo --msg=war walls.ast --raw=walls.bin
 sjasmplus --nologo --msg=war goods.ast --raw=goods.bin
@@ -35,5 +36,5 @@ cd ../../../src/
 call ..\tools\chkimg.bat sd
  rem pause
 rem  if "%makeall%"=="" ..\..\..\us\emul.exe
- if "%makeall%"=="" ..\us\emul.exe
+ if "%makeall%"=="" ..\us\emul.exe games\wolf3d\wolf.trd
 )
