@@ -1,0 +1,110 @@
+       if atm
+        include "../../_sdk/sys_h.asm"
+       endif
+;atm=1
+;doublescr=1
+showfps=1-atm
+
+crosshair=0
+
+ID_DOOR=0+(22*2);127
+
+;ZX data:
+;music=0;1
+
+debug=0
+demorec=0
+demoplay=0;1
+
+;control:
+doublespeed=0;1
+doublerotate=1
+autostrafe=1
+kempston=0;1
+mouse=1
+mindist=111 ;max=111 ;111 curved on atm ;118 stuck in door
+
+colour=7
+ceilingcolour=0
+floorcolour=colour*9
+
+sprites=1
+CURSPRITES_RECSZ=5;4 ;ID, distL, distH, xscr, [monsterindex]
+
+scale64=3;1 ;0 не поддерживается
+
+;render:
+scrwid=32 ;chr$
+scrtopx=(32-scrwid)/2
+        if atm
+scrhgt=200;128 ;pixels
+scrhgtpix=scrhgt
+Ycenter=100
+Ytop=Ycenter-(scrhgt/2)
+Ybottom=Ycenter+(scrhgt/2)
+scrbase=0x4000+4
+scrtop=Ytop*40+scrbase
+        else
+scrhgt=16;24 ;chr$ (10,12,...,24) ;TODO fix
+scrhgtpix=scrhgt*8
+scrtop=(24-scrhgt)*16+#4000+scrtopx
+attrtop=((scrtop/8)&0x300)+(0xff&scrtop)+0x5800
+lowscrtop=#4800+scrtopx
+lowattrtop=((lowscrtop/8)&0x300)+(0xff&lowscrtop)+0x5800
+lowscrhgt=8 ;chr$
+lowscrhgtpix=lowscrhgt*8
+        endif
+
+        IF scale64
+maxscale=63
+ IF scale64 == 3 ;sc=(s+sh)^p/div, Ys=(Y/32-1)*sc, где s=0..63, Y=1..62, p=5, k=16^(-1/p), sh=(63*k)/(1-k), div = (63+sh)^p/1024*8
+lowmaxscale=27;28 ;fit in low screen
+ ELSE 
+lowmaxscale=19 ;fit in low screen
+ ENDIF 
+        ELSE 
+maxscale=127
+lowmaxscale=25 ;fit in low screen
+        ENDIF 
+mapdifbit=5;7
+lores=0
+        IF atm == 0
+optres=1&(1-lores) ;+22t на мелких, выигрыш на крупных
+        ELSE 
+lores=1
+optres=0
+        ENDIF 
+optfast=0
+loresspr=0|atm
+optresspr=1&(1-loresspr) ;выигрыш на крупных
+loresspr_hires=loresspr&(1-lores)
+pixperchr=8>>lores
+corr_coord=1
+ if atm
+interpolate=4
+ else
+interpolate=16
+ endif
+
+        if lores
+SCRWIDPIX=scrwid*4
+        else
+SCRWIDPIX=scrwid*8
+        endif
+
+        if atm
+scrbuf=#6040
+        else
+scrbuf=#A040
+lowscrbuf=(scrhgtpix-lowscrhgtpix)/2+scrbuf
+        endif
+scrbufflag=(scrbuf&#FF00)+32
+dropline=scrhgt*8+(0xff&scrbuf) ;Y=192
+map=scrbuf-#3F;#A001 ;+0 занят dropline, +32 занят флагом высоких
+mapend=map+#2000
+invmap=atm;0;1 ;48k карта отличается по формату от ATM карты
+
+        if atm == 0
+tscale=#C000 ;128x64, множители 0 и 63 выдают константы 0 и 3
+             ;64x64 при scale64=1
+        endif

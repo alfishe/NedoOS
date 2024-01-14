@@ -1,11 +1,6 @@
         DEVICE ZXSPECTRUM128
-        include "../../_sdk/sys_h.asm"
+	include "settings.asm"
 
-atm=1
-
-OLDMUZ=0
-
-TEXBMP=1
 NTEXPGS=5
 NSPRPGS=2;1
 
@@ -14,10 +9,10 @@ STACK=SPOIL6BSTACK-6
 INTSTACK=0x3e80
 ;scrbase=0x8000
 
-addhlbc=1 ;можно scrhgt=200 и в одной странице
+addhlbc=1 ;¬®¦­® scrhgt=200 Ё ў ®¤­®© бва ­ЁжҐ
 customscales=0;1
 
-IMPOSSIBLECOLOR=0x01 ;(Ч+Б)
+IMPOSSIBLECOLOR=0x01 ;(b+w)
 
 muz=0x8000
 
@@ -39,41 +34,15 @@ begin
 		OS_CHDIR
 
         OS_GETMAINPAGES
-;dehl=номера страниц в 0000,4000,8000,c000
+;dehl=­®¬Ґа  бва ­Ёж ў 0000,4000,8000,c000
         ld a,e
         LD (pgmain4000),A
         ld a,h
         LD (pgmain8000),A
         ld a,l
         LD (pgscalersnum),A
-       if 1==0 ; OLDMUZ
-        ld a,h
-        ld (pgmuznum),a
-       endif
 
-        ;OS_GETSCREENPAGES
-;de=страницы 0-го экрана (d=старшая), hl=страницы 1-го экрана (h=старшая)
-        ;ld a,l
-        ;ld (setpgs_scr_low),a
-	;xor e
-        ;ld (setpgs_scr_xor),a
-        ;ld a,d
-	;xor e
-        ;ld (setpgs_scr_high_xor_low),a
-
-       if OLDMUZ
-        ;ld hl,muzfilename
-        ;call loadpage
-        ;ld (pgsfx),a
-        ;call loadpage
-        ;ld (pgmusic),a
-        ;call setpgsmain40008000
-        ;ld a,(pgscalersnum)
-        ;SETPGC000
-        ;OS_NEWPAGE
-        ;ld a,e
-        ;ld (pgmuznum),a
-        ;SETPG8000
+       if 0;OLDMUZ
         ld hl,wasmuz
         ld de,muz
         ld bc,wasmuz_sz
@@ -87,7 +56,7 @@ begin
         ld (pgmusic),a
         SETPG4000
         
-;это относится к загрузке уровня
+;нв® ®в­®бЁвбп Є § Јаг§ЄҐ га®ў­п
         push af
         call 0x4000 ;init
         
@@ -108,7 +77,7 @@ begin
         ld a,e
         ld (pgmapnum),a
 
-        if TEXBMP
+        if 1;TEXBMP
         ld de,texfilename
         call openfile_skipbmpheader
 ;b=handle
@@ -121,7 +90,7 @@ gettexpgs0
         
         push de
         
-;2. проходим по hl правый верхний треугольник текстуры, а по de - левый нижний, меняем их местами
+;2. Їа®е®¤Ё¬ Ї® hl Їа ўл© ўҐае­Ё© ваҐгЈ®«м­ЁЄ вҐЄбвгал,   Ї® de - «Ґўл© ­Ё¦­Ё©, ¬Ґ­пҐ¬ Ёе ¬Ґбв ¬Ё
         ld hl,0x4000
 gettexpgsrot0
         push hl    
@@ -179,7 +148,7 @@ getsprpgs0
 
         OS_CLOSEHANDLE
 
-        else
+        else ;~TEXBMP
         
         ld hl,ttexpgs
         ld b,5
@@ -243,10 +212,10 @@ revscale0
         ld b,(ix)
         inc ix
         ld de,256
-;деление
+;¤Ґ«Ґ­ЁҐ
 ;DE=+-7.8;BC=+7.8
 ;DE=DE/BC=+-8.7/2
-    ;BC сохраняется!!!
+    ;BC б®еа ­пҐвбп!!!
         call MONDIV
         pop hl
         sla e
@@ -257,17 +226,6 @@ revscale0
         inc hl
         pop bc
         djnz revscale0
-
-        ;YIELD ;иначе не установится видеорежим и палитра?
-
-        if 1==0 ;нельзя при интерполяции
-        ld hl,tlogd2sca
-retlogd2sca0
-        sla (hl)
-        sla (hl)
-        inc l
-        jr nz,retlogd2sca0
-        endif
 
         call genscalers
 
@@ -429,8 +387,8 @@ gettexpgsrecode0
         bit 7,h
         jr z,gettexpgsrecode0
 
-;повернуть текстуры на 90 градусов (для стен, а для спрайтов просто перевернуть?)
-;1. переворот текстур
+;Ї®ўҐа­гвм вҐЄбвгал ­  90 Ја ¤гб®ў (¤«п бвҐ­,   ¤«п бЇа ©в®ў Їа®бв® ЇҐаҐўҐа­гвм?)
+;1. ЇҐаҐў®а®в вҐЄбвга
         ld hl,0x4000
         ld de,0x4000+0x3f00
         ld b,32
@@ -463,7 +421,7 @@ shutay0
 	ret
 	
 texfilename
-        if TEXBMP
+        if 1;TEXBMP
         db "wolftex.bmp",0
         else
         db "wolftex.0",0
@@ -487,130 +445,11 @@ pgmapnum=$+1
         SETPG4000
         ret
 
-swapimer
-	di
-         ld hl,(0x0026) ;ok
-         ld (on_int_0026),hl
-        ld de,0x0038
-        ld hl,oldimer
-        ld bc,3
-swapimer0
-        ld a,(de)
-        ldi ;[oldimer] -> [0x0038]
-        dec hl
-        ld (hl),a ;[0x0038] -> [oldimer]
-        inc hl
-        jp pe,swapimer0
-	ei
-        ret
-oldimer
-        jp on_int ;заменится на код из 0x0038
-        jp 0x0038+3
-
-on_int
-;restore stack with de
-	ld (on_int_hl),hl
-	ld (on_int_sp),sp
-	pop hl
-	ld (on_int_sp2),sp
-        ld (on_int_jp),hl
-	ld sp,INTSTACK
-	push af
-	push bc
-	push de
-
-;imer_curscreen_value=$+1
-;         ld a,0
-;         ld bc,0x7ffd
-;         out (c),a
-
-	ex de,hl;ld hl,0
-on_int_sp=$+1
-	ld (0),hl ;восстановили запоротый стек
-
-on_int_0026=$+1
-        ld hl,0
-        ld (0x0026),hl ;восстановили запоротый стек 0x0028 (=40)
-
-        push ix
-        push iy
-        ex af,af' ;'
-        exx
-        push af
-        push bc
-        push de
-        push hl
-        ld a,(curscrnum)
-        ld e,a
-        OS_SETSCREEN ;вызываем здесь, а не в рандомном месте, иначе даже с одной задачей можем получить непредсказуемую задержку, которую не фиксирует наш таймер? с несколькими задачами надо учитывать и системный - TODO
-        
-        if atm
-        
-curpalette=$+1
-        ld de,wolfpal
-        OS_SETPAL
-        
-       if 1==0
-        ld a,(curpg32klow) ;ok
-        push af
-pgmuznum=$+1
-        ld a,0
-        SETPG8000
-        call muz+6
-        ;TODO music + sound effects in OS_SETMUSIC
-        pop af
-        SETPG8000
-       endif
-        
-        call oldimer ;ei
-        
-        GET_KEY
-        or a
-        jr z,$+5
-        ld (curkey),a
-        
-        else
-curpg=$+1
-        ld a,0
-        setpgafast
-        endif
-        
-        pop hl
-        pop de
-        pop bc
-        pop af
-        exx
-        ex af,af' ;'
-        pop iy
-        pop ix
-        
-	ld hl,(timer)
-	inc hl
-	ld (timer),hl
-
-	pop de
-	pop bc
-	pop af
-	
-on_int_hl=$+1
-	ld hl,0
-on_int_sp2=$+1
-	ld sp,0
-        ;ei
-on_int_jp=$+1
-	jp 0
-
-sfxplay
-        push af
-pgsfx=$+1
-        ld a,0
-        SETPG8000
-        pop af
-        jp 0x8000 ;SFXPLAY
+	include "int.asm"
 
 loadpage
-;заказывает страничку и грузит туда файл (имя файла в hl)
-;out: hl=после имени файла, a=pg
+;§ Є §лў Ґв бва ­ЁзЄг Ё Јаг§Ёв вг¤  д ©« (Ё¬п д ©«  ў hl)
+;out: hl=Ї®б«Ґ Ё¬Ґ­Ё д ©« , a=pg
         push hl
         OS_NEWPAGE
         pop hl
@@ -686,7 +525,7 @@ YtoADDR
         ;align 256;DS .(-$)
 tscales
        IF customscales == 0
-        INCBIN "scalesw3" ;сначала мелкие
+        INCBIN "scalesw3" ;б­ з «  ¬Ґ«ЄЁҐ
        ELSE 
         DS 8,5,0
         DS 7,6,0
@@ -729,161 +568,8 @@ tscales
 tscales_rev
         ds 128
 
-tsprites
-;pg,xmid,xleft-1,xright-1
-        macro TSPRITES pg,xleft,wid
-xright=xleft+wid
-xmid=(xleft+xright)/2
-        db NTEXPGS+pg
-        db xmid/2
-        db xleft/2
-        db xright/2
-        endm
-;TODO надо правильно центровать
-        ;TSPRITES 0,0,0 ;ID 0 not used
-        TSPRITES 0,0,44 ;ID 1
-        TSPRITES 0,44,42
-        TSPRITES 0,86,36
-        TSPRITES 0,122,56
-        TSPRITES 0,178,40
-        TSPRITES 0,218,48
-        TSPRITES 0,266,36
-        TSPRITES 0,302,56
-        TSPRITES 0,358,38
-        TSPRITES 0,396,50 ;10
-        TSPRITES 0,448,24
-        TSPRITES 1,472,26
-
-MONSTAB
-;ZOMBIEMAN stay
-        db 1
-        db 2
-        db 1
-        db 2
-        db 1
-        db 2
-        db 0,0
-;ZOMBIEMAN go1
-        db 3
-        db 4
-        db 5
-        db 6
-        db 3
-        db 4
-        db 0,0
-;ZOMBIEMAN go2
-        db 7
-        db 8
-        db 9
-        db 10
-        db 7
-        db 8
-        db 0,0
-;AMMO
-        db 12 ;G
-        db 12 ;R
-        db 12 ;MEGAHEALTH
-        db 12 ;RL
-        db 12 ;AMMO
-        db 12
-        db 0,0
-;STOLB
-        db 11
-        db 11
-        db 11
-        db 11
-        db 11
-        db 11
-        db 11
-        db 11
-
-        if 1==0
-        DS ((-$)&7)&0xff
-MONSTRS
-;Xx,Yy,TYPEphase,TIMEenergy
-        DW #0F80,#AF80,#000,-1;ENEMY
-        DW #2680,#A080,#000,64
-        DW #0380,#BA80,#000,64
-        DW #0780,#B780,#000,64
-
-        DW #0F80,#B080,#002,64
-        DW #1380,#A080,#000,64
-        DW #1380,#AA80,#000,64
-        DW #1380,#B280,#000,64
-        DW #1380,#B380,#000,64
-        DW #1280,#B580,#002,64
-        DW #1480,#AB80,#000,64
-        DW #1480,#AE80,#002,64
-
-        DW #1480,#B080,#002,64
-        DW #1480,#B380,#000,64
-        DW #1580,#A180,#002,80
-        DW #1680,#AD80,#002,90
-        DW #1680,#B180,#002,100
-        DW #2180,#AD80,#002,10
-        DW #2380,#A080,#000,50
-        DW #2380,#A580,#002,50
-
-        DW #2680,#A480,#003,50
-        DW #2680,#B280,#004,50
-        DW #2780,#A880,#005,50
-        DW #2780,#B180,#003,64
-
-        DW #2780,#A380,#100,150
-        DW #2080,#A580,#101,100
-        DW #2280,#A580,#102,100
-        DW #2580,#A080,#103,20
-        DW #2080,#A080,#104,40
-
-        DW #1380,#A2C0,#200,0
-        DW #1380,#A440,#200,0
-        DW #1280,#A2C0,#200,0
-        DW #1280,#A440,#200,0
-        DW #1180,#A2C0,#200,0
-        DW #1180,#A440,#200,0
-        DW #1080,#A2C0,#200,0
-        DW #1080,#A440,#200,0
-        DW #0F80,#A2C0,#200,0
-        DW #0F80,#A440,#200,0
-        DW #0E80,#A2C0,#200,0
-        DW #0E80,#A440,#200,0
-        DW #0D80,#A2C0,#200,0
-        DW #0D80,#A440,#200,0
-        DW -1
-eNDMONS
-        endif
-
-level
-        DB "W"
-gfxnr   DB "0"
-muznr   DB "A"
-pol     DB #E7
-potolok DB #F3
-color   DB 7
-levname DS 23
-        DB 0
-monstrs DB 0
-prizes  DW 0 ;$$$/10
-EXITx   DB 23
-EXITy   DB 15+0xA0
-yx      DW 0x8080
-YX      DW 0xBA08
-angle   DW 64
-endlev
-
-        DS ((-$)&7)&0xff
-MONSTRS
-;Xx,Yy,TYPEphase,TIMEenergy
-        ;DW -1
-
-;сейчас TYPE кодируется так (что видно в редакторе: что в TYPE):
-;31: вход
-;29: выход
-;32..63: goods (58..63: gold 5,10,20,50,100,200)
-;1..28: monsters
-
-;        ds 64
-;INTSTACK
+	include "anims.asm"
+	include "savestate.asm"
 
         align 256
 trecolor
@@ -923,24 +609,6 @@ res_path
       
 
        else ;~atm
-WASMAP
-        INCBIN "map48.E"
-szMAP=$-WASMAP
-        ;ORG #C000,pgscale
-        ds 0xc000-$
-      IF 1
-        INCBIN "48kblock" ;with 48K textures
-      ELSE 
-       IF scale64
-       IF scale64 == 3
-        INCBIN "tscale3"
-       ELSE 
-        INCBIN "tscale2"
-       ENDIF 
-       ELSE 
-        INCBIN "tscale"
-       ENDIF 
-      ENDIF 
        ENDIF 
 end
 
@@ -950,4 +618,4 @@ end
 	
 	savebin "wolf3d.com",begin,end-begin
 	
-	LABELSLIST "../../../us/user.l"
+	LABELSLIST "../../../us/user.l",1

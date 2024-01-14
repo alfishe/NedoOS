@@ -1,7 +1,7 @@
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
 set installdir=nedogame
 nedotrd WOLF484.TRD -e mapatm.E
-sjasmplus --nologo --msg=war main.asm
+sjasmplus --nologo --msg=war -Datm=1 -Ddoublescr=1 main.asm
 sjasmplus --nologo --msg=war sfx.asm
 sjasmplus --nologo --msg=war music.asm
 copy wolftex.bmp wolf3d
@@ -13,7 +13,7 @@ rem "../../_sdk/nedores.exe" textures_05_64x64_.bmp walls.dat walls.ast
 sjasmplus --nologo --msg=war walls.ast --raw=walls.bin
 sjasmplus --nologo --msg=war goods.ast --raw=goods.bin
 
-sjasmplus --nologo --msg=war W48.ASM
+sjasmplus --nologo --msg=war -Datm=0 -Ddoublescr=0 W48.ASM
 nedotrd basic.trd -eh boot.$b > nul
 rem del test.scl
 rem mhmt -mlz code.c
