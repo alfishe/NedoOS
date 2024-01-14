@@ -34,7 +34,30 @@ struct sockaddr_in targetadr;
 struct readstructure readStruct;
 unsigned long contLen;
 unsigned long count;
-extern void dns_resolve(void);
+
+void printHelp(void)
+{
+  ATRIB(95);
+  printf("              GETPIC [%s] zxart.ee picture viewer for nedoNET\n\r", ver);
+  ATRIB(33);
+  ATRIB(40);
+  printf(" Управление:\n\r");
+  printf("	'ESC' - выход из программы;\n\r");
+  printf("	'<-' или 'B' к последним картинкам;\n\r");
+  printf("	'->' или 'Пробел' к более старым картинкам\n\r");
+  printf("	'J' Прыжок на  указанную по счету картинку\n\r");
+  printf("	'I' Просмотр экрана информации о картинках\n\r");
+  printf("	'S' Сохранить картинку на диск в текущую папку\n\r");
+  printf("	'V' не выводить информацию об авторах\n\r");
+  printf("	'R' переход в режим  случайная картинка с рейтингом 4+\n\r");
+  printf("	'H' Данная справочная информация\n\r");
+  printf("	----------------Нажмите любую кнопку----------------\n\r");
+  do
+  {
+    keypress = _low_level_get();
+    YIELD();
+  } while (keypress == 0);
+}
 
 void delay(unsigned long counter)
 {
@@ -100,16 +123,16 @@ void errorPrint(unsigned int error)
     printf("%u UNKNOWN ERROR\n\r", error);
     break;
   }
-  YIELD();
   do
   {
     key = _low_level_get();
+    YIELD();
   } while (key == 0);
 }
 
 unsigned char OpenSock(unsigned char family, unsigned char protocol)
 {
-  unsigned char socket, retry = 150;
+  unsigned char socket;
   unsigned int todo;
   todo = OS_NETSOCKET((family << 8) + protocol);
   if (todo > 32767)
@@ -128,7 +151,7 @@ unsigned char OpenSock(unsigned char family, unsigned char protocol)
 
 unsigned char netConnect(unsigned char socket)
 {
-  unsigned int todo;
+  unsigned int todo, retry = 5;
 
   targetadr.family = AF_INET;
   targetadr.porth = 00;
@@ -137,24 +160,30 @@ unsigned char netConnect(unsigned char socket)
   targetadr.b2 = 146;
   targetadr.b3 = 69;
   targetadr.b4 = 13;
+  while (retry > 0)
+  {
+    todo = OS_NETCONNECT(socket, &targetadr);
 
-  todo = OS_NETCONNECT(socket, &targetadr);
-  if (todo > 32767)
-  {
-    printf("OS_NETCONNECT: ");
-    errorPrint(todo & 255);
-    exit(0);
+    if (todo > 32767)
+    {
+      printf("OS_NETCONNECT retry[%u]\n\r", retry);
+      retry--;
+    }
+    else
+    {
+      // printf("OS_NETCONNECT: connection successful, %u\n\r", (todo & 255));
+      return 0;
+    }
   }
-  else
-  {
-    // printf("OS_NETCONNECT: connection successful, %u\n\r", (todo & 255));
-  }
+  printf("OS_NETCONNECT: ");
+  errorPrint(todo & 255);
+  exit(0);
   return 0;
 }
 
 unsigned int tcpSend(unsigned char socket, unsigned int messageadr, unsigned int size)
 {
-  unsigned char retry = 150;
+  unsigned char retry = 50;
   unsigned int todo;
   readStruct.socket = socket;
   readStruct.BufAdr = messageadr;
@@ -186,7 +215,7 @@ wizwrite:
 
 unsigned int tcpRead(unsigned char socket)
 {
-  unsigned char retry = 50;
+  unsigned char retry = 75;
   unsigned int err, todo;
 
   readStruct.socket = socket;
@@ -211,8 +240,7 @@ wizread:
     retry--;
     // printf("OS_WIZNETREAD: %u \n\r", retry);
     YIELD();
-    YIELD();
-    delay(100);
+    delay(50);
     goto wizread;
   }
   // printf("OS_WIZNETREAD: %u bytes read. \n\r", todo);
@@ -669,29 +697,6 @@ rejson:
     strcpy(curFileStruct.authorRealName, netbuf);
   }
   return curFileStruct.picId;
-}
-
-void printHelp(void)
-{
-  ATRIB(95);
-  printf("              GETPIC [%s] zxart.ee picture viewer for nedoNET\n\r", ver);
-  ATRIB(33);
-  ATRIB(40);
-  printf(" Управление:\n\r");
-  printf("	'ESC' - выход из программы;\n\r");
-  printf("	'<-' или 'B' к последним картинкам;\n\r");
-  printf("	'->' или 'Пробел' к более старым картинкам\n\r");
-  printf("	'J' Прыжок на  указанную по счету картинку\n\r");
-  printf("	'I' Просмотр экрана информации о картинках\n\r");
-  printf("	'S' Сохранить картинку на диск в текущую папку\n\r");
-  printf("	'V' не выводить информацию об авторах\n\r");
-  printf("	'R' переход в режим  случайная картинка с рейтингом 4+\n\r");
-  printf("	'H' Данная справочная информация\n\r");
-  printf("	----------------Нажмите любую кнопку----------------\n\r");
-  do
-  {
-    keypress = _low_level_get();
-  } while (keypress == 0);
 }
 
 void printData(void)
