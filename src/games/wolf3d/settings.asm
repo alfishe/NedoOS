@@ -7,7 +7,11 @@ showfps=1-atm
 
 crosshair=0
 
+	if atm
 ID_DOOR=0+(22*2);127
+	else
+ID_DOOR=0x40+((22-16)*2);127
+	endif
 
 ;ZX data:
 ;music=0;1
@@ -22,7 +26,7 @@ doublerotate=1
 autostrafe=1
 kempston=0;1
 mouse=1
-mindist=111 ;max=111 ;111 curved on atm ;118 stuck in door
+mindist=111 ;max=111 ;111 curved walls TODO fix ;118 stuck in door
 
 colour=7
 ceilingcolour=0
@@ -67,8 +71,8 @@ maxscale=127
 lowmaxscale=25 ;fit in low screen
         ENDIF 
 mapdifbit=5;7
-lores=0
         IF atm == 0
+lores=0
 optres=1&(1-lores) ;+22t на мелких, выигрыш на крупных
         ELSE 
 lores=1
@@ -102,7 +106,7 @@ scrbufflag=(scrbuf&#FF00)+32
 dropline=scrhgt*8+(0xff&scrbuf) ;Y=192
 map=scrbuf-#3F;#A001 ;+0 занят dropline, +32 занят флагом высоких
 mapend=map+#2000
-invmap=atm;0;1 ;48k карта отличается по формату от ATM карты
+invmap=1 ;48k карта отличается по формату от ATM карты
 
         if atm == 0
 tscale=#C000 ;128x64, множители 0 и 63 выдают константы 0 и 3

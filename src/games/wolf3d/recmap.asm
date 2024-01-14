@@ -11,7 +11,8 @@ RECMAP
         
           ld de,MONSTRS
         
-       if atm
+       if invmap;atm
+       ;jr $
        LD A,(YX+1) ;Y
        SUB 0xA0
        SUB map/256+31
@@ -32,7 +33,7 @@ INImons LD A,(HL)
         JR INImons
 INImonsQ ;
        EXD 
-       if atm 
+       if invmap;atm 
         LD H,map/256+31
        else
         LD H,map/256
@@ -55,7 +56,7 @@ GETMAP1 LD A,(DE)
         LD (HL),0
         CP 13
         JR Z,GETMCR
-       IF atm
+       IF invmap;atm
        jr NC,GMNRLE
         LD A,(DE)
         INC DE
@@ -71,24 +72,26 @@ GMNRLE
        ENDIF 
         CP 32
         JR Z,GETMAPE
-       IF atm
+      if invmap
       CP 64    ;
       jr NC,$+4  ;
       ADD A,64 ;todo kill
        ADD A,128-64
-       ELSE 
+      endif
+      IF !atm
+       if invmap
+       sub 128
+ ;в примере используются стены 16..35. они уже домножены на 2
+        sub 16*2
+       else
+       add a,a
        SUB "1";+128
-     ; CPL 
-     ; ADD A,A
-     ;CP -20
-     ;jr NC,$+4
-     ;LD A,-20
-     add a,a
-     add a,0xc0
-     cp 0xc0+20-2
-     jr c,$+4
-     ld a,0xc0+20-2
-       ENDIF 
+       endif
+       cp 11*2
+       jr c,$+4
+       ld a,11*2
+     add a,0xc0 ;хранится ID>=128, чтобы делать двери
+      ENDIF 
        LD (HL),A
 GETMAPE INC L
         DJNZ GETMAP1
@@ -102,7 +105,7 @@ GETMOK
        ENDIF 
         DEC C
         jr NZ,GETMAPL
-       if atm
+       if invmap;atm
         LD A,H
         DEC H
         CP map/256
