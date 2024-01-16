@@ -7,8 +7,8 @@ sjasmplus --nologo --msg=war music.asm
 copy wolftex.bmp wolf3d
 copy wolfspr.bmp wolf3d
 
-rem "../../_sdk/nedores.exe" walls.bmp walls.dat walls.ast
-"../../_sdk/nedores.exe" textures_01_64x64_.bmp walls.dat walls.ast
+"../../_sdk/nedores.exe" walls.bmp walls.dat walls.ast
+rem "../../_sdk/nedores.exe" textures_01_64x64_.bmp walls.dat walls.ast
 "../../_sdk/nedores.exe" goods.bmp goods.dat goods.ast
 sjasmplus --nologo --msg=war walls.ast --raw=walls.bin
 sjasmplus --nologo --msg=war goods.ast --raw=goods.bin
@@ -24,6 +24,14 @@ nedotrd wolf.trd -ah boot.$b
 nedotrd wolf.trd -ac code.c
 nedotrd wolf.trd -ac hicode.c
 rem nedotrd wolf.trd -ac hicode2.c
+
+del code.bin
+ren code.c code.bin
+bas2tap -a10 loader.txt wolf.tap
+rem bin2tap -b -a 24576 -r 24576 -o worms.tap code.bin
+rem bin2tap -append -a 49152 -o worms.tap hicode.bin
+rem bin2tap -append -a 49152 -o worms.tap hicode2.bin
+bin2tap -append -a 24576 -o wolf.tap code.bin
 
 SET releasedir2=../../../release/
 if "%currentdir%"=="" (
