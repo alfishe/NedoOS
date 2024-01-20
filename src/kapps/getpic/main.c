@@ -24,16 +24,23 @@ struct fileStruct
   unsigned char pfn[128];
   unsigned char fileName[128];
 } curFileStruct;
-unsigned char ver[] = "1.8";
+unsigned char ver[] = "1.9";
 unsigned char netbuf[2048];
 unsigned char picture[16384];
 unsigned char crlf[2] = {13, 10};
 unsigned long bytecount;
-unsigned char status, key, keypress;
+unsigned char status, keypress;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 unsigned long contLen;
 unsigned long count;
+
+void emptyKeyBuf(void)
+{
+  do
+  {
+  } while (_low_level_get() != 0);
+}
 
 void printHelp(void)
 {
@@ -54,11 +61,10 @@ void printHelp(void)
   printf("	----------------Нажмите любую кнопку----------------\n\r");
   do
   {
-    keypress = _low_level_get();
     YIELD();
-  } while (keypress == 0);
+  } while (_low_level_get() == 0);
+  emptyKeyBuf();
 }
-
 void delay(unsigned long counter)
 {
   unsigned long start, finish;
@@ -125,9 +131,9 @@ void errorPrint(unsigned int error)
   }
   do
   {
-    key = _low_level_get();
     YIELD();
-  } while (key == 0);
+  } while (_low_level_get() == 0);
+  emptyKeyBuf();
 }
 
 unsigned char OpenSock(unsigned char family, unsigned char protocol)
@@ -259,7 +265,6 @@ unsigned int cutHeader(unsigned int todo)
   }
   else
   {
-
     contLen = atol(count + 15);
     bytecount = contLen;
     // printf ("Dlinna  soderzhimogo = %lu \n\r", bytecount);
@@ -769,6 +774,7 @@ C_task main(void)
   goto safeKeys;
 
 start:
+  emptyKeyBuf();
   switch (randomPic)
   {
   case 0:
@@ -810,6 +816,7 @@ start:
     ///// Keys only for pictures
   review:
     keypress = viewScreen6912((unsigned int)&picture);
+    emptyKeyBuf();
   }
   else
   {
@@ -836,16 +843,15 @@ start:
   if (keypress == 251 || keypress == 32)
   {
     count++;
+    goto start;
   }
   if (keypress == 'i' || keypress == 'I')
   {
     do
     {
-      key = _low_level_get();
       YIELD();
-      delay(100);
-    } while (key == 0);
-    key = _low_level_get();
+    } while (_low_level_get() == 0);
+    emptyKeyBuf();
     goto review;
   }
 
