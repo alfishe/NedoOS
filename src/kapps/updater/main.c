@@ -9,7 +9,7 @@
 #include <intrz80.h>
 #include <ctype.h>
 #include <math.h>
-unsigned char uVer[] = "0.42";
+unsigned char uVer[] = "0.43";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -87,12 +87,9 @@ void printNews(void)
 	unsigned char str[1];
 	unsigned char curLine, nbyte;
 
-	fpNews = OS_OPENHANDLE("doc/updater.new", 0x80);
+	fpNews = OS_OPENHANDLE("updater.new", 0x80);
 	if (((int)fpNews) & 0xff)
 	{
-		clearStatus();
-		AT(1, 24);
-		printf("doc/updater.new not found.");
 
 #include <printnews.c>
 
@@ -195,7 +192,7 @@ void fatalError(unsigned char *message)
 	AT(cw.x + 2, cw.y + 3);
 	printf(message);
 	AT(1, 1);
-	getchar();
+	getchar(); 
 	exit(0);
 }
 
@@ -242,7 +239,7 @@ unsigned char OS_SHELL(unsigned char *command)
 		AT(1, 24);
 		printf(fileName);
 		printf(" not found.");
-		getchar();
+		getchar(); 
 		exit(0);
 	}
 	shellSize = OS_GETFILESIZE(fp3);
@@ -263,7 +260,6 @@ unsigned char OS_SHELL(unsigned char *command)
 		memcpy((char *)(adr), &netbuf, loaded);
 		loop = loop + loaded;
 	}
-
 	OS_CLOSEHANDLE(fp3);
 	SETPG32KHIGH(pgbak);
 	clearStatus();
@@ -330,14 +326,13 @@ void getTools(void)
 	errn = OS_MKDIR("bin"); // Create if not exist
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	errn = getFile(pkunzipLink, "bin/pkunzip.com");
-	errn = getFile(tarLink, "bin/tar.com");
-	errn = getFile(cmdLink, "bin/cmd.com");
-	errn = getFile(termLink, "bin/term.com");
-	errn = getFile(updLink, "bin/updater.com");
+	getFile(newsLink, "updater.new");
+	getFile(pkunzipLink, "bin/pkunzip.com");
+	getFile(tarLink, "bin/tar.com");
+	getFile(cmdLink, "bin/cmd.com");
+	getFile(termLink, "bin/term.com");
+	getFile(updLink, "bin/updater.com");
 
-	OS_DELETE("doc/updater.new");
-	errn = getFile(newsLink, "doc/updater.new");
 }
 
 void deleteWorkFiles(void)
@@ -484,16 +479,14 @@ void fullUpdate(void)
 	drawWindow(cw);
 
 	OS_DELETE("release.zip");
-	OS_DELETE("bin.old");
-	OS_DELETE("doc.old");
-	OS_DELETE("nedodemo.old");
-	OS_DELETE("nedogame.old");
 
 	clearStatus();
 	AT(cw.x + 2, cw.y + 3);
 	printf("1.Downloading release.zip...");
 
 	errn = getFile(relLink, "release.zip"); //  Downloading the file
+
+	clearStatus();
 
 	clearStatus();
 	AT(cw.x + 2, cw.y + 4);
@@ -504,17 +497,19 @@ void fullUpdate(void)
 	ren2old("nedodemo");
 	ren2old("nedogame");
 
-	clearStatus();
 	AT(cw.x + 2, cw.y + 5);
 	printf("3.Downloading tools...\r\n");
-
+	
 	getTools();
-
+	
 	BOX(1, 1, 80, 25, 40, 32);
 	AT(1, 1);
 	printf("Depacking release. Its take about 10 hours. Please wait.\r\n");
 	printf("First hours going without signs of life.\r\n");
+
+
 	printNews();
+
 	YIELD();
 	OS_SHELL("pkunzip.com release.zip");
 	BOX(1, 1, 80, 25, 40, 176);

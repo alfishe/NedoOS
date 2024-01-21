@@ -101,11 +101,12 @@ unsigned char netConnect(unsigned char socket)
 unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsigned int sizeOfBuf)
 {
 	unsigned char fileName[255];
-
+ 
 	if (operation == 00)
 	{
 		strcpy(fileName, fileNamePtr);
 		fp2 = OS_CREATEHANDLE(fileName, 0x80);
+
 		if (((int)fp2) & 0xff)
 		{
 			clearStatus();
@@ -115,6 +116,7 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 			exit(0);
 		}
 		OS_CLOSEHANDLE(fp2);
+
 		fp2 = OS_OPENHANDLE(fileName, 0x80);
 		if (((int)fp2) & 0xff)
 		{
@@ -156,7 +158,7 @@ void cancel(void)
 
 unsigned int tcpRead(unsigned char socket)
 {
-	unsigned char retry = 250;
+	unsigned char retry = 100;
 	unsigned int err, todo;
 	readStruct.socket = socket;
 	readStruct.BufAdr = (unsigned int)&netbuf;
@@ -182,8 +184,6 @@ wizread:
 		}
 		retry--;
 		cancel();
-		AT(76, 24);
-		printf("[%03u]", retry);
 		delay(100);
 		goto wizread;
 	}
@@ -254,8 +254,6 @@ wizwrite:
 		}
 		retry--;
 		cancel();
-		AT(76, 24);
-		printf("[%03u]", retry);
 		delay(100);
 		goto wizwrite;
 	}
@@ -268,19 +266,25 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 	unsigned char cmdlist1[] = " HTTP/1.1\r\nHost: nedoos.ru\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
 	unsigned char socket;
 	unsigned int bytes2read, headskip;
+	unsigned long fileSize1;
+	unsigned char fileName[255];
 	strcpy(netbuf, "GET ");
 	strcat(netbuf, fileLink);
 	strcat(netbuf, cmdlist1);
 	clearStatus();
+
 	socket = OpenSock(AF_INET, SOCK_STREAM);
 	todo = netConnect(socket);
 	todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
+
 	headskip = 0;
 	bytecount = 255;
 	downloaded = 0;
 	saveBuf(fileNamePtr, 00, 0);
+	strcpy(fileName, fileNamePtr);
 	AT(1, 24);
-	printf(" %s ", fileNamePtr);
+	printf(fileName);
+
 	while (bytecount != 0)
 	{
 		todo = tcpRead(socket);
@@ -293,9 +297,10 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 		{
 			headskip = 1;
 			bytes2read = cutHeader(todo);
+			fileSize1 = contLen / 1024;
 		}
 		AT(32, 24);
-		printf("%lu of %lu kb", downloaded / 1024, contLen / 1024);
+		printf("%lu of %lu kb", downloaded / 1024, fileSize1);
 
 		saveBuf(fileNamePtr, 01, bytes2read);
 		bytecount = bytecount - bytes2read;
