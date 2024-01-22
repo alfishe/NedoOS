@@ -24,7 +24,7 @@ struct fileStruct
   unsigned char pfn[128];
   unsigned char fileName[128];
 } curFileStruct;
-unsigned char ver[] = "1.9";
+unsigned char ver[] = "2.0";
 unsigned char netbuf[2048];
 unsigned char picture[16384];
 unsigned char crlf[2] = {13, 10};
@@ -34,6 +34,7 @@ struct sockaddr_in targetadr;
 struct readstructure readStruct;
 unsigned long contLen;
 unsigned long count;
+unsigned int slideShowTime = 0;
 
 void emptyKeyBuf(void)
 {
@@ -49,20 +50,22 @@ void printHelp(void)
   ATRIB(33);
   ATRIB(40);
   printf(" Управление:\n\r");
-  printf("	'ESC' - выход из программы;\n\r");
-  printf("	'<-' или 'B' к последним картинкам;\n\r");
-  printf("	'->' или 'Пробел' к более старым картинкам\n\r");
-  printf("	'J' Прыжок на  указанную по счету картинку\n\r");
-  printf("	'I' Просмотр экрана информации о картинках\n\r");
-  printf("	'S' Сохранить картинку на диск в текущую папку\n\r");
-  printf("	'V' не выводить информацию об авторах\n\r");
-  printf("	'R' переход в режим  случайная картинка с рейтингом 4+\n\r");
-  printf("	'H' Данная справочная информация\n\r");
+  printf(" 'ESC' - выход из программы;\n\r");
+  printf(" '<-' или 'B' к последним картинкам;\n\r");
+  printf(" '->' или 'Пробел' к более старым картинкам\n\r");
+  printf(" 'J' Прыжок на  указанную по счету картинку\n\r");
+  printf(" 'I' Просмотр экрана информации о картинках\n\r");
+  printf(" 'S' Сохранить картинку на диск в текущую папку\n\r");
+  printf(" 'V' не выводить информацию об авторах\n\r");
+  printf(" 'R' переход в режим  случайная картинка с рейтингом 4+\n\r");
+  printf(" 'A' переход в режим  слайл-шоу\n\r");
+  printf(" 'H' Данная справочная информация\n\r");
   printf("	----------------Нажмите любую кнопку----------------\n\r");
   do
   {
     YIELD();
-  } while (_low_level_get() == 0);
+    keypress = _low_level_get();
+  } while ( keypress == 0);
   emptyKeyBuf();
 }
 void delay(unsigned long counter)
@@ -750,7 +753,7 @@ void printData(void)
 
 C_task main(void)
 {
-  unsigned char errno, verbose, randomPic;
+  unsigned char errno, verbose, randomPic, slideShow;
   unsigned long ipadress;
   long iddqd, idkfa;
   os_initstdio();
@@ -758,13 +761,15 @@ C_task main(void)
   count = 0;
   verbose = 1;
   randomPic = 0;
+  slideShow = 0;
 
   BOX(1, 1, 80, 25, 40);
   AT(1, 1);
   ATRIB(97);
   ATRIB(40);
   printHelp();
-  AT(1, 13);
+  AT(1, 14);
+  ATRIB(93);
   /*
     ipadress = OS_DNSRESOLVE("zxart.ee");
     printf("\n\r  OS_DNSRESOLVE =  %lu \n\r", ipadress);
@@ -815,7 +820,7 @@ start:
 
     ///// Keys only for pictures
   review:
-    keypress = viewScreen6912((unsigned int)&picture);
+    keypress = viewScreen6912((unsigned int)&picture, slideShowTime);
     emptyKeyBuf();
   }
   else
@@ -895,6 +900,20 @@ safeKeys:
     else
     {
       printf("    Sequental mode enabled...\r\n");
+    }
+  }
+  if (keypress == 'a' || keypress == 'A')
+  {
+    slideShow = !slideShow;
+    if (slideShow == 1)
+    {
+      printf("    slideShow mode enabled...\r\n\r\n");
+      slideShowTime = 250;
+    }
+    else
+    {
+      printf("    Manual mode enabled...\r\n\r\n");
+      slideShowTime = 0;
     }
   }
   goto start;
