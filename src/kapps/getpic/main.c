@@ -65,7 +65,7 @@ void printHelp(void)
   {
     YIELD();
     keypress = _low_level_get();
-  } while ( keypress == 0);
+  } while (keypress == 0);
   emptyKeyBuf();
 }
 void delay(unsigned long counter)
@@ -810,8 +810,8 @@ start:
   }
   else
   {
-    ATRIB(97);
-    printf(" Getting picture...\r\n");
+    //ATRIB(97);
+    //printf(" Getting picture...\r\n");
   }
   if (!strcmp(curFileStruct.picType, "standard"))
 
@@ -883,6 +883,12 @@ safeKeys:
   if (keypress == 'v' || keypress == 'V')
   {
     verbose = !verbose;
+
+    if (verbose == 0)
+    {
+      BOX(1, 1, 80, 25, 40);
+      AT(1, 1);
+    }
   }
 
   if (keypress == 'h' || keypress == 'H')
