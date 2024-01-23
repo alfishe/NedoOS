@@ -810,8 +810,8 @@ start:
   }
   else
   {
-    //ATRIB(97);
-    //printf(" Getting picture...\r\n");
+    // ATRIB(97);
+    // printf(" Getting picture...\r\n");
   }
   if (!strcmp(curFileStruct.picType, "standard"))
 
@@ -899,13 +899,17 @@ safeKeys:
   if (keypress == 'r' || keypress == 'R')
   {
     randomPic = !randomPic;
-    if (randomPic == 1)
+
+    if (verbose == 1)
     {
-      printf("    Random mode enabled...\r\n");
-    }
-    else
-    {
-      printf("    Sequental mode enabled...\r\n");
+      if (randomPic == 1)
+      {
+        printf("    Random mode enabled...\r\n");
+      }
+      else
+      {
+        printf("    Sequental mode enabled...\r\n");
+      }
     }
   }
   if (keypress == 'a' || keypress == 'A')
@@ -913,12 +917,14 @@ safeKeys:
     slideShow = !slideShow;
     if (slideShow == 1)
     {
-      printf("    slideShow mode enabled...\r\n\r\n");
+      if (verbose == 1)
+        printf("    slideShow mode enabled...\r\n\r\n");
       slideShowTime = 250;
     }
     else
     {
-      printf("    Manual mode enabled...\r\n\r\n");
+      if (verbose == 1)
+        printf("    Manual mode enabled...\r\n\r\n");
       slideShowTime = 0;
     }
   }
