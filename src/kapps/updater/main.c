@@ -9,7 +9,7 @@
 #include <intrz80.h>
 #include <ctype.h>
 #include <math.h>
-unsigned char uVer[] = "0.43";
+unsigned char uVer[] = "0.44";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -192,7 +192,7 @@ void fatalError(unsigned char *message)
 	AT(cw.x + 2, cw.y + 3);
 	printf(message);
 	AT(1, 1);
-	getchar(); 
+	getchar();
 	exit(0);
 }
 
@@ -239,7 +239,7 @@ unsigned char OS_SHELL(unsigned char *command)
 		AT(1, 24);
 		printf(fileName);
 		printf(" not found.");
-		getchar(); 
+		getchar();
 		exit(0);
 	}
 	shellSize = OS_GETFILESIZE(fp3);
@@ -273,7 +273,349 @@ unsigned char OS_SHELL(unsigned char *command)
 	return shell_pg.pgs.pId;
 }
 //////////////// NETWORK PART //////////////////////
-#include <network.c>
+// #include <network.c>
+void errorPrint(unsigned int error)
+{
+	clearStatus();
+	AT(1, 24);
+	switch (error)
+	{
+	case 2:
+		printf("02 SHUT_RDWR");
+		break;
+	case 4:
+		printf("04 ERR_INTR");
+		break;
+	case 23:
+		printf("23 ERR_NFILE");
+		break;
+	case 35:
+		printf("35 ERR_EAGAIN");
+		break;
+	case 37:
+		printf("37 ERR_ALREADY");
+		break;
+	case 38:
+		printf("38 ERR_NOTSOCK");
+		break;
+	case 40:
+		printf("40 ERR_EMSGSIZE");
+		break;
+	case 41:
+		printf("41 ERR_PROTOTYPE");
+		break;
+	case 47:
+		printf("47 ERR_AFNOSUPPORT");
+		break;
+	case 53:
+		printf("53 ERR_ECONNABORTED");
+		break;
+	case 54:
+		printf("54 ERR_CONNRESET");
+		break;
+	case 57:
+		printf("57 ERR_NOTCONN");
+		break;
+	case 65:
+		printf("65 ERR_HOSTUNREACH");
+		break;
+	default:
+		printf("[%u] UNKNOWN ERROR", error);
+		break;
+	}
+	YIELD();
+	do
+	{
+		key = _low_level_get();
+	} while (key == 0);
+}
+
+unsigned int httpError(void)
+{
+	unsigned char *httpRes;
+	unsigned int httpErr;
+	httpRes = strstr(netbuf, "HTTP/1.1 ");
+
+	if (httpRes != NULL)
+	{
+		httpErr = atol(httpRes + 9);
+		if (httpErr == 200)
+		{
+			return httpErr;
+		}
+	}
+
+	BOX(1, 1, 80, 25, 40, 32);
+	AT(1, 1);
+	printf("HTTP ERROR %u", httpErr);
+
+	fatalError("Server response error!");
+	return httpErr;
+}
+
+unsigned char OpenSock(unsigned char family, unsigned char protocol)
+{
+	unsigned char socket;
+	unsigned int todo;
+	todo = OS_NETSOCKET((family << 8) + protocol);
+	if (todo > 32767)
+	{
+		clearStatus();
+		AT(1, 24);
+		printf("OS_NETSOCKET: ");
+		errorPrint(todo & 255);
+		exit(0);
+	}
+	else
+	{
+		socket = ((todo & 65280) >> 8);
+	}
+	return socket;
+}
+
+unsigned char netConnect(unsigned char socket)
+{
+	unsigned int todo;
+
+	targetadr.family = AF_INET;
+	targetadr.porth = 00;
+	targetadr.portl = 80;
+	targetadr.b1 = 31;
+	targetadr.b2 = 31;
+	targetadr.b3 = 65;
+	targetadr.b4 = 35;
+
+	todo = OS_NETCONNECT(socket, &targetadr);
+	if (todo > 32767)
+	{
+		clearStatus();
+		AT(1, 24);
+		printf("OS_NETCONNECT: ");
+		errorPrint(todo & 255);
+		exit(0);
+	}
+	return 0;
+}
+
+unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsigned int sizeOfBuf)
+{
+	unsigned char fileName[255];
+
+	if (operation == 00)
+	{
+		strcpy(fileName, fileNamePtr);
+		fp2 = OS_CREATEHANDLE(fileName, 0x80);
+
+		if (((int)fp2) & 0xff)
+		{
+			clearStatus();
+			AT(1, 24);
+			printf(fileName);
+			printf(" creating error.");
+			exit(0);
+		}
+		OS_CLOSEHANDLE(fp2);
+
+		fp2 = OS_OPENHANDLE(fileName, 0x80);
+		if (((int)fp2) & 0xff)
+		{
+			clearStatus();
+			AT(1, 24);
+			printf(fileName);
+			printf(" opening error.");
+
+			exit(0);
+		}
+		AT(1, 24);
+		return 0;
+	}
+
+	if (operation == 01)
+	{
+		OS_WRITEHANDLE(netbuf, fp2, sizeOfBuf);
+		downloaded = downloaded + sizeOfBuf;
+		return 0;
+	}
+
+	if (operation == 02)
+	{
+		OS_CLOSEHANDLE(fp2);
+		return 0;
+	}
+	return 0;
+}
+
+void cancel(void)
+{
+	key = _low_level_get();
+	if (key == 27)
+	{
+		saveBuf("fileNamePtr", 02, 00);
+		fatalError("File download aborted!");
+	}
+}
+
+unsigned int tcpRead(unsigned char socket)
+{
+	unsigned char retry = 100;
+	unsigned int err, todo;
+	readStruct.socket = socket;
+	readStruct.BufAdr = (unsigned int)&netbuf;
+	readStruct.bufsize = bufSize;
+	readStruct.protocol = SOCK_STREAM;
+wizread:
+	todo = OS_WIZNETREAD(&readStruct);
+	if (todo > 32767)
+	{
+		if (retry == 0)
+		{
+			err = todo & 255;
+			clearStatus();
+			AT(1, 24);
+			printf("OS_WIZNETREAD: ");
+			errorPrint(err);
+
+			if (err == 35)
+			{
+				return 0;
+			}
+			fatalError("ERROR CONNECTION TO SERVER");
+		}
+		retry--;
+		cancel();
+		delay(100);
+		goto wizread;
+	}
+	return todo;
+}
+
+unsigned int netShutDown(unsigned char socket)
+{
+	unsigned int todo;
+	todo = OS_NETSHUTDOWN(socket);
+	if (todo > 32767)
+	{
+		printf("OS_NETSHUTDOWN: ");
+		errorPrint(todo & 255);
+		return 255;
+	}
+
+	return 0;
+}
+
+unsigned int cutHeader(unsigned int todo)
+{
+	unsigned int q, headlng;
+	unsigned char *count;
+
+	count = strstr(netbuf, "Content-Length:");
+	if (count == NULL)
+	{
+		clearStatus();
+		AT(1, 24);
+		printf("Content-Length:  not found.");
+		contLen = 0;
+	}
+	else
+	{
+		contLen = atol(count + 15);
+		bytecount = contLen;
+		//    AT (1,24);
+		//      printf("=> Dlinna  soderzhimogo = %lu \n\r", bytecount);
+	}
+
+	count = strstr(netbuf, "\r\n\r\n");
+	headlng = ((unsigned int)count - (unsigned int)netbuf + 4);
+	q = todo - headlng;
+	memcpy(&netbuf, count + 4, q);
+	return q;
+}
+
+unsigned int tcpSend(unsigned char socket, unsigned int messageadr, unsigned int size)
+{
+	unsigned char retry = 20;
+	unsigned int todo;
+	readStruct.socket = socket;
+	readStruct.BufAdr = messageadr;
+	readStruct.bufsize = size;
+	readStruct.protocol = SOCK_STREAM;
+
+wizwrite:
+	todo = OS_WIZNETWRITE(&readStruct);
+	if (todo > 32767)
+	{
+		clearStatus();
+		AT(1, 24);
+		printf("OS_WIZNETWRITE: ");
+		errorPrint(todo & 255);
+		if (retry == 0)
+		{
+			exit(0);
+		}
+		retry--;
+		cancel();
+		delay(100);
+		goto wizwrite;
+	}
+
+	return todo;
+}
+unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
+{
+	unsigned int todo;
+	unsigned char cmdlist1[] = " HTTP/1.1\r\nHost: nedoos.ru\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
+	unsigned char socket;
+	unsigned int bytes2read, headskip;
+	unsigned long fileSize1;
+	unsigned char fileName[255];
+	unsigned int httpErr;
+	strcpy(netbuf, "GET ");
+	strcat(netbuf, fileLink);
+	strcat(netbuf, cmdlist1);
+	clearStatus();
+	socket = OpenSock(AF_INET, SOCK_STREAM);
+	todo = netConnect(socket);
+	todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
+
+	headskip = 0;
+	bytecount = 255;
+	downloaded = 0;
+	strcpy(fileName, fileNamePtr);
+	AT(1, 24);
+	printf(fileName);
+
+	while (bytecount != 0)
+	{
+		todo = tcpRead(socket);
+		if (todo == 0)
+		{
+			break;
+		}
+		bytes2read = todo;
+		if (headskip == 0)
+		{
+			httpErr = httpError();
+			headskip = 1;
+			bytes2read = cutHeader(todo);
+			fileSize1 = contLen / 1024;
+			saveBuf(fileNamePtr, 00, 0);
+		}
+		AT(32, 24);
+		printf("%lu of %lu kb", downloaded / 1024, fileSize1);
+
+		saveBuf(fileNamePtr, 01, bytes2read);
+		bytecount = bytecount - bytes2read;
+
+		cancel();
+	}
+	netShutDown(socket);
+	saveBuf(fileNamePtr, 02, 00);
+	if (downloaded != contLen)
+	{
+		fatalError("File download error!");
+	}
+	return 0;
+}
 ////////////////////////////////////////////////////
 
 unsigned char getConfig(void)
@@ -285,30 +627,30 @@ unsigned char getConfig(void)
 	case 1:
 		strcpy(machineName, "ZX-Evolution");
 		strcpy(kernelName, "sd_boot.$C");
-		strcpy(kernelLink, "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fsd_boot.%24C");
+		strcpy(kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/sd_boot.%24C");
 		break;
 	case 2:
 		strcpy(machineName, "TURBO 2+");
 		strcpy(kernelName, "osatm2hd.$C");
-		strcpy(kernelLink, "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fosatm2hd.%24C");
+		strcpy(kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/osatm2hd.%24C");
 
 		break;
 
 	case 3: // SD HDD versions
 		strcpy(machineName, "TURBO 3 [SD]");
 		strcpy(kernelName, "osatm3hd.$C");
-		strcpy(kernelLink, "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fosatm3hd.%24C");
+		strcpy(kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/osatm3hd.%24C");
 		break;
 	case 6: // SD HDD versions
 		strcpy(machineName, "P2.666 [SD]");
 		strcpy(kernelName, "osp26sd.$C");
-		strcpy(kernelLink, "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fosp26sd.%24C");
+		strcpy(kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/osp26sd.%24C");
 		break;
 
 	default:
 		strcpy(machineName, "NOT DETECED (ZX-Evo)");
 		strcpy(kernelName, "sd_boot.$C");
-		strcpy(kernelLink, "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fsd_boot.%24C");
+		strcpy(kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/sd_boot.%24C");
 		break;
 	}
 	return is_atm;
@@ -316,23 +658,26 @@ unsigned char getConfig(void)
 // Downloading minimal tools for updating/boot
 void getTools(void)
 {
-	unsigned char pkunzipLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2Fpkunzip.com";
-	unsigned char tarLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2Ftar.com";
-	unsigned char cmdLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2Fcmd.com";
-	unsigned char termLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2Fterm.com";
-	unsigned char updLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2Fupdater.com";
-	unsigned char newsLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fdoc%2Fupdater.new";
+	unsigned char pkunzipLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/pkunzip.com";
+	unsigned char tarLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/tar.com";
+	unsigned char cmdLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/cmd.com";
+	unsigned char termLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/term.com";
+	unsigned char updLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/updater.com";
+	unsigned char newsLink[] = "/svn/dl.php?repname=NedoOS&path=/release/doc/updater.new";
+	unsigned char wizNetLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/wizcfg.com";
+	unsigned char netIniLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/net.ini";
 
 	errn = OS_MKDIR("bin"); // Create if not exist
 	ATRIB(cw.text);
 	ATRIB(cw.back);
+	getFile(wizNetLink, "bin/wizcfg.com");
 	getFile(newsLink, "updater.new");
 	getFile(pkunzipLink, "bin/pkunzip.com");
 	getFile(tarLink, "bin/tar.com");
 	getFile(cmdLink, "bin/cmd.com");
 	getFile(termLink, "bin/term.com");
 	getFile(updLink, "bin/updater.com");
-
+	getFile(netIniLink, "bin/net.ini");
 }
 
 void deleteWorkFiles(void)
@@ -363,7 +708,7 @@ unsigned char ren2old(unsigned char *name)
 void ren2tar(void)
 {
 	unsigned char *name = "0000000000000000000000000000000000";
-	unsigned int counter = 3000;
+	unsigned int counter = 2500;
 	errn = 255;
 	sprintf(name, "bin.r%u", counter);
 	while (errn != 0)
@@ -499,14 +844,13 @@ void fullUpdate(void)
 
 	AT(cw.x + 2, cw.y + 5);
 	printf("3.Downloading tools...\r\n");
-	
+
 	getTools();
-	
+
 	BOX(1, 1, 80, 25, 40, 32);
 	AT(1, 1);
 	printf("Depacking release. Its take about 10 hours. Please wait.\r\n");
 	printf("First hours going without signs of life.\r\n");
-
 
 	printNews();
 
@@ -522,7 +866,7 @@ void fullUpdate(void)
 // Updating only BIN folders, where is OS lives.
 void binUpdate(void)
 {
-	unsigned char binLink[] = "/svn/dl.php?repname=NedoOS&path=%2Frelease%2Fbin%2F&isdir=1";
+	unsigned char binLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/&isdir=1";
 	BOX(1, 1, 80, 25, 40, 176);
 	cw.x = 20;
 	cw.y = 5;

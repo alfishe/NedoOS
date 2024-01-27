@@ -446,6 +446,7 @@ unsigned char savePic(unsigned long fileId)
     strcat(curFileStruct.fileName, ".scr");
   }
   OS_SETSYSDRV();
+  OS_MKDIR("../downloads"); // Create if not exist
   OS_MKDIR("../downloads/getpic"); // Create if not exist
   OS_CHDIR("../downloads/getpic");
   fp2 = OS_CREATEHANDLE(curFileStruct.fileName, 0x80);
