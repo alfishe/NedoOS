@@ -24,12 +24,12 @@ struct fileStruct
   unsigned char pfn[128];
   unsigned char fileName[128];
 } curFileStruct;
-unsigned char ver[] = "2.0";
+unsigned char ver[] = "2.1";
 unsigned char netbuf[2048];
 unsigned char picture[16384];
 unsigned char crlf[2] = {13, 10};
 unsigned long bytecount;
-unsigned char status, keypress;
+unsigned char status, keypress, verbose, randomPic, slideShow;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 unsigned long contLen;
@@ -46,9 +46,10 @@ void emptyKeyBuf(void)
 void printHelp(void)
 {
   ATRIB(95);
-  printf("              GETPIC [%s] zxart.ee picture viewer for nedoNET\n\r", ver);
+  printf("   GETPIC [%s] zxart.ee picture viewer for nedoNET\n\r", ver);
   ATRIB(33);
   ATRIB(40);
+  printf("-------------------------------------------------------\n\r");
   printf(" Управление:\n\r");
   printf(" 'ESC' - выход из программы;\n\r");
   printf(" '<-' или 'B' к последним картинкам;\n\r");
@@ -60,7 +61,8 @@ void printHelp(void)
   printf(" 'R' переход в режим  случайная картинка с рейтингом 4+\n\r");
   printf(" 'A' переход в режим  слайл-шоу\n\r");
   printf(" 'H' Данная справочная информация\n\r");
-  printf("	----------------Нажмите любую кнопку----------------\n\r");
+  printf("-----------------Нажмите любую кнопку------------------\n\r");
+  ATRIB(93);
   do
   {
     YIELD();
@@ -212,7 +214,6 @@ wizwrite:
     }
     retry--;
     YIELD();
-    delay(250);
     goto wizwrite;
   }
   else
@@ -242,6 +243,7 @@ wizread:
       errorPrint(err);
       if (err == 35)
       {
+        retry = 75;
         return 0;
       }
       exit(0);
@@ -249,7 +251,7 @@ wizread:
     retry--;
     // printf("OS_WIZNETREAD: %u \n\r", retry);
     YIELD();
-    delay(50);
+    delay(100);
     goto wizread;
   }
   // printf("OS_WIZNETREAD: %u bytes read. \n\r", todo);
@@ -446,7 +448,7 @@ unsigned char savePic(unsigned long fileId)
     strcat(curFileStruct.fileName, ".scr");
   }
   OS_SETSYSDRV();
-  OS_MKDIR("../downloads"); // Create if not exist
+  OS_MKDIR("../downloads");        // Create if not exist
   OS_MKDIR("../downloads/getpic"); // Create if not exist
   OS_CHDIR("../downloads/getpic");
   fp2 = OS_CREATEHANDLE(curFileStruct.fileName, 0x80);
@@ -751,118 +753,8 @@ void printData(void)
   ATRIB(96);
   printf(" \r\n");
 }
-
-C_task main(void)
+void safeKeys(unsigned char keypress)
 {
-  unsigned char errno, verbose, randomPic, slideShow;
-  unsigned long ipadress;
-  long iddqd, idkfa;
-  os_initstdio();
-
-  count = 0;
-  verbose = 1;
-  randomPic = 0;
-  slideShow = 0;
-
-  BOX(1, 1, 80, 25, 40);
-  AT(1, 1);
-  ATRIB(97);
-  ATRIB(40);
-  printHelp();
-  AT(1, 14);
-  ATRIB(93);
-  /*
-    ipadress = OS_DNSRESOLVE("zxart.ee");
-    printf("\n\r  OS_DNSRESOLVE =  %lu \n\r", ipadress);
-    printf("------------------------\n\r");
-  */
-
-  goto safeKeys;
-
-start:
-  emptyKeyBuf();
-  switch (randomPic)
-  {
-  case 0:
-    iddqd = processJson(count, 1, 0);
-    break;
-  case 1:
-    iddqd = processJson(0, 1, 1);
-    break;
-  }
-
-  if (iddqd < 0)
-  {
-    count++;
-    goto start;
-  }
-  idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
-  if (idkfa < 0)
-  {
-    printf(" Cant parse curFileStruct.authorIds = %s \r\n\r\n", curFileStruct.authorIds);
-    count++;
-    goto start;
-    // exit(0);
-  }
-
-  if (verbose == 1)
-  {
-    printData();
-  }
-  else
-  {
-    // ATRIB(97);
-    // printf(" Getting picture...\r\n");
-  }
-  if (!strcmp(curFileStruct.picType, "standard"))
-
-  {
-    errno = getPic(iddqd);
-
-    ///// Keys only for pictures
-  review:
-    keypress = viewScreen6912((unsigned int)&picture, slideShowTime);
-    emptyKeyBuf();
-  }
-  else
-  {
-    printf("  >>Format %s not supported, skipped \n\r", curFileStruct.picType);
-    count++;
-    goto start;
-  }
-
-  if (keypress == 's' || keypress == 'S')
-  {
-    savePic(iddqd);
-    printf("        ID:%lu    TITLE:%s  SAVED\r\n\r\n", curFileStruct.picId, curFileStruct.picName);
-    count++;
-  }
-
-  if (keypress == 248 || keypress == 'b' || keypress == 'B')
-  {
-    if (count > 0)
-    {
-      count--;
-    }
-  }
-
-  if (keypress == 251 || keypress == 32)
-  {
-    count++;
-    goto start;
-  }
-  if (keypress == 'i' || keypress == 'I')
-  {
-    do
-    {
-      YIELD();
-    } while (_low_level_get() == 0);
-    emptyKeyBuf();
-    goto review;
-  }
-
-///////////////// Safe for start keys
-safeKeys:
   if (keypress == 27)
   {
     printf("Good bye...\r\n");
@@ -919,7 +811,7 @@ safeKeys:
     if (slideShow == 1)
     {
       if (verbose == 1)
-        printf("    slideShow mode enabled...\r\n\r\n");
+        printf("    SlideShow mode enabled...\r\n\r\n");
       slideShowTime = 250;
     }
     else
@@ -929,5 +821,105 @@ safeKeys:
       slideShowTime = 0;
     }
   }
+}
+
+C_task main(void)
+{
+  unsigned char errno;
+  unsigned long ipadress;
+  long iddqd, idkfa;
+  os_initstdio();
+
+  count = 0;
+  verbose = 1;
+  randomPic = 0;
+  slideShow = 0;
+
+  BOX(1, 1, 80, 25, 40);
+  AT(1, 1);
+  printHelp();
+  safeKeys(keypress);
+
+start:
+  emptyKeyBuf();
+  switch (randomPic)
+  {
+  case 0:
+    iddqd = processJson(count, 1, 0);
+    break;
+  case 1:
+    iddqd = processJson(0, 1, 1);
+    break;
+  }
+
+  if (iddqd < 0)
+  {
+    count++;
+    goto start;
+  }
+  idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
+  if (idkfa < 0)
+  {
+    printf(" Cant parse curFileStruct.authorIds = %s \r\n\r\n", curFileStruct.authorIds);
+    count++;
+    goto start;
+  }
+
+  if (verbose == 1)
+  {
+    printData();
+  }
+  else
+  {
+    // ATRIB(97);
+    // printf(" Getting picture...\r\n");
+  }
+  if (!strcmp(curFileStruct.picType, "standard"))
+
+  {
+    errno = getPic(iddqd);
+
+  review:
+    keypress = viewScreen6912((unsigned int)&picture, slideShowTime);
+    emptyKeyBuf();
+  }
+  else
+  {
+    printf("  >>Format %s not supported, skipped \n\r", curFileStruct.picType);
+    count++;
+    goto start;
+  }
+
+  ///// Keys only for pictures
+  if (keypress == 's' || keypress == 'S')
+  {
+    savePic(iddqd);
+    if (verbose == 1)
+      printf("        ID:%lu    TITLE:%s  SAVED\r\n\r\n", curFileStruct.picId, curFileStruct.picName);
+    count++;
+  }
+
+  if (keypress == 248 || keypress == 'b' || keypress == 'B')
+  {
+    if (count > 0)
+    {
+      count--;
+    }
+  }
+  if (keypress == 251 || keypress == 32)
+  {
+    count++;
+    goto start;
+  }
+  if (keypress == 'i' || keypress == 'I')
+  {
+    do
+    {
+      YIELD();
+    } while (_low_level_get() == 0);
+    emptyKeyBuf();
+    goto review;
+  }
+  safeKeys(keypress);
   goto start;
 }
