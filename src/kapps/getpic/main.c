@@ -160,9 +160,26 @@ unsigned char OpenSock(unsigned char family, unsigned char protocol)
   return socket;
 }
 
+unsigned int netShutDown(unsigned char socket)
+{
+  unsigned int todo;
+  todo = OS_NETSHUTDOWN(socket);
+  if (todo > 32767)
+  {
+    printf("OS_NETSHUTDOWN: ");
+    errorPrint(todo & 255);
+    return 255;
+  }
+  else
+  {
+    // printf ("Socket #%u closed.\n\r", socket);
+  }
+  return 0;
+}
+
 unsigned char netConnect(unsigned char socket)
 {
-  unsigned int todo, retry = 5;
+  unsigned int todo, retry = 10;
 
   targetadr.family = AF_INET;
   targetadr.porth = 00;
@@ -177,7 +194,10 @@ unsigned char netConnect(unsigned char socket)
 
     if (todo > 32767)
     {
-      printf("OS_NETCONNECT retry[%u]\n\r", retry);
+      netShutDown(socket);
+      socket = OpenSock(AF_INET, SOCK_STREAM);
+      printf("OS_NETCONNECT ERROR [Retry:%u] [Pic:%lu]\n\r", retry, count);
+      delay(1000);
       retry--;
     }
     else
@@ -291,22 +311,7 @@ unsigned int cutHeader(unsigned int todo)
   return q;
 }
 
-unsigned int netShutDown(unsigned char socket)
-{
-  unsigned int todo;
-  todo = OS_NETSHUTDOWN(socket);
-  if (todo > 32767)
-  {
-    printf("OS_NETSHUTDOWN: ");
-    errorPrint(todo & 255);
-    return 255;
-  }
-  else
-  {
-    // printf ("Socket #%u closed.\n\r", socket);
-  }
-  return 0;
-}
+
 
 char *str_replace(char *dst, int num, const char *str,
                   const char *orig, const char *rep)
