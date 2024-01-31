@@ -4,7 +4,6 @@
 #include <oscalls.h>
 #include <intrz80.h>
 #include <terminal.c>
-unsigned char key;
 #define datareg 179
 #define cmdreg 187
 #include <booter.c>
@@ -79,29 +78,37 @@ C_task main(void)
     getDat();
 
     BOX(1, 1, 80, 25, 40);
-    AT(1, 1);
+    AT(23, 1);
     ATRIB(92);
-    printf("GENERAL SOUND LOW LEVEL TESTER \r\n\r\n");
+    printf("[GENERAL SOUND LOW LEVEL TESTER]\r\n\r\n");
 
-    printf("Testing  status register 0xBB \r\n");
-    q = getStat() & 129; // 10000001
+    printf("Testing  status register 0xBB \r\n\r\n");
 
+    q = getStat();
+
+    if (q != 255)
+    {
+        q = q & 129; // 10000001
+    }
     switch (q)
     {
 
     case 0:
-        printf("Data bit and Command bit are reset, OK. \r\n\r\n");
+        printf("    DATA bit and COMMAND bit are reset. OK. \r\n\r\n");
         break;
     case 129:
-        printf("Data bit and Command bit are set, FAIL. Port is accessible? \r\n\r\n");
+        printf("    DATA bit and COMMAND bit are set, FAIL.\r\n\r\n");
         break;
     case 128:
-        printf("Data bit are set, FAIL. \r\n\r\n");
+        printf("    DATA bit are set, FAIL. \r\n\r\n");
+        break;
+    case 255:
+        printf("    0xFF read from port, no card in slot?\r\n\r\n");
         break;
     case 1:
-        printf("Command bit are set, FAIL. \r\n\r\n");
+        printf("    COMMAND bit are set, FAIL. \r\n\r\n");
     default:
-        printf("Error detecting status. RAW data(10000001): %u\r\n\r\n", q);
+        printf("    Error detecting status. [Read:%u]\r\n\r\n", q);
     }
 
     printf("Resetting GS... \r\n");
@@ -114,19 +121,19 @@ C_task main(void)
         dataread = input(datareg);
     }
 
-    printf("Reported by  boot: %u pages\r\n", dataread);
+    printf("Reported by boot : %u pages\r\n", dataread);
     printf("Reported by 0x20 : %lu bytes\r\n\r\n", getMem());
 
     sendCmd(0xFA);
-    printf("sendCmd (0xFA) - test mode on;\r\n");
+    printf("sendCmd (0xFA) - Test mode on;\r\n");
     sendCmd(11);
-    printf("sendCmd (11)   - sound in chanel #1;\r\n");
+    printf("sendCmd (11)   - Sound in chanel #1;\r\n");
     sendCmd(12);
-    printf("sendCmd (12)   - sound in chanel #2;\r\n");
+    printf("sendCmd (12)   - Sound in chanel #2;\r\n");
     sendCmd(13);
-    printf("sendCmd (13)   - sound in chanel #3;\r\n");
+    printf("sendCmd (13)   - Sound in chanel #3;\r\n");
     sendCmd(14);
-    printf("sendCmd (14)   - sound in chanel #4;\r\n\r\n");
+    printf("sendCmd (14)   - Sound in chanel #4;\r\n\r\n");
 
     printf("Uploading test tune...\r\n");
     sendCmd(0x30);
@@ -145,8 +152,7 @@ C_task main(void)
 
     do
     {
-        key = _low_level_get();
-    } while (key == 0);
+    } while (_low_level_get() == 0);
     sendCmd(0xf3);
     return 0;
 }
