@@ -69,9 +69,25 @@ unsigned long getMem(void)
     return (65536 * RamH + 256 * ramM + ramL);
 }
 
+/* Convert an int to it's binary representation */
+char *int2bin(int num, int pad)
+{
+ char *str = malloc(sizeof(char) * (pad+1));
+  if (str) {
+   str[pad]='\0';
+   while (--pad>=0) {
+    str[pad] = num & 1 ? '1' : '0';
+    num >>= 1;
+   }
+  } else {
+   return "";
+  }
+ return str;
+}
+
 C_task main(void)
 {
-    unsigned char dataread, modHandle, q;
+    unsigned char dataread, modHandle, q, qdec;
     unsigned long loadloop;
     os_initstdio();
 
@@ -84,31 +100,33 @@ C_task main(void)
 
     printf("Testing  status register 0xBB \r\n\r\n");
 
-    q = getStat();
+    qdec = getStat();
+    q = qdec;
 
-    if (q != 255)
+    if (qdec != 255)
     {
-        q = q & 129; // 10000001
+        q = qdec & 129; // 10000001
     }
+
     switch (q)
     {
 
     case 0:
-        printf("    DATA bit and COMMAND bit are reset. OK. \r\n\r\n");
+        printf("    DATA bit and COMMAND bit are reset [%u][%s]. OK.\r\n\r\n",qdec , int2bin(qdec, 8));
         break;
     case 129:
-        printf("    DATA bit and COMMAND bit are set, FAIL.\r\n\r\n");
+        printf("    DATA bit and COMMAND bit are set [%u][%s]. FAIL.\r\n\r\n",qdec , int2bin(qdec, 8));
         break;
     case 128:
-        printf("    DATA bit are set, FAIL. \r\n\r\n");
+        printf("    DATA bit are set [%u][%s]. FAIL. \r\n\r\n",qdec , int2bin(qdec, 8));
         break;
     case 255:
-        printf("    0xFF read from port, no card in slot?\r\n\r\n");
+        printf("    0xFF read from port, no card in slot? [%u][%s]\r\n\r\n",qdec , int2bin(qdec, 8));
         break;
     case 1:
-        printf("    COMMAND bit are set, FAIL. \r\n\r\n");
+        printf("    COMMAND bit are set [%u][%s]. FAIL. \r\n\r\n",qdec , int2bin(qdec, 8));
     default:
-        printf("    Error detecting status. [Read:%u]\r\n\r\n", q);
+        printf("    Error detecting status. [%u][%s]. FAIL.\r\n\r\n",qdec , int2bin(qdec, 8));
     }
 
     printf("Resetting GS... \r\n");
