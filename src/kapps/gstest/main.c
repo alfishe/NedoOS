@@ -98,35 +98,26 @@ C_task main(void)
     ATRIB(92);
     printf("[GENERAL SOUND LOW LEVEL TESTER]\r\n\r\n");
 
-    printf("Testing  status register 0xBB \r\n\r\n");
+    printf("Testing  STATUS register 0xBB \r\n\r\n");
 
     qdec = getStat();
-    q = qdec;
-
-    if (qdec != 255)
-    {
-        q = qdec & 129; // 10000001
-    }
+    q = qdec & 129; // 10000001
 
     switch (q)
     {
-
     case 0:
-        printf("    DATA bit and COMMAND bit are reset [%u][%s]. OK.\r\n\r\n",qdec , int2bin(qdec, 8));
+        printf("  DATA bit and COMMAND bit are reset [0xxxxxx0][%u][%s]. OK.\r\n\r\n",qdec , int2bin(qdec, 8));
         break;
     case 129:
-        printf("    DATA bit and COMMAND bit are set [%u][%s]. FAIL.\r\n\r\n",qdec , int2bin(qdec, 8));
+        printf("  DATA bit and COMMAND bit are set [1xxxxxx1][%u][%s]. FAIL.\r\n\r\n",qdec , int2bin(qdec, 8));
         break;
     case 128:
-        printf("    DATA bit are set [%u][%s]. FAIL. \r\n\r\n",qdec , int2bin(qdec, 8));
-        break;
-    case 255:
-        printf("    0xFF read from port, no card in slot? [%u][%s]\r\n\r\n",qdec , int2bin(qdec, 8));
+        printf("  DATA bit are set [1xxxxxx0][%u][%s]. FAIL. \r\n\r\n",qdec , int2bin(qdec, 8));
         break;
     case 1:
-        printf("    COMMAND bit are set [%u][%s]. FAIL. \r\n\r\n",qdec , int2bin(qdec, 8));
+        printf("  COMMAND bit are set [0xxxxxx1][%u][%s]. FAIL. \r\n\r\n",qdec , int2bin(qdec, 8));
     default:
-        printf("    Error detecting status. [%u][%s]. FAIL.\r\n\r\n",qdec , int2bin(qdec, 8));
+        printf("  Error detecting status. [%u][%s]. FAIL.\r\n\r\n",qdec , int2bin(qdec, 8));
     }
 
     printf("Resetting GS... \r\n");
