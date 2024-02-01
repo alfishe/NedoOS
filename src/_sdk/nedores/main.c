@@ -41,6 +41,8 @@ BYTE curpaper;
 BYTE defaultcolor;
 
 char sprformat;
+BYTE invattr;
+BYTE forceattr;
 
 int hgt;
 int wid;
@@ -79,6 +81,7 @@ int sign=1;
     if (c==' ') goto skip;
     //if (c == 0x0d) goto skip;
     //if (c == 0x0a) break;
+    if (c=='!') {forceattr = 0xff; goto skip;};
     if (c=='-') {sign = -1; goto skip;};
     if ((c<'0')||(c>'9')) break; //в том числе 0x0a
     num = num*10 + (int)(c-'0');
@@ -103,7 +106,8 @@ int iscomment;
     do{
       if (!fread(&c,1,1,fin)) break;
       if (c == ';') iscomment = -1;
-      if (c=='$') { //дальше число спрайтов вертикально
+      if (c == '%') {invattr = 0xff; continue;}
+      if (c == '$') { //дальше число спрайтов вертикально
         if (iscomment) continue; //в комментах можно $
         while (1) {
           if (!fread(&c,1,1,fin)) return 0;
@@ -112,7 +116,7 @@ int iscomment;
           vertsprcount = vertsprcount + (int)(c-'0');
         };
       };
-      if (c=='#') { //дальше число спрайтов
+      if (c == '#') { //дальше число спрайтов
         if (iscomment) continue; //в комментах можно #
         while (1) {
           if (!fread(&c,1,1,fin)) return 0;
@@ -121,7 +125,7 @@ int iscomment;
           sprcount = sprcount + (int)(c-'0');
         };
       };
-      if ((c=='=')||(c==',')) {
+      if ((c == '=')||(c == ',')) {
         if (iscomment) continue; //в комментах можно =
         break;
       };
@@ -578,7 +582,7 @@ int j;
   fputs("\tdb ", fout);
   j = y;
   while (1) {
-    b = pixrow[xchr][j];
+    b = pixrow[xchr][j] ^ invattr;
     fprintf(fout, "0x%x%x", b>>4, b&0x0f);
     j++;
     if (j >= (y+8)) break;
@@ -586,6 +590,10 @@ int j;
   };
   if (sprformat < 'a') { //capital letter format => attr used
     b = attrrow[xchr]; //0x07;
+    if (invattr) b = (b&0xc0) + ((b&0x07)<<3) + ((b&0x38)>>3);
+    if (forceattr) b = defaultcolor;
+    //fputs(",", fout);
+    //fprintf(fout, "0x%x%x", invattr>>4, invattr&0x0f);
     fputs(",", fout);
     fprintf(fout, "0x%x%x", b>>4, b&0x0f);
   };
@@ -698,6 +706,7 @@ UINT color;
            maxvertsprcount = vertsprcount;
            maxsprcount = sprcount;
             if (size == 0) break;
+            invattr = 0x00;
             readlabel(fintxt, formatlabelbuf); //format
             sprformat = *formatlabelbuf;
             startsprx = readnum(fintxt);
@@ -705,6 +714,7 @@ UINT color;
             sprwid = readnum(fintxt);
             sprhgt = readnum(fintxt);
             numok = 0x00;
+            forceattr = 0x00;
             tiles = readnum(fintxt); //отсутствует в x
             defaultcolor = (BYTE)tiles; //для всех, кроме L
             *commentlabelbuf = '\0';
