@@ -41,6 +41,7 @@ BYTE curpaper;
 BYTE defaultcolor;
 
 char sprformat;
+char globalsprformat;
 BYTE invattr;
 BYTE forceattr;
 
@@ -106,7 +107,7 @@ int iscomment;
     do{
       if (!fread(&c,1,1,fin)) break;
       if (c == ';') iscomment = -1;
-      if (c == '%') {invattr = 0xff; continue;}
+      if (c == '~') {invattr = 0xff; continue;}
       if (c == '$') { //дальше число спрайтов вертикально
         if (iscomment) continue; //в комментах можно $
         while (1) {
@@ -390,7 +391,7 @@ void emitnops(BYTE count, FILE * fout)
 }
 
 void emitspr(int xchr, int y, int sprwid8, int sprhgt, FILE * fout)
-{
+{ //b/w sprites: wid8, hgt, (antimask, antipixels, ...) ;for DizzySE!
 BYTE b;
 int i;
 int j;
@@ -411,6 +412,36 @@ int j;
     fputs("\n", fout);
     j++;
     if (j >= (y+sprhgt)) break;
+  };
+}
+
+void emitcolorspr(int xchr, int y, int sprwid8, int sprhgt, FILE * fout)
+{ //coloured sprite, one row of attrchrs: (antimask, ~antipixels, ...),attr
+BYTE b;
+int i;
+int j;
+  i = xchr;
+  while (1) { //chrs in row
+    fputs("\tdb ", fout);
+    j = y;
+    while (1) { //bytes in chr
+      b = ~maskrow[i][j];
+      fprintf(fout, "0x%x%x", b>>4, b&0x0f);
+      fputs(",", fout);
+      b = b ^ pixrow[i][j] ^ invattr;
+      fprintf(fout, "0x%x%x", b>>4, b&0x0f);
+      j++;
+      if (j >= (y+8)) break;
+      fputs(",", fout);
+    };
+    b = attrrow[xchr]; //0x07;
+    if (invattr) b = (b&0xc0) + ((b&0x07)<<3) + ((b&0x38)>>3);
+    if (forceattr) b = defaultcolor;
+    fputs(",", fout);
+    fprintf(fout, "0x%x%x", b>>4, b&0x0f);
+    fputs("\n", fout);
+    i++;
+    if (i >= (xchr+sprwid8)) break;
   };
 }
 
@@ -592,8 +623,6 @@ int j;
     b = attrrow[xchr]; //0x07;
     if (invattr) b = (b&0xc0) + ((b&0x07)<<3) + ((b&0x38)>>3);
     if (forceattr) b = defaultcolor;
-    //fputs(",", fout);
-    //fprintf(fout, "0x%x%x", invattr>>4, invattr&0x0f);
     fputs(",", fout);
     fprintf(fout, "0x%x%x", b>>4, b&0x0f);
   };
@@ -709,6 +738,7 @@ UINT color;
             invattr = 0x00;
             readlabel(fintxt, formatlabelbuf); //format
             sprformat = *formatlabelbuf;
+            if (globalsprformat != '\0') sprformat = globalsprformat;
             startsprx = readnum(fintxt);
             spry = readnum(fintxt);
             sprwid = readnum(fintxt);
@@ -788,11 +818,15 @@ UINT color;
               putlabel(labelbuf, fout);
               fputs("\n", fout);
               rowhgt = sprhgt;
-            }else if (sprformat == 's') { //'s'
+            }else if (sprformat == 's') { //for DizzySE
               putlabel(labelbuf, fout);
               fputs("\n", fout);
               emitdb((BYTE)(sprwid>>3), fout);
               emitdb((BYTE)(sprhgt), fout);
+              rowhgt = sprhgt;
+            }else if (sprformat == 'S') {
+              putlabel(labelbuf, fout);
+              fputs("\n", fout);
               rowhgt = sprhgt;
             };
 
@@ -826,6 +860,7 @@ UINT color;
                     //if (sprformat != 'B') {fprintf(fout, "0x%x%x\n", (pic[i][j])>>4, (pic[i][j])&0x0f);};
                     if (pic[i][j]==curink) b++;
                     if (pic[i][j]!=0x00) bmask++;
+                    if (pic[i][j]==0x10) {bmask--; b++;}
                     i++;
                   };
                   pixrow[x/8][j] = b;
@@ -878,6 +913,8 @@ UINT color;
                   //fprintf(fout, "\n");
               }else if (sprformat == 's') { //sprite
                 emitspr(sprx/8,y,sprwid/8,sprhgt,fout);
+              }else if (sprformat == 'S') { //coloured sprite
+                emitcolorspr(sprx/8,y,sprwid/8,sprhgt,fout);
               }else if (sprformat == 'y') { //spritey
                 emitspry(sprx/8,y,sprwid/8,sprhgt,fout);
               }else if (sprformat == 'w') { //sprite antipixels16, antimask16 right to left
@@ -1102,17 +1139,19 @@ int main(int argc,char* argv[])
   finname = "testpic.bmp";
   fintxtname = "testpic.txt";
   foutname = "testpic.asm";
+  globalsprformat = '\0';
 
   if (argc<4) {
     printf(
       "NedoRes\n"
-      "\tnedores.exe file.bmp file.dat(=txt) file.ast(=asm)\n"
+      "\tnedores.exe file.bmp file.dat(=txt) file.ast(=asm) [-f<format>]\n"
       "4bpp or 8bpp\n"
     );
   }else {
     finname = argv[1];
     fintxtname = argv[2];
     foutname = argv[3];
+    if (argc > 4) if (argv[4][0] == '-') if (argv[4][1] == 'f') globalsprformat = argv[4][2]; 
   };
 
   resfile(finname, fintxtname, foutname);

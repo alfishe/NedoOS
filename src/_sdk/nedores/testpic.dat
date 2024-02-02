@@ -1,19 +1,19 @@
 ;label autonumbering: label#8=... or label$4 or label$4#8
 ;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$; "defaultcolor!" to force attr)
-;6912: color 0 in bmp is for mask
+;6912: color 0 in bmp is for mask, color 16=inverted pixel
 ;16c: color 16 in bmp is for mask
 ;formats:
 ;b: b/w tiles: chrdata...
-;B: colour tiles: chrdata... (%B - with inverted attr)
-;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;B: colour tiles: chrdata... (~B - with inverted attr)
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...) ;for DizzySE!
 ;y: b/w sprites: (column:or,xor...)(column:or,xor...)...
 ;z: b/w sprites: antipixelsline... (right to left)
 ;Z: b/w sprites: antipixelsline... (left to right)
 ;w: b/w sprites: antipixelsline, antimaskline... (right to left)
 ;W: b/w sprites: antipixelsline, antimaskline... (left to right)
 ;c: b/w image by columns
-;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
-;T: colour tilepic 28xN (size 0xN00 bytes)
+;S: colour sprites by rows of attrchrs: (antimask, antipixels, ...),attr
+;T: colour tilepic 28xN (size 0xN00 bytes) ;for DizzySE!
 ;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
 ;L: 16c 16x16 tiles (N of tiles in "defaultcolor"): N of tile for each square
 ;i: 16c image
