@@ -1,4 +1,3 @@
-unsigned char spdFactor;
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -51,16 +50,6 @@ void uart_init(unsigned char divisor)
   output(IER, 0x00);        // Disable int
 }
 
-unsigned char uart_CTS(void)
-{
-  unsigned char cts;
-
-  cts = input(MSR);
-  cts = (cts && 16) >> 3;
-
-  return cts;
-}
-
 void uart_write(unsigned char data)
 {
   while ((input(LSR) & 32) >> 5 == 0)
@@ -69,30 +58,16 @@ void uart_write(unsigned char data)
   output(RBR_THR, data);
 }
 
-void uart_startrts(void)
-{
-  output(MCR, 2);
-}
-
-void uart_stoprts(void)
-{
-  output(MCR, 0);
-}
-
 void uart_flashrts(void)
 {
   unsigned char count;
   disable_interrupt();
   output(MCR, 2);
-  for (count = 0; count < spdFactor; count++)
-  {
-    uart_delay1k();
-  }
   output(MCR, 0);
   enable_interrupt();
 }
 
-unsigned char uart_queue(void)
+unsigned char uart_hasByte(void)
 {
   unsigned char queue;
   queue = input(LSR);
@@ -103,9 +78,6 @@ unsigned char uart_queue(void)
 unsigned char uart_read(void)
 {
   unsigned char data;
-  while (input(LSR) & 1 == 0)
-  {
-  }
   data = input(RBR_THR);
   return data;
 }
@@ -113,11 +85,13 @@ unsigned char uart_read(void)
 void getdata(void)
 {
   unsigned char readbyte;
-  while (uart_queue() != 0)
+  while (uart_hasByte() != 0)
   {
+    uart_flashrts();
     readbyte = uart_read();
     buffer[bufferPos] = readbyte;
     bufferPos++;
+
   }
   uart_flashrts();
   if (bufferPos > 8191)
@@ -146,8 +120,9 @@ void sendcommand(char commandline[])
   }
   uart_write('\r');
   uart_write('\n');
-  getdata();
-  renderWin();
+  delay(100);
+  // getdata();
+  // renderWin();
 }
 
 void saveBuff(void)
@@ -188,7 +163,7 @@ void saveBuff(void)
 
 void flushbuf(void)
 {
-  while (uart_queue() != 0)
+  while (uart_hasByte() != 0)
   {
     uart_read();
   }
@@ -220,8 +195,8 @@ C_task main(void)
   ATRIB(92);
   puts("EVO UART TESTER. SEND AND RECIEVE BYTES.");
   uart_init(1);
-  spdFactor = 3;
   puts("Uart inited @ 115200\r\n");
+  delay(250);
   cmd[0] = '\0';
   cmdpos = 0;
   while (1)
@@ -232,76 +207,66 @@ C_task main(void)
     key = _low_level_get();
     if (key != 0)
     {
-      //printf("key = %u   ", key);
+      // printf("key = %u   ", key);
       switch (key)
       {
       case 177:
         uart_init(1);
         puts("Uart inited @ 115200");
-        spdFactor = 3;
         key = 0;
         break;
 
       case 178:
         uart_init(2);
         puts("Uart inited @ 57600");
-        spdFactor = 5;
         key = 0;
         break;
 
       case 179:
         uart_init(3);
         puts("Uart inited @ 38400");
-        spdFactor = 7;
         key = 0;
         break;
 
       case 180:
         uart_init(4);
         puts("Uart inited @ 28800");
-        spdFactor = 9;
         key = 0;
         break;
 
       case 181:
         uart_init(6);
         puts("Uart inited @ 19200");
-        spdFactor = 15;
         key = 0;
         break;
 
       case 182:
         uart_init(8);
         puts("Uart inited @ 14400");
-        spdFactor = 21;
         key = 0;
         break;
 
       case 183:
         uart_init(12);
         puts("Uart inited @ 9600");
-        spdFactor = 31;
         key = 0;
         break;
 
       case 184:
         uart_init(24);
         puts("Uart inited @ 4800");
-        spdFactor = 64;
         key = 0;
         break;
 
       case 185:
         uart_init(48);
         puts("Uart inited @ 2400");
-        spdFactor = 115;
         key = 0;
         break;
 
       case 176:
         uart_init(96);
         puts("Uart inited @ 1200");
-        spdFactor = 240;
         key = 0;
         break;
 
@@ -345,20 +310,15 @@ C_task main(void)
         break;
 
       case 246: // +
-        spdFactor++;
-        printf("spdFactor = %u \r\n ", spdFactor);
         sendcommand("AT+GMR\0");
         key = 0;
         break;
 
       case 247: // -
-        spdFactor--;
-        printf("spdFactor = %u \r\n ", spdFactor);
-        sendcommand("AT+GMR\0");
         key = 0;
         break;
-      
-      case 28:    // home
+
+      case 28: // home
         testQueue();
         key = 0;
         break;
