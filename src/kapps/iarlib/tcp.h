@@ -18,6 +18,10 @@ struct readstructure
 			unsigned char	protocol;
 			};
 
+void OS_SETDNS(void * addr);
+
+void OS_GETDNS(void * addr);
+
 unsigned int OS_NETSOCKET(unsigned int);
 //	D - семейство адресов, беззнаковое 8-битное число, допускается только значение 2 (AF_INET).
 //  E - протокол соединения(0x01 tcp/ip, 0x02 icmp, 0x03 udp/ip)
@@ -91,7 +95,3 @@ unsigned long OS_DNSRESOLVE (unsigned int adrptr);
 #define	ECONNABORTED	53	/* Software caused connection abort */
 #define ERR_CONNRESET 	 54
 #define ERR_NOTCONN 	 57
-
-
-
-
