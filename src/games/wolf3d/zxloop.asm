@@ -187,5 +187,7 @@ pgsfx=$+1
         pop af
         jp 0x8000 ;SFXPLAY
        else
+        inc a
+	call queue_next
 	ret ;TODO
        endif

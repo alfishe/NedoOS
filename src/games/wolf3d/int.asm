@@ -88,6 +88,10 @@ IMNSEC
         LD (IMframe),A
        ENDIF 
 
+	if !atm
+	call _beeper_play
+	endif
+
         pop hl
         pop de
         pop bc

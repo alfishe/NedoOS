@@ -73,7 +73,7 @@ lowmaxscale=25 ;fit in low screen
 mapdifbit=5;7
         IF atm == 0
 lores=0
-optres=1&(1-lores) ;+22t на мелких, выигрыш на крупных
+optres=0;1&(1-lores) ;+22t на мелких, выигрыш на крупных
         ELSE 
 lores=1
 optres=0
