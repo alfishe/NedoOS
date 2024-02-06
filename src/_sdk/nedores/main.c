@@ -416,7 +416,7 @@ int j;
 }
 
 void emitcolorspr(int xchr, int y, int sprwid8, int sprhgt, FILE * fout)
-{ //coloured sprite, one row of attrchrs: (antimask, ~antipixels, ...),attr
+{ //coloured sprite, one row of attrchrs: (mask, antipixels, ...),attr
 BYTE b;
 int i;
 int j;
@@ -443,6 +443,46 @@ int j;
     i++;
     if (i >= (xchr+sprwid8)) break;
   };
+}
+
+void emitcolorline(int xchr, int y, int sprwid8, int sprhgt, FILE * fout)
+{ //for coloured line: 8 lines of pixels (no attrs)
+BYTE b;
+int i;
+int j;
+  j = y;
+  while (1) { //lines
+    fputs("\tdb ", fout);
+    i = xchr;
+    while (1) { //chrs in row
+      b = pixrow[i][j] ^ invattr;
+      fprintf(fout, "0x%x%x", b>>4, b&0x0f);
+      i++;
+      if (i >= (xchr+sprwid8)) break;
+      fputs(",", fout);
+    };
+    fputs("\n", fout);
+    j++;
+    if (j >= (y+8)) break;
+  };
+}
+
+void emitattrline(int xchr, int y, int sprwid8, int sprhgt, FILE * fout)
+{
+BYTE b;
+int i;
+  fputs("\tdb ", fout);
+  i = xchr;
+  while (1) { //chrs in row
+    b = attrrow[i]; //0x07;
+    if (invattr) b = (b&0xc0) + ((b&0x07)<<3) + ((b&0x38)>>3);
+    if (forceattr) b = defaultcolor;
+    fprintf(fout, "0x%x%x", b>>4, b&0x0f);
+    i++;
+    if (i >= (xchr+sprwid8)) break;
+    fputs(",", fout);
+  };
+  fputs("\n", fout);
 }
 
 void emitspry(int xchr, int y, int sprwid8, int sprhgt, FILE * fout)
@@ -787,6 +827,7 @@ UINT color;
               fputs("\n", fout);
               putlabel(labelbuf, fout);
               fputs("\n", fout);
+              rowhgt = sprhgt;
               i = 0;
               while (i < 64) { //DDp palette: %grbG11RB(low),%grbG11RB(high), инверсные //color = highlow
                 color = 0; //pal = палитра (B, G, R, 0)
@@ -809,7 +850,6 @@ UINT color;
                 i++;
               };
               fputs("\n", fout);
-              rowhgt = sprhgt;
             }else if ((sprformat == 'w')||(sprformat == 'W')||(sprformat == 'z')||(sprformat == 'Z')||(sprformat == 'y')) {
               putlabel(labelbuf, fout);
               fputs("\n", fout);
@@ -827,7 +867,11 @@ UINT color;
             }else if (sprformat == 'S') {
               putlabel(labelbuf, fout);
               fputs("\n", fout);
-              rowhgt = sprhgt;
+              rowhgt = 8;
+            }else if ((sprformat == 'A')||(sprformat == 'a')) {
+              putlabel(labelbuf, fout);
+              fputs("\n", fout);
+              rowhgt = 8;
             };
 
 //copy comment as code line
@@ -911,6 +955,10 @@ UINT color;
                     xi = xi+1;
                   };
                   //fprintf(fout, "\n");
+              }else if (sprformat == 'A') { //for coloured lines
+                emitcolorline(sprx/8,y,sprwid/8,sprhgt,fout);
+              }else if (sprformat == 'a') { //attr lines
+                emitattrline(sprx/8,y,sprwid/8,sprhgt,fout);
               }else if (sprformat == 's') { //sprite
                 emitspr(sprx/8,y,sprwid/8,sprhgt,fout);
               }else if (sprformat == 'S') { //coloured sprite
