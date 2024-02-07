@@ -21,7 +21,7 @@ inkey
 	ld c,nos.CMD_YIELD
 	call nos.BDOS
 	rst 0x08
-	ld a,c
+	;ld a,c
 	cp nos.key_esc
 	jp z,0x0000
 	ret
