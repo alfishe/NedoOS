@@ -5,7 +5,6 @@
 #include <osfs.h>
 #include <intrz80.h>
 #include <terminal.c>
-#include <uartdelay.h>
 #define RBR_THR 0xF8EF
 #define IER 0xF9EF
 #define IIR_FCR 0xFAEF
@@ -60,7 +59,6 @@ void uart_write(unsigned char data)
 
 void uart_flashrts(void)
 {
-  unsigned char count;
   disable_interrupt();
   output(MCR, 2);
   output(MCR, 0);
@@ -85,15 +83,14 @@ unsigned char uart_read(void)
 void getdata(void)
 {
   unsigned char readbyte;
+  uart_flashrts();
   while (uart_hasByte() != 0)
   {
     uart_flashrts();
     readbyte = uart_read();
     buffer[bufferPos] = readbyte;
     bufferPos++;
-
   }
-  uart_flashrts();
   if (bufferPos > 8191)
   {
     endPos = bufferPos;
@@ -121,8 +118,6 @@ void sendcommand(char commandline[])
   uart_write('\r');
   uart_write('\n');
   delay(100);
-  // getdata();
-  // renderWin();
 }
 
 void saveBuff(void)
@@ -193,7 +188,7 @@ C_task main(void)
   BOX(1, 1, 80, 25, 40);
   AT(1, 1);
   ATRIB(92);
-  puts("EVO UART TESTER. SEND AND RECIEVE BYTES.");
+  puts("EVO UART TESTER. SEND AND RECEIVE BYTES.");
   uart_init(1);
   puts("Uart inited @ 115200\r\n");
   delay(250);
