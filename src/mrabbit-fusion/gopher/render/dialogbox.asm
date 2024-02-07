@@ -9,7 +9,7 @@ inputBox:
     ld hl, inputBuffer : call TextMode.printZ
     ld a, MIME_INPUT : call TextMode.putC : ld a, ' ' : call TextMode.putC
 .checkkey
-    call Console.getC
+    call Console.getCint
     cp Console.BACKSPACE : jr z, .removeChar
 	cp CR : ret z
     cp SPACE : jr c, .checkkey
