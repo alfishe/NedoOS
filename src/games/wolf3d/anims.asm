@@ -41,7 +41,7 @@ MONSTAB
         db 4
         db 0,0
 ;ZOMBIEMAN go2
-        db 7
+        db 2;7
         db 8
         db 9
         db 10
