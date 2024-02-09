@@ -7,7 +7,7 @@ sjasmplus --nologo --msg=war music.asm
 copy wolftex.bmp wolf3d
 copy wolfspr.bmp wolf3d
 
-"../../_sdk/nedores.exe" wallscity_.bmp walls.dat walls.ast
+"../../_sdk/nedores.exe" wallscity.bmp walls.dat walls.ast
 rem "../../_sdk/nedores.exe" textures_01_64x64_.bmp walls.dat walls.ast
 "../../_sdk/nedores.exe" goods.bmp goods.dat goods.ast
 sjasmplus --nologo --msg=war walls.ast --raw=walls.bin
