@@ -83,26 +83,19 @@ uintdiv32
 ;de = n
 ;out: dehl = m*n
 uintmul16
+	ld a,c
+	ld c,b
 	ld hl,0
-	exx
-	ld hl,0
-	ld de,hl
-	exx
-.loop	srl bc
+	ld b,16
+.loop	add hl,hl
+	rla
+	rl c
 	jr nc,.skip
 	add hl,de
-	exx
-	adc hl,de
-	exx
-.skip	sla de
-	exx
-	rl de
-	exx
-	ld a,b
-	or c
-	jr nz,.loop
-	exx
-	push hl
-	exx
-	pop de
+	adc a,0
+	jr nc,.skip
+	inc c
+.skip	djnz .loop
+	ld d,c
+	ld e,a
 	ret

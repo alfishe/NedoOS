@@ -1,11 +1,11 @@
-; FT2-compatible .mod player for MoonSound
+; S3M and MOD player for MoonSound
 
 	DEVICE ZXSPECTRUM128
 	include "../_sdk/sys_h.asm"
 	include "playerdefs.asm"
 
 TITLELENGTH = 64
-MEMORYSTREAMMAXPAGES = 20
+MEMORYSTREAMMAXPAGES = 210
 
 	org PLAYERSTART
 
@@ -14,39 +14,41 @@ begin   PLAYERHEADER
 isfilesupported
 ;cde = file extension
 ;out: zf=1 if this player can handle the file and the sound hardware is available, zf=0 otherwise
-modsupported=$+1
-	ld a,'m'
+ismoonsounddisabled=$+1
+	jr nosupportedfiles
+	call ismodfile
+	jr z,initplayvars
+	ld a,'s'
 	cp c
 	ret nz
-	ld a,'o'
-	cp d
+	ld hl,'3m'
+	sbc hl,de
 	ret nz
-	ld a,'d'
-	cp e
-	ret nz
+initplayvars
 	ld hl,0
 	ld (MUSICTITLEADDR),hl
 	ld hl,musicprogress+1
 	ld (MUSICPROGRESSADDR),hl
 	jp initprogress
+nosupportedfiles
+	or 1
+	ret
 
 playerinit
 ;hl = GPSETTINGS
 ;a = player page
 ;out: zf=1 if init is successful, hl=init message
-	ld a,(hl)
-	ld (modfilebufferpage),a
-	call setdefaultpanning
-	ld ix,modplayer
+	ld (.settingsaddr),hl
+	ld ix,memorystreampages
 	call opl4initwave
-	jr nz,.error
+	ret nz
 ;init period lookup
 	OS_NEWPAGE
 	or a
 	ld hl,outofmemorystr
-	jr nz,.error
+	ret nz
 	ld a,e
-	ld (modperiodlookuppage),a
+	push af
 	SETPGC000
 ;	call modinitperiodlookup
 ;load the table from disk, modinitperiodlookup is very slow on ATM2
@@ -54,12 +56,17 @@ playerinit
 	ld de,0xc000
 	ld bc,modperiodopl4_end-modperiodopl4
 	ldir
+;start inititing vars after the table was copied
+	pop af
+	ld (modperiodlookuppage),a
+.settingsaddr=$+1
+	ld hl,0
+	ld a,(hl)
+	ld (modfilebufferpage),a
+	call setdefaultpanning
 	ld hl,initokstr
 	xor a
-	ret
-.error
-	ld a,255
-	ld (modsupported),a ;writes 255 disabling the extension
+	ld (ismoonsounddisabled),a
 	ret
 
 setdefaultpanning
@@ -91,14 +98,39 @@ modperiodlookuppage=$+1
 	OS_DELPAGE
 	ret
 
+ismodfile
+;cde = file extension
+;out: zf=1 if .mod, zf=0 otherwise
+	ld a,'m'
+	cp c
+	ret nz
+	ld a,'o'
+	cp d
+	ret nz
+	ld a,'d'
+	cp e
+	ret
+
 musicload
 ;cde = file extension
 ;hl = input file name
 ;out: zf=1 if the file is ready for playing, zf=0 otherwise
+	call ismodfile
 	ex de,hl
+	jr nz,.loads3m
 	call modload
 	ret nz
+	ld a,255
+	ld (isplayingmodfile),a
 	ld a,(modinfo.songlength)
+	jr .finalize
+.loads3m
+	call s3mload
+	ret nz
+	xor a
+	ld (isplayingmodfile),a
+	ld a,(s3mheader.ordernum)
+.finalize
 	call setprogressdelta
 	ld hl,titlestr
 	ld (MUSICTITLEADDR),hl
@@ -123,15 +155,28 @@ musicload
 	ret
 
 musicunload
-	jp modunload
+	ld a,(isplayingmodfile)
+	or a
+	jp nz,modunload
+	jp s3munload
 
 musicplay
 ;out: zf=0 if still playing, zf=1 otherwise
+	ld a,(isplayingmodfile)
+	or a
+	jr nz,.playmod
+	call s3mplay
+	ld a,(s3mplayer.patterntableindex)
+	call updateprogress
+	ld a,(s3mplayer.patterntableindex)
+	jr .finalize
+.playmod
 	call modplay
 	ld a,(modplayer.patterntableindex)
 	call updateprogress
-;check if the position is increasing monotonically
 	ld a,(modplayer.patterntableindex)
+.finalize
+;check if the position is increasing monotonically
 	ld hl,currentposition
 	cp (hl)
 	ld (hl),a
@@ -144,28 +189,48 @@ musicplay
 	include "common/opl4utils.asm"
 	include "common/muldiv.asm"
 	include "moonmod/mod.asm"
+	include "moonmod/s3m.asm"
 	include "progress.asm"
 
 playernamestr
-	db "MoonSound MOD Player",0
+	db "MoonSound S3M/MOD Player",0
 outofmemorystr
 	db "Out of memory!",0
 
-modinfo MODINFO
-modwaveheaderbuffer = $
-modplayer MODPLAYER
-titlestr ds TITLELENGTH+1
-currentposition ds 1
-modfilebufferpage ds 1
-
+tempmemorystart = $
 modperiodopl4
 	incbin "moonmod/modperiodopl4.bin"
 modperiodopl4_end
 end
 
+titlestr equ tempmemorystart
+currentposition equ titlestr+TITLELENGTH+1
+modfilebufferpage equ currentposition+1
+isplayingmodfile equ modfilebufferpage+1
+modtempmemory equ isplayingmodfile+1
+
+	org modtempmemory
+modinfo MODINFO
+modwaveheaderbuffer = $
+modplayer MODPLAYER
+
+	assert $ <= PLAYEREND ;ensure everything is within the player page
+
+	org modtempmemory
+s3minfo S3MINFO
+s3mwaveheaderbuffer = $
+s3mplayer S3MPLAYER
+
+	assert $ <= PLAYEREND ;ensure everything is within the player page
+
 	org MODHEADERADDR
 modheader MODHEADER
 
-	assert MODWAVEHEADERBUFFERSIZE <= MODPLAYER
+	org S3MHEADERADDR
+s3mheader S3MHEADER
+
+	assert MEMORYSTREAMMAXPAGES >= 9
+	assert MODWAVEHEADERBUFFERSIZE <= PLAYEREND-modwaveheaderbuffer
+	assert S3MWAVEHEADERBUFFERSIZE <= PLAYEREND-s3mwaveheaderbuffer
 
 	savebin "moonmod.bin",begin,end-begin

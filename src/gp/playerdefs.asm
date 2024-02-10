@@ -1,4 +1,5 @@
 PLAYERSTART = 0x4000
+PLAYEREND   = 0x8000
 
 	macro PLAYERHEADER
 	dw playerinit      ;called once, should check if sound device is available (if possible)

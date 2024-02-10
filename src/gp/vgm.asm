@@ -84,7 +84,6 @@ musicload
 	cp 'z'
 	ex de,hl
 	jr z,.loadcompressed
-	ld a,255
 	call memorystreamloadfile
 	jr z,.doneloading
 	ret

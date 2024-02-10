@@ -22,10 +22,14 @@ MOON_WDAT = MOON_WREG+1
 ismoonsoundpresent
 ;out: zf=1 if Moonsound is present, zf=0 if not
 	switch_to_pcm_ports_c2_c3
+;check for 255
 	in a,(MOON_STAT)
-	cp 255
-	ccf
+	add a,1
 	sbc a,a
+	ret nz
+;check if LD and BUSY are zeros
+	in a,(MOON_STAT)
+	and 3
 	ret
 
 MOONSOUNDROMSIZE = 0x200000

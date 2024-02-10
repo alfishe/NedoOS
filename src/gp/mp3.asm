@@ -38,7 +38,7 @@ vsversion=$+1
 	sub hl,bc
 	jr nz,checkogg
 	ld hl,'id'
-	sub hl,de
+	sbc hl,de
 	jr nz,checkogg
 	cp SS_VER_VS1003
 	jr z,initmidvars
@@ -59,7 +59,7 @@ checkogg
 	sub hl,bc
 	jr nz,checkaac
 	ld hl,'gg'
-	sub hl,de
+	sbc hl,de
 	jr nz,checkaac
 	cp SS_VER_VS1053
 	jr z,initmp3vars
@@ -72,7 +72,7 @@ checkaac
 	sub hl,bc
 	jr nz,checkmp3
 	ld hl,'ac'
-	sub hl,de
+	sbc hl,de
 	jr nz,checkmp3
 	cp SS_VER_VS1033
 	jr z,initmp3vars
@@ -87,7 +87,7 @@ checkmp3
 	sub hl,bc
 	ret nz
 	ld hl,'p3'
-	sub hl,de
+	sbc hl,de
 	ret nz
 	and ~SS_VER_MASK
 	ret nz

@@ -18,7 +18,7 @@ mwmsupported=$+1
 	cp c
 	ret nz
 	ld hl,'wm'
-	sub hl,de
+	sbc hl,de
 	ret nz
 ;prepare local variables
 	ld (MUSICTITLEADDR),hl

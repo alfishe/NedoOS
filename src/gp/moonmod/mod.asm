@@ -11,6 +11,7 @@ MODMAXPATTERNS = 128
 MODMAXCHANNELS = 24
 MODMAXVOLUME = 64
 MODHEADERADDR = 0xc000
+MODMEMORYSTREAMMAXPAGES = 20
 
 	struct MODSAMPLEINFO
 samplename ds 22
@@ -56,7 +57,7 @@ patternloopstart ds 1
 patternloopcount ds 1
 pankeyon ds 1
 samplefinetune ds 1
-commandE5 ds 1
+finetuneoverride ds 1
 	ends
 
 	struct MODINFO
@@ -70,7 +71,7 @@ songlength ds 1
 patterntableindex ds 1
 patternstepindex ds 1
 arpeggio ds 1
-commandEE ds 1
+patterndelay ds 1
 speed ds 1
 speedstep ds 1
 channels ds MODCHANNEL*MODMAXCHANNELS
@@ -90,7 +91,10 @@ modload
 ;de = input file name
 ;out: zf=1 if the file is ready for playing, zf=0 otherwise
 	ld (modloadsamples.filename),de
+	ld a,MODMEMORYSTREAMMAXPAGES
+	ld (memorystreamloadfile.pagestoload),a
 	xor a
+	ld (memorystreamloadfile.errormask),a
 	call memorystreamloadfile
 	ret nz
 ;map header to MODHEADERADDR
@@ -179,19 +183,20 @@ modplay
 	jp nz,.tn
 	ld a,(modplayer.speed)
 	ld (modplayer.speedstep),a
-	ld a,(modplayer.commandEE)
+	ld a,(modplayer.patterndelay)
 	or a
-	jr z,.noEE
+	jr z,.nopatterndelay
 	dec a
-	ld (modplayer.commandEE),a
+	ld (modplayer.patterndelay),a
 	ret
-.noEE	call modreadstepdata
+.nopatterndelay
+	call modreadstepdata
 	ld ix,modplayer.stepdatabuffer
 	ld iy,modplayer.channels
 	ld a,(modinfo.channelcount)
 .t0loop
 	push af
-	ld (iy+MODCHANNEL.commandE5),0
+	ld (iy+MODCHANNEL.finetuneoverride),0
 	call modsetsample
 	call modhandlecommandT0
 	ld d,(ix+MODSTEPDATA.effectcommand)
@@ -464,7 +469,7 @@ modloadpatterns
 	rla
 	sla b
 	rla
-	cp MEMORYSTREAMMAXPAGES
+	cp MODMEMORYSTREAMMAXPAGES
 	ccf
 	sbc a,a
 	ret nz
@@ -719,7 +724,7 @@ modhandlecommandT0
 .doexteff5
 	ld a,(ix+MODSTEPDATA.effectdata)
 	or 16
-	ld (iy+MODCHANNEL.commandE5),a
+	ld (iy+MODCHANNEL.finetuneoverride),a
 	ret
 .doexteff7
 	ld a,(iy+MODCHANNEL.wavecontrol)
@@ -768,7 +773,7 @@ modhandlecommandT0
 	ret
 .doexteffE
 	ld a,(ix+MODSTEPDATA.effectdata)
-	ld (modplayer.commandEE),a
+	ld (modplayer.patterndelay),a
 	ret
 
 modhandlecommandTN
@@ -818,9 +823,9 @@ modhandlecommandTN
 	call modfindnotenumber
 	pop bc
 	add a,b
-	cp periodstablesize
+	cp ft2periodstablesize
 	jr c,$+4
-	ld a,periodstablesize-1
+	ld a,ft2periodstablesize-1
 	ld e,a
 	ld d,0
 	ld hl,ft2periods
@@ -939,15 +944,16 @@ modsetsample
 	ret z
 	ld (iy+MODCHANNEL.samplenumber),a
 	dec a
+	add a,a
+	ld e,a
+	ld d,0
+	add a,a
+	add a,a
 	ld l,a
-	ld h,0
-	add hl,hl
-	ld de,hl
+	ld h,d
 	add hl,hl
 	add hl,hl
-	add hl,hl
-	add hl,hl
-	sbc hl,de ; samplenumber*MODSAMPLEINFO
+	sbc hl,de ;samplenumber*MODSAMPLEINFO
 	ld de,modheader.samples+MODSAMPLEINFO.volume
 	add hl,de
 	ld a,(hl)
@@ -1006,7 +1012,7 @@ modtuneperiod
 ;iy = channel data
 ;hl = period
 ;out: hl = period
-	ld a,(iy+MODCHANNEL.commandE5)
+	ld a,(iy+MODCHANNEL.finetuneoverride)
 	or a
 	jr nz,$+6
 	ld a,(iy+MODCHANNEL.samplefinetune)
@@ -1014,7 +1020,7 @@ modtuneperiod
 	ret z
 	ex de,hl
 	add a,a
-	get_array_value c,finetunefactors
+	get_array_value c,modfinetunefactors-2
 	inc hl
 	ld b,(hl)
 	sla de
@@ -1033,11 +1039,7 @@ modportaup
 	ld d,0
 	sub hl,de
 	jr c,.clamp
-	ex de,hl
-	ld hl,-1
-	add hl,de
-	ex de,hl
-	jr c,$+5
+	jr nz,$+5
 .clamp	ld hl,1
 	ld (iy+MODCHANNEL.period),hl
 	jp modsetfrequency
@@ -1291,13 +1293,13 @@ modwaittimer
 	jp opl4writefm1
 
 modvolumetable
-	db 0x7F,0x5C,0x52,0x4A,0x44,0x3F,0x3B,0x37,0x34,0x31
-	db 0x2F,0x2D,0x2A,0x28,0x27,0x25,0x23,0x22,0x20,0x1F
-	db 0x1E,0x1C,0x1B,0x1A,0x19,0x18,0x17,0x16,0x15,0x14
-	db 0x13,0x12,0x12,0x11,0x10,0x0F,0x0F,0x0E,0x0D,0x0C
-	db 0x0C,0x0B,0x0B,0x0A,0x09,0x09,0x08,0x08,0x07,0x06
-	db 0x06,0x05,0x05,0x04,0x04,0x03,0x03,0x03,0x02,0x02
-	db 0x01,0x01,0x00,0x00,0x00
+	db 0x7f,0x60,0x50,0x47,0x40,0x3b,0x37,0x33,0x30,0x2d
+	db 0x2b,0x29,0x27,0x25,0x23,0x22,0x20,0x1f,0x1d,0x1c
+	db 0x1b,0x1a,0x19,0x18,0x17,0x16,0x15,0x14,0x13,0x12
+	db 0x12,0x11,0x10,0x0f,0x0f,0x0e,0x0d,0x0d,0x0c,0x0b
+	db 0x0b,0x0a,0x0a,0x09,0x09,0x08,0x08,0x07,0x07,0x06
+	db 0x06,0x05,0x05,0x04,0x04,0x04,0x03,0x03,0x02,0x02
+	db 0x01,0x01,0x01,0x00,0x00
 
 moddefaultpanning
 	db 5,10,10,5
@@ -1305,11 +1307,10 @@ moddefaultpanning
 modpantable
 	db 9,10,11,12,13,14,15,0,0,1,2,3,4,5,6,7
 
-finetunefactors
+modfinetunefactors
 	; 2^( -FineTune / 12 / 8 ) as 1.15 fixed point
-	dw 0x8000,0x7f14,0x7e2a,0x7d41,0x7c5b,0x7b76
-	dw 0x7a92,0x79b0,0x879c,0x86a2,0x85aa,0x84b4
-	dw 0x83c0,0x82cd,0x81dc,0x80ed
+	dw 0x7f14,0x7e2a,0x7d41,0x7c5b,0x7b76,0x7a92,0x79b0,0x879c
+	dw 0x86a2,0x85aa,0x84b4,0x83c0,0x82cd,0x81dc,0x80ed
 
 modvibratotable
 	db   0, 24, 49, 74, 97,120,141,161
@@ -1435,7 +1436,7 @@ modfindnotenumber
 	ex de,hl
 	inc hl
 	inc a
-	cp periodstablesize
+	cp ft2periodstablesize
 	jr nz,.loop
 	dec a
 	ret
@@ -1450,4 +1451,4 @@ ft2periods
 	dw  214,  202,  190,  180,  170,  160,  151,  143,  135,  127,  120,  113 ;5
 	dw  107,  101,   95,   90,   85,   80,   75,   71,   67,   63,   60,   56 ;6
 	dw   53,   50,   47,   45,   42,   40,   37,   35,   33,   31,   30,   28 ;7
-periodstablesize=($-ft2periods)/2
+ft2periodstablesize=($-ft2periods)/2

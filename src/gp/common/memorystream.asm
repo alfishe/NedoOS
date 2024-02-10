@@ -1,10 +1,9 @@
 memorystreamloadfile
-;a = 0xff to require loading the entire file into memory, 0x00 if only MEMORYSTREAMMAXPAGES needed
 ;de = file name
 ;out: zf=1 if successful, zf=0 otherwise
-;must load the whole file
-	ld (.errormask),a
-.startloading
+;configurable params:
+; .pagestoload <= MEMORYSTREAMMAXPAGES
+; .errormask = 0xff to require loading the entire file into memory, 0x00 if only [pagestoload] needed
 	call openstream_file
 	or a
 	ret nz
@@ -13,6 +12,7 @@ memorystreamloadfile
 	ld hl,0
 	ld de,hl
 	ld c,l
+.pagestoload=$+1
 	ld b,MEMORYSTREAMMAXPAGES
 .loadloop
 	push bc
@@ -48,7 +48,7 @@ memorystreamloadfile
 	jr z,.breakloop
 	djnz .loadloop
 .errormask=$+1
-	and 0
+	and 255
 .breakloop
 	push af
 	ld (memorystreamsize+0),hl
