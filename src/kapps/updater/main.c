@@ -9,7 +9,7 @@
 #include <intrz80.h>
 #include <ctype.h>
 #include <math.h>
-unsigned char uVer[] = "0.44";
+unsigned char uVer[] = "0.45";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -676,7 +676,7 @@ void getTools(void)
 	getFile(cmdLink, "bin/cmd.com");
 	getFile(termLink, "bin/term.com");
 	getFile(updLink, "bin/updater.com");
-	getFile(netIniLink, "bin/net.ini");
+	getFile(netIniLink, "bin/net_.ini");
 }
 
 void deleteWorkFiles(void)
