@@ -82,7 +82,7 @@ void delay(unsigned long counter)
 	}
 }
 
-void printNews(void)
+void printNews(void) // max 20 lines in total and 59 col.
 {
 	unsigned char str[1];
 	unsigned char curLine, nbyte;
@@ -95,10 +95,10 @@ void printNews(void)
 
 		return;
 	}
-	AT(20, 5);
 	curLine = 0;
 	while (curLine < 20)
 	{
+		AT(20, 4 + curLine);
 		while (1)
 		{
 			OS_READHANDLE(str, fpNews, sizeof(str));
@@ -122,7 +122,6 @@ void printNews(void)
 		}
 		OS_READHANDLE(str, fpNews, sizeof(str));
 		curLine++;
-		AT(20, 5 + curLine);
 	}
 	OS_CLOSEHANDLE(fpNews);
 }
@@ -750,6 +749,7 @@ void restoreConfig(unsigned char oldBinExt)
 	errn = OS_RENAME("bin/net.ini", "bin/net.new");
 	errn = OS_RENAME("bin/nv.ext", "bin/nv.new");
 	errn = OS_RENAME("bin/gp/gp.ini", "bin/gp/gpini.new");
+	errn = OS_RENAME("/bin/browser/index.gph", "/bin/browser/index.gph.new");
 
 	errn = OS_CHDIR("/");
 
@@ -764,6 +764,7 @@ void restoreConfig(unsigned char oldBinExt)
 		errn = OS_SHELL("copy bin.old/nv.pth bin/nv.pth");
 
 		errn = OS_SHELL("copy bin.old/gp/gp.ini bin/gp/gp.ini");
+		errn = OS_SHELL("copy bin.old/browser/index.gph bin/browser/index.gph");
 	}
 	else
 	{
@@ -779,6 +780,8 @@ void restoreConfig(unsigned char oldBinExt)
 		OS_SHELL((void *)name);
 		sprintf(name, "copy bin.%u/gp/gp.ini bin/gp/gp.ini", oldBinExt);
 		OS_SHELL((void *)name);
+		sprintf(name, "copy bin.%u/browser/index.gph bin/browser/index.gph", oldBinExt);
+		OS_SHELL((void *)name);
 	}
 	AT(1, 4);
 	for (count = 0; count < 15; count++)
@@ -789,6 +792,7 @@ void restoreConfig(unsigned char oldBinExt)
 	errn = OS_RENAME("bin/net.new", "bin/net.ini");
 	errn = OS_RENAME("bin/nv.new", "bin/nv.ext");
 	errn = OS_RENAME("bin/gp/gpini.new", "bin/gp/gp.ini");
+	errn = OS_RENAME("bin/browser/index.gph.new", "bin/browser/index.gph");
 }
 
 // Download, backup, unpack release.bin
