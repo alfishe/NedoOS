@@ -3,7 +3,7 @@
 
         include "../_sdk/syssets.asm"
        ifdef USETOPDOWNMEM
-TOPDOWNMEM=1
+TOPDOWNMEM=1 
        else
 TOPDOWNMEM=0;1
        endif
@@ -294,7 +294,7 @@ init_sysdev_end
 			call findpgdos
 		else
 			ld a,0x04
-			in a,(0xbe)
+			in a,(0xbd)
 			and 0xbf;%10111111
 			;ld a,0x8b
 		endif
