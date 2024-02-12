@@ -48,7 +48,7 @@ memorystreamloadfile
 	jr z,.breakloop
 	djnz .loadloop
 .errormask=$+1
-	and 255
+	and MEMORYSTREAMERRORMASK
 .breakloop
 	push af
 	ld (memorystreamsize+0),hl

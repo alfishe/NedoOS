@@ -5,7 +5,8 @@
 	include "playerdefs.asm"
 
 TITLELENGTH = 64
-MEMORYSTREAMMAXPAGES = 210
+MEMORYSTREAMMAXPAGES = 20
+MEMORYSTREAMERRORMASK = 0
 
 	org PLAYERSTART
 
@@ -56,7 +57,7 @@ playerinit
 	ld de,0xc000
 	ld bc,modperiodopl4_end-modperiodopl4
 	ldir
-;start inititing vars after the table was copied
+;start initing vars after the table was copied
 	pop af
 	ld (modperiodlookuppage),a
 .settingsaddr=$+1

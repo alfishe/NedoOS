@@ -108,10 +108,7 @@ s3mpatterntable equ s3mheader+S3MHEADER
 s3mload
 ;de = input file name
 ;out: zf=1 if the file is ready for playing, zf=0 otherwise
-	ld a,MEMORYSTREAMMAXPAGES
-	ld (memorystreamloadfile.pagestoload),a
-	ld a,255
-	ld (memorystreamloadfile.errormask),a
+	ld (s3mloadsamples.filename),de
 	call memorystreamloadfile
 	ret nz
 ;map header to S3MHEADERADDR
@@ -238,8 +235,95 @@ getpanningfunc
 	and 15
 	ret
 
+s3mfilestreamseekfast
+;dehl = offset
+	ld (.fileoffsetlo),hl
+	ld (.fileoffsethi),de
+	ld hl,(filestreamcurrentaddr)
+	res 6,h
+	res 7,h
+	ld de,(filereadoffset+0)
+	add hl,de
+	ld bc,(filereadoffset+2)
+	jr nc,$+3
+	inc bc
+	ex de,hl
+.fileoffsetlo=$+1
+	ld hl,0
+	sub hl,de
+	ex de,hl
+.fileoffsethi=$+1
+	ld hl,0
+	sbc hl,bc
+	ld a,h
+	or l
+	or d
+	ld b,e
+	ld hl,(.fileoffsetlo)
+	ld de,(.fileoffsethi)
+	jp nz,s3mfilestreamseek
+	inc b
+	dec b
+	ret z
+	ld hl,(filestreamcurrentaddr)
+.loop	bit 6,h
+	call nz,s3mloadfiledata
+	inc hl
+	djnz .loop
+	ld (filestreamcurrentaddr),hl
+	ret
+
+s3mfilestreamseek
+;dehl = offset
+	push ix
+	push iy
+	ld a,(filehandle)
+	ld b,a
+	OS_SEEKHANDLE
+	ld hl,0xffff
+	ld (filestreamcurrentaddr),hl
+	pop iy
+	pop ix
+	ret
+
+s3mloadfiledata
+	push af,bc,de
+	exx
+	ex af,af'
+	push af,bc,de,hl,ix,iy
+	ld a,(filehandle)
+	ld b,a
+	OS_TELLHANDLE
+	ld (filereadoffset+0),hl
+	ld (filereadoffset+2),de
+	ld de,0x8000
+	ld hl,0x4000
+	call readstream_file
+	pop iy,ix,hl,de,bc,af
+	exx
+	ex af,af'
+	pop de,bc,af
+	ld hl,0x8000
+	ret
+
+filestreamcurrentaddr ds 2
+filereadoffset ds 4
+
 s3mloadsamples
 ;output: zf=1 if samples are loaded, zf=0 otherwise
+.filename=$+1
+	ld de,0
+	call openstream_file
+	or a
+	ret nz
+	ld hl,0
+	ld (filestreamcurrentaddr),hl
+	dec hl
+	ld (filereadoffset+0),hl
+	ld (filereadoffset+2),hl
+	ld a,(modfilebufferpage)
+	SETPG8000
+;read samples data from file
 	ld hl,S3MSAMPLEDATASTART%65536
 	ld a,S3MSAMPLEDATASTART/65536
 	ld (.sampleaddresslo),hl
@@ -276,6 +360,7 @@ s3mloadsamples
 	ld bc,(ix+S3MINSTRUMENT.loopstart)
 	ld de,(ix+S3MINSTRUMENT.loopend)
 	ld hl,de
+	dec de
 	sub hl,bc
 	jr nz,.hasloop
 .noloop
@@ -327,14 +412,18 @@ s3mloadsamples
 	add hl,hl : rl de
 	add hl,hl : rl de
 	add hl,hl : rl de
-	call memorystreamseek
+	call s3mfilestreamseekfast
 	pop bc
+	ld hl,(filestreamcurrentaddr)
 ;start uploading
 	opl4_wait
 	ld a,6
 	out (MOON_WREG),a
 .writeloop
-	memory_stream_read_byte d
+	bit 6,h
+	call nz,s3mloadfiledata
+	ld d,(hl)
+	inc hl
 	opl4_wait
 	ld a,d
 	add a,0x80
@@ -349,6 +438,7 @@ s3mloadsamples
 	out (MOON_WDAT),a
 	ld de,0x1002
 	call opl4writewave
+	ld (filestreamcurrentaddr),hl
 	pop hl
 	pop de
 	pop bc
@@ -375,6 +465,10 @@ s3mloadsamples
 	pop bc
 	dec b
 	jp nz,.mainloop
+;switch back to memory steam
+	call closestream_file
+	ld a,(memorystreamcurrentpage)
+	SETPG8000
 ;write headers
 	ld ix,s3mwaveheaderbuffer
 	ld hl,MOONSOUNDROMSIZE%65536
@@ -1091,7 +1185,6 @@ s3mreadstepdata
 s3mnotetoperiod
 ;a = note
 ;out: hl = period
-;	add a,2 ;FIXME: this +2 is adhoc fix for satellite.s3m!
 	add a,a
 	get_array_value a,st3periods
 	inc hl

@@ -11,7 +11,6 @@ MODMAXPATTERNS = 128
 MODMAXCHANNELS = 24
 MODMAXVOLUME = 64
 MODHEADERADDR = 0xc000
-MODMEMORYSTREAMMAXPAGES = 20
 
 	struct MODSAMPLEINFO
 samplename ds 22
@@ -91,10 +90,6 @@ modload
 ;de = input file name
 ;out: zf=1 if the file is ready for playing, zf=0 otherwise
 	ld (modloadsamples.filename),de
-	ld a,MODMEMORYSTREAMMAXPAGES
-	ld (memorystreamloadfile.pagestoload),a
-	xor a
-	ld (memorystreamloadfile.errormask),a
 	call memorystreamloadfile
 	ret nz
 ;map header to MODHEADERADDR
@@ -249,7 +244,7 @@ modplay
 	djnz .tnloop
 	ret
 
-loadfiledata
+modloadfiledata
 	push af,bc,de
 	exx
 	ex af,af'
@@ -373,7 +368,7 @@ modloadsamples
 	ld hl,0
 .uploadloop
 	bit 6,h
-	call nz,loadfiledata
+	call nz,modloadfiledata
 	ld d,(hl)
 	inc hl
 .skipbyteop
@@ -469,7 +464,7 @@ modloadpatterns
 	rla
 	sla b
 	rla
-	cp MODMEMORYSTREAMMAXPAGES
+	cp MEMORYSTREAMMAXPAGES
 	ccf
 	sbc a,a
 	ret nz
