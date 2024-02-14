@@ -12,14 +12,37 @@ begin
         ;ld e,6 ;textmode
         ;OS_SETGFX
         call initstdio
+
+        ld a,0x01 ;ld bc
+        ld (callcommand),a
         ld hl,tfreetime
         call prtext
+        call looper
+        call prdword_dehl
+        call crlf
 
+        ld a,0xcd ;call
+        ld (callcommand),a
+        ld hl,tfreetimeos
+        call prtext
+        call looper
+        call prdword_dehl
+        call crlf
+
+        call swapimer
+        
+        call yieldgetkeyloop
+
+        QUIT
+        
+looper        
         halt
         call swapimer
-
+        ld hl,timeloop
+        ld (on_int_q),hl
         ld de,0
         ld hl,timeloopq
+        ld hx,8+1
         ds 0x200-1-$
         halt ;quit to timeloop
 timeloop
@@ -28,21 +51,24 @@ timeloop
         inc de
         jp timeloop
 timeloopq
-;d,e,c=NOPs
-        ld l,c
+        ld hl,(on_int_jp)
+;d,e,l=NOPs
         ld h,e
         ld e,d
         ld d,0
 ;dehl=NOPs
-        ;ld de,0
-        ;ld hl,12345
-        call prdword_dehl
-        
-        call yieldgetkeyloop
-        
+        dup 3
+        srl d
+        rr e
+        rr h
+        rr l
+        edup
+        push de
+        push hl
         call swapimer
-
-        QUIT
+        pop hl
+        pop de
+        ret
 
 prtext
 ;hl=text
@@ -99,7 +125,7 @@ on_int
         push hl
         push ix
         push iy
-
+callcommand=$
         call oldimer ;ei ;а что если выйдем поздно (по yield)? надо в конце обработчика убрать ei, но и это не поможет, т.к. yield сейчас с включенными прерываниями!!!      
 
         pop iy
@@ -117,12 +143,22 @@ on_int_sp=$+1
 	ld sp,0
         pop de
 	ei
+        dec hx
 on_int_jp=$+1
-	ld bc,0;jp 0
+	jp nz,0;jp 0
 on_int_q=$+1
         jp timeloop ;/timeloopq
 
+crlf
+        ld hl,2 ;hl=length
+        ld de,tcrlf ;de=text
+        jp sendchars
+
+tcrlf
+        db 13,10
 tfreetime
+        db "Free time with generic user INT handler (NOPs)=",0
+tfreetimeos
         db "Free time with generic user INT handler (NOPs)=",0
         
         include "../_sdk/stdio.asm"
