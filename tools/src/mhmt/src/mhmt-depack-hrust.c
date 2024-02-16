@@ -454,11 +454,13 @@ NO_BYTE_HST:
 					{
 						disp = (-512);
 						disptype=DISP_PLUSBYTE; // we fall in next section and there is check
+						__attribute__((fallthrough));
 						// NO break!
 					}
 					else if( bits==1 ) // %01<byte> - ff00..ffdf
 					{
 						disp = (-256);
+						__attribute__((fallthrough));
 						// NO break!
 						// no check for byte in range e0..ff here - but in next switch section!
 					}
@@ -490,15 +492,17 @@ NO_BYTE_HST:
 							goto NO_BITS_HST;
 						}
 #endif                                                                                  
-						disp = (-1)<<expbitlen;
+						//disp = (-1)<<expbitlen;
+						disp = (-1UL)<<expbitlen;
 						disp |= (bits&(~disp));
 
 						disp <<= 8;
 
 						disptype = DISP_PLUSBYTE;
+						__attribute__((fallthrough));
 						// NO break!
 					}
-					__attribute__ ((fallthrough));
+
 				case DISP_PLUSBYTE:
 					byte = depack_getbyte(DEPACK_GETBYTE_NEXT);
 #ifdef DPK_CHECK

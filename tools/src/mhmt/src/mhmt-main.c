@@ -291,7 +291,7 @@ ULONG do_files(void)
 		wrk.inlen=0;
 		return 0;
 	}
-	else if( wrk.inlen<16 )
+	else if( wrk.inlen<16 && !wrk.mode ) // do not pack files less than 16 bytes
 	{
 		printf("Input file \"%s\" is smaller than 16 bytes - I won't process it!\n",wrk.fname_in);
 		return 0;
