@@ -213,9 +213,9 @@ mainloop
         jp mainloop
 
 assignpages
-	OS_NEWPAGE ; for dircopy batch
-	ld hl,dirpg
-	ld (hl),e
+	;OS_NEWPAGE ; for dircopy batch
+	;ld hl,dirpg
+	;ld (hl),e
 
 	OS_NEWPAGE ;выделяем по одной страничке для каталогов
         ld hl,HS_strpg
@@ -257,8 +257,8 @@ assignpages
         ret
 
 deletepages
-        ld a,(dirpg)
-        call delpage_a ;for dircopy batch
+        ;ld a,(dirpg)
+        ;call delpage_a ;for dircopy batch
         ld a,(HS_strpg)
         call delpage_a ;по одной страничке для каталогов
         ld a,(HS_strpg+DIRPAGES+1)
@@ -1141,10 +1141,10 @@ editcmddirbackfind0
         call getfcbaddrunderhl
         ld de,FCB_EXTENTNUMBERLO
         add hl,de
-        ld a,(hl)
+        ld a,(hl) ;hl=fcb+FCB_EXTENTNUMBERLO
         inc hl
         inc hl
-        ld e,(hl)
+        ld e,(hl) ;hl=fcb+FCB_EXTENTNUMBERHI
         inc hl
         ld d,(hl)
         SETPGC000
@@ -2199,14 +2199,10 @@ proc_del_file_batch
 	ld hl,dir_buf ;src
 	call nv_makefilepath_hltode ;result :  dest=hl'/'bc (de указывает после терминатора)
         pop hl
-         ;ld hl,dir3_buf
          ld de,windel2_file
-         push de
-         ld bc,64
-         ldir
-         pop hl
-	;ld hl,windel2_file
-	call nv_fillpathspaces_hl ;fill to 64bytes spaces
+        ;ld b,64
+        call strcopy_maxb64
+
 	ld hl,windel2
 	call upwindow_text ;update window
 
@@ -2313,32 +2309,8 @@ nv_makefilepath_hltode ;DE=dest HL=src BC=filename
         pop hl
 	jp strcopy;nv_strcopy_hltode
 
-;TODO remove this
-nv_fillpathspaces_hl
-	ld b,0
-nv_fillpathspaces_hl0
-         ;ld a,b
-         ;cp 64
-         ;ret z
-         bit 6,b
-         ret nz
-	ld a,(hl)
-	inc b
-	inc hl
-	or a
-	jr nz,nv_fillpathspaces_hl0
-	dec hl
-	dec b
-	ld c,' '
-	ld a,b
-nv_fillpathspaces_hl1
-	ld (hl),c
-	inc hl
-	inc a
-	cp 64
-	jr c,nv_fillpathspaces_hl1
-	ret
-
+strcopy_maxb64
+        ld b,64
 strcopy_maxb
 ;copy hl->de no more than b bytes, add spaces after
 strcopy_maxb0
@@ -2358,27 +2330,47 @@ strcopy_maxb_fill0
 	djnz strcopy_maxb_fill0
 	ret
 
+batch_find_pg
+	ld hl,(dir_batch_pointer)
+        add hl,hl
+        add hl,hl
+        ld c,h ;pointer/64
+        ld b,0
+        ld hl,tdirpgs
+        add hl,bc
+        ret
+
+batch_find_pointer
+	ld hl,0x8000
+	ld bc,(dir_batch_pointer)
+	ld de,256 ;64 записи в странице
+batch_find_pointer0
+	ld a,b
+	or c
+	ret z
+	add hl,de
+	dec bc
+	jr batch_find_pointer0
 
 nv_copydir_add;=nv_batch_pushrecord
-;	jp nv_batch_pushrecord
-;nv_batch_pushrecord
+;TODO сохранить текущий номер файла в директории
 	OS_GETMAINPAGES
 	ld a,h
 	ld (savepg),a
-	ld a,(dirpg)
+        
+        call batch_find_pg
+        ld a,(dir_batch_pointer)
+        and 63
+        jr nz,nv_batch_pushrecord_nonewpg
+        push hl
+        OS_NEWPAGE
+        pop hl
+        ld (hl),e
+nv_batch_pushrecord_nonewpg
+        ld a,(hl)
 	SETPG8000
+        call batch_find_pointer ;hl=pointer
 
-	ld hl,0x8000
-	ld bc,(dir_batch_pointer)
-	ld de,256
-nv_batch_pushsrecord
-	ld a,b
-	or c
-	jr z,nv_batch_pushsrecordend
-	add hl,de
-	dec bc
-	jr nv_batch_pushsrecord
-nv_batch_pushsrecordend
 	push hl
 ;dir 1
 	ld de,dir_buf
@@ -2394,49 +2386,55 @@ nv_batch_pushsrecordend
 	ld bc,filenametext
 	call nv_makefilepath_hltode
 
-	ld bc,(dir_batch_pointer)
-	inc bc
-	ld (dir_batch_pointer),bc
+	ld hl,(dir_batch_pointer)
+	inc hl
+	ld (dir_batch_pointer),hl
 	ld a,(savepg)
 	SETPG8000
-	ret
+	ret ;TODO jp nv_batch ;здесь же рекурсивно обрабатывать добавленную директорию (содержит CHDIR!)
 
 nv_batch_poprecord ;z=empty
 	OS_GETMAINPAGES
 	ld a,h
 	ld (savepg),a
-	ld a,(dirpg)
-	SETPG8000
 
-	ld hl,0x8000
-	ld bc,(dir_batch_pointer)
-	ld a,b
-	or c
-	jr z,nv_batch_popsrecordq ;empty :(
-	dec bc
-	ld de,256
-nv_batch_popsrecord
-	ld a,b
-	or c
-	jr z,nv_batch_popsrecordend
-	add hl,de
-	dec bc
-	jr nv_batch_popsrecord
-nv_batch_popsrecordend
+        ld hl,(dir_batch_pointer)
+        ld a,h
+        or l
+        jr z,nv_batch_poprecordq ;empty :(
+
+	ld hl,(dir_batch_pointer)
+	dec hl
+	ld (dir_batch_pointer),hl
+        call batch_find_pg
+        ld a,(hl)
+       push hl
+	SETPG8000
+        call batch_find_pointer ;hl=pointer
+        
 	ld de,dir_buf
 	ld bc,128
 	ldir
 	ld de,dir2_buf
 	ld  c,128
 	ldir
-	ld bc,(dir_batch_pointer)
-	dec bc
-	ld (dir_batch_pointer),bc
-	ld a,1
-	or a ;NZ
-nv_batch_popsrecordq
+
+       pop hl
+        ld a,(dir_batch_pointer)
+        and 63
+        jr nz,nv_batch_poprecord_nodelpg
+        ld e,(hl)
+        OS_DELPAGE
+nv_batch_poprecord_nodelpg
+	;ld a,1
+	;or a ;NZ
+        xor a
+        inc a ;NZ
+nv_batch_poprecordq
+
 	ld a,(savepg)
 	SETPG8000
+;TODO вспомнить текущий номер файла в директории
 	ret
 
 nv_batch
@@ -2501,11 +2499,11 @@ nv_batch1
 
         ld a,(filinfo+FILINFO_FATTRIB)
 	ld (fcb_attrib),a
-         ld a,(dirpg)
-         ld (fcb+FCB_EXTENTNUMBERLO),a ;NU
+         ld a,(leftpanel+PANEL.poipg);(dirpg) ;по сути не важно, данные будут браться из filinfo
+         ld (fcb+FCB_EXTENTNUMBERLO),a
 
 nv_batch_proc=$+1
-	call proceditcmd_copy_fcb
+	call proceditcmd_copy_fcb ;не содержит CHDIR
 	jr nv_batch1
 
 nv_batch_nofiles
@@ -2572,18 +2570,8 @@ proceditcmd_copy_fcb
 	call nv_makefilepath_hltode
         pop hl
          ld de,wincopy_dest
-       if 1
-        ld b,64
-        call strcopy_maxb
-       else
-         ;ld hl,dir3_buf
-         push de
-         ld bc,64
-         ldir
-         pop hl
-	;ld hl,wincopy_dest
-	call nv_fillpathspaces_hl
-       endif
+        ;ld b,64
+        call strcopy_maxb64
 
 	ld de,dir3_buf;wincopy_src ;update copy window
         push de
@@ -2592,18 +2580,8 @@ proceditcmd_copy_fcb
 	call nv_makefilepath_hltode
         pop hl
          ld de,wincopy_src
-       if 1
-        ld b,64
-        call strcopy_maxb
-       else
-         ;ld hl,dir3_buf
-         push de
-         ld bc,64
-         ldir
-         pop hl
-	;ld hl,wincopy_src
-	call nv_fillpathspaces_hl
-       endif
+        ;ld b,64
+        call strcopy_maxb64
 
 	ld hl,wincopy2
 	call upwindow_text
@@ -3052,8 +3030,13 @@ copybuf=0x4000 ;нельзя 0xc000 - поверх какой-нибудь директории (а она использует
 copybuf_sz=0x4000 ;$-copybuf
 
 dir_batch_pointer db 0,0
-savepg db 0,0
-dirpg db 0,0
+savepg
+        db 0
+;dirpg db 0,0
+ndirpgs
+        db 0
+tdirpgs
+        ds 64
 
 washobetarunner
 ;pgsys=pagexor-10
