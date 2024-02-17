@@ -7,13 +7,17 @@ sjasmplus --nologo --msg=war music.asm
 copy wolftex.bmp wolf3d
 copy wolfspr.bmp wolf3d
 
-"../../_sdk/nedores.exe" wallscity.bmp walls.dat walls.ast
+"../../_sdk/nedores.exe" walls.bmp walls.dat walls.ast
+"../../_sdk/nedores.exe" walls2.bmp walls.dat walls2.ast
 rem "../../_sdk/nedores.exe" textures_01_64x64_.bmp walls.dat walls.ast
 "../../_sdk/nedores.exe" goods.bmp goods.dat goods.ast
+"../../_sdk/nedores.exe" goods2.bmp goods.dat goods2.ast
 sjasmplus --nologo --msg=war walls.ast --raw=walls.bin
+sjasmplus --nologo --msg=war walls2.ast --raw=walls2.bin
 sjasmplus --nologo --msg=war goods.ast --raw=goods.bin
+sjasmplus --nologo --msg=war goods2.ast --raw=goods2.bin
 
-sjasmplus --nologo --msg=war -Datm=0 -Ddoublescr=0 W48.ASM
+sjasmplus --nologo --msg=war -Datm=0 -Ddoublescr=1 W48.ASM
 nedotrd basic.trd -eh boot.$b > nul
 rem del test.scl
 rem mhmt -mlz code.c

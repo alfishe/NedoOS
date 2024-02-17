@@ -49,7 +49,7 @@ MONSTAB
         db 8
         db 0,0
 ;AMMO
-        db 12 ;G
+        db 4;12 ;G
         db 12 ;R
         db 12 ;MEGAHEALTH
         db 12 ;RL
@@ -57,7 +57,34 @@ MONSTAB
         db 12
         db 0,0
 ;STOLB
+        db 5;11
         db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+;STOLB2
+        db 6;11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+;STOLB3
+        db 7;11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+;STOLB4
+        db 8;11
         db 11
         db 11
         db 11

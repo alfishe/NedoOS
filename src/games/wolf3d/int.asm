@@ -49,10 +49,10 @@ curpalette=$+1
         jr z,$+5
         ld (curkey),a
        else ;~atm
+       IF music 
         LD A,pgmuz
         LD BC,#7FFD
         OUT (C),A
-       IF music 
         CALL 0xc005;#8006 ;play mus
        ENDIF 
         LD A,(newscr)
