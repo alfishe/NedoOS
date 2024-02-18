@@ -51,11 +51,10 @@ playerinit
 	ld a,e
 	push af
 	SETPGC000
-;	call modinitperiodlookup
-;load the table from disk, modinitperiodlookup is very slow on ATM2
-	ld hl,modperiodopl4
+;move period lookup table to its own page
+	ld hl,periodlookup
 	ld de,0xc000
-	ld bc,modperiodopl4_end-modperiodopl4
+	ld bc,periodlookup_end-periodlookup
 	ldir
 ;start initing vars after the table was copied
 	pop af
@@ -199,9 +198,9 @@ outofmemorystr
 	db "Out of memory!",0
 
 tempmemorystart = $
-modperiodopl4
-	incbin "moonmod/modperiodopl4.bin"
-modperiodopl4_end
+periodlookup
+	incbin "moonmod/periodlookup.bin"
+periodlookup_end
 end
 
 titlestr equ tempmemorystart

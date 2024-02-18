@@ -176,7 +176,7 @@ s3mloadpatterns
 	ld de,s3minfo.choffset
 	ld bc,s3minfo.chpanning
 	ld ix,s3mheader.chsettings
-	ld iyl,S3MMAXCHANNELS
+	ld iy,S3MMAXCHANNELS
 	xor a
 	ex af,af'
 .chloop	ld a,(ix)
@@ -191,15 +191,19 @@ s3mloadpatterns
 	add a,S3MSTEPDATA
 	ex af,af'
 	inc de
+	inc iyh
+	ld a,iyh
+	cp OPL4MAXWAVECHANNELS
+	jr nc,.channelscapped
 .choff	inc hl
 	inc ix
 	dec iyl
 	jr nz,.chloop
-	ld a,e
-	add a,(-s3minfo.choffset)%256
+	ld a,iyh
+.channelscapped
 	ld (s3minfo.chnum),a
-	neg
-	add a,S3MMAXCHANNELS+1
+	ld a,S3MMAXCHANNELS+1
+	sub iyh
 	ld b,a
 	ex af,af'
 	dec b
@@ -357,15 +361,15 @@ s3mloadsamples
 ;start filling wavetable entry
 	bit 0,(ix+S3MINSTRUMENT.flags)
 	jr z,.noloop
-	ld bc,(ix+S3MINSTRUMENT.loopstart)
 	ld de,(ix+S3MINSTRUMENT.loopend)
+	ld bc,(ix+S3MINSTRUMENT.loopstart)
 	ld hl,de
 	dec de
 	sub hl,bc
 	jr nz,.hasloop
 .noloop
-	ld de,(ix+S3MINSTRUMENT.length)
-	ld bc,de
+	ld bc,(ix+S3MINSTRUMENT.length)
+	ld de,bc
 	dec bc
 .hasloop
 	ld hl,0xffff
@@ -383,7 +387,13 @@ s3mloadsamples
 	ld hl,0
 .sampleaddresshi=$+1
 	ld d,0
-	ld (iy+0),d ;8 bits sample, addr hi
+	ld a,(ix+S3MINSTRUMENT.flags)
+	rrca
+	rrca
+	rrca
+	and 0x80
+	or d
+	ld (iy+0),a ;8/16 bits data, addr hi
 	ld (iy+1),h ;addr mi
 	ld (iy+2),l ;addr lo
 	ld bc,(ix+S3MINSTRUMENT.length)
@@ -391,7 +401,6 @@ s3mloadsamples
 	or c
 	jp z,.nextsample
 ;upload sample
-	push bc
 	push de
 	push hl
 	ld a,c
@@ -419,7 +428,9 @@ s3mloadsamples
 	opl4_wait
 	ld a,6
 	out (MOON_WREG),a
-.writeloop
+	bit 2,(ix+S3MINSTRUMENT.flags)
+	jr nz,.uploadloop16bits
+.uploadloop8bits
 	bit 6,h
 	call nz,s3mloadfiledata
 	ld d,(hl)
@@ -428,26 +439,61 @@ s3mloadsamples
 	ld a,d
 	add a,0x80
 	out (MOON_WDAT),a
-	djnz .writeloop
+	djnz .uploadloop8bits
 	dec c
-	jr nz,.writeloop
+	jr nz,.uploadloop8bits
 ;duplicate the last data sample
 	opl4_wait
 	ld a,d
 	add a,0x80
 	out (MOON_WDAT),a
+	jr .doneupload
+.uploadloop16bits
+	bit 6,h
+	call nz,s3mloadfiledata
+	ld e,(hl)
+	inc hl
+	bit 6,h
+	call nz,s3mloadfiledata
+	ld d,(hl)
+	inc hl
+	opl4_wait
+	ld a,d
+	add a,0x80
+	out (MOON_WDAT),a
+	opl4_wait
+	ld a,e
+	out (MOON_WDAT),a
+	djnz .uploadloop16bits
+	dec c
+	jr nz,.uploadloop16bits
+	opl4_wait
+	ld a,d
+	add a,0x80
+	out (MOON_WDAT),a
+	opl4_wait
+	ld a,e
+	out (MOON_WDAT),a
+.doneupload
 	ld de,0x1002
 	call opl4writewave
 	ld (filestreamcurrentaddr),hl
 	pop hl
 	pop de
-	pop bc
 ;set next write address
+	ld bc,(ix+S3MINSTRUMENT.length)
 	xor a
-	scf ;add +1 account for duping the last data sample
-	adc hl,bc
-	ld (.sampleaddresslo),hl
+	bit 2,(ix+S3MINSTRUMENT.flags)
+	jr z,.alreadyinbytes
+	sla bc
+	rla
+.alreadyinbytes
+	add hl,bc
 	adc a,d
+	ld bc,2 ; add +2 to account for duping the last data sample
+	add hl,bc
+	adc a,b
+	ld (.sampleaddresslo),hl
 	ld (.sampleaddresshi),a
 ;process c2spd
 	ld hl,(ix+S3MINSTRUMENT.c2spd)
@@ -1262,12 +1308,17 @@ s3msetfrequency
 ;hl = period
 	ld a,(modperiodlookuppage)
 	SETPGC000
-;hl=(hl/4)*2
-	ld a,l
-	srl h
-	rra
-	and %11111110
-	ld l,a
+	ld a,h
+	sub 0x10
+	jp c,.firsthalf
+;(hl-4096)/8+4096
+	srl a : rr l
+	srl a : rr l
+	srl a : rr l
+	add a,0x10
+	ld h,a
+.firsthalf
+	add hl,hl
 ;two-bytes lookup
 	ld de,0xc000-2
 	add hl,de
@@ -1277,7 +1328,7 @@ s3msetfrequency
 	ld a,(memorystreampages)
 	SETPGC000
 	ld a,(iy+S3MCHANNEL.index)
-	add 0x38
+	add a,0x38
 	ld e,a
 	call opl4writewave
 	ld d,l
@@ -1325,11 +1376,11 @@ s3mportadown
 .slide	ld hl,(iy+S3MCHANNEL.period)
 	add hl,de
 	ex de,hl
-	ld hl,-32000
+	ld hl,-36000
 	add hl,de
 	ex de,hl
 	jr nc,$+5
-	ld hl,31999
+	ld hl,35999
 	ld (iy+S3MCHANNEL.period),hl
 	jp s3msetfrequency
 
@@ -1430,7 +1481,7 @@ s3msetsamplenumber
 	add a,0x7f
 	ld d,a
 	ld a,(iy+S3MCHANNEL.index)
-	add 0x08
+	add a,0x08
 	ld e,a
 	call opl4writewave
 ;wait for the header to load

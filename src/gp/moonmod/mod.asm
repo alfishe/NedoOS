@@ -391,7 +391,7 @@ modloadsamples
 	pop bc
 ;set next write address
 	xor a
-	scf ;add +1 account for duping the last data sample
+	scf ;add +1 to account for duping the last data sample
 	adc hl,bc
 	ld (.sampleaddresslo),hl
 	adc a,d
@@ -1196,7 +1196,7 @@ modsetsamplenumber
 	add a,0x7f
 	ld d,a
 	ld a,(iy+MODCHANNEL.index)
-	add 0x08
+	add a,0x08
 	ld e,a
 	call opl4writewave
 ;wait for the header to load
@@ -1213,7 +1213,19 @@ modsetfrequency
 	add hl,hl
 	ld a,(modperiodlookuppage)
 	SETPGC000
+	ld a,h
+	cp 0x04
+	jp c,.firsthalf
+;((hl*4-4096)/8+4096)*2 = hl+7168
+	add a,0x1c
+	ld h,a
+	res 0,l
+	jr .sampletable
+.firsthalf
 	add hl,hl
+	add hl,hl
+	add hl,hl
+.sampletable
 	ld de,0xc000-2
 	add hl,de
 	ld d,(hl)
@@ -1222,7 +1234,7 @@ modsetfrequency
 	ld a,(memorystreampages)
 	SETPGC000
 	ld a,(iy+MODCHANNEL.index)
-	add 0x38
+	add a,0x38
 	ld e,a
 	call opl4writewave
 	ld d,l
@@ -1349,68 +1361,6 @@ modtypetable
 	db "22CH",22
 	db "24CH",24
 modtypecount = ($-modtypetable)/5
-
-modinitperiodlookup
-	ld hl,1
-	ld de,0xc000
-.loop	push hl
-	push de
-	call opl4period
-	pop de
-	add hl,hl
-	ld a,b
-	add a,a
-	add a,a
-	add a,a
-	add a,a
-	or h
-	ld (de),a
-	inc de
-	ld a,l
-	or 1
-	ld (de),a
-	inc de
-	pop hl
-	inc hl
-	bit 5,h
-	jr z,.loop
-	ret
-
-opl4period
-;hl = period
-;out: hl = f-number, b = octave
-	ld de,0
-	exx
-	ld de,0x0144
-	ld hl,0xace0
-	call uintdiv32
-	push de
-	push hl
-	ld b,-7
-	exx
-	pop hl
-	pop de
-	srl de : rr h
-	srl de : rr h
-	srl de : rr h
-	ld a,d
-	or e
-	or h
-	jr z,.skip
-.loop	exx
-	inc b
-	srl de : rr hl
-	exx
-	srl de : rr h
-	ld a,d
-	or e
-	or h
-	jr nz,.loop
-.skip	exx
-	ld a,h
-	and 0x3
-	ld h,a
-	ret
 
 modfindnotenumber
 ;hl = period

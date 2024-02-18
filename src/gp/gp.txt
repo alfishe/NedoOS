@@ -10,7 +10,8 @@ gp.com - Проигрыватель для AY8910, GeneralSound, NeoGS, MoonSound, TurboSound
  - mwm  MoonSound
  - pt2  AY
  - pt3  AY, TurboSound (2x AY)
- - mod  GeneralSound, NeoGS, MoonSound
+ - mod  MoonSound, GeneralSound/NeoGS (через прошивку карты)
+ - s3m  MoonSound
 
 Вы можете отключить .mod проигрыватель для MoonSound если в компьютере установлены
 и GeneralSound и MoonSound. Также вы можете выключить все неиспользуемые проигрыватели

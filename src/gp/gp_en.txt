@@ -10,7 +10,8 @@ Supported formats:
  - mwm  MoonSound
  - pt2  AY
  - pt3  AY, TurboSound (2x AY)
- - mod  GeneralSound, NeoGS, MoonSound
+ - mod  MoonSound, GeneralSound/NeoGS (via soundcard firmware)
+ - s3m  MoonSound
 
 You can turn off MoonSound .mod player if you've got both GeneralSound and 
 MoonSound installed in your computer. Moreover, you can turn off all players,
