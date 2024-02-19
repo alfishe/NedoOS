@@ -127,7 +127,7 @@ noise_done:
 
         ; freq change (slide)
         ld a, (sfx_freq_chg)
-        add d
+        add a,d
         ld (sfx_freq), a
 
         ret

@@ -16,6 +16,9 @@ YX      DW 0xBA08
 angle   DW 64
 endlev
 
+firedelaycounter
+        db 0
+
         DS ((-$)&7)&0xff
 MONSTRS
 ;Xx,Yy,TYPEphase,TIMEenergy
