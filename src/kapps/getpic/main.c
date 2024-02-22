@@ -24,7 +24,7 @@ struct fileStruct
   unsigned char pfn[128];
   unsigned char fileName[128];
 } curFileStruct;
-unsigned char ver[] = "2.1";
+unsigned char ver[] = "2.2";
 unsigned char netbuf[2048];
 unsigned char picture[16384];
 unsigned char crlf[2] = {13, 10};
@@ -34,7 +34,14 @@ struct sockaddr_in targetadr;
 struct readstructure readStruct;
 unsigned long contLen;
 unsigned long count;
+unsigned int headlng;
 unsigned int slideShowTime = 0;
+
+struct packetStruct
+{
+unsigned long contLen;
+unsigned int headlng;
+} pack;
 
 void emptyKeyBuf(void)
 {
@@ -59,7 +66,7 @@ void printHelp(void)
   printf(" 'S' Сохранить картинку на диск в текущую папку\n\r");
   printf(" 'V' не выводить информацию об авторах\n\r");
   printf(" 'R' переход в режим  случайная картинка с рейтингом 4+\n\r");
-  printf(" 'A' переход в режим  слайл-шоу\n\r");
+  printf(" 'A' переход в режим  слайд-шоу\n\r");
   printf(" 'H' Данная справочная информация\n\r");
   printf("-----------------Нажмите любую кнопку------------------\n\r");
   ATRIB(93);
@@ -280,38 +287,36 @@ wizread:
 
 unsigned int cutHeader(unsigned int todo)
 {
-  unsigned int q, headlng;
-  unsigned char *count;
-  count = strstr(netbuf, "Content-Length:");
-  if (count == NULL)
+  unsigned int q;
+  unsigned char *count1;
+  count1 = strstr(netbuf, "Content-Length:");
+  if (count1 == NULL)
   {
     printf("contLen  not found \r\n");
     contLen = 0;
   }
   else
   {
-    contLen = atol(count + 15);
+    contLen = atol(count1 + 15);
     bytecount = contLen;
     // printf ("Dlinna  soderzhimogo = %lu \n\r", bytecount);
   }
 
-  count = strstr(netbuf, "\r\n\r\n");
-  if (count == NULL)
+  count1 = strstr(netbuf, "\r\n\r\n");
+  if (count1 == NULL)
   {
     printf("header not found\r\n");
   }
   else
   {
-    headlng = ((unsigned int)count - (unsigned int)netbuf + 4);
+    headlng = ((unsigned int)count1 - (unsigned int)netbuf + 4);
     q = todo - headlng;
-    memcpy(&netbuf, count + 4, q);
+    //memcpy(&netbuf, count1 + 4, q);
     // printf ("header removed. %u bytes\r\n", headlng);
   }
 
   return q;
 }
-
-
 
 char *str_replace(char *dst, int num, const char *str,
                   const char *orig, const char *rep)
@@ -352,6 +357,7 @@ void fillPicture(unsigned char socket)
   bytecount = 255;
   while (1)
   {
+    headlng = 0;
     todo = tcpRead(socket);
     if (todo == 0)
     {
@@ -371,7 +377,7 @@ void fillPicture(unsigned char socket)
 
     for (w = 0; w < todo; w++)
     {
-      picture[w + pPos] = netbuf[w];
+      picture[w + pPos] = netbuf[w + headlng];
     }
     bytecount = bytecount - todo;
     pPos = pPos + todo;
