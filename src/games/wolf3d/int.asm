@@ -72,7 +72,9 @@ IMframe=$+1
         LD A,1
         DEC A
         jr nz,IMNSEC
-        LD DE,#4100
+        ld hl,0x0707
+        ld (0x5800),hl
+        ld e,0 ;LD DE,0x4000;#4100
        ;LD DE,#4100<1
        ;RR D
 IMfps=$+1
@@ -81,7 +83,7 @@ IMfps=$+1
         CALL PRDIG
         LD C,1
         CALL PRDIG
-        XOR A
+        ;XOR A
         LD (IMfps),A
         LD A,50
 IMNSEC
@@ -135,16 +137,17 @@ PRDIG
         ADD A,A
         ADD A,A
         ADD A,A
-        INC A
+        ;INC A
         LD L,A
         LD H,#3D
-        PUSH DE
-        LD B,6
+        ;PUSH DE
+        ld d,0x40
+        LD B,7;6
         LD A,(HL)
         ld (DE),A
         INC L,D
         DJNZ $-4
-        POP DE
+        ;POP DE
         POP AF
         INC E
         RET 

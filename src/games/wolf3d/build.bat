@@ -31,10 +31,9 @@ rem nedotrd wolf.trd -ac hicode2.c
 
 del code.bin
 ren code.c code.bin
+ren hicode.c hicode.bin
 bas2tap -a10 loader.txt wolf.tap
-rem bin2tap -b -a 24576 -r 24576 -o worms.tap code.bin
-rem bin2tap -append -a 49152 -o worms.tap hicode.bin
-rem bin2tap -append -a 49152 -o worms.tap hicode2.bin
+bin2tap -append -a 49152 -o wolf.tap hicode.bin
 bin2tap -append -a 24576 -o wolf.tap code.bin
 
 SET releasedir2=../../../release/

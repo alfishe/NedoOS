@@ -49,10 +49,11 @@ Ybottom=Ycenter+(scrhgt/2)
 scrbase=0x4000+4
 scrtop=Ytop*40+scrbase
         else
-scrhgt=16;24 ;chr$ (10,12,...,24) ;TODO fix
+scrhgt=24 ;chr$ (10,12,...,24) ;TODO fix
 scrhgtpix=scrhgt*8
 scrtop=(24-scrhgt)*16+#4000+scrtopx
 attrtop=((scrtop/8)&0x300)+(0xff&scrtop)+0x5800
+;для ускорения EOR-fill (частично замазывание атрибутами) размеры всегда активной части столбца:
 lowscrtop=#4800+scrtopx
 lowattrtop=((lowscrtop/8)&0x300)+(0xff&lowscrtop)+0x5800
 lowscrhgt=8 ;chr$
