@@ -63,8 +63,9 @@ unsigned int OS_ACCEPT(unsigned char socket);
 // L - SOCKET при положительном значении, при отрицательном значении  - функция завершилась с ошибкой.
 // А - errno при ошибке.
 
-unsigned int OS_NETSHUTDOWN (unsigned char socket);
-// A=SOCKET ; 
+unsigned int OS_NETSHUTDOWN (unsigned char socket, unsigned char type);
+// A=SOCKET
+// E=Type 0 - immediately 1 - only if output buffer empty
 // out: if HL < 0 then A=error
 
 unsigned long OS_DNSRESOLVE (unsigned int adrptr);

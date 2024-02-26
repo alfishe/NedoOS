@@ -14,7 +14,7 @@ unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
 unsigned char is_atm;
-unsigned int errn;
+unsigned int errn, headlng;
 unsigned long contLen;
 unsigned char saveFlag, saveBak;
 unsigned char crlf[2] = {13, 10};
@@ -98,7 +98,7 @@ void printNews(void) // max 20 lines in total and 59 col.
 	curLine = 0;
 	while (curLine < 20)
 	{
-		AT(20, 4 + curLine);
+		AT(20, 3 + curLine);
 		while (1)
 		{
 			OS_READHANDLE(str, fpNews, sizeof(str));
@@ -431,7 +431,7 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 
 	if (operation == 01)
 	{
-		OS_WRITEHANDLE(netbuf, fp2, sizeOfBuf);
+		OS_WRITEHANDLE(netbuf + headlng, fp2, sizeOfBuf);
 		downloaded = downloaded + sizeOfBuf;
 		return 0;
 	}
@@ -488,10 +488,10 @@ wizread:
 	return todo;
 }
 
-unsigned int netShutDown(unsigned char socket)
+unsigned int netShutDown(unsigned char socket, unsigned char type)
 {
 	unsigned int todo;
-	todo = OS_NETSHUTDOWN(socket);
+	todo = OS_NETSHUTDOWN(socket, type);
 	if (todo > 32767)
 	{
 		printf("OS_NETSHUTDOWN: ");
@@ -504,7 +504,7 @@ unsigned int netShutDown(unsigned char socket)
 
 unsigned int cutHeader(unsigned int todo)
 {
-	unsigned int q, headlng;
+	unsigned int q;
 	unsigned char *count;
 
 	count = strstr(netbuf, "Content-Length:");
@@ -526,7 +526,7 @@ unsigned int cutHeader(unsigned int todo)
 	count = strstr(netbuf, "\r\n\r\n");
 	headlng = ((unsigned int)count - (unsigned int)netbuf + 4);
 	q = todo - headlng;
-	memcpy(&netbuf, count + 4, q);
+	// memcpy(&netbuf, count + 4, q);
 	return q;
 }
 
@@ -585,6 +585,7 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 
 	while (bytecount != 0)
 	{
+		headlng = 0;
 		todo = tcpRead(socket);
 		if (todo == 0)
 		{
@@ -607,7 +608,7 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 
 		cancel();
 	}
-	netShutDown(socket);
+	netShutDown(socket, 1);
 	saveBuf(fileNamePtr, 02, 00);
 	if (downloaded != contLen)
 	{

@@ -279,10 +279,10 @@ wizread:
   return todo;
 }
 
-unsigned int netShutDown(unsigned char socket)
+unsigned int netShutDown(unsigned char socket, unsigned char type)
 {
   unsigned int todo;
-  todo = OS_NETSHUTDOWN(socket);
+  todo = OS_NETSHUTDOWN(socket, type);
   if (todo > 32767)
   {
     clearStatus();
@@ -545,42 +545,8 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
 
       strcpy(curFileStruct.afn, curFileStruct.authorTitle);
       nameRepair(curFileStruct.afn, afnSize);
-      /*
-            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "\\", "_");
-            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "/", "_");
-            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, ":", "_");
-            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "*", "_");
-            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "?", "_");
-            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "<", "_");
-            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, ">", "_");
-            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "|", "_");
-            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, " ", "_");
-            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&#039;", "'");
-            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&amp;", "&");
-            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&quot;", "'");
-            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&gt;", ")");
-            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "&lt;", "(");
-            str_replace(curFileStruct.afn, afnSize, curFileStruct.afn, "\"", "'");
-      */
       strcpy(curFileStruct.tfn, curFileStruct.trackName);
       nameRepair(curFileStruct.tfn, tfnSize);
-      /*
-            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "\\", "_");
-            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "/", "_");
-            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, ":", "_");
-            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "*", "_");
-            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "?", "_");
-            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "<", "_");
-            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, ">", "_");
-            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "|", "_");
-            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, " ", "_");
-            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&#039;", "'");
-            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&amp;", "&");
-            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&quot;", "'");
-            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&gt;", ")");
-            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "&lt;", "(");
-            str_replace(curFileStruct.tfn, tfnSize, curFileStruct.tfn, "\"", "'");
-      */
       sprintf(curFileStruct.fileName, "%s-%s.%s", curFileStruct.afn, curFileStruct.tfn, formats[curFormat]);
 
       if (strlen(curFileStruct.fileName) > 63)
@@ -676,7 +642,7 @@ void getData(unsigned char socket)
       break;
     }
   }
-  netShutDown(socket);
+  netShutDown(socket, 1);
 }
 
 unsigned int tcpSend(unsigned char socket, unsigned int messageadr, unsigned int size)
@@ -817,7 +783,7 @@ rejson:
     YIELD();
     if (retry > 0)
     {
-      netShutDown(socket);
+      netShutDown(socket, 1);
       goto rejson;
     }
     // AT(1, 1);
@@ -919,7 +885,7 @@ unsigned char getTrack(unsigned long fileId)
     saveBuf(curFileStruct.picId, 01, bytes2read);
     bytecount = bytecount - bytes2read;
   }
-  netShutDown(socket);
+  netShutDown(socket ,0);
   return 0;
 }
 

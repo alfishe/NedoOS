@@ -167,10 +167,10 @@ unsigned char OpenSock(unsigned char family, unsigned char protocol)
   return socket;
 }
 
-unsigned int netShutDown(unsigned char socket)
+unsigned int netShutDown(unsigned char socket, unsigned char type)
 {
   unsigned int todo;
-  todo = OS_NETSHUTDOWN(socket);
+  todo = OS_NETSHUTDOWN(socket, type);
   if (todo > 32767)
   {
     printf("OS_NETSHUTDOWN: ");
@@ -201,11 +201,11 @@ unsigned char netConnect(unsigned char socket)
 
     if (todo > 32767)
     {
-      netShutDown(socket);
+      netShutDown(socket, 1);
       socket = OpenSock(AF_INET, SOCK_STREAM);
-      printf("OS_NETCONNECT ERROR [Retry:%u] [Pic:%lu]\n\r", retry, count);
-      delay(1000);
+      printf("OS_NETCONNECT [ERROR:%u] [Retry:%u] [Pic:%lu]\n\r", (todo & 255), retry, count);
       retry--;
+      delay(200);
     }
     else
     {
@@ -386,7 +386,7 @@ void fillPicture(unsigned char socket)
       break;
     }
   }
-  netShutDown(socket);
+  netShutDown(socket, 1);
 }
 void nameRepair(unsigned char *pfn, unsigned int tfnSize)
 {
