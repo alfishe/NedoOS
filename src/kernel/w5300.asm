@@ -68,7 +68,7 @@ Sn_MR_MF            EQU (1 << 6)             ;< MAC filter bit of Sn_MR. */
 Sn_MR_IGMPv         EQU (1 << 5)             ;< IGMP version bit of Sn_MR. */
 Sn_MR_ND            EQU (1 << 5)             ;< No delayed ack bit of Sn_MR. */
 Sn_MR_CLOSE         EQU 0x00                 ;< Protocol bits of Sn_MR. */
-Sn_MR_TCP           EQU 0x01                 ;< Protocol bits of Sn_MR. */
+Sn_MR_TCP           EQU 0x01         		 ;< Protocol bits of Sn_MR. */
 Sn_MR_UDP           EQU 0x02                 ;< Protocol bits of Sn_MR. */
 Sn_MR_IPRAW         EQU 0x03                 ;< Protocol bits of Sn_MR. */
 Sn_MR_MACRAW        EQU 0x04                 ;< Protocol bits of Sn_MR. */
@@ -342,7 +342,7 @@ w53_valid_socket1:
 		jr z,w53_valid_free
 		cp (iy+app.id)
 		ret nz
-		;jr nz,w53_invalid_socked0
+		;jr nz,w53_invalid_socked
 w53_valid_free:
 		ld bc,WIZ_CFG_PORT
 		in a,(c)
@@ -448,12 +448,16 @@ w53_close_tcp:
 		ld b,WIZ_S_SSR
 		in a,(c)
 		jr z,w53_close3		;уже закрыт??? возможно ненужно
+		cp SOCK_CLOSE_WAIT
+		jr nc,w53_close_discon
+		;jr nc,w53_close_tcp
 		cp SOCK_ESTABLISHED
 		jr nz,w53_close_wait	;w53_closewait
 		ld a,e
 		or a
 		ld a,ERR_EAGAIN
 		ret nz
+w53_close_discon
 		ld a,Sn_CR_DISCON
 		call w53_cmd
 		jr w53_close_tcp
