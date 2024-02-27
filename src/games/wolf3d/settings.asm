@@ -31,6 +31,8 @@ mindist=111 ;max=111 ;111 curved walls TODO fix ;118 stuck in door
 colour=7
 ceilingcolour=0
 floorcolour=colour*9
+ceilingcolourbyte=0b00000000;%11111111 ;atm
+floorcolourbyte=0b00010010;%11110110 ;atm
 
 sprites=1
 CURSPRITES_RECSZ=5;4 ;ID, distL, distH, xscr, [monsterindex]

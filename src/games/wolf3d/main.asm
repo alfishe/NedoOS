@@ -12,7 +12,7 @@ INTSTACK=0x3e80
 addhlbc=1 ;можно scrhgt=200 и в одной странице
 customscales=0;1
 
-IMPOSSIBLECOLOR=0x01 ;(b+w)
+IMPOSSIBLECOLOR=0b01000111;0x01 ;(b+w)
 
 muz=0x8000
 
@@ -422,13 +422,13 @@ shutay0
 	
 texfilename
         if 1;TEXBMP
-        db "wolftex.bmp",0
+        db "wolftex3.bmp",0
         else
         db "wolftex.0",0
 texfilenamenum=$-2
         endif
 sprfilename
-        db "wolfspr.bmp",0
+        db "wolfspr3.bmp",0
 
         align 256
 t1x
@@ -477,8 +477,9 @@ muzfilename
         db "music.bin",0
 
 wolfpal
-        dw 0xffff,0x0c0c,0x3f3f,0xdede,0xfefe,0xdfdf,0x4c4c,0xaeae
-        dw 0xbdbd,0xfdfd,0xbfbf,0xeded,0x8d8d,0x7d7d,0xecec,0x1f1f
+        ;dw 0xffff,0x0c0c,0x3f3f,0xdede,0xfefe,0xdfdf,0x4c4c,0xaeae
+        ;dw 0xbdbd,0xfdfd,0xbfbf,0xeded,0x8d8d,0x7d7d,0xecec,0x1f1f
+        include "pal.ast"
 
         include "WATM2.asm"
 

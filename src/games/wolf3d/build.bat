@@ -1,11 +1,14 @@
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
 set installdir=nedogame
+nedores wolftex3.bmp pal.dat pal.ast
 nedotrd WOLF484.TRD -e mapatm.E
 sjasmplus --nologo --msg=war -Datm=1 -Ddoublescr=1 main.asm
 sjasmplus --nologo --msg=war sfx.asm
 sjasmplus --nologo --msg=war music.asm
 copy wolftex.bmp wolf3d
+copy wolftex3.bmp wolf3d
 copy wolfspr.bmp wolf3d
+copy wolfspr3.bmp wolf3d
 
 "../../_sdk/nedores.exe" walls.bmp walls.dat walls.ast
 "../../_sdk/nedores.exe" walls2.bmp walls.dat walls2.ast
