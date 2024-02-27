@@ -39,8 +39,8 @@ unsigned int slideShowTime = 0;
 
 struct packetStruct
 {
-unsigned long contLen;
-unsigned int headlng;
+  unsigned long contLen;
+  unsigned int headlng;
 } pack;
 
 void emptyKeyBuf(void)
@@ -99,64 +99,61 @@ void errorPrint(unsigned int error)
   switch (error)
   {
   case 2:
-    printf("02 SHUT_RDWR\n\r");
+    printf("02 SHUT_RDWR");
     break;
   case 4:
-    printf("04 ERR_INTR\n\r");
+    printf("04 ERR_INTR");
     break;
   case 23:
-    printf("23 ERR_NFILE\n\r");
+    printf("23 ERR_NFILE");
     break;
   case 35:
-    printf("35 ERR_EAGAIN or ERR_EWOULDBLOCK\n\r");
+    printf("35 ERR_EAGAIN or ERR_EWOULDBLOCK");
     break;
   case 37:
-    printf("37 ERR_ALREADY\n\r");
+    printf("37 ERR_ALREADY");
     break;
   case 38:
-    printf("38 ERR_NOTSOCK\n\r");
+    printf("38 ERR_NOTSOCK");
     break;
   case 40:
-    printf("40 ERR_EMSGSIZE\n\r");
+    printf("40 ERR_EMSGSIZE");
     break;
   case 41:
-    printf("41 ERR_PROTOTYPE\n\r");
+    printf("41 ERR_PROTOTYPE");
     break;
   case 47:
-    printf("47 ERR_AFNOSUPPORT\n\r");
+    printf("47 ERR_AFNOSUPPORT");
     break;
   case 53:
-    printf("53 ERR_ECONNABORTED\n\r");
+    printf("53 ERR_ECONNABORTED");
     break;
   case 54:
-    printf("54 ERR_CONNRESET\n\r");
+    printf("54 ERR_CONNRESET");
     break;
   case 57:
-    printf("57 ERR_NOTCONN\n\r");
+    printf("57 ERR_NOTCONN");
     break;
   case 65:
-    printf("65 ERR_HOSTUNREACH\n\r");
+    printf("65 ERR_HOSTUNREACH");
     break;
   default:
-    printf("%u UNKNOWN ERROR\n\r", error);
+    printf("%u UNKNOWN ERROR", error);
     break;
   }
-  do
-  {
-    YIELD();
-  } while (_low_level_get() == 0);
-  emptyKeyBuf();
 }
 
 unsigned char OpenSock(unsigned char family, unsigned char protocol)
 {
-  unsigned char socket;
+  signed char socket;
   unsigned int todo;
   todo = OS_NETSOCKET((family << 8) + protocol);
   if (todo > 32767)
   {
     printf("OS_NETSOCKET: ");
     errorPrint(todo & 255);
+    printf("\r\n");
+    getchar();
     exit(0);
   }
   else
@@ -167,7 +164,7 @@ unsigned char OpenSock(unsigned char family, unsigned char protocol)
   return socket;
 }
 
-unsigned int netShutDown(unsigned char socket, unsigned char type)
+signed char netShutDown(signed char socket, unsigned char type)
 {
   unsigned int todo;
   todo = OS_NETSHUTDOWN(socket, type);
@@ -175,16 +172,18 @@ unsigned int netShutDown(unsigned char socket, unsigned char type)
   {
     printf("OS_NETSHUTDOWN: ");
     errorPrint(todo & 255);
-    return 255;
+    printf("\r\n");
+    getchar();
+    return -1;
   }
   else
   {
     // printf ("Socket #%u closed.\n\r", socket);
   }
-  return 0;
+  return -1;
 }
 
-unsigned char netConnect(unsigned char socket)
+unsigned char netConnect(signed char socket)
 {
   unsigned int todo, retry = 10;
 
@@ -201,11 +200,13 @@ unsigned char netConnect(unsigned char socket)
 
     if (todo > 32767)
     {
-      netShutDown(socket, 1);
+      netShutDown(socket, 0);
       socket = OpenSock(AF_INET, SOCK_STREAM);
-      printf("OS_NETCONNECT [ERROR:%u] [Retry:%u] [Pic:%lu]\n\r", (todo & 255), retry, count);
-      retry--;
+      printf("OS_NETCONNECT [ERROR:");
+      errorPrint(todo & 255);
+      printf("] [Retry:%u] [Pic:%lu]\r\n", retry, count);
       delay(200);
+      retry--;
     }
     else
     {
@@ -215,11 +216,13 @@ unsigned char netConnect(unsigned char socket)
   }
   printf("OS_NETCONNECT: ");
   errorPrint(todo & 255);
+  printf("\r\n");
+  getchar();
   exit(0);
   return 0;
 }
 
-unsigned int tcpSend(unsigned char socket, unsigned int messageadr, unsigned int size)
+unsigned int tcpSend(signed char socket, unsigned int messageadr, unsigned int size)
 {
   unsigned char retry = 50;
   unsigned int todo;
@@ -237,6 +240,8 @@ wizwrite:
     {
       printf("OS_WIZNETWRITE: ");
       errorPrint(todo & 255);
+      printf("\r\n");
+      getchar();
       exit(0);
     }
     retry--;
@@ -250,7 +255,7 @@ wizwrite:
   return todo;
 }
 
-unsigned int tcpRead(unsigned char socket)
+unsigned int tcpRead(signed char socket)
 {
   unsigned char retry = 75;
   unsigned int err, todo;
@@ -268,11 +273,13 @@ wizread:
       err = todo & 255;
       printf("OS_WIZNETREAD: ");
       errorPrint(err);
-      if (err == 35)
+      printf("\r\n");
+      if (err == ERR_EAGAIN)
       {
         retry = 75;
         return 0;
       }
+      getchar();
       exit(0);
     }
     retry--;
@@ -311,8 +318,8 @@ unsigned int cutHeader(unsigned int todo)
   {
     headlng = ((unsigned int)count1 - (unsigned int)netbuf + 4);
     q = todo - headlng;
-    //memcpy(&netbuf, count1 + 4, q);
-    // printf ("header removed. %u bytes\r\n", headlng);
+    // memcpy(&netbuf, count1 + 4, q);
+    //  printf ("header removed. %u bytes\r\n", headlng);
   }
 
   return q;
@@ -348,7 +355,7 @@ char *str_replace(char *dst, int num, const char *str,
   return tmp;
 }
 
-void fillPicture(unsigned char socket)
+void fillPicture(signed char socket)
 {
   unsigned int todo, w, pPos, headskip;
 
@@ -386,7 +393,7 @@ void fillPicture(unsigned char socket)
       break;
     }
   }
-  netShutDown(socket, 1);
+  netShutDown(socket, 0);
 }
 void nameRepair(unsigned char *pfn, unsigned int tfnSize)
 {
@@ -422,7 +429,7 @@ unsigned char getPic(unsigned long fileId)
 {
   unsigned int todo;
   unsigned char buffer[] = "0000000000";
-  unsigned char socket;
+  signed char socket;
   socket = OpenSock(AF_INET, SOCK_STREAM);
   todo = netConnect(socket);
   netbuf[0] = '\0';

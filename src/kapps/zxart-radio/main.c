@@ -256,7 +256,7 @@ wizread:
       clearStatus();
       printf("OS_WIZNETREAD: ");
       errorPrint(err);
-      if (err == 35)
+      if (err == ERR_EAGAIN)
       {
         return 0;
       }
