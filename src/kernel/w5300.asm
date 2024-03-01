@@ -178,28 +178,30 @@ w53_getdns:	;DE-указатель на 4 байта dns
 		ld hl,w53_setdns.dns
 		jr w53_setdns.dnsldi
 
+		display "w53_socket", w53_socket
 w53_socket:
 ;E-socket type, D-address family
 ;ищем свободный сокет
-		ld l,-1
+		ld l,-1 ; по умолчаню ошибка
 		ld a,AF_INET
 		cp d
 		ld a,ERR_AFNOSUPPORT
 		ret nz
 w53_socket3:
-		ld a,1-5
+		ld ix,w53_socflags + 1 - 5
+		ld bc, 5
+		ld d,8 + 1
 w53_socket0:
-		add 5
-		cp 37
-		jr c,w53_socket1
-		ld l,-1
+		dec d
+		jr nz,w53_socket1
 		ld a,ERR_NFILE ;все сокеты заняты
 		ret
 w53_socket1:
-		ld l,a
-		call w53_valid_socket1
-		ld a,l
+		add ix,bc
+		ld a,(ix+4)
+		or a
 		jr nz,w53_socket0
+		call w53_valid_free
 		ld a,e
 		ld d,Sn_MR_TCP
 		cp SOCK_STREAM
@@ -211,7 +213,6 @@ w53_socket1:
 		cp SOCK_ICMP
 		jr z,w53_socket2_icmp
 		ld a,ERR_PROTOTYPE
-		ld l,-1
 		ret
 w53_socket2:
 		ld b,WIZ_S_MR
@@ -227,6 +228,9 @@ w53_socket2:
 		out (c),d
 		inc b
 		out (c),e
+		ld a,ixl
+		sub w53_socflags & 0xff
+		ld l,a
 		xor a
 		ld (ix+2),a
 		ld (ix+3),a
@@ -235,7 +239,7 @@ w53_socket2_icmp:
 		ld b,WIZ_S_PROTOR
 		ld a,IPPROTO_ICMP
 		out (c),a
-		jr w53_socket2:
+		jr w53_socket2
 
 		
 w53_bind:
@@ -338,11 +342,8 @@ w53_valid_socket1:
 		adc a,0xff&(w53_socflags>>8)
 		ld ixh,a
 		ld a,(ix+4)
-		or a
-		jr z,w53_valid_free
 		cp (iy+app.id)
-		ret nz
-		;jr nz,w53_invalid_socked
+		jr nz,w53_invalid_socked
 w53_valid_free:
 		ld bc,WIZ_CFG_PORT
 		in a,(c)
