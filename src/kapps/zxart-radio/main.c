@@ -10,7 +10,7 @@
 #include <graphic.h>
 #include <terminal.c>
 #define COMMANDLINE 0x0080
-unsigned char ver[] = "1.8";
+unsigned char ver[] = "1.9";
 unsigned char queryType[64];
 unsigned char netbuf[1452];
 unsigned char dataBuffer[6096];
@@ -205,9 +205,31 @@ unsigned char OpenSock(unsigned char family, unsigned char protocol)
   return socket;
 }
 
-unsigned char netConnect(unsigned char socket)
+unsigned int netShutDown(unsigned char socket, unsigned char type)
 {
   unsigned int todo;
+  todo = OS_NETSHUTDOWN(socket, type);
+  if (todo > 32767)
+  {
+    clearStatus();
+    printf("OS_NETSHUTDOWN: ");
+    errorPrint(todo & 255);
+    return 255;
+  }
+  else
+  {
+    if (logFlag)
+    {
+      clearStatus();
+      printf("OS_NETSHUTDOWN: Socket #%u closed.", socket);
+    }
+  }
+  return 0;
+}
+
+unsigned char netConnect(unsigned char socket)
+{
+  unsigned int todo, retry = 10;
 
   targetadr.family = AF_INET;
   targetadr.porth = 00;
@@ -216,24 +238,33 @@ unsigned char netConnect(unsigned char socket)
   targetadr.b2 = 146;
   targetadr.b3 = 69;
   targetadr.b4 = 13;
-
-  todo = OS_NETCONNECT(socket, &targetadr);
-  if (todo > 32767)
+  while (retry > 0)
   {
-    clearStatus();
-    printf("OS_NETCONNECT: ");
-    errorPrint(todo & 255);
+    todo = OS_NETCONNECT(socket, &targetadr);
 
-    exit(0);
-  }
-  else
-  {
-    if (logFlag)
+    if (todo > 32767)
     {
+      retry--;
       clearStatus();
-      printf("OS_NETCONNECT: connected , %u", (todo & 255));
+      printf("OS_NETCONNECT [ERROR:");
+      errorPrint(todo & 255);
+      printf("] [Retry:%u]", retry);
+      YIELD();
+      netShutDown(socket, 0);
+      socket = OpenSock(AF_INET, SOCK_STREAM);
+    }
+    else
+    {
+      if (logFlag)
+      {
+        clearStatus();
+        printf("OS_NETCONNECT: connected , %u", (todo & 255));
+      }
+      return 1;
     }
   }
+  getchar();
+  exit(0);
   return 0;
 }
 
@@ -279,27 +310,6 @@ wizread:
   return todo;
 }
 
-unsigned int netShutDown(unsigned char socket, unsigned char type)
-{
-  unsigned int todo;
-  todo = OS_NETSHUTDOWN(socket, type);
-  if (todo > 32767)
-  {
-    clearStatus();
-    printf("OS_NETSHUTDOWN: ");
-    errorPrint(todo & 255);
-    return 255;
-  }
-  else
-  {
-    if (logFlag)
-    {
-      clearStatus();
-      printf("OS_NETSHUTDOWN: Socket #%u closed.", socket);
-    }
-  }
-  return 0;
-}
 int pos(unsigned char *s, unsigned char *c, unsigned int n, unsigned int startPos)
 {
   unsigned int i, j;
@@ -604,11 +614,10 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
 
 void getData(unsigned char socket)
 {
-  unsigned int todo, w, bPos, bytes2read, headskip;
+  unsigned int todo, w, bPos, headskip;
 
   headskip = 0;
   bPos = 0;
-  bytecount = 255;
   while (1)
   {
     todo = tcpRead(socket);
@@ -616,29 +625,27 @@ void getData(unsigned char socket)
     {
       break;
     }
-    bytes2read = todo;
     if (headskip == 0)
     {
       headskip = 1;
-      bytes2read = cutHeader(todo);
+      todo = cutHeader(todo);
     }
 
-    if (bPos + bytes2read > sizeof(dataBuffer))
+    if (bPos + todo > sizeof(dataBuffer))
     {
       clearStatus();
       printf("dataBuffer overrun...");
       break;
     }
 
-    for (w = 0; w < bytes2read; w++)
+    for (w = 0; w < todo; w++)
     {
       dataBuffer[w + bPos] = netbuf[w];
     }
-    bytecount = bytecount - bytes2read;
-    bPos = bPos + bytes2read;
-    if (bytecount == 0)
+    bPos = bPos + todo;
+    if (bPos == contLen)
     {
-      dataBuffer[bytes2read + bPos + 1] = '\0';
+      // dataBuffer[todo + bPos + 1] = '\0';
       break;
     }
   }
@@ -885,7 +892,7 @@ unsigned char getTrack(unsigned long fileId)
     saveBuf(curFileStruct.picId, 01, bytes2read);
     bytecount = bytecount - bytes2read;
   }
-  netShutDown(socket ,0);
+  netShutDown(socket, 0);
   return 0;
 }
 
@@ -1150,7 +1157,9 @@ rekey:
     if (keypress == 27 || keypress == 'e' || keypress == 'E')
     {
       OS_DROPAPP(pId);
-      printf("Good bye... %u \r\n", pId);
+      BOX(1, 1, 80, 25, 40);
+      AT(1, 1);
+      printf("Good bye...\r\n");
       ATRIB(37);
       ATRIB(40);
       exit(0);
