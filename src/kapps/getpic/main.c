@@ -24,11 +24,10 @@ struct fileStruct
   unsigned char pfn[128];
   unsigned char fileName[128];
 } curFileStruct;
-unsigned char ver[] = "2.2";
+unsigned char ver[] = "2.3";
 unsigned char netbuf[2048];
 unsigned char picture[16384];
 unsigned char crlf[2] = {13, 10};
-unsigned long bytecount;
 unsigned char status, keypress, verbose, randomPic, slideShow;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
@@ -108,7 +107,7 @@ void errorPrint(unsigned int error)
     printf("23 ERR_NFILE");
     break;
   case 35:
-    printf("35 ERR_EAGAIN or ERR_EWOULDBLOCK");
+    printf("35 ERR_EAGAIN");
     break;
   case 37:
     printf("37 ERR_ALREADY");
@@ -150,16 +149,16 @@ unsigned char OpenSock(unsigned char family, unsigned char protocol)
   todo = OS_NETSOCKET((family << 8) + protocol);
   if (todo > 32767)
   {
-    printf("OS_NETSOCKET: ");
+    printf("OS_NETSOCKET: [ERROR:");
     errorPrint(todo & 255);
-    printf("\r\n");
+    printf("] Press any key.\r\n");
     getchar();
     exit(0);
   }
   else
   {
     socket = ((todo & 65280) >> 8);
-    // printf ("OS_NETSOCKET: Socket #%d created\n\r", socket);
+    // printf("OS_NETSOCKET: Socket #%d created\n\r", socket);
   }
   return socket;
 }
@@ -170,15 +169,14 @@ signed char netShutDown(signed char socket, unsigned char type)
   todo = OS_NETSHUTDOWN(socket, type);
   if (todo > 32767)
   {
-    printf("OS_NETSHUTDOWN: ");
+    printf("OS_NETSHUTDOWN: [ERROR:");
     errorPrint(todo & 255);
-    printf("\r\n");
-    getchar();
+    printf("]\r\n");
     return -1;
   }
   else
   {
-    // printf ("Socket #%u closed.\n\r", socket);
+    // printf("Socket #%d closed.\n\r", socket);
   }
   return -1;
 }
@@ -200,23 +198,20 @@ unsigned char netConnect(signed char socket)
 
     if (todo > 32767)
     {
-      netShutDown(socket, 0);
-      socket = OpenSock(AF_INET, SOCK_STREAM);
+      retry--;
       printf("OS_NETCONNECT [ERROR:");
       errorPrint(todo & 255);
       printf("] [Retry:%u] [Pic:%lu]\r\n", retry, count);
-      delay(200);
-      retry--;
+      YIELD();
+      netShutDown(socket, 0);
+      socket = OpenSock(AF_INET, SOCK_STREAM);
     }
     else
     {
       // printf("OS_NETCONNECT: connection successful, %u\n\r", (todo & 255));
-      return 0;
+      return 1;
     }
   }
-  printf("OS_NETCONNECT: ");
-  errorPrint(todo & 255);
-  printf("\r\n");
   getchar();
   exit(0);
   return 0;
@@ -224,71 +219,68 @@ unsigned char netConnect(signed char socket)
 
 unsigned int tcpSend(signed char socket, unsigned int messageadr, unsigned int size)
 {
-  unsigned char retry = 50;
+  unsigned char retry = 10;
   unsigned int todo;
   readStruct.socket = socket;
   readStruct.BufAdr = messageadr;
   readStruct.bufsize = size;
   readStruct.protocol = SOCK_STREAM;
-
-wizwrite:
-  todo = OS_WIZNETWRITE(&readStruct);
-  if (todo > 32767)
+  while (retry > 0)
   {
-
-    if (retry == 0)
+    todo = OS_WIZNETWRITE(&readStruct);
+    if (todo > 32767)
     {
-      printf("OS_WIZNETWRITE: ");
+      printf("OS_WIZNETWRITE: [ERROR:");
       errorPrint(todo & 255);
-      printf("\r\n");
-      getchar();
-      exit(0);
+      printf("] [Retry:%u] [Pic:%lu]\r\n", retry, count);
+      YIELD();
+      retry--;
     }
-    retry--;
-    YIELD();
-    goto wizwrite;
+    else
+    {
+      // printf("OS_WIZNETWRITE: %u bytes written. \n\r", todo);
+      return todo;
+    }
   }
-  else
-  {
-    //  printf("OS_WIZNETWRITE: %u bytes written. \n\r", todo);
-  }
+
+  getchar();
+  exit(0);
   return todo;
 }
 
 unsigned int tcpRead(signed char socket)
 {
-  unsigned char retry = 75;
-  unsigned int err, todo;
+  unsigned char retry = 10;
+  unsigned int todo;
 
   readStruct.socket = socket;
   readStruct.BufAdr = (unsigned int)&netbuf;
   readStruct.bufsize = sizeof(netbuf);
   readStruct.protocol = SOCK_STREAM;
-wizread:
-  todo = OS_WIZNETREAD(&readStruct);
-  if (todo > 32767)
+
+  while (retry > 0)
   {
-    if (retry == 0)
+    todo = OS_WIZNETREAD(&readStruct);
+
+    if (todo > 32767)
     {
-      err = todo & 255;
-      printf("OS_WIZNETREAD: ");
-      errorPrint(err);
-      printf("\r\n");
-      if (err == ERR_EAGAIN)
+      if ((todo & 255) != ERR_EAGAIN)
       {
-        retry = 75;
-        return 0;
+        printf("OS_WIZNETREAD: [ERROR:");
+        errorPrint(todo & 255);
+        printf("] [Retry:%u] [Pic:%lu]\r\n", retry, count);
+        YIELD();
+        retry--;
       }
-      getchar();
-      exit(0);
     }
-    retry--;
-    // printf("OS_WIZNETREAD: %u \n\r", retry);
-    YIELD();
-    delay(100);
-    goto wizread;
+    else
+    {
+      // printf("OS_WIZNETREAD: %u bytes read. \n\r", todo);
+      return todo;
+    }
   }
-  // printf("OS_WIZNETREAD: %u bytes read. \n\r", todo);
+  getchar();
+  exit(0);
   return todo;
 }
 
@@ -305,8 +297,7 @@ unsigned int cutHeader(unsigned int todo)
   else
   {
     contLen = atol(count1 + 15);
-    bytecount = contLen;
-    // printf ("Dlinna  soderzhimogo = %lu \n\r", bytecount);
+    // printf ("Dlinna  soderzhimogo = %lu \n\r", contLen);
   }
 
   count1 = strstr(netbuf, "\r\n\r\n");
@@ -319,7 +310,7 @@ unsigned int cutHeader(unsigned int todo)
     headlng = ((unsigned int)count1 - (unsigned int)netbuf + 4);
     q = todo - headlng;
     // memcpy(&netbuf, count1 + 4, q);
-    //  printf ("header removed. %u bytes\r\n", headlng);
+    // printf("header removed. %u bytes\r\n", headlng);
   }
 
   return q;
@@ -358,10 +349,8 @@ char *str_replace(char *dst, int num, const char *str,
 void fillPicture(signed char socket)
 {
   unsigned int todo, w, pPos, headskip;
-
   headskip = 0;
   pPos = 0;
-  bytecount = 255;
   while (1)
   {
     headlng = 0;
@@ -386,9 +375,8 @@ void fillPicture(signed char socket)
     {
       picture[w + pPos] = netbuf[w + headlng];
     }
-    bytecount = bytecount - todo;
     pPos = pPos + todo;
-    if (bytecount == 0)
+    if (pPos == contLen)
     {
       break;
     }
@@ -621,14 +609,14 @@ void convert866(void)
   }
 }
 
-unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned char queryNum)
+long processJson(unsigned long startPos, unsigned char limit, unsigned char queryNum)
 {
   unsigned int retry, tSize;
-  unsigned int todo, pPos, headskip;
+  unsigned int todo;
   unsigned char buffer[] = "000000000";
-  unsigned char *count, socket;
+  unsigned char *count1, socket;
   unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; GetPic)\r\n\r\n\0";
-  retry = 10;
+
   netbuf[0] = '\0';
   switch (queryNum)
   {
@@ -662,34 +650,38 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
     strcat(netbuf, userAgent);
     break;
   }
-
-rejson:
-  socket = OpenSock(AF_INET, SOCK_STREAM);
-  netConnect(socket);
-
-  todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
-
-  headskip = 0;
-  pPos = 0;
-  fillPicture(socket);
-
-  count = strstr(picture, "responseStatus\":\"success");
-  if (count == NULL)
+  retry = 10;
+  while (42)
   {
-    ATRIB(91);
-    printf("BAD JSON, NO responseStatus: success. %u   \r\n", retry);
-    retry--;
-    YIELD();
-    if (retry > 0)
-      goto rejson;
-    return -1;
+    socket = OpenSock(AF_INET, SOCK_STREAM);
+    netConnect(socket);
+    todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
+    fillPicture(socket);
+
+    count1 = strstr(picture, "responseStatus\":\"success");
+    if (count1 == NULL)
+    {
+      retry--;
+      ATRIB(91);
+      printf("PROCESS JSON: [ERROR: Bad responseStatus.] [Retry:%u] [Pic:%lu]\r\n", retry, startPos);
+      YIELD();
+      if (retry < 1)
+      {
+        return -1;
+      }
+    }
+    else
+    {
+      break;
+    }
   }
 
-  count = strstr(picture, "\"id\":");
-  if (count == NULL)
+  count1 = strstr(picture, "\"id\":");
+  if (count1 == NULL)
   {
     ATRIB(91);
-    printf("BAD JSON: ID not found.\r\n");
+    printf("PROCESS JSON: [ERROR: ID not found.] [Pic:%lu]\r\n", startPos);
+    YIELD();
     return -2;
   }
 
@@ -770,6 +762,7 @@ void printData(void)
   printf(" \r\n");
   ATRIB(96);
   printf(" \r\n");
+  YIELD();
 }
 void safeKeys(unsigned char keypress)
 {
@@ -860,6 +853,9 @@ C_task main(void)
 
 start:
   emptyKeyBuf();
+
+  //printf("    >>>> GET FIRST JSON [%lu]\r\n", count);
+  //YIELD();
   switch (randomPic)
   {
   case 0:
@@ -875,7 +871,11 @@ start:
     count++;
     goto start;
   }
+
+  //printf("    >>>> GET AUTHOR JSON [%lu]\r\n", atol(curFileStruct.authorIds));
+  //YIELD();
   idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
+
   if (idkfa < 0)
   {
     printf(" Cant parse curFileStruct.authorIds = %s \r\n\r\n", curFileStruct.authorIds);
@@ -895,6 +895,8 @@ start:
   if (!strcmp(curFileStruct.picType, "standard"))
 
   {
+    //printf("    >>>> GETPIC [%ld]\r\n", iddqd);
+    //YIELD();
     errno = getPic(iddqd);
 
   review:
