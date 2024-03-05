@@ -460,8 +460,7 @@ unsigned char savePic(unsigned long fileId)
   fp2 = OS_CREATEHANDLE(curFileStruct.fileName, 0x80);
   if (((int)fp2) & 0xff)
   {
-    printf(curFileStruct.fileName);
-    printf(" creating error\r\n");
+    printf("%s creating error\r\n", curFileStruct.fileName);
     getchar();
     exit(0);
   }
@@ -506,7 +505,7 @@ const char *parseJson(unsigned char *property)
   n = pos(picture, property, 1, 0);
   if (n == -1)
   {
-    strcpy(netbuf, "Not Found");
+    strcpy(netbuf, "-");
     // printf("Property %s not found", property);
     return netbuf;
   }
@@ -733,7 +732,7 @@ void printData(void)
   ATRIB(93);
   printf(" Total Pics: ");
   ATRIB(97);
-  printf("%lu \r\n", curFileStruct.totalAmount);
+  printf("%lu\r\n", curFileStruct.totalAmount);
   ATRIB(93);
   printf(" Author: ");
   ATRIB(96);
@@ -749,8 +748,7 @@ void printData(void)
   ATRIB(93);
   printf(" YEAR: ");
   ATRIB(97);
-  printf("%u", curFileStruct.picYear);
-  printf(" \r\n");
+  printf("%u\r\n", curFileStruct.picYear);
   ATRIB(93);
   printf(" AuthorsIDs ");
   ATRIB(97);
@@ -758,10 +756,9 @@ void printData(void)
   ATRIB(93);
   printf(" Real name: ");
   ATRIB(97);
-  printf("%s", curFileStruct.authorRealName);
-  printf(" \r\n");
+  printf("%s\r\n", curFileStruct.authorRealName);
   ATRIB(96);
-  printf(" \r\n");
+  printf("\r\n");
   YIELD();
 }
 void safeKeys(unsigned char keypress)
@@ -854,8 +851,6 @@ C_task main(void)
 start:
   emptyKeyBuf();
 
-  // printf("    >>>> GET FIRST JSON [%lu]\r\n", count);
-  // YIELD();
   switch (randomPic)
   {
   case 0:
@@ -893,8 +888,6 @@ start:
   if (!strcmp(curFileStruct.picType, "standard"))
 
   {
-    // printf("    >>>> GETPIC [%ld]\r\n", iddqd);
-    // YIELD();
     errno = getPic(iddqd);
 
   review:
