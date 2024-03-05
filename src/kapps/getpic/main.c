@@ -142,7 +142,7 @@ void errorPrint(unsigned int error)
   }
 }
 
-unsigned char OpenSock(unsigned char family, unsigned char protocol)
+signed char OpenSock(unsigned char family, unsigned char protocol)
 {
   signed char socket;
   unsigned int todo;
@@ -151,7 +151,7 @@ unsigned char OpenSock(unsigned char family, unsigned char protocol)
   {
     printf("OS_NETSOCKET: [ERROR:");
     errorPrint(todo & 255);
-    printf("] Press any key.\r\n");
+    printf("] Press any key.");
     getchar();
     exit(0);
   }
@@ -171,14 +171,14 @@ signed char netShutDown(signed char socket, unsigned char type)
   {
     printf("OS_NETSHUTDOWN: [ERROR:");
     errorPrint(todo & 255);
-    printf("]\r\n");
+    printf("] Press any key.");
     return -1;
   }
   else
   {
     // printf("Socket #%d closed.\n\r", socket);
   }
-  return -1;
+  return 1;
 }
 
 unsigned char netConnect(signed char socket)
@@ -854,8 +854,8 @@ C_task main(void)
 start:
   emptyKeyBuf();
 
-  //printf("    >>>> GET FIRST JSON [%lu]\r\n", count);
-  //YIELD();
+  // printf("    >>>> GET FIRST JSON [%lu]\r\n", count);
+  // YIELD();
   switch (randomPic)
   {
   case 0:
@@ -872,19 +872,17 @@ start:
     goto start;
   }
 
-  //printf("    >>>> GET AUTHOR JSON [%lu]\r\n", atol(curFileStruct.authorIds));
-  //YIELD();
-  idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
-
-  if (idkfa < 0)
-  {
-    printf(" Cant parse curFileStruct.authorIds = %s \r\n\r\n", curFileStruct.authorIds);
-    count++;
-    goto start;
-  }
-
   if (verbose == 1)
   {
+    idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
+
+    if (idkfa < 0)
+    {
+      printf(" Cant parse curFileStruct.authorIds = %s \r\n\r\n", curFileStruct.authorIds);
+      count++;
+      goto start;
+    }
+
     printData();
   }
   else
@@ -895,8 +893,8 @@ start:
   if (!strcmp(curFileStruct.picType, "standard"))
 
   {
-    //printf("    >>>> GETPIC [%ld]\r\n", iddqd);
-    //YIELD();
+    // printf("    >>>> GETPIC [%ld]\r\n", iddqd);
+    // YIELD();
     errno = getPic(iddqd);
 
   review:
