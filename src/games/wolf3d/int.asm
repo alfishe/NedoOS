@@ -1,16 +1,4 @@
 on_int
-      if 0;atm
-	ld (on_int_hl),hl
-	ld (on_int_sp),sp
-	pop hl
-	ld (on_int_sp2),sp
-        ld (on_int_jp),hl
-	ex de,hl;ld hl,0
-on_int_sp=$+1
-	ld (0),hl ;восстановили запоротый стек
-	ld sp,INTSTACK
-	push hl
-      else
 ;store DE in stack
         ex de,hl
         EX (SP),HL
@@ -18,7 +6,6 @@ on_int_sp=$+1
         LD (IMSP),SP
         LD SP,INTSTACK
 	push de
-       endif
 
 	push af
 	push bc
@@ -49,12 +36,7 @@ curpalette=$+1
         jr z,$+5
         ld (curkey),a
        else ;~atm
-       IF music 
-        LD A,pgmuz
-        LD BC,#7FFD
-        OUT (C),A
-        CALL 0xc005;#8006 ;play mus
-       ENDIF 
+        call my_int
         LD A,(newscr)
         LD (curscr),A
 curpg=$+1
@@ -74,7 +56,7 @@ IMframe=$+1
         jr nz,IMNSEC
         ld hl,0x0707
         ld (0x5800),hl
-        ld e,0 ;LD DE,0x4000;#4100
+        ld e,a;0 ;LD DE,0x4000;#4100
        ;LD DE,#4100<1
        ;RR D
 IMfps=$+1
@@ -90,10 +72,6 @@ IMNSEC
         LD (IMframe),A
        ENDIF 
 
-	if !atm
-	call _beeper_play
-	endif
-
         pop hl
         pop de
         pop bc
@@ -106,19 +84,11 @@ IMNSEC
 	pop bc
 	pop af
 
-       if 0;atm
-	pop de
-on_int_hl=$+1
-	ld hl,0
-on_int_sp2=$+1
-	ld sp,0
-       else
         pop de
 IMSP=$+1
         LD SP,0
         POP HL
         ex de,hl
-       endif
        if !atm
         ei
        endif

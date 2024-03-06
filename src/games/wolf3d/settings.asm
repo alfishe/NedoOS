@@ -26,7 +26,7 @@ doublerotate=1
 autostrafe=1
 kempston=0;1
 mouse=1
-mindist=111 ;max=111 ;111 curved walls TODO fix ;118 stuck in door
+mindist=111 ;max=111 ;118 stuck in door
 
 colour=7
 ceilingcolour=0
@@ -92,6 +92,7 @@ interpolate=4
  else
 interpolate=16
  endif
+antizalom=1
 
         if lores
 SCRWIDPIX=scrwid*4
@@ -109,7 +110,7 @@ scrbufflag=(scrbuf&#FF00)+32
 dropline=scrhgt*8+(0xff&scrbuf) ;Y=192
 map=scrbuf-#3F;#A001 ;+0 занят dropline, +32 занят флагом высоких
 mapend=map+#2000
-invmap=1 ;48k карта отличается по формату от ATM карты
+invmap=1
 
         if atm == 0
 tscale=#C000 ;128x64, множители 0 и 63 выдают константы 0 и 3

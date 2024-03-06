@@ -30,13 +30,15 @@ nedotrd wolf.trd -n
 nedotrd wolf.trd -ah boot.$b
 nedotrd wolf.trd -ac code.c
 nedotrd wolf.trd -ac hicode.c
-rem nedotrd wolf.trd -ac hicode2.c
+nedotrd wolf.trd -ac hicode2.c
 
 del code.bin
 ren code.c code.bin
-ren hicode.c code.bin
+ren hicode.c hicode.bin
+ren hicode2.c hicode2.bin
 bas2tap -a10 loader.txt wolf.tap
 bin2tap -append -a 49152 -o wolf.tap hicode.bin
+bin2tap -append -a 49152 -o wolf.tap hicode2.bin
 bin2tap -append -a 24576 -o wolf.tap code.bin
 
 SET releasedir2=../../../release/
