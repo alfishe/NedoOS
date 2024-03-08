@@ -16,7 +16,6 @@ unsigned char netbuf[1452];
 unsigned char dataBuffer[6096];
 unsigned char crlf[2] = {13, 10};
 unsigned char formats[4][4] = {"pt3", "pt2", "tfc", "ts"};
-unsigned long bytecount;
 unsigned char status, key, curFormat;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
@@ -178,7 +177,6 @@ void errorPrint(unsigned int error)
     break;
   }
   YIELD();
-  //    do {key = _low_level_get();} while (key == 0);
 }
 
 unsigned char OpenSock(unsigned char family, unsigned char protocol)
@@ -492,8 +490,7 @@ unsigned int cutHeader(unsigned int todo)
   else
   {
     contLen = atol(count + 15);
-    bytecount = contLen;
-    curFileStruct.fileSize = bytecount;
+    curFileStruct.fileSize = contLen;
     //  printf("=> Dlinna  soderzhimogo = %lu \n\r", curFileStruct.fileSize);
   }
 
@@ -501,7 +498,6 @@ unsigned int cutHeader(unsigned int todo)
   headlng = ((unsigned int)count - (unsigned int)netbuf + 4);
   q = todo - headlng;
   memcpy(&netbuf, count + 4, q);
-  // printf ("header removed. %u bytes\r\n", headlng);
   return q;
 }
 
@@ -566,7 +562,6 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
         curFileStruct.fileName[50] = '\0';
         strcat(curFileStruct.fileName, fileIdChar);
         strcat(curFileStruct.fileName, formats[curFormat]);
-        // printf("filename = [%s]",curFileStruct.fileName);
       }
     }
     OS_SETSYSDRV();
@@ -793,9 +788,6 @@ rejson:
       netShutDown(socket, 1);
       goto rejson;
     }
-    // AT(1, 1);
-    // printf("BAD JSON, NO responseStatus: success. JSON: %s \r\n", dataBuffer);
-    // getchar();
     return -1;
   }
 
@@ -804,8 +796,6 @@ rejson:
   {
     clearStatus();
     printf("BAD JSON: not ID query = %u startPos = %lu", queryNum, startPos);
-    // AT(1, 10);
-    // printf("BAD JSON: ID not found JSON:\r\n %s \r\n", dataBuffer);
     return -2;
   }
   if (queryNum < 4)
@@ -820,14 +810,6 @@ rejson:
     tSize = sizeof(curFileStruct.trackName);
     stringRepair(curFileStruct.trackName, tSize);
 
-    /*
-        str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "&#039;", "'");
-        str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "&amp;", "&");
-        str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "&gt;", ">");
-        str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "&lt;", "<");
-        str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "&quot;", "\"");
-        str_replace(curFileStruct.trackName, tnSize, curFileStruct.trackName, "\\/", "/");
-    */
     parseJson("\"rating\":\"");
     strcpy(curFileStruct.picRating, netbuf);
     parseJson("\"year\":\"");
@@ -860,15 +842,15 @@ unsigned char getTrack(unsigned long fileId)
   unsigned char cmdlist2[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; Radio)\r\n\r\n\0";
   unsigned char buffer[] = "0000000000";
   unsigned char socket;
-  unsigned int bytes2read, headskip;
+  unsigned int headskip;
+  unsigned long bytecount;
   clearStatus();
   printf("Getting track...");
 
   socket = OpenSock(AF_INET, SOCK_STREAM);
   todo = netConnect(socket);
-  netbuf[0] = '\0';
   sprintf(buffer, "%lu", fileId);
-  strcat(netbuf, cmdlist1);
+  strcpy(netbuf, cmdlist1);
   strcat(netbuf, buffer);
   strcat(netbuf, cmdlist2);
   todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
@@ -883,14 +865,14 @@ unsigned char getTrack(unsigned long fileId)
     {
       break;
     }
-    bytes2read = todo;
     if (headskip == 0)
     {
       headskip = 1;
-      bytes2read = cutHeader(todo);
+      todo = cutHeader(todo);
+      bytecount = contLen;
     }
-    saveBuf(curFileStruct.picId, 01, bytes2read);
-    bytecount = bytecount - bytes2read;
+    saveBuf(curFileStruct.picId, 01, todo);
+    bytecount = bytecount - todo;
   }
   netShutDown(socket, 0);
   return 0;
@@ -918,7 +900,7 @@ unsigned char runPlayer(void)
   if (((int)fp2) & 0xff)
   {
     clearStatus();
-    printf(fileName);
+    printf("%s", fileName);
     printf(" not found.");
     exit(0);
   }

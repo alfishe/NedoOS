@@ -420,9 +420,8 @@ unsigned char getPic(unsigned long fileId)
   signed char socket;
   socket = OpenSock(AF_INET, SOCK_STREAM);
   todo = netConnect(socket);
-  netbuf[0] = '\0';
   sprintf(buffer, "%lu", fileId);
-  strcat(netbuf, "GET /file/id:");
+  strcpy(netbuf, "GET /file/id:");
   strcat(netbuf, buffer);
   strcat(netbuf, " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
   todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
@@ -501,7 +500,7 @@ const char *parseJson(unsigned char *property)
   unsigned char terminator;
   int n;
   n = -1;
-  netbuf[0] = '\0';
+  //netbuf[0] = '\0';
   n = pos(picture, property, 1, 0);
   if (n == -1)
   {
@@ -600,7 +599,7 @@ void convert866(void)
     }
     targetPos++;
   }
-  netbuf[targetPos] = '\0';
+  netbuf[targetPos] = 0;
 
   for (w = lng + 1; w < targetPos + 1; w++)
   {
@@ -616,11 +615,10 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   unsigned char *count1, socket;
   unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; GetPic)\r\n\r\n\0";
 
-  netbuf[0] = '\0';
   switch (queryNum)
   {
   case 0:
-    strcat(netbuf, "GET /api/export:zxPicture/filter:zxPictureType=standard/limit:");
+    strcpy(netbuf, "GET /api/export:zxPicture/filter:zxPictureType=standard/limit:");
     sprintf(buffer, "%u", limit);
     strcat(netbuf, buffer);
     strcat(netbuf, "/start:");
