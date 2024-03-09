@@ -45,7 +45,7 @@ unsigned char netbuf[4000];
 void clearStatus(void)
 {
 	AT(1, 24);
-	printf("                                                                                ");
+	printf("                                                                                \r");
 }
 
 void printTable(void)
@@ -78,7 +78,6 @@ void delay(unsigned long counter)
 	while (start < finish)
 	{
 		start = time();
-		YIELD();
 	}
 }
 
@@ -372,9 +371,29 @@ unsigned char OpenSock(unsigned char family, unsigned char protocol)
 	return socket;
 }
 
+signed char netShutDown(signed char socket, unsigned char type)
+{
+  unsigned int todo;
+  todo = OS_NETSHUTDOWN(socket, type);
+  if (todo > 32767)
+  {
+    clearStatus();
+	printf("OS_NETSHUTDOWN: [ERROR:");
+    errorPrint(todo & 255);
+    printf("] Press any key.");
+    return -1;
+  }
+  else
+  {
+    // printf("Socket #%d closed.\n\r", socket);
+  }
+  return 1;
+}
+
 unsigned char netConnect(unsigned char socket)
 {
 	unsigned int todo;
+	unsigned char retry = 10;
 
 	targetadr.family = AF_INET;
 	targetadr.porth = 00;
@@ -384,16 +403,31 @@ unsigned char netConnect(unsigned char socket)
 	targetadr.b3 = 65;
 	targetadr.b4 = 35;
 
-	todo = OS_NETCONNECT(socket, &targetadr);
-	if (todo > 32767)
-	{
-		clearStatus();
-		AT(1, 24);
-		printf("OS_NETCONNECT: ");
-		errorPrint(todo & 255);
-		exit(0);
-	}
-	return 0;
+
+while (retry > 0)
+  {
+    todo = OS_NETCONNECT(socket, &targetadr);
+
+    if (todo > 32767)
+    {
+      retry--;
+      clearStatus();
+	  printf("OS_NETCONNECT [ERROR:");
+      errorPrint(todo & 255);
+      printf("] [Retry:%u]", retry);
+      YIELD();
+      netShutDown(socket, 0);
+      socket = OpenSock(AF_INET, SOCK_STREAM);
+    }
+    else
+    {
+      // printf("OS_NETCONNECT: connection successful, %u\n\r", (todo & 255));
+      return 1;
+    }
+  }
+  getchar();
+  exit(0);
+  return 0;
 }
 
 unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsigned int sizeOfBuf)
@@ -456,50 +490,39 @@ void cancel(void)
 
 unsigned int tcpRead(unsigned char socket)
 {
-	unsigned char retry = 100;
-	unsigned int err, todo;
+	unsigned char retry = 20;
+	unsigned int todo;
 	readStruct.socket = socket;
 	readStruct.BufAdr = (unsigned int)&netbuf;
 	readStruct.bufsize = bufSize;
 	readStruct.protocol = SOCK_STREAM;
-wizread:
-	todo = OS_WIZNETREAD(&readStruct);
-	if (todo > 32767)
-	{
-		if (retry == 0)
-		{
-			err = todo & 255;
-			clearStatus();
-			AT(1, 24);
-			printf("OS_WIZNETREAD: ");
-			errorPrint(err);
 
-			if (err == ERR_EAGAIN)
-			{
-				return 0;
-			}
-			fatalError("ERROR CONNECTION TO SERVER");
-		}
-		retry--;
-		cancel();
-		delay(100);
-		goto wizread;
-	}
-	return todo;
-}
 
-unsigned int netShutDown(unsigned char socket, unsigned char type)
-{
-	unsigned int todo;
-	todo = OS_NETSHUTDOWN(socket, type);
-	if (todo > 32767)
-	{
-		printf("OS_NETSHUTDOWN: ");
-		errorPrint(todo & 255);
-		return 255;
-	}
+  while (retry > 0)
+  {
+    todo = OS_WIZNETREAD(&readStruct);
 
-	return 0;
+    if (todo > 32767)
+    {
+      if ((todo & 255) != ERR_EAGAIN)
+      {
+        clearStatus();
+		printf("OS_WIZNETREAD: [ERROR:");
+        errorPrint(todo & 255);
+        printf("] [Retry:%u]", retry);
+        YIELD();
+        retry--;
+      }
+    }
+    else
+    {
+      // printf("OS_WIZNETREAD: %u bytes read. \n\r", todo);
+      return todo;
+    }
+  }
+  getchar();
+  exit(0);
+  return todo;
 }
 
 unsigned int cutHeader(unsigned int todo)
@@ -608,7 +631,7 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 
 		cancel();
 	}
-	netShutDown(socket, 1);
+	netShutDown(socket, 0);
 	saveBuf(fileNamePtr, 02, 00);
 	if (downloaded != contLen)
 	{
