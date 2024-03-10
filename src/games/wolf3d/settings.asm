@@ -26,7 +26,7 @@ doublerotate=1
 autostrafe=1
 kempston=0;1
 mouse=1
-mindist=111 ;max=111 ;118 stuck in door
+mindist=64;111 ;max=111 ;118 stuck in door
 
 colour=7
 ceilingcolour=0

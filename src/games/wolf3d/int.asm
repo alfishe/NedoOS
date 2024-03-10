@@ -54,7 +54,7 @@ IMframe=$+1
         LD A,1
         DEC A
         jr nz,IMNSEC
-        ld hl,0x0707
+        ld hl,0x3939 ;!=colour
         ld (0x5800),hl
         ld e,a;0 ;LD DE,0x4000;#4100
        ;LD DE,#4100<1
