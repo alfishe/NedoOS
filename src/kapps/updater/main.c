@@ -9,21 +9,20 @@
 #include <intrz80.h>
 #include <ctype.h>
 #include <math.h>
-unsigned char uVer[] = "0.45";
+unsigned char uVer[] = "0.46";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
-unsigned char is_atm;
 unsigned int errn, headlng;
 unsigned long contLen;
 unsigned char saveFlag, saveBak;
 unsigned char crlf[2] = {13, 10};
-unsigned long bytecount, downloaded;
+unsigned long downloaded;
 unsigned char status, key, curFormat;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 FILE *fp2;
-FILE *fpNews;
+
 struct window
 {
 	unsigned char x;
@@ -35,9 +34,14 @@ struct window
 	unsigned char tittle[80];
 
 } cw;
-unsigned char kernelName[32];
-unsigned char machineName[32];
-unsigned char kernelLink[256];
+
+struct configuration
+{
+	unsigned char kernelName[32];
+	unsigned char machineName[32];
+	unsigned char kernelLink[256];
+	unsigned char is_atm;
+} config;
 
 unsigned int bufSize = 2048; // Some memory corruption at this point, some QnD
 unsigned char netbuf[4000];
@@ -83,6 +87,7 @@ void delay(unsigned long counter)
 
 void printNews(void) // max 20 lines in total and 59 col.
 {
+	FILE *fpNews;
 	unsigned char str[1];
 	unsigned char curLine, nbyte;
 
@@ -188,7 +193,7 @@ void fatalError(unsigned char *message)
 
 	drawWindow(cw);
 	AT(cw.x + 2, cw.y + 3);
-	printf(message);
+	printf("%s", message);
 	AT(1, 1);
 	getchar();
 	exit(0);
@@ -213,14 +218,14 @@ void infoBox(unsigned char *message)
 
 	drawWindow(cw);
 	AT(cw.x + 2, cw.y + 3);
-	printf(message);
+	printf("%s", message);
 	AT(1, 1);
 }
 
 unsigned char OS_SHELL(unsigned char *command)
 {
 	unsigned char fileName[] = "bin/cmd.com";
-	unsigned char appCmd[128] = "cmd.com ";
+	unsigned char appCmd[127] = "cmd.com ";
 	unsigned int shellSize, loaded, loop, adr;
 	unsigned char pgbak;
 	union APP_PAGES shell_pg;
@@ -235,7 +240,7 @@ unsigned char OS_SHELL(unsigned char *command)
 	{
 		clearStatus();
 		AT(1, 24);
-		printf(fileName);
+		printf("%s", fileName);
 		printf(" not found.");
 		getchar();
 		exit(0);
@@ -248,21 +253,21 @@ unsigned char OS_SHELL(unsigned char *command)
 
 	SETPG32KHIGH(shell_pg.pgs.window_0);
 
-	memcpy((char *)(0xC080), (char *)(&appCmd), sizeof(appCmd));
+	memcpy((unsigned char *)(0xC080), (unsigned char *)(&appCmd), strlen(appCmd) + 1);
 
 	loop = 0;
 	while (loop < shellSize)
 	{
 		loaded = OS_READHANDLE(netbuf, fp3, sizeof(netbuf));
 		adr = 0xC100 + loop;
-		memcpy((char *)(adr), &netbuf, loaded);
+		memcpy((unsigned char *)(adr), &netbuf, loaded);
 		loop = loop + loaded;
 	}
 	OS_CLOSEHANDLE(fp3);
 	SETPG32KHIGH(pgbak);
 	clearStatus();
 	AT(1, 24);
-	printf("Running shell [pId:%u][%s][%s]", shell_pg.pgs.pId, curPath, appCmd);
+	printf("Shell [pId:%u][%s][%s]", shell_pg.pgs.pId, curPath, appCmd);
 	AT(1, 24);
 	delay(300);
 	OS_RUNAPP(shell_pg.pgs.pId);
@@ -275,7 +280,6 @@ unsigned char OS_SHELL(unsigned char *command)
 void errorPrint(unsigned int error)
 {
 	clearStatus();
-	AT(1, 24);
 	switch (error)
 	{
 	case 2:
@@ -373,21 +377,21 @@ unsigned char OpenSock(unsigned char family, unsigned char protocol)
 
 signed char netShutDown(signed char socket, unsigned char type)
 {
-  unsigned int todo;
-  todo = OS_NETSHUTDOWN(socket, type);
-  if (todo > 32767)
-  {
-    clearStatus();
-	printf("OS_NETSHUTDOWN: [ERROR:");
-    errorPrint(todo & 255);
-    printf("] Press any key.");
-    return -1;
-  }
-  else
-  {
-    // printf("Socket #%d closed.\n\r", socket);
-  }
-  return 1;
+	unsigned int todo;
+	todo = OS_NETSHUTDOWN(socket, type);
+	if (todo > 32767)
+	{
+		clearStatus();
+		printf("OS_NETSHUTDOWN: [ERROR:");
+		errorPrint(todo & 255);
+		printf("] Press any key.");
+		return -1;
+	}
+	else
+	{
+		// printf("Socket #%d closed.\n\r", socket);
+	}
+	return 1;
 }
 
 unsigned char netConnect(unsigned char socket)
@@ -403,47 +407,44 @@ unsigned char netConnect(unsigned char socket)
 	targetadr.b3 = 65;
 	targetadr.b4 = 35;
 
+	while (retry > 0)
+	{
+		todo = OS_NETCONNECT(socket, &targetadr);
 
-while (retry > 0)
-  {
-    todo = OS_NETCONNECT(socket, &targetadr);
-
-    if (todo > 32767)
-    {
-      retry--;
-      clearStatus();
-	  printf("OS_NETCONNECT [ERROR:");
-      errorPrint(todo & 255);
-      printf("] [Retry:%u]", retry);
-      YIELD();
-      netShutDown(socket, 0);
-      socket = OpenSock(AF_INET, SOCK_STREAM);
-    }
-    else
-    {
-      // printf("OS_NETCONNECT: connection successful, %u\n\r", (todo & 255));
-      return 1;
-    }
-  }
-  getchar();
-  exit(0);
-  return 0;
+		if (todo > 32767)
+		{
+			retry--;
+			clearStatus();
+			printf("OS_NETCONNECT [ERROR:");
+			errorPrint(todo & 255);
+			printf("] [Retry:%u]", retry);
+			YIELD();
+			netShutDown(socket, 0);
+			socket = OpenSock(AF_INET, SOCK_STREAM);
+		}
+		else
+		{
+			// printf("OS_NETCONNECT: connection successful, %u\n\r", (todo & 255));
+			return 1;
+		}
+	}
+	getchar();
+	exit(0);
+	return 0;
 }
 
 unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsigned int sizeOfBuf)
 {
-	unsigned char fileName[255];
-
 	if (operation == 00)
 	{
+		unsigned char fileName[255];
 		strcpy(fileName, fileNamePtr);
 		fp2 = OS_CREATEHANDLE(fileName, 0x80);
-
 		if (((int)fp2) & 0xff)
 		{
 			clearStatus();
 			AT(1, 24);
-			printf(fileName);
+			printf("%s", fileName);
 			printf(" creating error.");
 			exit(0);
 		}
@@ -454,7 +455,7 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 		{
 			clearStatus();
 			AT(1, 24);
-			printf(fileName);
+			printf("%s", fileName);
 			printf(" opening error.");
 
 			exit(0);
@@ -483,7 +484,6 @@ void cancel(void)
 	key = _low_level_get();
 	if (key == 27)
 	{
-		saveBuf("fileNamePtr", 02, 00);
 		fatalError("File download aborted!");
 	}
 }
@@ -497,32 +497,31 @@ unsigned int tcpRead(unsigned char socket)
 	readStruct.bufsize = bufSize;
 	readStruct.protocol = SOCK_STREAM;
 
+	while (retry > 0)
+	{
+		todo = OS_WIZNETREAD(&readStruct);
 
-  while (retry > 0)
-  {
-    todo = OS_WIZNETREAD(&readStruct);
-
-    if (todo > 32767)
-    {
-      if ((todo & 255) != ERR_EAGAIN)
-      {
-        clearStatus();
-		printf("OS_WIZNETREAD: [ERROR:");
-        errorPrint(todo & 255);
-        printf("] [Retry:%u]", retry);
-        YIELD();
-        retry--;
-      }
-    }
-    else
-    {
-      // printf("OS_WIZNETREAD: %u bytes read. \n\r", todo);
-      return todo;
-    }
-  }
-  getchar();
-  exit(0);
-  return todo;
+		if (todo > 32767)
+		{
+			if ((todo & 255) != ERR_EAGAIN)
+			{
+				clearStatus();
+				printf("OS_WIZNETREAD: [ERROR:");
+				errorPrint(todo & 255);
+				printf("] [Retry:%u]", retry);
+				YIELD();
+				retry--;
+			}
+		}
+		else
+		{
+			// printf("OS_WIZNETREAD: %u bytes read. \n\r", todo);
+			return todo;
+		}
+	}
+	getchar();
+	exit(0);
+	return todo;
 }
 
 unsigned int cutHeader(unsigned int todo)
@@ -541,15 +540,13 @@ unsigned int cutHeader(unsigned int todo)
 	else
 	{
 		contLen = atol(count + 15);
-		bytecount = contLen;
 		//    AT (1,24);
-		//      printf("=> Dlinna  soderzhimogo = %lu \n\r", bytecount);
+		//      printf("=> Dlinna  soderzhimogo = %lu \n\r", contLen);
 	}
 
 	count = strstr(netbuf, "\r\n\r\n");
 	headlng = ((unsigned int)count - (unsigned int)netbuf + 4);
 	q = todo - headlng;
-	// memcpy(&netbuf, count + 4, q);
 	return q;
 }
 
@@ -587,7 +584,8 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 	unsigned int todo;
 	unsigned char cmdlist1[] = " HTTP/1.1\r\nHost: nedoos.ru\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
 	unsigned char socket;
-	unsigned int bytes2read, headskip;
+	unsigned int headskip;
+	unsigned long bytecount;
 	unsigned long fileSize1;
 	unsigned char fileName[255];
 	unsigned int httpErr;
@@ -604,7 +602,7 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 	downloaded = 0;
 	strcpy(fileName, fileNamePtr);
 	AT(1, 24);
-	printf(fileName);
+	printf("%s", fileName);
 
 	while (bytecount != 0)
 	{
@@ -614,25 +612,25 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 		{
 			break;
 		}
-		bytes2read = todo;
 		if (headskip == 0)
 		{
 			httpErr = httpError();
 			headskip = 1;
-			bytes2read = cutHeader(todo);
+			todo = cutHeader(todo);
 			fileSize1 = contLen / 1024;
-			saveBuf(fileNamePtr, 00, 0);
+			bytecount = contLen;
+			saveBuf(fileName, 00, 0);
 		}
 		AT(32, 24);
-		printf("%lu of %lu kb", downloaded / 1024, fileSize1);
+		printf("%lu of %lu kb  ", downloaded / 1024, fileSize1);
 
-		saveBuf(fileNamePtr, 01, bytes2read);
-		bytecount = bytecount - bytes2read;
+		saveBuf(fileName, 01, todo);
+		bytecount = bytecount - todo;
 
 		cancel();
 	}
 	netShutDown(socket, 0);
-	saveBuf(fileNamePtr, 02, 00);
+	saveBuf(fileName, 02, 00);
 	if (downloaded != contLen)
 	{
 		fatalError("File download error!");
@@ -643,40 +641,40 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 
 unsigned char getConfig(void)
 {
-	is_atm = (unsigned char)OS_GETCONFIG();
+	config.is_atm = (unsigned char)OS_GETCONFIG();
 	// H=system drive, L= 1-Evo 2-ATM2 3-ATM3 6-p2.666 ;E=pgsys(system page) D= TR-DOS page
-	switch ((is_atm))
+	switch ((config.is_atm))
 	{
 	case 1:
-		strcpy(machineName, "ZX-Evolution");
-		strcpy(kernelName, "sd_boot.$C");
-		strcpy(kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/sd_boot.%24C");
+		strcpy(config.machineName, "ZX-Evolution");
+		strcpy(config.kernelName, "sd_boot.$C");
+		strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/sd_boot.%24C");
 		break;
 	case 2:
-		strcpy(machineName, "TURBO 2+");
-		strcpy(kernelName, "osatm2hd.$C");
-		strcpy(kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/osatm2hd.%24C");
+		strcpy(config.machineName, "TURBO 2+");
+		strcpy(config.kernelName, "osatm2hd.$C");
+		strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/osatm2hd.%24C");
 
 		break;
 
 	case 3: // SD HDD versions
-		strcpy(machineName, "TURBO 3 [SD]");
-		strcpy(kernelName, "osatm3hd.$C");
-		strcpy(kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/osatm3hd.%24C");
+		strcpy(config.machineName, "TURBO 3 [SD]");
+		strcpy(config.kernelName, "osatm3hd.$C");
+		strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/osatm3hd.%24C");
 		break;
 	case 6: // SD HDD versions
-		strcpy(machineName, "P2.666 [SD]");
-		strcpy(kernelName, "osp26sd.$C");
-		strcpy(kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/osp26sd.%24C");
+		strcpy(config.machineName, "P2.666 [SD]");
+		strcpy(config.kernelName, "osp26sd.$C");
+		strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/osp26sd.%24C");
 		break;
 
 	default:
-		strcpy(machineName, "NOT DETECED (ZX-Evo)");
-		strcpy(kernelName, "sd_boot.$C");
-		strcpy(kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/sd_boot.%24C");
+		strcpy(config.machineName, "NOT DETECED (ZX-Evo)");
+		strcpy(config.kernelName, "sd_boot.$C");
+		strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/sd_boot.%24C");
 		break;
 	}
-	return is_atm;
+	return config.is_atm;
 }
 // Downloading minimal tools for updating/boot
 void getTools(void)
@@ -690,7 +688,7 @@ void getTools(void)
 	unsigned char wizNetLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/wizcfg.com";
 	unsigned char netIniLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/net.ini";
 
-	errn = OS_MKDIR("bin"); // Create if not exist
+	OS_MKDIR("bin"); // Create if not exist
 	ATRIB(cw.text);
 	ATRIB(cw.back);
 	getFile(wizNetLink, "bin/wizcfg.com");
@@ -847,7 +845,7 @@ void fullUpdate(void)
 	errn = OS_CHDIR("/");
 
 	strcat(cw.tittle, " (");
-	strcat(cw.tittle, machineName);
+	strcat(cw.tittle, config.machineName);
 	strcat(cw.tittle, ")");
 	drawWindow(cw);
 
@@ -912,11 +910,11 @@ void binUpdate(void)
 	strcat(cw.tittle, uVer);
 	getConfig();
 	strcat(cw.tittle, " (");
-	strcat(cw.tittle, machineName);
+	strcat(cw.tittle, config.machineName);
 	strcat(cw.tittle, ")");
 	drawWindow(cw);
 
-	errn = OS_CHDIR("/");
+	OS_CHDIR("/");
 	OS_GETPATH((unsigned int)&curPath);
 	curLetter = curPath[0];
 
@@ -930,7 +928,7 @@ void binUpdate(void)
 	AT(cw.x + 2, cw.y + 3);
 	printf("1.Downloading bin.zip...");
 
-	errn = getFile(binLink, "bin.zip"); //  Downloading the file
+	getFile(binLink, "bin.zip"); //  Downloading the file
 
 	clearStatus();
 	AT(cw.x + 2, cw.y + 4);
@@ -953,6 +951,7 @@ void binUpdate(void)
 	AT(cw.x + 2, cw.y + 3);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
+
 	printf("3.Renaming bin.r?? to bin.tar...");
 
 	ren2tar();
@@ -986,9 +985,9 @@ void binUpdate(void)
 	AT(cw.x + 2, cw.y + 8);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("8.Downloading kernel [%s]...", machineName);
+	printf("8.Downloading kernel [%s]...", config.machineName);
 	errn = OS_CHDIR("/");
-	errn = getFile(kernelLink, kernelName); //  Downloading the file
+	errn = getFile(config.kernelLink, config.kernelName); //  Downloading the file
 	AT(cw.x + 2, cw.y + 9);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
