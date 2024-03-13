@@ -21,6 +21,7 @@
 ;P: DDp palette
 ;%: mirror sprites, don't generate anything
 
-line0=c,0,0,256,64,7
-line1=c,0,64,256,64,7
-;line2=c,0,128,256,64,7
+;line0=c,0,0,256,64,7
+;line1=c,0,64,256,64,7
+line0=y,0,0,256,64,7
+line1=y,0,64,256,64,7

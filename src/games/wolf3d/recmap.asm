@@ -88,16 +88,16 @@ GMNRLE
        SUB "1";+128
        endif
       if doublescr
-       cp 24*2
+       cp texturesinpg*2*2
        jr c,$+4
-       ld a,23*2
-       cp 12*2
+       ld a,(texturesinpg*2-1)*2
+       cp texturesinpg*2
        jr c,$+4
-       sub 12*2+0x40
+       sub texturesinpg*2+0x40
       else
-       cp 12*2
+       cp texturesinpg*2
        jr c,$+4
-       ld a,11*2
+       ld a,(texturesinpg-1)*2
       endif
      add a,0xc0 ;хранится ID>=128, чтобы делать двери
       ENDIF 

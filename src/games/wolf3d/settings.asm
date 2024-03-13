@@ -51,7 +51,7 @@ Ybottom=Ycenter+(scrhgt/2)
 scrbase=0x4000+4
 scrtop=Ytop*40+scrbase
         else
-scrhgt=24 ;chr$ (10,12,...,24) ;TODO fix
+scrhgt=24 ;chr$ (10,12,...,24)
 scrhgtpix=scrhgt*8
 scrtop=(24-scrhgt)*16+#4000+scrtopx
 attrtop=((scrtop/8)&0x300)+(0xff&scrtop)+0x5800

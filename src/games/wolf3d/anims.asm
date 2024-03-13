@@ -84,7 +84,79 @@ MONSTAB
         db 11
         db 11
 ;STOLB4
-        db 8;11
+        db 0;11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+;
+        db 8
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+;
+        db 9
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+;
+        db 10
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+;
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+;
+        db 12
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+;
+        db 13
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+;
+        db 14
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+        db 11
+;
+        db 15
         db 11
         db 11
         db 11
