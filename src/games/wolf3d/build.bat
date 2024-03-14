@@ -20,6 +20,12 @@ sjasmplus --nologo --msg=war walls2.ast --raw=walls2.bin
 sjasmplus --nologo --msg=war goods.ast --raw=goods.bin
 sjasmplus --nologo --msg=war goods2.ast --raw=goods2.bin
 
+sjasmplus --nologo --msg=war -Datm=0 -Ddoublescr=0 W48.ASM
+del code.bin
+ren code.c code.bin
+bas2tap -a10 loader48.txt wolf48.tap
+bin2tap -append -a 24576 -o wolf48.tap code.bin
+
 sjasmplus --nologo --msg=war -Datm=0 -Ddoublescr=1 W48.ASM
 nedotrd basic.trd -eh boot.$b > nul
 rem del test.scl
@@ -33,6 +39,8 @@ nedotrd wolf.trd -ac hicode.c
 nedotrd wolf.trd -ac hicode2.c
 
 del code.bin
+del hicode.bin
+del hicode2.bin
 ren code.c code.bin
 ren hicode.c hicode.bin
 ren hicode2.c hicode2.bin
