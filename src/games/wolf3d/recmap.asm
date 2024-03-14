@@ -12,7 +12,6 @@ RECMAP
           ld de,MONSTRS
         
        if invmap;atm
-       ;jr $
        LD A,(YX+1) ;Y
        SUB 0xA0
        SUB map/256+31
@@ -22,17 +21,32 @@ RECMAP
        INC A
        LD (IMcurXx+1),A
        endif
-INImons LD A,(HL)
-        LDI 
-        AND (HL)
+INImons LD A,(HL) ;x
+        LDI
+        AND (HL) ;X
         LDI 
         INC A
         JR Z,INImonsQ
-        LD BC,6
-        LDIR 
+        ldi ;y
+        ldi ;Y
+;перекодируем PHASE_type (type, PHASE) в TYPEphase_dir (dir, TYPEphase) ;TYPEphase=TYPE*8+phase
+        ld a,r:add a,a;xor a
+        ld (de),a ;dir ;TODO вычислить начальное направление по типу
+        inc de
+        ld a,(hl) ;type
+        add a,a
+        add a,a
+        add a,a
+        inc hl
+        add a,(hl) ;phase
+        inc hl
+        ld (de),a
+        inc de
+        ldi ;energy
+        ldi ;time
         JR INImons
 INImonsQ ;
-       EXD 
+       ex de,hl;EXD 
        if invmap;atm 
         LD H,map/256+31
        else
@@ -53,7 +67,7 @@ GETMAP0
 GETMAPL LD B,32;33
 GETMAP1 LD A,(DE)
         INC DE
-        LD (HL),0
+        LD (HL),0 ;пустое место в памяти
         CP 13
         JR Z,GETMCR
        IF invmap;atm
@@ -63,14 +77,16 @@ GETMAP1 LD A,(DE)
        DEC A
 GMRLE
         INC L
-        LD (HL),0
+        LD (HL),0 ;пустое место в памяти
         DEC B
         DEC A
         jr NZ,GMRLE
-        LD A,32
+        LD A,32 ;пустое место в формате карты
 GMNRLE
        ENDIF 
-        CP 32
+        CP 32 ;пустое место в формате карты
+        JR Z,GETMAPE
+        cp 0xc1 ;зеркальное пустое место в формате карты
         JR Z,GETMAPE
       if invmap
       CP 64    ;
@@ -81,7 +97,7 @@ GMNRLE
       IF !atm
        if invmap
        sub 128
- ;в примере используются стены 16..35. они уже домножены на 2 (младший бит=зеркальность)
+ ;в примере используются стены 16..39. они уже домножены на 2 (младший бит=зеркальность)
         sub 16*2
        else
        add a,a

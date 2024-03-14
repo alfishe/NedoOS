@@ -1,3 +1,4 @@
+        if atm
 tsprites
 ;pg,xmid,xleft-1,xright-1
         macro TSPRITES pg,xleft,wid
@@ -22,10 +23,19 @@ xmid=(xleft+xright)/2
         TSPRITES 0,396,50 ;10
         TSPRITES 0,448,24
         TSPRITES 1,472,26
-
+        endif
+  ;фазы:
+;move1/2
+;{move2}
+;back
+;attack
+;ранен
+;умирает
+;труп
+;-
 MONSTAB
 ;ZOMBIEMAN stay
-        db 1
+        db 0;1
         db 2
         db 1
         db 2
@@ -33,7 +43,7 @@ MONSTAB
         db 2
         db 0,0
 ;ZOMBIEMAN go1
-        db 3
+        db 1;3
         db 4
         db 5
         db 6
@@ -49,7 +59,7 @@ MONSTAB
         db 8
         db 0,0
 ;AMMO
-        db 4;12 ;G
+        db 3;12 ;G
         db 12 ;R
         db 12 ;MEGAHEALTH
         db 12 ;RL
@@ -57,7 +67,7 @@ MONSTAB
         db 12
         db 0,0
 ;STOLB
-        db 5;11
+        db 4;11
         db 11
         db 11
         db 11
@@ -66,7 +76,7 @@ MONSTAB
         db 11
         db 11
 ;STOLB2
-        db 6;11
+        db 5;11
         db 11
         db 11
         db 11
@@ -75,7 +85,7 @@ MONSTAB
         db 11
         db 11
 ;STOLB3
-        db 7;11
+        db 6;11
         db 11
         db 11
         db 11
@@ -84,7 +94,7 @@ MONSTAB
         db 11
         db 11
 ;STOLB4
-        db 0;11
+        db 7;11
         db 11
         db 11
         db 11

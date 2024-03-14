@@ -1,3 +1,6 @@
+firedelaycounter
+        db 0
+
 level
         DB "W"
 gfxnr   DB "0"
@@ -16,12 +19,9 @@ YX      DW 0xBA08
 angle   DW 64
 endlev
 
-firedelaycounter
-        db 0
-
         DS ((-$)&7)&0xff
 MONSTRS
-;Xx,Yy,TYPEphase,TIMEenergy
+;Xx,Yy,TYPEphase_dir,TIMEenergy ;TYPEphase=TYPE*8+phase (было PHASE_type)
         ;DW -1
 	DW #0F80,#AF80,#100,-1;ENEMY
 	DW #2680,#A080,#100,64
