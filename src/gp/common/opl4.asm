@@ -84,8 +84,12 @@ opl4init
 	jp opl4writefm2
 
 opl4mute
+	ld de,0x8004
+	call opl4writefm1
 	ld de,0x0004
-	call opl4writefm2 ;stop timers
+	call opl4writefm1 ;stop timers
+	ld de,0x0004
+	call opl4writefm2
 	ld de,0x00bd
 	call opl4writefm1 ;rhythm off
 	ld b,0x16

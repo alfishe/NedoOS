@@ -33,9 +33,13 @@ playerinit
 	ld de,songdata_bank1
 	ld bc,3
 	ldir
-	ld ix,step_buffer
-	call opl4initwave
+	ld de,GPSETTINGS.moonsoundstatus-3
+	add hl,de
+	ld a,(hl)
+	cp 2
+	ld hl,initokstr
 	ret z
+	ld hl,nodevicestr
 	ld a,255
 	ld (mwmsupported),a ;writes 255 disabling the extension
 	ret
@@ -252,10 +256,14 @@ selbank_FE
 	ret
 
 	include "../_sdk/file.asm"
-	include "common/opl4utils.asm"
+	include "common/opl4.asm"
 	include "mbwave/basic.asm"
 	include "progress.asm"
 
+initokstr
+	db "OK\r\n",0
+nodevicestr
+	db "no device!\r\n",0
 mwknone
 	db "NONE    "
 playernamestr

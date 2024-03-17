@@ -1320,7 +1320,7 @@ s3msetfrequency
 .firsthalf
 	add hl,hl
 ;two-bytes lookup
-	ld de,0xc000-2
+	ld de,S3MHEADERADDR-2
 	add hl,de
 	ld d,(hl)
 	inc hl

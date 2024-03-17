@@ -1226,7 +1226,7 @@ modsetfrequency
 	add hl,hl
 	add hl,hl
 .sampletable
-	ld de,0xc000-2
+	ld de,MODHEADERADDR-2
 	add hl,de
 	ld d,(hl)
 	inc hl

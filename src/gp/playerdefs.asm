@@ -31,4 +31,5 @@ usept3 dw 0
 usevgm dw 0
 usemoonmod dw 0
 moonmoddefaultpanning dw 0
+moonsoundstatus ds 1 ; 0 - no device, 1 - MoonSound with old firmware (wave ports not working), 2 - MoonSound OK
 	ends

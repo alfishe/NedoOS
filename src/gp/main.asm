@@ -1,4 +1,4 @@
-	DEVICE ZXSPECTRUM128
+6	DEVICE ZXSPECTRUM128
 	include "../_sdk/sys_h.asm"
 	include "playerdefs.asm"
 
@@ -11,7 +11,7 @@ FILE_NAME_OFFSET = FILE_DISPLAY_INFO_OFFSET+FILE_DISPLAY_INFO_SIZE
 FILE_NAME_SIZE = SFN_SIZE
 FILE_ATTRIB_OFFSET = FILE_NAME_OFFSET+FILE_NAME_SIZE
 FILE_ATTRIB_SIZE = 1
-BROWSER_FILE_COUNT=177
+BROWSER_FILE_COUNT=170
 PLAYLIST_FILE_COUNT=40
 PANELCOLOR = 0x4f
 CURSORCOLOR = 0x28
@@ -54,6 +54,7 @@ mainbegin
 
 	OS_SETSYSDRV
 	call loadsettings
+	call detectmoonsound
 	call loadplayers
 	jp nz,printerrorandexit
 
@@ -1052,7 +1053,7 @@ tolower
 	ret
 
 pressanykeystr
-	db "!\r\nPress any key to exit...\r\n",0
+	db "\r\nPress any key to continue...\r\n",0
 playersfilename
 	db "gp/gp.plr",0
 settingsfilename
@@ -1062,13 +1063,13 @@ defaultplaylistfilename
 playlistfilename
 	db "playlist.gpl",0
 invalidplayerfilestr
-	db "Corrupted gp/gp.plr file",0
+	db "Corrupted gp/gp.plr file!",0
 noplayersloadedstr
-	db "Unable to load any players",0
+	db "Unable to load any players!",0
 playersloaderrorstr
-	db "Failed to load gp/gp.plr from OS folder",0
+	db "Failed to load gp/gp.plr from OS folder!",0
 chdirfailedstr
-	db "Unable to change directory",0
+	db "Unable to change directory!",0
 playliststr
 	db "Playlist",0
 playingstr
@@ -1081,6 +1082,17 @@ initializing1str
 	db "Initializing ",0
 initializing2str
 	db "...",0
+detectingmoonsoundstr
+	db "Detecting MoonSound...",0
+notfoundstr
+	db "no device!\r\n",0
+foundstr
+	db "OK\r\n",0
+rom001200
+	db "Copyright"
+firmwareerrorstr
+	db "firmware problem!\r\nPlease update ZXM-MoonSound firmware to revision 1.01\r\n"
+	db "https://www.dropbox.com/s/1e0b2197emrhzos/zxm_moonsound01_frm0101.zip",0
 hotkeystr
 	db "Arrows=Navigate  Enter=Play  Tab=Panel  Space=Add/Remove  S=Save Playlist",0
 drivedata
@@ -1171,6 +1183,40 @@ loadplayers
 	ld hl,noplayersloadedstr
 	ret m
 	xor a
+	ret
+
+detectmoonsound
+	ld hl,detectingmoonsoundstr
+	call print_hl
+	call ismoonsoundpresent
+	ld hl,notfoundstr
+	jp nz,print_hl
+	call opl4init
+	ld bc,9
+	ld d,0
+	ld hl,0x1200
+	ld ix,browserpanel
+	call opl4readmemory
+	ld b,9
+	ld de,rom001200
+	ld hl,gpsettings.moonsoundstatus
+.cmploop
+	ld a,(de)
+	cp (ix)
+	jr nz,.waveportsfailed
+	inc de
+	inc ix
+	djnz .cmploop
+	ld (hl),2
+	ld hl,foundstr
+	jp print_hl
+.waveportsfailed
+	ld (hl),1
+	ld hl,firmwareerrorstr
+	call print_hl
+	ld hl,pressanykeystr
+	call print_hl
+	YIELDGETKEYLOOP
 	ret
 
 loadsettings
@@ -1502,6 +1548,7 @@ isfilesupported jumpindirect ISFILESUPPORTEDPROCADDR
 
 	include "../_sdk/file.asm"
 	include "common/radixsort.asm"
+	include "common/opl4.asm"
 
 closeexistingplayer
 ;d = current pid
@@ -1607,7 +1654,7 @@ playercount ds 1
 
 page0dataend = $
 
-	assert page0dataend <= 0x3d00 ;reserve 768 bytes for stack
+	assert page0dataend <= 0x3e00 ;reserve 512 bytes for stack
 
 	savebin "gp.com",mainbegin,mainend-mainbegin
 

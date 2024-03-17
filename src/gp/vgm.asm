@@ -56,6 +56,10 @@ playerinit
 	inc hl
 	ld a,(hl)
 	ld (filedatapage),a
+	ld de,GPSETTINGS.moonsoundstatus-2
+	add hl,de
+	ld a,(hl)
+	ld (moonsoundstatus),a
 ;hardware detection is done when loading VGM
 	ld hl,initokstr
 	xor a
@@ -140,7 +144,14 @@ musicload
 	a_or_dw HEADER_CLOCK_YM3812
 	ld (useYM3812),a
 	a_or_dw HEADER_CLOCK_YMF262
+	jr nz,.opl4notneeded
 	a_or_dw HEADER_CLOCK_YMF278B
+	jr z,.opl4notneeded
+	ld a,(moonsoundstatus)
+	cp 2
+	jp nz,memorystreamfree ;sets zf=0
+	or a
+.opl4notneeded
 	ld (useYMF278B),a
 	call nz,initYMF278B
 	jp nz,memorystreamfree ;sets zf=0
@@ -167,22 +178,6 @@ initYM2203
 	call opninit
 	set_timer opnwaittimer60hz,735
 	jp opninittimer60hz
-
-initYMF278B
-	call ismoonsoundpresent
-	ret nz
-	call vgmopl4init
-	ld a,(HEADER_CLOCK_YM3812+3)
-	and 0x40
-	jr nz,notOPL2
-useYM3812=$+1
-	or 0
-	ld de,0x0005
-	call nz,opl4writefm2
-notOPL2 set_timer opl4waittimer60hz,735
-	call opl4inittimer60hz
-	xor a
-	ret
 
 musicunload
 useYMF278B=$+1
@@ -1112,6 +1107,24 @@ GzipWriteOutputBuffer
 	jp setsharedpages
 
 	include "common/gunzip.asm"
+
+initYMF278B
+moonsoundstatus=$+1
+	ld a,0
+	dec a
+	ret m
+	call vgmopl4init
+	ld a,(HEADER_CLOCK_YM3812+3)
+	and 0x40
+	jr nz,notOPL2
+useYM3812=$+1
+	or 0
+	ld de,0x0005
+	call nz,opl4writefm2
+notOPL2 set_timer opl4waittimer60hz,735
+	call opl4inittimer60hz
+	xor a
+	ret
 
 initokstr
 	db "OK\r\n",0

@@ -40,8 +40,11 @@ playerinit
 ;a = player page
 ;out: zf=1 if init is successful, hl=init message
 	ld (.settingsaddr),hl
-	ld ix,memorystreampages
-	call opl4initwave
+	ld de,GPSETTINGS.moonsoundstatus
+	add hl,de
+	ld a,(hl)
+	cp 2
+	ld hl,nodevicestr
 	ret nz
 ;init period lookup
 	OS_NEWPAGE
@@ -132,9 +135,12 @@ musicload
 	ld a,(s3mheader.ordernum)
 .finalize
 	call setprogressdelta
+	ld de,MODHEADERADDR
+	ld a,(de)
+	or a
+	jr z,.notitle
 	ld hl,titlestr
 	ld (MUSICTITLEADDR),hl
-	ld de,0xc000
 	ld b,TITLELENGTH+1
 .copytitleloop
 	ld a,(de)
@@ -150,6 +156,7 @@ musicload
 	inc hl
 	djnz .filltitleloop
 	ld (hl),0
+.notitle
 	xor a
 	ld (currentposition),a
 	ret
@@ -186,7 +193,7 @@ musicplay
 
 	include "../_sdk/file.asm"
 	include "common/memorystream.asm"
-	include "common/opl4utils.asm"
+	include "common/opl4.asm"
 	include "common/muldiv.asm"
 	include "moonmod/mod.asm"
 	include "moonmod/s3m.asm"
@@ -196,6 +203,10 @@ playernamestr
 	db "MoonSound S3M/MOD Player",0
 outofmemorystr
 	db "Out of memory!",0
+initokstr
+	db "OK\r\n",0
+nodevicestr
+	db "no device!\r\n",0
 
 tempmemorystart = $
 periodlookup

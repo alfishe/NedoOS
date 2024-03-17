@@ -27,9 +27,9 @@ ismoonsoundpresent
 	add a,1
 	sbc a,a
 	ret nz
-;check if LD and BUSY are zeros
+;read the status second time, now expect all bits clear
 	in a,(MOON_STAT)
-	and 3
+	or a
 	ret
 
 MOONSOUNDROMSIZE = 0x200000
