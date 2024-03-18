@@ -1,0 +1,298 @@
+Используя закон сохранения импульса, получаем формулу расчета векторов скорости шаров W1 и W2 после удара:
+
+W1 = V1 + M2*(1+k)/(M1+M2)*(|V1|*cos(fi1) + |V2|*cos(fi2))*n1;
+W2 = V2 + M1*(1+k)/(M1+M2)*(|V1|*cos(fi1) + |V2|*cos(fi2))*n2;
+
+Здесь fi1 и fi2 - углы между линией общей нормали и векторами скоростей V1 и V2 в момент удара.
+
+n1 и n2 - векторы единичных нормалей к поверхности шаров в точке контакта.
+|V1| и |V2| - модули векторов скоростей V1 и V2. 
+
+
+
+
+
+    void PlayRoomActors::Tick()
+    {
+      Actors::Tick();
+      Vertex3Df min, max;
+      min = *playRoomLevelInfo->GetMin();
+      max = *playRoomLevelInfo->GetMax();
+      // Обработать продвижение актеров
+      float time = timer->Intervalf();
+      int count = 0;
+      while ( time > 0 )
+      {
+        float timeToHit = time;
+        PlayRoomActor *actor;
+        PlayRoomActor *who = NULL;
+        PlayRoomActor *whom = NULL;
+        Vertex3Df normal, normal2;
+        float when;
+        // Находим ближайшее столкновение
+        for ( actor = (PlayRoomActor *) actors.GetFirst(); actor;
+              actor = (PlayRoomActor *) actor->GetNext() )
+        {
+          // Проверим столкновения с ограничителями поля
+          for ( int i = 0; i <= 2; i++ )
+          {
+            if ( actor->speed[ i ] )
+            {
+              float dist = max[ i ] - actor->pos[ i ] - actor->radius;
+              when = dist / actor->speed[ i ];
+              //if ( (when >= -maxE) && (when <= maxE) )
+              //  when = 0;
+              if ( (when > 0) && (when < timeToHit) )
+              {
+                timeToHit = when;
+                who = actor;
+                whom = NULL;
+                normal.x = normal.y = normal.z = 0;
+                normal[ i ] = -1.0f;
+              }
+              else if ( (dist < 0) && (actor->speed[ i ] > 0) )
+              {
+                Vertex3Df normal2( 0, 0, 0 );
+                normal2[ i ] = -1.0f;
+                //actor->speed[ i ] = -dist;
+                actor->DoHit( NULL, normal2, -dist );
+              };
+     
+              dist = actor->pos[ i ] - min[ i ] - actor->radius;
+              when = -dist / actor->speed[ i ];
+              if ( (when >= -maxE) && (when <= maxE) )
+                when = 0;
+              if ( (when > 0) && (when < timeToHit) )
+              {
+                timeToHit = when;
+                who = actor;
+                whom = NULL;
+                normal.x = normal.y = normal.z = 0;
+                normal[ i ] = +1.0f;
+              }
+              else if ( (dist <= 0) && (actor->speed[ i ] < 0) )
+              {
+                Vertex3Df normal2( 0, 0, 0 );
+                normal2[ i ] = +1.0f;
+                //actor->speed[ i ] = dist;
+                actor->DoHit( NULL, normal2, -dist );
+              };
+            };
+          };
+          // Проверим столкновения с другими шарами
+          for ( PlayRoomActor *other = (PlayRoomActor *) actor->GetNext();
+                other; other = (PlayRoomActor *) other->GetNext() )
+          {
+            if ( IntersectSphereBySphere( actor->pos, actor->radius, actor->speed,
+                                          other->pos, other->radius, other->speed,
+                                          &when, &normal2 ) )
+            {
+              if ( (when >= -maxE) && (when <= maxE) )
+                when = 0;
+              if ( (when > 0) && (when < timeToHit) )
+              {
+                timeToHit = when;
+                who = actor;
+                whom = other;
+                normal = normal2;
+              };
+              if ( (when == 0) && ((actor->speed & other->speed) < 0) )
+              {
+                actor->DoHit( other, normal2 );
+              };
+            };
+          };
+          // Проверим еще столкновения...
+          for ( int i = 0; i < 4; i++ )
+          {
+            if ( IntersectTrisBySphere( playRoomLevel->GetPyramid( i )[ 0 ],
+                                        playRoomLevel->GetPyramid( i )[ 1 ],
+                                        playRoomLevel->GetPyramid( i )[ 2 ],
+                    actor->pos, actor->radius, actor->speed, &when, &normal2 ) )
+            {
+              if ( (when >= -maxE) && (when <= maxE) )
+                when = 0;
+              if ( (when > 0) && (when < timeToHit) )
+              {
+                timeToHit = when;
+                who = actor;
+                whom = NULL;
+                normal = normal2;
+              }
+              float dist = when * actor->speed.Length();
+              if ( (dist < 0) && (dist >= -actor->radius) && ((actor->speed & normal2) < 0) )
+              {
+                actor->DoHit( other, normal2, -dist );
+              };
+            };
+          };
+        };
+        // Сделаем шаг
+        if ( count++ > 20 )
+          timeToHit = time;
+        time -= timeToHit;
+        for ( actor = (PlayRoomActor *) actors.GetFirst(); actor;
+              actor = (PlayRoomActor *) actor->GetNext() )
+        {
+          actor->DoStep( timeToHit );
+        };
+        // Проведем столкновение
+        if ( who )
+        {
+          who->DoHit( whom, normal );
+        };
+      };
+    }; 
+
+
+
+
+
+    float k = 2.0f; // k = [ 1.0f ... 2.0f ]
+    float coef = mass / (mass + whom->mass);
+    Vertex3Df relSpeed = speed - whom->speed;
+    Vertex3Df nRelSpeed = -((-normal) & relSpeed) * normal;
+    nRelSpeed *= k;
+    speed -= (1.0f - coef) * nRelSpeed;
+    whom->speed += coef * nRelSpeed;
+
+mass, whom->mass - массы текущего, и другого шара
+speed, whom-speed - скорости текущего и другого шара (векторы)
+normal - нормаль в точке соударения (направлена внутрь текущего шара) (тоже вектор)
+k - коэффициент упругости. при к = 2 удар абсолютно упруг, при k = 1 - абс. неупруг
+
+для нахождения нормали соприкосновения использовалась такая ф-я:
+
+// IntersectSphereBySphere: возвращает true, если окружности с радиусами
+// r1 и r2 с центрами в точках c1 и с2, движущиеся со скоростями v1 и v2
+// соприкоснутся в результате своего движения.
+// Если возвращает true, то в параметр time сохраняется время которое должно
+// пройти до момента соприкосновения, а в параметр normal - нормаль соприкоснования, т.е.
+// единичный вектор, лежащий на отрезке, соединяющей центры окружностей в момент
+// соприкосновения, направленный в сторону центра первой окружности c1.
+template < class T >
+bool IntersectSphereBySphere( const Vertex3D< T > &c1, T r1, const Vertex3D< T > &v1,
+                              const Vertex3D< T > &c2, T r2, const Vertex3D< T > &v2,
+                              T *time, Vertex3D< T > *normal )
+{
+  Vertex3D< T > nPos = c1 - c2;
+  Vertex3D< T > nSpeed = v1 - v2;
+  T nSpeedLen = nSpeed.Length();
+  if ( nSpeedLen <= 0 )
+    return false;
+  Vertex3D< T > nSpeedDir = nSpeed / nSpeedLen;
+  T dist = (-nPos) & nSpeedDir;
+  if ( dist <= 0 )
+    return false;
+  T nPosLen = nPos.Length();
+  T r = r1 + r2;
+  T x = nPosLen * nPosLen - dist * dist;
+  if ( x > r * r )
+    return false;
+  T z = dist - sqrtf( r * r - x );
+  *time = z / nSpeedLen;
+  *normal = +nPos + nSpeedDir * z;
+  normal->Normalize();
+  return true;
+};
+
+тут ООП-ный код, текущий объект - шар, а whom - шар с которым столкновение происходит.
+mass, speed поля масс и скоростей соответственно, raduis в данном расчете не нужен
+normal - нормаль столкновения, в сущности вектор соединяющий центры шаров, но единичной длины. в какую сторону направлен уже не помню.
+ессесно используется векторная алгебра, так что operator& - скалярное умножение векторов (dot product).
+k контролирует степень упругости удара, при 2 - абсолютно упругий.
+
+
+
+
+TVector pb1,pb2,xaxis,U1x,U1y,U2x,U2y,V1x,V1y,V2x,V2y;
+
+double a,b;
+
+// Найти расположение первого шара
+
+pb1=OldPos[BallColNr1]+ArrayVel[BallColNr1]*BallTime;
+
+// Найти расположение второго шара
+
+pb2=OldPos[BallColNr2]+ArrayVel[BallColNr2]*BallTime;
+
+xaxis=(pb2-pb1).unit(); // Найти X-Axis
+
+a=xaxis.dot(ArrayVel[BallColNr1]); // Найти проекцию
+
+U1x=xaxis*a;      // Найти спроецированные вектора
+
+U1y=ArrayVel[BallColNr1]-U1x;
+
+xaxis=(pb1-pb2).unit(); // Сделать также, как выше
+
+b=xaxis.dot(ArrayVel[BallColNr2]); // Найти проекцию
+
+U2x=xaxis*b; // Векторы для другого шара
+
+U2y=ArrayVel[BallColNr2]-U2x;
+
+V1x=(U1x+U2x-(U1x-U2x))*0.5; // Сейчас найти новые скорости
+
+V2x=(U1x+U2x-(U2x-U1x))*0.5;
+
+V1y=U1y;
+
+V2y=U2y;
+
+for (j=0;j<NrOfBalls;j++) // Обновить все новые расположения
+
+ArrayPos[j]=OldPos[j]+ArrayVel[j]*BallTime;
+
+ArrayVel[BallColNr1]=V1x+V1y; // Установить новые вектора скорости
+
+ArrayVel[BallColNr2]=V2x+V2y; // столкнувшимся шарам
+
+ 
+
+
+
+пусть 1й шар в процессе столкновения получает изменение импульса p, в отсутствии трения оно направленно по нормали  n (линии, соед. центры шаров в момент удара), p = p*n, тогда по ЗСИ 2й шар получает -p,
+тогда новые скорости
+v1'=v1+p/m1
+v2'=v2 -p/m2
+при абс.упругом ударе из ЗСЭ
+m1*v1^2+m2*v2^2=m1*(v1+p*n/m1)^2+m2*(v2-p*n/m2)^2
+2*p*(n,v1-v2)+p^2*(1/m1+1/m2)=0
+p=2*(v2-v1,n)/(1/m1+1/m2) 
+
+
+
+
+
+dx1n-dx1=Rx
+dx2n-dx2=-Rx
+dy1n-dy1=Ry
+dy2n-dy2=-Ry
+dx1^2 + dy1^2 + dx2^2 + dy2^2 = dx1n^2 + dy1n^2 + dx2n^2 + dy2n^2
+dx2n=(dx1+dx2)-dx1n
+dy2n=(dy1+dy2)-dy1n
+
+R - "сила" реакции направлена вдоль прямой, соединяющей центры шаров
+какая у неё длина? зависит от проекции исходной относительной скорости на нормаль между шарами
+
+
+её модуль - скалярное произведение (v2-v1,n)?
+
+
+
+
+TODO:
+притягивание к лузам
+лузы крупнее
+трясти стол кнопкой
+
+
+
+
+
+метки не должны пересекаться по номерам с автометками?
+если метка в функции, которая выше содержит for/do/if (с переходом, а не ret CC) или какие-то ещё непонятные условия, то она не может посчитать какой-то размер
+убрал стекфрейм (___sdcc_enter_ix - может появиться и для временных результатов вычислений, и даже ни с того ни с сего) - не помогло
+метка ошибочно генерируется с табуляцией, но это, вроде бы, не важно
