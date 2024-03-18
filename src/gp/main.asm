@@ -1,4 +1,4 @@
-6	DEVICE ZXSPECTRUM128
+	DEVICE ZXSPECTRUM128
 	include "../_sdk/sys_h.asm"
 	include "playerdefs.asm"
 
@@ -11,7 +11,7 @@ FILE_NAME_OFFSET = FILE_DISPLAY_INFO_OFFSET+FILE_DISPLAY_INFO_SIZE
 FILE_NAME_SIZE = SFN_SIZE
 FILE_ATTRIB_OFFSET = FILE_NAME_OFFSET+FILE_NAME_SIZE
 FILE_ATTRIB_SIZE = 1
-BROWSER_FILE_COUNT=170
+BROWSER_FILE_COUNT=169
 PLAYLIST_FILE_COUNT=40
 PANELCOLOR = 0x4f
 CURSORCOLOR = 0x28
@@ -1549,6 +1549,46 @@ isfilesupported jumpindirect ISFILESUPPORTEDPROCADDR
 	include "../_sdk/file.asm"
 	include "common/radixsort.asm"
 	include "common/opl4.asm"
+
+trywritingfm1
+	djnz $
+	ld a,e
+	out (MOON_REG1),a
+	djnz $
+	ld a,d
+	out (MOON_DAT1),a
+	ret
+
+ismoonsoundpresent
+;out: zf=1 if Moonsound is present, zf=0 if not
+	switch_to_pcm_ports_c2_c3
+;check for 255 as an early exit condition
+	in a,(MOON_STAT)
+	add a,1
+	sbc a,a
+	ret nz
+;read the status second time, now expect all bits clear
+	in a,(MOON_STAT)
+	or a
+	ret nz
+;start timer
+	ld de,0x8003
+	call trywritingfm1
+	ld de,0x4204
+	call trywritingfm1
+	ld d,0x80
+	call trywritingfm1
+;wait for the timer to finish
+	YIELD
+	YIELD
+;check the timer flags
+	in a,(MOON_STAT)
+	cp 0xa0
+	ret nz
+;no kidding, there must be MoonSound in this system
+	call opl4mute
+	xor a
+	ret
 
 closeexistingplayer
 ;d = current pid
