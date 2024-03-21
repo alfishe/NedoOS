@@ -431,7 +431,7 @@ unsigned char getPic(unsigned long fileId)
 unsigned char savePic(unsigned long fileId)
 {
   FILE *fp2;
-  unsigned char afnSize, tfnSize;
+  unsigned char afnSize, tfnSize, len;
   unsigned char fileIdChar[10];
 
   afnSize = sizeof(curFileStruct.afn) - 1;
@@ -442,6 +442,22 @@ unsigned char savePic(unsigned long fileId)
 
   strcpy(curFileStruct.pfn, curFileStruct.picName);
   nameRepair(curFileStruct.pfn, tfnSize);
+
+  for (len = 0; len < strlen(curFileStruct.afn); len++)
+  {
+    if (curFileStruct.afn[len] < ' ')
+    {
+      curFileStruct.afn[len] = '_';
+    }
+  }
+
+  for (len = 0; len < strlen(curFileStruct.pfn); len++)
+  {
+    if (curFileStruct.pfn[len] < ' ')
+    {
+      curFileStruct.pfn[len] = '_';
+    }
+  }
 
   sprintf(curFileStruct.fileName, "%s-%s-%ld.scr", curFileStruct.afn, curFileStruct.pfn, fileId);
   if (strlen(curFileStruct.fileName) > 62)
@@ -500,7 +516,7 @@ const char *parseJson(unsigned char *property)
   unsigned char terminator;
   int n;
   n = -1;
-  //netbuf[0] = '\0';
+  // netbuf[0] = '\0';
   n = pos(picture, property, 1, 0);
   if (n == -1)
   {
@@ -590,6 +606,7 @@ void convert866(void)
       {
         decVal = 241;
       }
+
       netbuf[targetPos] = decVal;
     }
     else
