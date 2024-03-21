@@ -83,6 +83,7 @@ exit3
 	pop hl
 	ld a, (pg0)	
 	halt
+	halt
 	ret
 
 slideshow ;BC ints
