@@ -428,21 +428,10 @@ unsigned char getPic(unsigned long fileId)
   fillPicture(socket);
   return 0;
 }
-unsigned char savePic(unsigned long fileId)
+
+void ncReplace(void)
 {
-  FILE *fp2;
-  unsigned char afnSize, tfnSize, len;
-  unsigned char fileIdChar[10];
-
-  afnSize = sizeof(curFileStruct.afn) - 1;
-  tfnSize = sizeof(curFileStruct.pfn) - 1;
-
-  strcpy(curFileStruct.afn, curFileStruct.authorTitle);
-  nameRepair(curFileStruct.afn, afnSize);
-
-  strcpy(curFileStruct.pfn, curFileStruct.picName);
-  nameRepair(curFileStruct.pfn, tfnSize);
-
+  unsigned char len;
   for (len = 0; len < strlen(curFileStruct.afn); len++)
   {
     if (curFileStruct.afn[len] < ' ')
@@ -458,6 +447,23 @@ unsigned char savePic(unsigned long fileId)
       curFileStruct.pfn[len] = '_';
     }
   }
+}
+
+unsigned char savePic(unsigned long fileId)
+{
+  FILE *fp2;
+  unsigned char afnSize, tfnSize;
+  unsigned char fileIdChar[10];
+
+  afnSize = sizeof(curFileStruct.afn) - 1;
+  tfnSize = sizeof(curFileStruct.pfn) - 1;
+
+  strcpy(curFileStruct.afn, curFileStruct.authorTitle);
+  nameRepair(curFileStruct.afn, afnSize);
+
+  strcpy(curFileStruct.pfn, curFileStruct.picName);
+  nameRepair(curFileStruct.pfn, tfnSize);
+  ncReplace();
 
   sprintf(curFileStruct.fileName, "%s-%s-%ld.scr", curFileStruct.afn, curFileStruct.pfn, fileId);
   if (strlen(curFileStruct.fileName) > 62)

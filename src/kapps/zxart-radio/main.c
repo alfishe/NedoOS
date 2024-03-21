@@ -530,6 +530,26 @@ void stringRepair(unsigned char *pfn, unsigned int tSize)
   str_replace(pfn, tSize, pfn, "\\/", "/");
 }
 
+void ncReplace(void)
+{
+  unsigned char len;
+  for (len = 0; len < strlen(curFileStruct.afn); len++)
+  {
+    if (curFileStruct.afn[len] < ' ')
+    {
+      curFileStruct.afn[len] = '_';
+    }
+  }
+
+  for (len = 0; len < strlen(curFileStruct.tfn); len++)
+  {
+    if (curFileStruct.tfn[len] < ' ')
+    {
+      curFileStruct.tfn[len] = '_';
+    }
+  }
+}
+
 unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned int sizeOfBuf)
 {
   FILE *fp2;
@@ -554,6 +574,7 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
       strcpy(curFileStruct.tfn, curFileStruct.trackName);
       nameRepair(curFileStruct.tfn, tfnSize);
       sprintf(curFileStruct.fileName, "%s-%s.%s", curFileStruct.afn, curFileStruct.tfn, formats[curFormat]);
+      ncReplace();
 
       if (strlen(curFileStruct.fileName) > 63)
       {
