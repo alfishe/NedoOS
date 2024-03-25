@@ -652,12 +652,12 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     break;
 
   case 1:
-    strcat(netbuf, "GET /api/types:zxPicture/export:zxPicture/language:eng/start:0/limit:1/order:rand/filter:zxPictureMinRating=4;zxPictureType=standard");
+    strcpy(netbuf, "GET /api/types:zxPicture/export:zxPicture/language:eng/start:0/limit:1/order:rand/filter:zxPictureMinRating=4;zxPictureType=standard");
     strcat(netbuf, userAgent);
     break;
 
   case 3: // /api/export:author/filter:authorId=2202
-    strcat(netbuf, "GET /api/export:author/filter:authorId=");
+    strcpy(netbuf, "GET /api/export:author/filter:authorId=");
     sprintf(buffer, "%lu", startPos);
     strcat(netbuf, buffer);
     strcat(netbuf, userAgent);
@@ -685,6 +685,8 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
       ATRIB(91);
       printf("PROCESS JSON: [ERROR: Bad responseStatus.] [Retry:%u] [Pic:%lu]\r\n", retry, startPos);
       YIELD();
+      puts(netbuf);
+      getchar();
       if (retry < 1)
       {
         return -1;
