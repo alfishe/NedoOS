@@ -30,20 +30,44 @@ INImons LD A,(HL) ;x
         ldi ;y
         ldi ;Y
 ;перекодируем PHASE_type (type, PHASE) в TYPEphase_dir (dir, TYPEphase) ;TYPEphase=TYPE*8+phase
-        ld a,r:add a,a;xor a
-        ld (de),a ;dir ;TODO вычислить начальное направление по типу
-        inc de
-        ld a,(hl) ;type
+        xor a
+        ld (de),a ;dir (nomove)
+        ld a,(hl) ;type=1...
+        cp 7
+        jr nc,INImons_nolive
+        cp 3
+        jr c,INImons_nomove
+        ld (hl),3
+        sub 3 ;0..3
+        rlca
+        rlca
+        inc a
+        ld (de),a ;dir
+INImons_nomove
+INImons_nolive
+        ld a,(hl)
+        cp 7
+        jr c,$+4
+        sub 3
         add a,a
         add a,a
         add a,a
         inc hl
         add a,(hl) ;phase
         inc hl
+        inc de
         ld (de),a
         inc de
-        ldi ;energy
-        ldi ;time
+        ;ldi ;energy
+        ;ldi ;time
+        inc hl
+        inc hl
+        ld a,100
+        ld (de),a ;energy
+        inc de
+        ld a,1
+        ld (de),a ;time
+        inc de
         JR INImons
 INImonsQ ;
        ex de,hl;EXD 

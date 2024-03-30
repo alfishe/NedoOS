@@ -36,6 +36,15 @@ floorcolourbyte=0b00010010;%11110110 ;atm
 
 sprites=1
 CURSPRITES_RECSZ=5;4 ;ID, distL, distH, xscr, [monsterindex]
+FATMONSTERS=0
+viewrange=6
+MONSTERviewrange=3
+MONSTERBACKviewrange=2
+
+TIME_WOUNDED=30
+TIME_WANTATTACK=40
+TIME_ATTACK=25
+TIME_STEP=10
 
 scale64=3;1 ;0 не поддерживается
 
