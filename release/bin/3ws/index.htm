@@ -1,39 +1,68 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
-	<HEAD>
-		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-		<meta http-equiv="Cache-Control" content="no-cache">
-		<title>ZX-filemanager</title>
-		<link rel="icon" type="image/ico" href="favicon.ico">
-		<style>
-	a.nubex {color:#fff;border-radius: 2px;user-select: none;text-decoration: none;
-		outline: none;background-color: #fa8e47;padding: 3px;}
-	a.nubex:active {background-color: #ee6206;}
-	a.nubex:hover {background-color: #f97f2e;}
-	#divlog {border: 2px dashed #ccc;border-radius: 20px;width: 480px;
-	font-family: sans-serif;padding: 20px;text-align:left}
-   </style>
 
-	</HEAD>
-	<BODY>
-		<DIV id="log"></DIV>
-		<TABLE width="100%">
-			<col width="50%">
-			<col width="50%">
-			<tr>
-				<td>
-					<input type="text" id="dirName">
-					<a class="nubex" href="javascript:mkdir()">MakeDir</a>
-				</td>
-				<td style="text-align:right"><a class="nubex" href="?x=1">stop daemon</a></td>
-			</tr>
-		</TABLE>
-		<br><br>
-		<DIV id="divlog"></DIV>
-		<DIV>
-			<input type="file" id="fileToUp" style="display:none" multiple>
-			<a href="javascript:if(window.fcnt<=0)document.getElementById('fileToUp').click()" class="nubex" id="btnUpload">upload</a>
-		</DIV>
-		<script src="my.js" type="text/javascript"></script>
-  </BODY>
+<HEAD>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<meta http-equiv="Cache-Control" content="no-cache">
+	<title>ZX-filemanager</title>
+	<link rel="icon" type="image/ico" href="favicon.ico">
+	<style>
+		a.nubex {
+			color: #fff;
+			border-radius: 2px;
+			user-select: none;
+			text-decoration: none;
+			outline: none;
+			background-color: #fa8e47;
+			padding: 3px;
+		}
+
+		a.nubex:active {
+			background-color: #ee6206;
+		}
+
+		a.nubex:hover {
+			background-color: #f97f2e;
+		}
+
+		#divlog {
+			border: 2px dashed #ccc;
+			border-radius: 20px;
+			width: 480px;
+			font-family: sans-serif;
+			padding: 20px;
+			text-align: left
+		}
+	</style>
+
+</HEAD>
+
+<BODY>
+	<DIV id="log"></DIV>
+	<TABLE width="100%">
+		<col width="50%">
+		<col width="50%">
+		<tr>
+			<td>
+				<input type="text" id="dirName">
+				<a class="nubex" href="javascript:mkdir()">MakeDir</a>
+			</td>
+			<td style="text-align:right"><a class="nubex" href="?x=1">stop daemon</a></td>
+		</tr>
+	</TABLE>
+	<br><br>
+	<DIV>
+		<input type="file" id="fileToUp" style="display:none" multiple>
+		<a href="javascript:if(window.fcnt<=0)document.getElementById('fileToUp').click()" class="nubex"
+			id="btnUpload">upload</a>
+	</DIV>
+	<DIV id="divlog"></DIV>
+	<DIV>
+		<input type="file" id="fileToUp" style="display:none" multiple>
+		<a href="javascript:if(window.fcnt<=0)document.getElementById('fileToUp').click()" class="nubex"
+			id="btnUpload">upload</a>
+	</DIV>
+	<script src="my.js" type="text/javascript"></script>
+</BODY>
+
 </HTML>
