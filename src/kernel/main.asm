@@ -8,6 +8,8 @@ TOPDOWNMEM=1
 TOPDOWNMEM=0;1
        endif
 
+EFF7VALUE=0x10 ;noturbo
+
 		if atm != 2
 memport0000=0x37f7
 memport4000=0x77f7
@@ -121,7 +123,7 @@ begin
         out (0xfe),a
         ifdef KOE
             display "KOE!!!"
-            ld a,0 ;turbo ;0x10 ;noturbo
+            ld a,0+EFF7VALUE ;turbo ;0x10 ;noturbo
             ld bc,0xeff7
             out (c),a ;for KOE
             ld a,0x10
@@ -251,7 +253,7 @@ init_rst_buf=0x4000
 init_sysdev_end
 			halt
 			ld bc,0xeff7
-			ld a,0x80
+			ld a,0x80+EFF7VALUE
 			out (c),a
 			ld a,0x10
 			ld bc,0x7ffd
@@ -845,7 +847,7 @@ readtime  ;=$-wasresident+resident
 	LD A,e;0xa8;%10101000 ;320x200 mode
 	push af
 	ld bc,0xeff7
-	ld a,0x80
+	ld a,0x80+EFF7VALUE
 	out (c),a
 	;ld bc,0xf7 + (NVRAM_REG<<8)
     ;ld a,0x0b
@@ -901,7 +903,7 @@ writetime
        pop de
 	push af
 	ld bc,0xeff7
-	ld a,0x80
+	ld a,0x80+EFF7VALUE
 	out (c),a
         
         ld a,e
@@ -948,7 +950,7 @@ writetime
         call bin2cmos
 readtimeq
 	ld bc,0xeff7
-	xor a
+	ld a,0+EFF7VALUE
 	out (c),a
 	pop af
         ld e,a ;!!! потом будет использоваться в readtime
@@ -989,7 +991,7 @@ writetime
         pop de
 	push af
 	ld bc,0xeff7
-	ld a,0x80
+	ld a,0x80+EFF7VALUE
 	out (c),a
 
         ld a,e
@@ -1035,7 +1037,7 @@ writetime
         ld b,0x53	        ;month
         call send2ve
 	ld bc,0xeff7
-	xor a
+	ld a,0+EFF7VALUE
 	out (c),a
 	pop af
         ld e,a                   ;!!! потом будет использоваться в readtime
