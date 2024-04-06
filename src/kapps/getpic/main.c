@@ -946,6 +946,7 @@ review:
   }
   if (keypress == 'i' || keypress == 'I')
   {
+    delay(100);
     getchar();
     goto review;
   }
