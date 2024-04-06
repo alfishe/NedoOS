@@ -24,7 +24,7 @@ struct fileStruct
   unsigned char pfn[128];
   unsigned char fileName[128];
 } curFileStruct;
-unsigned char ver[] = "2.3";
+unsigned char ver[] = "2.4";
 unsigned char netbuf[2048];
 unsigned char picture[16384];
 unsigned char crlf[2] = {13, 10};
@@ -42,11 +42,18 @@ struct packetStruct
   unsigned int headlng;
 } pack;
 
-void emptyKeyBuf(void)
+void emptyKeys(void)
 {
+  unsigned char loop, key = 1;
   do
   {
-  } while (_low_level_get() != 0);
+    key = _low_level_get();
+    if (loop > 64)
+    {
+      break;
+    }
+    loop++;
+  } while (key != 0);
 }
 
 void printHelp(void)
@@ -69,12 +76,7 @@ void printHelp(void)
   printf(" 'H' Данная справочная информация\n\r");
   printf("-----------------Нажмите любую кнопку------------------\n\r");
   ATRIB(93);
-  do
-  {
-    YIELD();
-    keypress = _low_level_get();
-  } while (keypress == 0);
-  emptyKeyBuf();
+  keypress = getchar();
 }
 void delay(unsigned long counter)
 {
@@ -192,7 +194,7 @@ unsigned char netConnect(signed char socket)
   targetadr.b2 = 146;
   targetadr.b3 = 69;
   targetadr.b4 = 13;
-  while (retry > 0)
+  while (retry != 0)
   {
     todo = OS_NETCONNECT(socket, &targetadr);
 
@@ -309,7 +311,6 @@ unsigned int cutHeader(unsigned int todo)
   {
     headlng = ((unsigned int)count1 - (unsigned int)netbuf + 4);
     q = todo - headlng;
-    // memcpy(&netbuf, count1 + 4, q);
     // printf("header removed. %u bytes\r\n", headlng);
   }
 
@@ -370,11 +371,13 @@ void fillPicture(signed char socket)
       printf("dataBuffer overrun... %u reached \n\r", pPos + todo);
       break;
     }
+    // memcpy(&picture + pPos, &netbuf + headlng, todo );
 
     for (w = 0; w < todo; w++)
     {
       picture[w + pPos] = netbuf[w + headlng];
     }
+
     pPos = pPos + todo;
     if (pPos == contLen)
     {
@@ -683,7 +686,7 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     {
       retry--;
       ATRIB(91);
-      printf("PROCESS JSON: [ERROR: Bad responseStatus.] [Retry:%u] [Pic:%lu]\r\n", retry, startPos);
+      printf("PROCESS JSON: [ERROR: Bad responseStatus.] [Query:%u][Retry:%u] [Pic:%lu]\r\n", queryNum, retry, startPos);
       YIELD();
       puts(netbuf);
       getchar();
@@ -702,7 +705,7 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   if (count1 == NULL)
   {
     ATRIB(91);
-    printf("PROCESS JSON: [ERROR: ID not found.] [Pic:%lu]\r\n", startPos);
+    printf("PROCESS JSON: [ERROR: ID not found.] [Query:%u][Pic:%lu]\r\n", queryNum, startPos);
     YIELD();
     return -2;
   }
@@ -872,8 +875,7 @@ C_task main(void)
   safeKeys(keypress);
 
 start:
-  emptyKeyBuf();
-
+  keypress = 0;
   switch (randomPic)
   {
   case 0:
@@ -908,21 +910,18 @@ start:
     // ATRIB(97);
     // printf(" Getting picture...\r\n");
   }
-  if (!strcmp(curFileStruct.picType, "standard"))
 
+  if (strcmp(curFileStruct.picType, "standard") != 0)
   {
-    errno = getPic(iddqd);
-
-  review:
-    keypress = viewScreen6912((unsigned int)&picture, slideShowTime);
-    emptyKeyBuf();
-  }
-  else
-  {
-    printf("  >>Format %s not supported, skipped \n\r", curFileStruct.picType);
+    printf("  >>Format '%s' not supported, skipped \n\r", curFileStruct.picType);
     count++;
     goto start;
   }
+
+  errno = getPic(iddqd);
+review:
+  keypress = viewScreen6912((unsigned int)&picture, slideShowTime);
+  emptyKeys();
 
   ///// Keys only for pictures
   if (keypress == 's' || keypress == 'S')
@@ -947,11 +946,7 @@ start:
   }
   if (keypress == 'i' || keypress == 'I')
   {
-    do
-    {
-      YIELD();
-    } while (_low_level_get() == 0);
-    emptyKeyBuf();
+    getchar();
     goto review;
   }
   safeKeys(keypress);

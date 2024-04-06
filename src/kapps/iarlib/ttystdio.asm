@@ -62,7 +62,7 @@ ttygetkey_ne
 	call BDOS
 	call receivekey
 ;	cp key_esc
-;	ld de,0
+	ld de,0
 ;	jp z,exit
 	ld l,a
 	ld h,0
