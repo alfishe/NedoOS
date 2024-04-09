@@ -1,8 +1,9 @@
-gp.com - Player for AY8910, GeneralSound, NeoGS, MoonSound, TurboSound
+gp.com - Player for AY8910, GeneralSound, NeoGS, MoonSound, TurboSound, MultiSound
 
 Supported formats:
  - mp3  NeoGS
- - mid  NeoGS rev.CM with VLSI VS1003/VS1033/VS1053/VS1103 decoder chip
+ - mid  NeoGS rev.CM with VLSI VS1003/VS1033/VS1053 decoder chip,
+        MIDI UART connected to AY port A.2 (e.g. MultiSound)
  - ogg  NeoGS rev.CM with VLSI VS1053/VS1063 decoder chip
  - aac  NeoGS rev.CM with VLSI VS1033/VS1053/VS1063 decoder chip
  - vgm  AY, MoonSound (chips YM3812, YMF262, YMF278B), TurboSound FM (2x YM2203)
@@ -58,6 +59,12 @@ for the best sound quality. Production files for NeoGS rev.CM can be found here
 http://svn.zxevo.ru/listing.php?repname=ngs&path=%2Fpcad%2FSolegstar%2F
 
 Playing MIDI
+
+If you can't hear music via MIDI UART connection or you only hear single
+notes, you can try setting variable MidiUartDelayOverride in bin\gp\gp.ini
+By default, the player selects value of UART delay automatically depending on
+CPU speed, but there can be inaccuracies leading to incorrect transfer rate
+different from the 31250 baud required by MIDI protocol.
 
 VLSI codecs only support MIDI format 0 (SMF 0) because SMF 1 and SMF 2 can't
 be streamed and must be preloaded entirely. The main difference between these

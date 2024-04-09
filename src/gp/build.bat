@@ -6,6 +6,7 @@ sjasmplus --nologo --msg=war mp3.asm
 sjasmplus --nologo --msg=war vgm.asm
 sjasmplus --nologo --msg=war moonmod.asm
 sjasmplus --nologo --msg=war main.asm
+rem sjasmplus --nologo --msg=war moonmod/generateperiodlookup.asm
 
 if "%currentdir%"=="" (
  copy /Y gp.com "../../release/bin/" > nul

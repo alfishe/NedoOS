@@ -1291,6 +1291,7 @@ settingsvars
 	db 0x1F : dw gpsettings.usevgm
 	db 0x26 : dw gpsettings.usemoonmod
 	db 0x7F : dw gpsettings.moonmoddefaultpanning
+	db 0x7A : dw gpsettings.midiuartdelayoverride
 settingsvarcount=($-settingsvars)/3
 
 getfileextension

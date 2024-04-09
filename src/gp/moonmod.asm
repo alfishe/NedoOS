@@ -240,7 +240,6 @@ modheader MODHEADER
 	org S3MHEADERADDR
 s3mheader S3MHEADER
 
-	assert MEMORYSTREAMMAXPAGES >= 9
 	assert MODWAVEHEADERBUFFERSIZE <= PLAYEREND-modwaveheaderbuffer
 	assert S3MWAVEHEADERBUFFERSIZE <= PLAYEREND-s3mwaveheaderbuffer
 

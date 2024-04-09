@@ -1142,7 +1142,7 @@ waveheaderbufferend = waveheaderbuffer+WAVEHEADERBUFFERSIZE
 titlestr = waveheaderbufferend
 titlestrend = titlestr+TITLELENGTH
 
+	assert $ <= PLAYEREND ;ensure everything is within the player page
 	assert GzipBuffersEnd <= 0x10000
-	assert titlestrend <= 0x8000
 
 	savebin "vgm.bin",begin,end-begin

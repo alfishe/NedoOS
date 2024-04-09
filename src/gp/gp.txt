@@ -1,8 +1,9 @@
-gp.com - Проигрыватель для AY8910, GeneralSound, NeoGS, MoonSound, TurboSound
+gp.com - Проигрыватель для AY8910, GeneralSound, NeoGS, MoonSound, TurboSound, MultiSound
 
 Поддерживаемые форматы:
  - mp3  NeoGS
- - mid  NeoGS rev.CM с декодером VLSI VS1003/VS1033/VS1053/VS1103
+ - mid  NeoGS rev.CM с декодером VLSI VS1003/VS1033/VS1053 или 
+        MIDI UART подключённый к AY порт A.2 (напр. MultiSound)
  - ogg  NeoGS rev.CM с декодером VLSI VS1053/VS1063
  - aac  NeoGS rev.CM с декодером VLSI VS1033/VS1053/VS1063
  - vgm  AY, MoonSound (чипы YM3812, YMF262, YMF278B), TurboSound FM (2x YM2203)
@@ -62,6 +63,12 @@ MosArt MA8201A(U). Ревизия платы CM позволяет устанавливать разные декодеры.
 http://svn.zxevo.ru/listing.php?repname=ngs&path=%2Fpcad%2FSolegstar%2F
 
 Проигрывание MIDI файлов
+
+Если музыка через MIDI UART не проигрывается или слышны только обрывочные ноты,
+попробуйте настроить переменную MidiUartDelayOverride в bin\gp\gp.ini
+Плеер сам в зависимости от скорости системы определяет значение этой задержки,
+в зависимости от скорости ЦП, но возможны погрешности приводящие к скорости передачи
+отличной от скорости 31250 бод требуемой MIDI протоколом.
 
 Декодеры VLSI поддерживают только MIDI формата SMF 0, т.к. форматы SMF 1 и
 SMF 2 невозможно загружать потоком. Основное различие между форматами в том,
