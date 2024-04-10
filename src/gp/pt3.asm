@@ -13,8 +13,6 @@ MIDMAXTRACKS = 64
 MIDCHANNELS = 16
 
 	struct MIDTRACK
-index ds 1
-isdone ds 1
 lastcommand ds 1
 nexteventtick ds 4
 streamoffset ds 4
@@ -458,10 +456,7 @@ midchecksignature
 midloadtracks
 	ld ix,midplayer.tracks
 	ld iy,(midplayer.trackcount)
-	ld iyh,0
-.loop	ld a,iyh
-	ld (ix+MIDTRACK.index),a
-	ld b,midtracksigend-midtracksig
+.loop	ld b,midtracksigend-midtracksig
 	ld de,midtracksig
 	call midchecksignature
 	ret nz
@@ -493,7 +488,6 @@ midloadtracks
 	call memorystreamseek
 	ld bc,MIDTRACK
 	add ix,bc
-	inc iyh
 	dec iyl
 	jp nz,.loop
 	ret
@@ -537,7 +531,7 @@ midplay
 	ld b,a
 	ld c,0
 .trackloop
-	bit 7,(ix+MIDTRACK.isdone)
+	bit 7,(ix+MIDTRACK.streamoffset+3)
 	jr nz,.skiptrack
 	ld c,255
 	ld hl,(midplayer.tickcounter+0)
@@ -623,10 +617,10 @@ midhandletrack
 	ld d,0xf0
 	call midsendbyte
 .sendloop
-	memory_stream_read_byte b
-	ld d,b
+	memory_stream_read_byte e
+	ld d,e
 	call midsendbyte
-	ld a,b
+	ld a,e
 	cp 0xf7
 	jr nz,.sendloop
 	ld (memorystreamcurrentaddr),hl
@@ -638,6 +632,9 @@ midhandletrack
 	cp 0x51
 	jr z,.setduration
 	call midreadvarint
+	ld a,e
+	or d
+	jr z,.finalize
 	ld a,e
 	dec de
 	inc d
@@ -653,7 +650,7 @@ midhandletrack
 	ld (memorystreamcurrentaddr),hl
 	jr .finalize
 .markdone
-	ld (ix+MIDTRACK.isdone),255
+	set 7,(ix+MIDTRACK.streamoffset+3)
 	ret
 .setduration
 	call midreadvarint
