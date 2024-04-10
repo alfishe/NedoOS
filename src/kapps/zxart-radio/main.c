@@ -1317,6 +1317,5 @@ rekey:
   }
 
   YIELD();
-  YIELD();
   goto rekey;
 }

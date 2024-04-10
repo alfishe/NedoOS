@@ -456,7 +456,7 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 			clearStatus();
 			AT(1, 24);
 			printf("%s", fileName);
-			printf(" opening error.");
+			printf(" opening error. ");
 
 			exit(0);
 		}
