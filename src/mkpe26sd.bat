@@ -10,11 +10,11 @@ echo INETDRV=0x01 >> _sdk\syssets.asm
 echo PS2KBD=0x00 >> _sdk\syssets.asm
 echo 	define KOE >> _sdk\syssets.asm
 echo 	define NGSSD >> _sdk\syssets.asm
-FOR /F "tokens=1 delims=: " %%i IN ('svnversion -n') DO echo define SVNREVISION %%i >> _sdk\syssets.asm
-rem echo 	define KOEDI >> _sdk\syssets.asm
-rem echo 	define NOMOUSE >> _sdk\syssets.asm
-rem echo 	define NOCMOS >> _sdk\syssets.asm
-rem echo 	define NOPAL >> _sdk\syssets.asm
+FOR /F "tokens=1 delims=: " %%i IN ('svnversion -n') DO echo  define SVNREVISION %%i >> _sdk\syssets.asm
+rem echo  define KOEDI >> _sdk\syssets.asm
+rem echo  define NOMOUSE >> _sdk\syssets.asm
+rem echo  define NOCMOS >> _sdk\syssets.asm
+rem echo  define NOPAL >> _sdk\syssets.asm
 set makeall=1
 call make.bat noneedtrd
 cd kernel
