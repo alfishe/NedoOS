@@ -3038,8 +3038,8 @@ BDOS_get_config
     ld d,a
     ld e,pgsys
 	ifdef SVNREVISION
-		ld ix,((SVNREVISION+1) >> 16) & 0xffff
-		ld bc,(SVNREVISION+1) & 0xffff
+		ld ix,(SVNREVISION + 1 >> 16) & 0xffff
+		ld bc,(SVNREVISION + 1) & 0xffff
 	else
 		ld ix,0
 		ld bc,0
