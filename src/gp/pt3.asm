@@ -38,8 +38,9 @@ isfilesupported
 	jr nz,.checkpt
 	ld hl,0
 	ld (MUSICTITLEADDR),hl
+	ld hl,musicprogress+1
 	ld (MUSICPROGRESSADDR),hl
-	ret
+	jp initprogress
 .checkpt
 	ld a,c
 	cp 'p'
@@ -412,7 +413,7 @@ midloadfile
 	ld (hl),0
 	ldir
 	call memorystreamstart
-	ld b,midheadersigend-midheadersig
+	ld b,midheadersigsize
 	ld de,midheadersig
 	call midchecksignature
 	jp nz,memorystreamfree ;sets zf=0
@@ -430,6 +431,12 @@ midloadfile
 	add hl,hl : rl de
 	ld (midplayer.ticksperqnoteXupdatelen+0),hl
 	ld (midplayer.ticksperqnoteXupdatelen+2),de
+	call midloadtracks
+	jp nz,memorystreamfree ;sets zf=0
+	call midsetprogressdelta
+	ld de,0
+	ld hl,14
+	call memorystreamseek
 	call midloadtracks
 	jp nz,memorystreamfree ;sets zf=0
 	call midinitport
@@ -456,7 +463,7 @@ midchecksignature
 midloadtracks
 	ld ix,midplayer.tracks
 	ld iy,(midplayer.trackcount)
-.loop	ld b,midtracksigend-midtracksig
+.loop	ld b,midtracksigsize
 	ld de,midtracksig
 	call midchecksignature
 	ret nz
@@ -521,10 +528,14 @@ midplay
 	ld de,(midplayer.ticksperupdate+0)
 	add hl,de
 	ld (midplayer.tickcounter+0),hl
+	ex de,hl
 	ld hl,(midplayer.tickcounter+2)
-	ld de,(midplayer.ticksperupdate+2)
-	adc hl,de
+	ld bc,(midplayer.ticksperupdate+2)
+	adc hl,bc
 	ld (midplayer.tickcounter+2),hl
+	ex de,hl
+	call midgetprogress
+	call updateprogress
 ;iterate through the tracks
 	ld ix,midplayer.tracks
 	ld a,(midplayer.trackcount)
@@ -542,7 +553,7 @@ midplay
 	sbc hl,de
 	jr c,.skiptrack
 	push bc
-	call midhandletrack
+	call midhandletrackevent
 	pop bc
 	jr .trackloop
 .skiptrack
@@ -573,11 +584,9 @@ midreadvarint
 	jr nz,.loop
 	ret
 
-midhandletrack
+	macro process_midi_event call_send_byte,call_send_2,call_send_3
 ;ix = track
-	ld hl,(ix+MIDTRACK.streamoffset+0)
-	ld de,(ix+MIDTRACK.streamoffset+2)
-	call memorystreamseek
+;hl = memory stream address
 	memory_stream_read_byte b
 	bit 7,b
 	jr z,.gotdatabyte
@@ -615,11 +624,11 @@ midhandletrack
 	jp nz,.finalize
 	call midreadvarint
 	ld d,0xf0
-	call midsendbyte
+	call_send_byte
 .sendloop
 	memory_stream_read_byte e
 	ld d,e
-	call midsendbyte
+	call_send_byte
 	ld a,e
 	cp 0xf7
 	jr nz,.sendloop
@@ -668,13 +677,13 @@ midhandletrack
 .send2	ld (memorystreamcurrentaddr),hl
 	ld l,d
 	ld h,b
-	call midsend2
+	call_send_2
 	jr .finalize
 .send3	memory_stream_read_byte e
 	ld (memorystreamcurrentaddr),hl
 	ex de,hl
 	ld d,b
-	call midsend3
+	call_send_3
 .finalize
 	ld hl,(memorystreamcurrentaddr)
 	call midreadvarint
@@ -688,9 +697,60 @@ midhandletrack
 	ld hl,(ix+MIDTRACK.nexteventtick+2)
 	adc hl,bc
 	ld (ix+MIDTRACK.nexteventtick+2),hl
+	endm
+
+midhandletrackevent
+;ix = track
+	ld hl,(ix+MIDTRACK.streamoffset+0)
+	ld de,(ix+MIDTRACK.streamoffset+2)
+	call memorystreamseek
+	process_midi_event <call midsendbyte>,<call midsend2>,<call midsend3>
 	call memorystreamgetpos
 	ld (ix+MIDTRACK.streamoffset+0),hl
 	ld (ix+MIDTRACK.streamoffset+2),de
+	ret
+
+midgetprogress
+;dehl = ticks
+;out: a = progress
+	ld a,e
+	add hl,hl : rla
+	add hl,hl : rla
+	add hl,hl : rla
+	add hl,hl : rla
+	ret
+
+midsetprogressdelta
+	ld ix,midplayer.tracks
+	ld a,(midplayer.trackcount)
+	ld b,a
+	ld c,0
+.trackloop
+	push bc
+	ld hl,(ix+MIDTRACK.streamoffset+0)
+	ld de,(ix+MIDTRACK.streamoffset+2)
+	call memorystreamseek
+.eventloop
+	call midadvancetrack
+	bit 7,(ix+MIDTRACK.streamoffset+3)
+	jr z,.eventloop
+	ld hl,(ix+MIDTRACK.nexteventtick+0)
+	ld de,(ix+MIDTRACK.nexteventtick+2)
+	call midgetprogress
+	pop bc
+	cp c
+	jr c,$+3
+	ld c,a
+	ld de,MIDTRACK
+	add ix,de
+	djnz .trackloop
+	ld a,c
+	jp setprogressdelta
+
+midadvancetrack
+;ix = track
+	ld hl,(memorystreamcurrentaddr)
+	process_midi_event < >,< >,< >
 	ret
 
 setticksperupdate
@@ -705,10 +765,10 @@ setticksperupdate
 
 midheadersig
 	db "MThd",0,0,0,6
-midheadersigend
+midheadersigsize = $-midheadersig
 midtracksig
 	db "MTrk"
-midtracksigend
+midtracksigsize = $-midtracksig
 initokstr
 	db "OK\r\n",0
 playernamestr

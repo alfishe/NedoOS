@@ -11,7 +11,7 @@ FILE_NAME_OFFSET = FILE_DISPLAY_INFO_OFFSET+FILE_DISPLAY_INFO_SIZE
 FILE_NAME_SIZE = SFN_SIZE
 FILE_ATTRIB_OFFSET = FILE_NAME_OFFSET+FILE_NAME_SIZE
 FILE_ATTRIB_SIZE = 1
-BROWSER_FILE_COUNT=169
+BROWSER_FILE_COUNT=168
 PLAYLIST_FILE_COUNT=40
 PANELCOLOR = 0x4f
 CURSORCOLOR = 0x28
@@ -662,6 +662,7 @@ drawplayerwindow
 	ld de,PANELCOLOR
 	OS_SETCOLOR
 	call getmusicprogress
+	push af
 	ld (musicprogress),a
 	ld de,8*256+6
 	ld bc,66*256+4
@@ -681,10 +682,17 @@ playerwindowtitlepos=$+1
 	ld hl,playingstr
 	call print_hl
 	call drawsongtitle
+	pop af
+	ret z
 	ld a,(isplaying)
 	or a
-	call nz,drawprogress
-	ret
+	jp nz,drawprogress
+	ld de,PANELDIRCOLOR
+	OS_SETCOLOR
+	ld de,11*256+36
+	OS_SETXY
+	ld hl,loadingstr
+	jp print_hl
 
 drawsongtitle
 	ld de,PANELDIRCOLOR
@@ -1090,6 +1098,8 @@ foundstr
 	db "OK\r\n",0
 rom001200
 	db "Copyright"
+loadingstr
+	db "LOADING...",0
 firmwareerrorstr
 	db "firmware problem!\r\nPlease update ZXM-MoonSound firmware to revision 1.01\r\n"
 	db "https://www.dropbox.com/s/1e0b2197emrhzos/zxm_moonsound01_frm0101.zip",0
@@ -1174,8 +1184,8 @@ loadplayers
 	ld (playercount),a
 	ld de,modend-modstart : ld hl,(gpsettings.usemoonmod) : call loadplayer
 	ld de,mwmend-mwmstart : ld hl,(gpsettings.usemwm) : call loadplayer
-	ld de,pt3end-pt3start : ld hl,(gpsettings.usept3) : call loadplayer
 	ld de,mp3end-mp3start : ld hl,(gpsettings.usemp3) : call loadplayer
+	ld de,pt3end-pt3start : ld hl,(gpsettings.usept3) : call loadplayer
 	ld de,vgmend-vgmstart : ld hl,(gpsettings.usevgm) : call loadplayer
 	call closestream_file
 	ld a,(playercount)
@@ -1708,12 +1718,12 @@ modend
 mwmstart
 	incbin "mwm.bin"
 mwmend
-pt3start
-	incbin "pt3.bin"
-pt3end
 mp3start
 	incbin "mp3.bin"
 mp3end
+pt3start
+	incbin "pt3.bin"
+pt3end
 vgmstart
 	incbin "vgm.bin"
 vgmend
