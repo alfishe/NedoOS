@@ -345,7 +345,7 @@ initwaitspincount
 	ld e,0
 	xor a
 	ld (.spincount),a
-	ld a,32
+	ld a,33
 	halt
 ;--> 42 t-states loop start
 .loop	inc e
@@ -370,7 +370,9 @@ initwaitspincount
 	ex de,hl
 	ld bc,CC2
 	call uintmul16
-	ld a,e
+	xor a
+	rl h
+	adc a,e
 	ld (waitspincount),a
 	ret
 
