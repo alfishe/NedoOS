@@ -140,7 +140,7 @@ nvfind_gettext
         ld a,(nvfind_curtab)
         or a
         ld hl,cursearchtext
-        jr nz,nvfind_gettext_cursearchtext
+        ret nz;jr nz,nvfind_gettext_cursearchtext
         ld hl,cursearchfilename
 nvfind_gettext_cursearchtext
         ret
@@ -149,7 +149,7 @@ nvfind_getx
         ld a,(nvfind_curtab)
         or a
         ld a,(nvfind_curtextx)
-        jr nz,nvfind_getx_cursearchtext
+        ret nz;jr nz,nvfind_getx_cursearchtext
         ld a,(nvfind_curx)
 nvfind_getx_cursearchtext
         ret
@@ -256,18 +256,22 @@ nvfind_enter_select
         jp editcmd_reprintall
 
 nvfind_enter
+        ld a,(nvfind_curtab)
+        or a
+        jr z,nvfind_enter_research ;Enter on filename - new search
         ld a,(nvfind_curfoundfiles)
         or a
-        jr nz,nvfind_enter_select
-
+        jr nz,nvfind_enter_select ;Enter on search text - go to result
+nvfind_enter_research
         ld (nvfind_sp),sp
-        call nvfind_reprintmenu
         
         xor a
         ld (nvfind_curfoundfiles),a
         ld (nvfind_curfoundfile),a
         ld hl,FOUNDFILESTABLE
         ld (nvfind_curfoundnameaddr),hl
+
+        call nvfind_reprintmenu
 
         ld de,0x0400
         call nv_setxy ;keeps de,hl,ix
@@ -333,14 +337,16 @@ mirrorbytes0
         ret       
 
 nvfind_loaddir
+        ld de,nvfind_curpath
+        OS_CHDIR
         ld de,emptypath;nvfind_curpath
-        OS_OPENDIR
+        OS_OPENDIR ;не понимает путь!!!
         
         ld bc,0 ;file#
 nvfind_loaddir0
-        push bc
+        ;push bc
         call loaddir_filinfo
-        pop bc
+        ;pop bc
         inc bc
         jp c,nvfind_loaddirq
         jr z,nvfind_loaddir0
@@ -386,13 +392,15 @@ nvfind_loaddir_subdir
         ld hl,nvfind_curpath
         STRPOP
         ld de,nvfind_curpath
-        OS_OPENDIR
+        OS_CHDIR
+        ld de,emptypath;nvfind_curpath
+        OS_OPENDIR ;не понимает путь!!!
         pop bc
         push bc
 nvfind_loaddir_recreread0
-        push bc
+        ;push bc
         call loaddir_filinfo
-        pop bc
+        ;pop bc
         dec bc
         ld a,b
         or c
