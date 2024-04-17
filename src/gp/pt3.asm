@@ -406,6 +406,11 @@ lightweightinterrupthandler
 midloadfile
 ;hl = input file name
 ;out: zf=1 if loaded, zf=0 otherwise
+	call midinitport
+;reset the reciever
+	ld d,255
+	call midsendbyte
+;load and parse the file
 	ex de,hl
 	call memorystreamloadfile
 	ret nz
@@ -441,7 +446,6 @@ midloadfile
 	call memorystreamseek
 	call midloadtracks
 	jp nz,memorystreamfree ;sets zf=0
-	call midinitport
 	ld hl,DEFAULT_QNOTE_DURATION_MCS%65536
 	ld de,DEFAULT_QNOTE_DURATION_MCS/65536
 	call setticksperupdate
