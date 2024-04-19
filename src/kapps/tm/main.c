@@ -29,34 +29,33 @@ void redraw(void)
     unsigned char c3;
 
     BOX(14, 5, 41, prccount, 43);
-    ATRIB(43);
 
     for (c3 = 0; c3 < prccount; c3++)
     {
         AT(12, 5 + c3);
+        ATRIB(30);
         if (c3 == curpos - 1)
         {
             ATRIB(31);
         }
-        else
-        {
-            ATRIB(30);
-        }
+
         printf("%2X.", table[c3].nomer);
         puts(table[c3].name);
         AT(50, 5 + c3);
         printf("%u  ", table[c3].used);
+        
         AT(55, 5 + c3);
         printf("%2X.", table[c3].window_0);
         printf("%2X.", table[c3].window_1);
         printf("%2X.", table[c3].window_2);
         printf("%2X", table[c3].window_3);
+        
     }
     BOX(12, 5 + prccount, 54, 1, 41);
     AT(12, 5 + prccount);
     ATRIB(33);
     printf("    Free:%u pages     Used:%u pages  Sys:%u pages", freemem, usedmem, sysmem);
-    BOX(12, 6 + prccount, 54, 1, 40);
+    BOX(12, 6 + prccount, 54, 2, 40);
 }
 void filltable(void)
 {
@@ -116,16 +115,8 @@ void filltable(void)
     }
 }
 
-void killapp(unsigned char id)
-{
-
-    OS_DROPAPP(id);
-    //filltable();
-}
-
 C_task main(void)
 {
-    unsigned char loop = 1;
     curpos = 1;
     os_initstdio();
     BOX(1, 1, 80, 25, 40);
@@ -133,64 +124,54 @@ C_task main(void)
     AT(33, 4);
     ATRIB(33);
     puts("TASK MANAGER");
-    while (loop)
+    while (42)
     {
         filltable();
         redraw();
         do
         {
-            YIELD();
             procname = _low_level_get();
         } while (procname == 0);
 
         if (procname == 27)
         {
-                break;
+            break;
         }
-
-        if (procname > '0' && procname < 58)
-        {
-            procname = procname - '0';
-            killapp(procname);
-        }
-
-        if (procname > '@' && procname < 'G')
-        {
-            killapp(procname - 55);
-        }
-
-        if (procname > 96 && procname < 'g')
-        {
-            killapp(procname - 87);
-        }
-
-        if (procname == 13 || procname == 252)
-        {
-            killapp(table[curpos - 1].nomer);
-        }
-
-        if (procname == 250)
+        else if (procname == 250)
         {
             curpos--;
+            if (curpos < 1)
+            {
+                curpos = prccount;
+            }
         }
-
-        if (procname == 249)
+        else if (procname == 249)
         {
             curpos++;
+            if (curpos > prccount)
+            {
+                curpos = 1;
+            }
         }
-
-        if (curpos < 1)
+        else if (procname > '0' && procname < 58)
         {
-            curpos = prccount;
+            OS_DROPAPP(procname - '0');
         }
-
-        if (curpos > prccount)
+        else if (procname > '@' && procname < 'G')
         {
-            curpos = 1;
+            OS_DROPAPP(procname - 55);
+        }
+        else if (procname > 96 && procname < 'g')
+        {
+            OS_DROPAPP(procname - 87);
+        }
+        else if (procname == 13 || procname == 252)
+        {
+            OS_DROPAPP(table[curpos - 1].nomer);
         }
     }
     BOX(1, 1, 80, 25, 40);
-    AT(1,1);
+    AT(1, 1);
     ATRIB(47);
     return 0;
 }
