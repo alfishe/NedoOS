@@ -9,6 +9,16 @@
 #include <tcp.h>
 #include <graphic.h>
 #include <terminal.c>
+
+#define RBR_THR 0xF8EF
+#define IER 0xF9EF
+#define IIR_FCR 0xFAEF
+#define LCR 0xFBEF
+#define MCR 0xFCEF
+#define LSR 0xFDEF
+#define MSR 0xFEEF
+#define SR 0xFFEF
+
 struct fileStruct
 {
   long picId;
@@ -24,17 +34,18 @@ struct fileStruct
   unsigned char pfn[128];
   unsigned char fileName[128];
 } curFileStruct;
-unsigned char ver[] = "2.4";
+unsigned char ver[] = "2.5";
 unsigned char netbuf[2048];
 unsigned char picture[16384];
 unsigned char crlf[2] = {13, 10};
-unsigned char status, keypress, verbose, randomPic, slideShow;
+unsigned char keypress, verbose, randomPic, slideShow, netDriver;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 unsigned long contLen;
 unsigned long count;
 unsigned int headlng;
 unsigned int slideShowTime = 0;
+unsigned int loaded;
 
 struct packetStruct
 {
@@ -73,6 +84,7 @@ void printHelp(void)
   printf(" 'V' не выводить информацию об авторах\n\r");
   printf(" 'R' переход в режим  случайная картинка с рейтингом 4+\n\r");
   printf(" 'A' переход в режим  слайд-шоу\n\r");
+  printf(" 'D' Переключение режима ZXNETUSB/ESP32\n\r");
   printf(" 'H' Данная справочная информация\n\r");
   printf("-----------------Нажмите любую кнопку------------------\n\r");
   ATRIB(93);
@@ -93,6 +105,23 @@ void delay(unsigned long counter)
   {
     start = time();
   }
+}
+
+unsigned int httpError(void)
+{
+  unsigned char *httpRes;
+  unsigned int httpErr;
+  httpRes = strstr(netbuf, "HTTP/1.1 ");
+
+  if (httpRes != NULL)
+  {
+    httpErr = atol(httpRes + 9);
+  }
+  else
+  {
+    httpErr = 0;
+  }
+  return httpErr;
 }
 
 void errorPrint(unsigned int error)
@@ -285,11 +314,19 @@ unsigned int tcpRead(signed char socket)
   exit(0);
   return todo;
 }
-
 unsigned int cutHeader(unsigned int todo)
 {
-  unsigned int q;
+  unsigned int recAmount, err;
   unsigned char *count1;
+
+  err = httpError();
+  if (err != 200)
+  {
+    printf("\r\nHTTP response:[%u]\r\n", err);
+    printf("^^^^^^^^^^^^^^^^^^^^^\r\n");
+    puts(netbuf);
+    getchar();
+  }
   count1 = strstr(netbuf, "Content-Length:");
   if (count1 == NULL)
   {
@@ -299,7 +336,7 @@ unsigned int cutHeader(unsigned int todo)
   else
   {
     contLen = atol(count1 + 15);
-    // printf ("Dlinna  soderzhimogo = %lu \n\r", contLen);
+    // printf("Content-Length: %lu \n\r", contLen);
   }
 
   count1 = strstr(netbuf, "\r\n\r\n");
@@ -310,12 +347,247 @@ unsigned int cutHeader(unsigned int todo)
   else
   {
     headlng = ((unsigned int)count1 - (unsigned int)netbuf + 4);
-    q = todo - headlng;
-    // printf("header removed. %u bytes\r\n", headlng);
+    recAmount = todo - headlng;
+    // printf("header %u bytes\r\n", headlng);
   }
-
-  return q;
+  return recAmount;
 }
+
+////////////////////////ESP32 PROCEDURES//////////////////////
+void uart_write(unsigned char data)
+{
+  while ((input(LSR) & 64) == 0)
+  {
+  }
+  output(RBR_THR, data);
+}
+
+void uart_setrts(unsigned char mode)
+{
+  switch (mode)
+  {
+  case 1:
+    output(MCR, 2);
+    break;
+  case 0:
+    output(MCR, 0);
+    break;
+  default:
+    disable_interrupt();
+    output(MCR, 2);
+    output(MCR, 0);
+    enable_interrupt();
+  }
+}
+
+void uart_init(unsigned char divisor)
+{
+  output(MCR, 0x00);        // Disable input
+  output(IIR_FCR, 0x87);    // Enable fifo 8 level, and clear it
+  output(LCR, 0x83);        // 8n1, DLAB=1
+  output(RBR_THR, divisor); // 115200 (divider 1-115200, 3 - 38400)
+  output(IER, 0x00);        // (divider 0). Divider is 16 bit, so we get (#0002 divider)
+  output(LCR, 0x03);        // 8n1, DLAB=0
+  output(IER, 0x00);        // Disable int
+  uart_setrts(0);
+}
+
+unsigned char uart_hasByte(void)
+{
+  return (1 & input(LSR));
+}
+
+unsigned char uart_read(void)
+{
+  uart_setrts(2);
+  return input(RBR_THR);
+}
+
+unsigned char uart_readBlock(void)
+{
+  while (uart_hasByte() == 0)
+  {
+    uart_setrts(2);
+  }
+  return input(RBR_THR);
+}
+
+void uart_flush(void)
+{
+  unsigned int count;
+  for (count = 0; count < 6000; count++)
+  {
+    uart_setrts(1);
+    uart_read();
+  }
+  printf("\r\nBuffer cleared.\r\n");
+}
+void getdata(unsigned int counted)
+{
+  unsigned int counter;
+  for (counter = 0; counter < counted; counter++)
+  {
+    netbuf[counter] = uart_readBlock();
+  }
+  netbuf[counter] = '\0';
+}
+
+void sendcommand(char *commandline)
+{
+  unsigned int count;
+  for (count = 0; count < strlen(commandline); count++)
+  {
+    uart_write(commandline[count]);
+  }
+  uart_write('\r');
+  uart_write('\n');
+  // printf("Sended:[%s] \r\n", commandline);
+}
+unsigned char getAnswer(unsigned char skip)
+{
+  unsigned char readbyte;
+  unsigned int curPos = 0;
+  while (skip != 0)
+  {
+    uart_readBlock();
+    skip--;
+  }
+  while (42)
+  {
+    readbyte = uart_readBlock();
+    if (readbyte == 0x0a)
+    {
+      break;
+    }
+    netbuf[curPos] = readbyte;
+    curPos++;
+  }
+  netbuf[curPos - 1] = 0;
+  // printf("Answer:[%s]\r\n", netbuf);
+  return curPos;
+}
+void espReBoot(void)
+{
+  unsigned char byte;
+
+  uart_flush();
+  sendcommand("AT+RST");
+  printf("Resetting ESP...");
+  do
+  {
+    byte = uart_read();
+  } while (byte != 'P'); // WIFI GOT IP
+  uart_readBlock();      // CR
+  uart_readBlock();      // LN
+  puts("Reset complete.\r\n");
+
+  sendcommand("ATE0");
+  do
+  {
+    byte = uart_read();
+  } while (byte != 'K'); // OK
+  // puts("Answer:[OK]");
+  uart_readBlock(); // CR
+  uart_readBlock(); // LN
+
+  sendcommand("AT+CIPCLOSE");
+  getAnswer(2);
+  sendcommand("AT+CIPDINFO=0");
+  getAnswer(2);
+  sendcommand("AT+CIPMUX=0");
+  getAnswer(2);
+  sendcommand("AT+CIPSERVER=0");
+  getAnswer(2);
+  sendcommand("AT+CIPRECVMODE=1");
+  getAnswer(2);
+}
+unsigned int recvHead(void)
+{
+  unsigned char byte, dataRead = 0;
+  do
+  {
+    byte = uart_readBlock();
+    netbuf[dataRead] = byte;
+    dataRead++;
+  } while (byte != ',');
+  netbuf[dataRead] = 0;
+  loaded = atoi(netbuf + 13); // <actual_len>
+  return loaded;
+}
+// in netbuf data to send
+unsigned int fillPictureEsp(void)
+{
+  unsigned int packSize = 2000;
+  unsigned char cmd[256];
+  unsigned char link[512];
+  unsigned char sizeLink;
+  unsigned long toDownload, downloaded;
+  unsigned char byte;
+  unsigned int dataSize;
+  unsigned char skipHeader;
+  strcpy(link, netbuf);
+  strcat(link, "\r\n");
+  sizeLink = strlen(link);
+  sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
+  getAnswer(2); // CONNECT
+  getAnswer(0); // OK
+  strcpy(cmd, "AT+CIPSEND=");
+  sprintf(netbuf, "%u", sizeLink + 2); // second CRLF in send command
+  strcat(cmd, netbuf);
+  sendcommand(cmd);
+  byte = 0;
+  while (byte != '>')
+  {
+    byte = uart_readBlock();
+    // putchar(byte);
+  }
+  sendcommand(link);
+  getAnswer(2); // Recv 132 bytes
+  getAnswer(2); // SEND OK
+  getAnswer(2); //+IPD,3872
+  skipHeader = 0;
+  downloaded = 0;
+  do
+  {
+    headlng = 0;
+    sprintf(link, "%u", packSize);
+    strcpy(netbuf, "AT+CIPRECVDATA=");
+    strcat(netbuf, link);
+    sendcommand(netbuf);
+    dataSize = recvHead();
+    getdata(dataSize); // Requested size
+    if (skipHeader == 0)
+    {
+      dataSize = cutHeader(dataSize);
+      toDownload = contLen;
+      skipHeader = 1;
+    }
+    downloaded = downloaded + dataSize;
+    memcpy(picture + downloaded - dataSize, netbuf + headlng, dataSize);
+    toDownload = toDownload - dataSize;
+    getAnswer(2); // OK
+    if (toDownload > 0)
+    {
+      getAnswer(2); // +IPD,1824 // ipdSize = atoi(netbuf + 5);
+    }
+  } while (toDownload > 0);
+  sendcommand("AT+CIPCLOSE");
+  getAnswer(0); // CLOSED
+  return 0;
+}
+unsigned char getPicEsp(unsigned long fileId)
+{
+  unsigned char buffer[] = "0000000000";
+  netbuf[0] = '\0';
+  sprintf(buffer, "%lu", fileId);
+  strcat(netbuf, "GET /file/id:");
+  strcat(netbuf, buffer);
+  strcat(netbuf, " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
+  fillPictureEsp();
+  return 0;
+}
+
+////////////////////////ESP32 PROCEDURES//////////////////////
 
 char *str_replace(char *dst, int num, const char *str,
                   const char *orig, const char *rep)
@@ -676,11 +948,17 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   retry = 10;
   while (42)
   {
-    socket = OpenSock(AF_INET, SOCK_STREAM);
-    netConnect(socket);
-    todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
-    fillPicture(socket);
-
+    if (netDriver == 0)
+    {
+      socket = OpenSock(AF_INET, SOCK_STREAM);
+      netConnect(socket);
+      todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
+      fillPicture(socket);
+    }
+    else
+    {
+      fillPictureEsp();
+    }
     count1 = strstr(picture, "responseStatus\":\"success");
     if (count1 == NULL)
     {
@@ -855,6 +1133,25 @@ void safeKeys(unsigned char keypress)
       slideShowTime = 0;
     }
   }
+
+  if (keypress == 'd' || keypress == 'D')
+  {
+    netDriver = !netDriver;
+    if (netDriver == 1)
+    {
+      if (verbose == 1)
+      {
+        printf("    ESP32 mode enabled...\r\n\r\n");
+        uart_init(1);
+        espReBoot();
+      }
+    }
+    else
+    {
+      if (verbose == 1)
+        printf("    ZXNETUSB mode enabled...\r\n\r\n");
+    }
+  }
 }
 
 C_task main(void)
@@ -862,12 +1159,14 @@ C_task main(void)
   unsigned char errno;
   unsigned long ipadress;
   long iddqd, idkfa;
+
   os_initstdio();
 
   count = 0;
   verbose = 1;
   randomPic = 0;
   slideShow = 0;
+  netDriver = 0;
 
   BOX(1, 1, 80, 25, 40);
   AT(1, 1);
@@ -918,7 +1217,15 @@ start:
     goto start;
   }
 
-  errno = getPic(iddqd);
+  if (netDriver == 0)
+  {
+    errno = getPic(iddqd);
+  }
+  else
+  {
+    errno = getPicEsp(iddqd);
+  }
+
 review:
   keypress = viewScreen6912((unsigned int)&picture, slideShowTime);
   emptyKeys();
