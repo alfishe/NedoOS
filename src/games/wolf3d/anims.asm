@@ -28,6 +28,7 @@ xmid=(xleft+xright)/2
         TSPRITES 0,396,50 ;go2 right
         TSPRITES 0,266,36 ;16 go2 (костыль для 1+128)
         endif
+
   ;фазы:
 ;0=move1
 ;1=move2
@@ -54,6 +55,7 @@ MONSTAB
         db 3,0
         db 4,0
 ;ZOMBIEMAN go
+ZOMBIEMANgo
         db 1
         db 1+128
         db 1
@@ -153,3 +155,13 @@ MONSTAB
         db 11
         db 11
         db 11
+
+ZOMBIEMANrotate
+        db 8+128 ;side step1
+        db 9+128 ;side step2
+        db 1 ;front step1
+        db 1+128 ;front step2
+        db 8 ;side step1
+        db 9 ;side step2
+        db MONSTEROR+0 ;back step1
+        db 0+128 ;back step2
