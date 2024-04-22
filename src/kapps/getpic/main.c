@@ -10,14 +10,15 @@
 #include <graphic.h>
 #include <terminal.c>
 
-#define RBR_THR 0xF8EF
-#define IER 0xF9EF
-#define IIR_FCR 0xFAEF
-#define LCR 0xFBEF
-#define MCR 0xFCEF
-#define LSR 0xFDEF
-#define MSR 0xFEEF
-#define SR 0xFFEF
+unsigned int RBR_THR = 0xF8EF;
+unsigned int IER = 0xF9EF;
+unsigned int IIR_FCR = 0xFAEF;
+unsigned int LCR = 0xFBEF;
+unsigned int MCR = 0xFCEF;
+unsigned int LSR = 0xFDEF;
+unsigned int MSR = 0xFEEF;
+unsigned int SR = 0xFFEF;
+unsigned char divider = 4;
 
 struct fileStruct
 {
@@ -34,7 +35,8 @@ struct fileStruct
   unsigned char pfn[128];
   unsigned char fileName[128];
 } curFileStruct;
-unsigned char ver[] = "2.5";
+
+unsigned char ver[] = "2.6";
 unsigned char netbuf[2048];
 unsigned char picture[16384];
 unsigned char crlf[2] = {13, 10};
@@ -55,7 +57,7 @@ struct packetStruct
 
 void emptyKeys(void)
 {
-  unsigned char loop, key = 1;
+  unsigned char loop, key;
   do
   {
     key = _low_level_get();
@@ -382,6 +384,7 @@ void uart_setrts(unsigned char mode)
 
 void uart_init(unsigned char divisor)
 {
+  printf("\r\n Initing UART [divider:%u]\r\n", divisor);
   output(MCR, 0x00);        // Disable input
   output(IIR_FCR, 0x87);    // Enable fifo 8 level, and clear it
   output(LCR, 0x83);        // 8n1, DLAB=1
@@ -429,13 +432,14 @@ void getdata(unsigned int counted)
   {
     netbuf[counter] = uart_readBlock();
   }
-  netbuf[counter] = '\0';
+  netbuf[counter] = 0;
 }
 
 void sendcommand(char *commandline)
 {
-  unsigned int count;
-  for (count = 0; count < strlen(commandline); count++)
+  unsigned int count, cmdLen;
+  cmdLen = strlen(commandline);
+  for (count = 0; count < cmdLen; count++)
   {
     uart_write(commandline[count]);
   }
@@ -469,7 +473,6 @@ unsigned char getAnswer(unsigned char skip)
 void espReBoot(void)
 {
   unsigned char byte;
-
   uart_flush();
   sendcommand("AT+RST");
   printf("Resetting ESP...");
@@ -550,8 +553,8 @@ unsigned int fillPictureEsp(void)
   do
   {
     headlng = 0;
-    sprintf(link, "%u", packSize);
     strcpy(netbuf, "AT+CIPRECVDATA=");
+    sprintf(link, "%u", packSize);
     strcat(netbuf, link);
     sendcommand(netbuf);
     dataSize = recvHead();
@@ -568,7 +571,7 @@ unsigned int fillPictureEsp(void)
     getAnswer(2); // OK
     if (toDownload > 0)
     {
-      getAnswer(2); // +IPD,1824 // ipdSize = atoi(netbuf + 5);
+      getAnswer(2); // +IPD,1824
     }
   } while (toDownload > 0);
   sendcommand("AT+CIPCLOSE");
@@ -585,6 +588,29 @@ unsigned char getPicEsp(unsigned long fileId)
   strcat(netbuf, " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
   fillPictureEsp();
   return 0;
+}
+
+void loadEspConfig(void)
+{
+  unsigned char curParam[256];
+  unsigned char res;
+  FILE *espcom;
+  OS_SETSYSDRV();
+  OS_CHDIR("browser");
+  espcom = OS_OPENHANDLE("espcom.ini", 0x80);
+  if (((int)espcom) & 0xff)
+  {
+    printf("mrfesp.ini opening error\r\n");
+    return;
+  }
+
+  OS_READHANDLE(curParam, espcom, 256);
+
+  res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider);
+  puts("Config loaded:");
+  printf("     RBR_THR:0x%4x\r\n     IER    :0x%4x\r\n     IIR_FCR:0x%4x\r\n     LCR    :0x%4x\r\n", RBR_THR, IER, IIR_FCR, LCR);
+  printf("     MCR    :0x%4x\r\n     LSR    :0x%4x\r\n     MSR    :0x%4x\r\n     SR     :0x%4x\r\n", MCR, LSR, MSR, SR);
+  printf("     DIVIDER:%4u\r\n", divider);
 }
 
 ////////////////////////ESP32 PROCEDURES//////////////////////
@@ -624,7 +650,7 @@ void fillPicture(signed char socket)
   unsigned int todo, w, pPos, headskip;
   headskip = 0;
   pPos = 0;
-  while (1)
+  while (42)
   {
     headlng = 0;
     todo = tcpRead(socket);
@@ -643,8 +669,6 @@ void fillPicture(signed char socket)
       printf("dataBuffer overrun... %u reached \n\r", pPos + todo);
       break;
     }
-    // memcpy(&picture + pPos, &netbuf + headlng, todo );
-
     for (w = 0; w < todo; w++)
     {
       picture[w + pPos] = netbuf[w + headlng];
@@ -1142,7 +1166,8 @@ void safeKeys(unsigned char keypress)
       if (verbose == 1)
       {
         printf("    ESP32 mode enabled...\r\n\r\n");
-        uart_init(1);
+        loadEspConfig();
+        uart_init(divider);
         espReBoot();
       }
     }
