@@ -10,7 +10,18 @@
 #include <graphic.h>
 #include <terminal.c>
 #define COMMANDLINE 0x0080
-unsigned char ver[] = "1.9";
+
+unsigned int RBR_THR = 0xF8EF;
+unsigned int IER = 0xF9EF;
+unsigned int IIR_FCR = 0xFAEF;
+unsigned int LCR = 0xFBEF;
+unsigned int MCR = 0xFCEF;
+unsigned int LSR = 0xFDEF;
+unsigned int MSR = 0xFEEF;
+unsigned int SR = 0xFFEF;
+unsigned char divider = 4;
+
+unsigned char ver[] = "2.0";
 unsigned char queryType[64];
 unsigned char netbuf[1452];
 unsigned char dataBuffer[6096];
@@ -21,10 +32,11 @@ struct sockaddr_in targetadr;
 struct readstructure readStruct;
 unsigned long contLen;
 long count;
-unsigned char saveFlag, saveBak, logFlag, rptFlag;
+unsigned char saveFlag, saveBak, logFlag, rptFlag, netDriver;
 union APP_PAGES main_pg;
 union APP_PAGES player_pg;
-extern void dns_resolve(void);
+unsigned int loaded;
+unsigned int headlng;
 
 struct fileStruct
 {
@@ -177,6 +189,22 @@ void errorPrint(unsigned int error)
     break;
   }
   YIELD();
+}
+
+void printHelp(void)
+{
+  AT(1, 13);
+  ATRIB(97);
+  printf("                                                        \r\n");
+  printf("                                                        \r\n");
+  printf(" [<-] Previous track              [->] Next track\r\n");
+  printf(" [S]  Stop player                 [R]  Repeat track mode\r\n");
+  printf(" [K]  Toggle saving tracks        [D]  Download track\r\n");
+  printf(" [Q]  Select Query type           [F]  Select tracks format\r\n");
+  printf(" [I]  Interface ZXNETUSB/ESP32    [J]  Jump to NNNN file\r\n");
+  printf(" [L]  Toggle operation logging    [ESC] Exit to OS\r\n");
+  printf("                                                        \r\n");
+  printf("                                                        \r\n");
 }
 
 unsigned char OpenSock(unsigned char family, unsigned char protocol)
@@ -334,6 +362,287 @@ int pos(unsigned char *s, unsigned char *c, unsigned int n, unsigned int startPo
   return -1;
 }
 
+unsigned int cutHeader(unsigned int todo)
+{
+  unsigned int q, headlng;
+  unsigned char *count;
+  count = strstr(netbuf, "Content-Length:");
+  if (count == NULL)
+  {
+    clearStatus();
+    printf("Content-Length:  not found.");
+    contLen = 0;
+  }
+  else
+  {
+    contLen = atol(count + 15);
+    curFileStruct.fileSize = contLen;
+    //  printf("=> Dlinna  soderzhimogo = %lu \n\r", curFileStruct.fileSize);
+  }
+
+  count = strstr(netbuf, "\r\n\r\n");
+  headlng = ((unsigned int)count - (unsigned int)netbuf + 4);
+  q = todo - headlng;
+  memcpy(&netbuf, count + 4, q);
+  return q;
+}
+
+////////////////////////ESP32 PROCEDURES//////////////////////
+void uart_write(unsigned char data)
+{
+  while ((input(LSR) & 64) == 0)
+  {
+  }
+  output(RBR_THR, data);
+}
+
+void uart_setrts(unsigned char mode)
+{
+  switch (mode)
+  {
+  case 1:
+    output(MCR, 2);
+    break;
+  case 0:
+    output(MCR, 0);
+    break;
+  default:
+    disable_interrupt();
+    output(MCR, 2);
+    output(MCR, 0);
+    enable_interrupt();
+  }
+}
+
+void uart_init(unsigned char divisor)
+{
+  clearStatus();
+  printf("Initing UART [divider:%u]", divisor);
+  output(MCR, 0x00);        // Disable input
+  output(IIR_FCR, 0x87);    // Enable fifo 8 level, and clear it
+  output(LCR, 0x83);        // 8n1, DLAB=1
+  output(RBR_THR, divisor); // 115200 (divider 1-115200, 3 - 38400)
+  output(IER, 0x00);        // (divider 0). Divider is 16 bit, so we get (#0002 divider)
+  output(LCR, 0x03);        // 8n1, DLAB=0
+  output(IER, 0x00);        // Disable int
+  uart_setrts(0);
+}
+
+unsigned char uart_hasByte(void)
+{
+  return (1 & input(LSR));
+}
+
+unsigned char uart_read(void)
+{
+  uart_setrts(2);
+  return input(RBR_THR);
+}
+
+unsigned char uart_readBlock(void)
+{
+  while (uart_hasByte() == 0)
+  {
+    uart_setrts(2);
+  }
+  return input(RBR_THR);
+}
+
+void uart_flush(void)
+{
+  unsigned int count;
+  for (count = 0; count < 6000; count++)
+  {
+    uart_setrts(1);
+    uart_read();
+  }
+  clearStatus();
+  printf("Buffer cleared.");
+}
+void getdataEsp(unsigned int counted)
+{
+  unsigned int counter;
+  for (counter = 0; counter < counted; counter++)
+  {
+    netbuf[counter] = uart_readBlock();
+  }
+  netbuf[counter] = 0;
+}
+
+void sendcommand(char *commandline)
+{
+  unsigned int count, cmdLen;
+  cmdLen = strlen(commandline);
+  for (count = 0; count < cmdLen; count++)
+  {
+    uart_write(commandline[count]);
+  }
+  uart_write('\r');
+  uart_write('\n');
+  // printf("Sended:[%s] \r\n", commandline);
+}
+unsigned char getAnswer(unsigned char skip)
+{
+  unsigned char readbyte;
+  unsigned int curPos = 0;
+  while (skip != 0)
+  {
+    uart_readBlock();
+    skip--;
+  }
+  while (42)
+  {
+    readbyte = uart_readBlock();
+    if (readbyte == 0x0a)
+    {
+      break;
+    }
+    netbuf[curPos] = readbyte;
+    curPos++;
+  }
+  netbuf[curPos - 1] = 0;
+  // printf("Answer:[%s]\r\n", netbuf);
+  return curPos;
+}
+void espReBoot(void)
+{
+  unsigned char byte;
+  uart_flush();
+  sendcommand("AT+RST");
+  clearStatus();
+  printf("Resetting ESP...");
+  do
+  {
+    byte = uart_read();
+  } while (byte != 'P'); // WIFI GOT IP
+  uart_readBlock();      // CR
+  uart_readBlock();      // LN
+  clearStatus();
+  printf("Reset complete.");
+
+  sendcommand("ATE0");
+  do
+  {
+    byte = uart_read();
+  } while (byte != 'K'); // OK
+  // puts("Answer:[OK]");
+  uart_readBlock(); // CR
+  uart_readBlock(); // LN
+
+  sendcommand("AT+CIPCLOSE");
+  getAnswer(2);
+  sendcommand("AT+CIPDINFO=0");
+  getAnswer(2);
+  sendcommand("AT+CIPMUX=0");
+  getAnswer(2);
+  sendcommand("AT+CIPSERVER=0");
+  getAnswer(2);
+  sendcommand("AT+CIPRECVMODE=1");
+  getAnswer(2);
+}
+unsigned int recvHead(void)
+{
+  unsigned char byte, dataRead = 0;
+  do
+  {
+    byte = uart_readBlock();
+    netbuf[dataRead] = byte;
+    dataRead++;
+  } while (byte != ',');
+  netbuf[dataRead] = 0;
+  loaded = atoi(netbuf + 13); // <actual_len>
+  return loaded;
+}
+// in netbuf data to send
+unsigned int fillDataBufferEsp(void)
+{
+  unsigned int packSize = 2000;
+  unsigned char cmd[256];
+  unsigned char link[512];
+  unsigned char sizeLink;
+  unsigned long toDownload, downloaded;
+  unsigned char byte;
+  unsigned int dataSize;
+  unsigned char skipHeader;
+  strcpy(link, netbuf);
+  strcat(link, "\r\n");
+  sizeLink = strlen(link);
+  sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
+  getAnswer(2); // CONNECT
+  getAnswer(0); // OK
+  strcpy(cmd, "AT+CIPSEND=");
+  sprintf(netbuf, "%u", sizeLink + 2); // second CRLF in send command
+  strcat(cmd, netbuf);
+  sendcommand(cmd);
+  byte = 0;
+  while (byte != '>')
+  {
+    byte = uart_readBlock();
+    // putchar(byte);
+  }
+  sendcommand(link);
+  getAnswer(2); // Recv 132 bytes
+  getAnswer(2); // SEND OK
+  getAnswer(2); //+IPD,3872
+  skipHeader = 0;
+  downloaded = 0;
+  do
+  {
+    headlng = 0;
+    strcpy(netbuf, "AT+CIPRECVDATA=");
+    sprintf(link, "%u", packSize);
+    strcat(netbuf, link);
+    sendcommand(netbuf);
+    dataSize = recvHead();
+    getdataEsp(dataSize); // Requested size
+    if (skipHeader == 0)
+    {
+      dataSize = cutHeader(dataSize);
+      toDownload = contLen;
+      skipHeader = 1;
+    }
+    downloaded = downloaded + dataSize;
+    memcpy(dataBuffer + downloaded - dataSize, netbuf + headlng, dataSize);
+    toDownload = toDownload - dataSize;
+    getAnswer(2); // OK
+    if (toDownload > 0)
+    {
+      getAnswer(2); // +IPD,1824
+    }
+  } while (toDownload > 0);
+  sendcommand("AT+CIPCLOSE");
+  getAnswer(0); // CLOSED
+  return 0;
+}
+void loadEspConfig(void)
+{
+  unsigned char curParam[256];
+  unsigned char res;
+  FILE *espcom;
+  OS_SETSYSDRV();
+  OS_CHDIR("browser");
+  espcom = OS_OPENHANDLE("espcom.ini", 0x80);
+  if (((int)espcom) & 0xff)
+  {
+    clearStatus();
+    printf("mrfesp.ini opening error");
+    return;
+  }
+
+  OS_READHANDLE(curParam, espcom, 256);
+
+  res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider);
+
+  BOX(1, 13, 80, 11, 40);
+  AT(1, 13);
+  puts("Config loaded:");
+  printf("     RBR_THR:0x%4x\r\n     IER    :0x%4x\r\n     IIR_FCR:0x%4x\r\n     LCR    :0x%4x\r\n", RBR_THR, IER, IIR_FCR, LCR);
+  printf("     MCR    :0x%4x\r\n     LSR    :0x%4x\r\n     MSR    :0x%4x\r\n     SR     :0x%4x\r\n", MCR, LSR, MSR, SR);
+  printf("     DIVIDER:%4u\r\n", divider);
+}
+
+////////////////////////ESP32 PROCEDURES//////////////////////
+
 char *str_replace(char *dst, int num, const char *str,
                   const char *orig, const char *rep)
 {
@@ -476,31 +785,6 @@ void convert866(void)
   }
 }
 
-unsigned int cutHeader(unsigned int todo)
-{
-  unsigned int q, headlng;
-  unsigned char *count;
-  count = strstr(netbuf, "Content-Length:");
-  if (count == NULL)
-  {
-    clearStatus();
-    printf("Content-Length:  not found.");
-    contLen = 0;
-  }
-  else
-  {
-    contLen = atol(count + 15);
-    curFileStruct.fileSize = contLen;
-    //  printf("=> Dlinna  soderzhimogo = %lu \n\r", curFileStruct.fileSize);
-  }
-
-  count = strstr(netbuf, "\r\n\r\n");
-  headlng = ((unsigned int)count - (unsigned int)netbuf + 4);
-  q = todo - headlng;
-  memcpy(&netbuf, count + 4, q);
-  return q;
-}
-
 void nameRepair(unsigned char *pfn, unsigned int tfnSize)
 {
   str_replace(pfn, tfnSize, pfn, "\\", "_");
@@ -592,8 +876,7 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
     if (((int)fp2) & 0xff)
     {
       clearStatus();
-      printf(curFileStruct.fileName);
-      printf(" creating error. Check for  downloads\\radio folder.");
+      printf("%s creating error. Check for  downloads\\radio folder.", curFileStruct.fileName);
       getchar();
       exit(0);
     }
@@ -608,8 +891,7 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
     {
 
       clearStatus();
-      printf(curFileStruct.fileName);
-      printf(" opening error.");
+      printf("%s opening error.", curFileStruct.fileName);
       exit(0);
     }
     fileSize = OS_GETFILESIZE(fp2);
@@ -786,32 +1068,40 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
   }
 
   retry = 10;
-rejson:
-  socket = OpenSock(AF_INET, SOCK_STREAM);
-  netConnect(socket);
 
-  todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
-
-  getData(socket);
-
-  clearStatus();
-  printf("Processing data (%u)...", queryNum);
-
-  count = strstr(dataBuffer, "responseStatus\":\"success");
-  if (count == NULL)
+  while (42)
   {
-    clearStatus();
-    printf("BAD JSON, NO responseStatus: success. (%u)", retry);
-    retry--;
-    YIELD();
-    if (retry > 0)
+    if (netDriver == 0)
     {
-      netShutDown(socket, 1);
-      goto rejson;
+      socket = OpenSock(AF_INET, SOCK_STREAM);
+      netConnect(socket);
+      todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
+      getData(socket);
+      clearStatus();
+      printf("Processing data (%u)...", queryNum);
     }
-    return -1;
-  }
+    else
+    {
+      fillDataBufferEsp();
+    }
 
+    count = strstr(dataBuffer, "responseStatus\":\"success");
+    if (count == NULL)
+    {
+      retry--;
+      clearStatus();
+      printf("PROCESS JSON: [ERROR: Bad responseStatus.] [Query:%u][Retry:%u] [Track:%lu]\r\n", queryNum, retry, startPos);
+      YIELD();
+      if (retry < 1)
+      {
+        return -1;
+      }
+    }
+    else
+    {
+      break;
+    }
+  }
   count = strstr(dataBuffer, "\"id\":");
   if (count == NULL)
   {
@@ -1044,23 +1334,6 @@ void printInfo(void)
   printf("   TITLE: %s\r\n", curFileStruct.trackName);
 }
 
-void printHelp(void)
-{
-  AT(1, 13);
-  ATRIB(97);
-  printf(" [E] or [ESC] Exit to OS           \r\n");
-  printf(" [B] or [<--] Previous track       \r\n");
-  printf(" [ ] or [-->] Next track    \r\n");
-  printf(" [S]          Stop player          \r\n");
-  printf(" [K]          Toggle saving tracks \r\n");
-  printf(" [Q]          Select Query type    \r\n");
-  printf(" [D]          Download track       \r\n");
-  printf(" [R]          Repeat track mode    \r\n");
-  printf(" [J]          Jump to NNNN file from newest  \r\n");
-  printf(" [F]          Change tracks format to play   \r\n");
-  printf(" [L]          Toggle operation logging       \r\n");
-}
-
 unsigned char testPlayer(void)
 {
   union APP_PAGES player2_pg;
@@ -1076,13 +1349,14 @@ unsigned char testPlayer(void)
   }
 }
 
-C_task main(void)
+C_task main(int argc, char *argv[])
 {
   unsigned char errn, keypress, queryNum, pId, alive, changedFormat;
   long iddqd, idkfa, ipadress;
   unsigned long curTimer, startTimer, oldTimer;
   os_initstdio();
   srand(time());
+
   count = 0;
   saveFlag = 0;
   logFlag = 0;
@@ -1090,8 +1364,23 @@ C_task main(void)
   curFormat = 0;
   changedFormat = 0;
   rptFlag = 0;
-  strcpy(queryType, "from newest to oldest");
+  netDriver = 0;
 
+  if (argc > 1)
+  {
+    if ((argv[1][0] == 'e') || (argv[1][0] == 'E'))
+    {
+      netDriver = 1;
+      clearStatus();
+      printf("    ESP32 mode enabled...");
+      loadEspConfig();
+      uart_init(divider);
+      espReBoot();
+      printHelp();
+    }
+  }
+
+  strcpy(queryType, "from newest to oldest");
   BOX(1, 1, 80, 25, 40);
   AT(1, 1);
   ATRIB(97);
@@ -1292,6 +1581,25 @@ rekey:
       clearStatus();
       printf("File saved: [%s]...", curFileStruct.fileName);
       goto rekey;
+    }
+
+    if (keypress == 'i' || keypress == 'I')
+    {
+      netDriver = !netDriver;
+      if (netDriver == 1)
+      {
+        clearStatus();
+        printf("    ESP32 mode enabled...");
+        loadEspConfig();
+        uart_init(divider);
+        espReBoot();
+        printHelp();
+      }
+      else
+      {
+        clearStatus();
+        printf("    ZXNETUSB mode enabled...");
+      }
     }
   }
 
