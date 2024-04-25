@@ -19,11 +19,11 @@ unsigned int MCR = 0xFCEF;
 unsigned int LSR = 0xFDEF;
 unsigned int MSR = 0xFEEF;
 unsigned int SR = 0xFFEF;
-unsigned char divider = 4;
+unsigned int divider = 1;
 
 unsigned char ver[] = "2.0";
 unsigned char queryType[64];
-unsigned char netbuf[1452];
+unsigned char netbuf[4000];
 unsigned char dataBuffer[6096];
 unsigned char crlf[2] = {13, 10};
 unsigned char formats[4][4] = {"pt3", "pt2", "tfc", "ts"};
@@ -1279,7 +1279,7 @@ void printStatus(void)
   printf("%u", rptFlag);
   ATRIB(93);
   printf(" [J]Jump to ");
-  printf(" [E]Exit        [%s]\r\n", ver);
+  printf(" [E]Exit        [%s]", ver);
 
   ATRIB(97);
   ATRIB(40);

@@ -18,7 +18,7 @@ unsigned int MCR = 0xFCEF;
 unsigned int LSR = 0xFDEF;
 unsigned int MSR = 0xFEEF;
 unsigned int SR = 0xFFEF;
-unsigned char divider = 4;
+unsigned int divider = 4;
 
 struct fileStruct
 {
@@ -1163,14 +1163,12 @@ void safeKeys(unsigned char keypress)
     netDriver = !netDriver;
     if (netDriver == 1)
     {
-      if (verbose == 1)
-      {
-        printf("    ESP32 mode enabled...\r\n\r\n");
-        loadEspConfig();
-        uart_init(divider);
-        espReBoot();
-      }
+      printf("    ESP32 mode enabled...\r\n\r\n");
+      loadEspConfig();
+      uart_init(divider);
+      espReBoot();
     }
+
     else
     {
       if (verbose == 1)
