@@ -529,7 +529,7 @@ unsigned int fillPictureEsp(void)
   unsigned int dataSize;
   unsigned char skipHeader;
   strcpy(link, netbuf);
-  strcat(link, "\r\n");
+  //strcat(link, "\r\n");
   sizeLink = strlen(link);
   sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
   getAnswer(2); // CONNECT

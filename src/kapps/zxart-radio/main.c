@@ -73,7 +73,6 @@ void delay(unsigned long counter)
   while (start < finish)
   {
     start = time();
-    YIELD();
   }
 }
 
@@ -193,17 +192,14 @@ void errorPrint(unsigned int error)
 
 void printHelp(void)
 {
-  AT(1, 13);
+  AT(1, 15);
   ATRIB(97);
-  printf("                                                        \r\n");
-  printf("                                                        \r\n");
   printf(" [<-] Previous track              [->] Next track\r\n");
   printf(" [S]  Stop player                 [R]  Repeat track mode\r\n");
   printf(" [K]  Toggle saving tracks        [D]  Download track\r\n");
   printf(" [Q]  Select Query type           [F]  Select tracks format\r\n");
   printf(" [I]  Interface ZXNETUSB/ESP32    [J]  Jump to NNNN file\r\n");
   printf(" [L]  Toggle operation logging    [ESC] Exit to OS\r\n");
-  printf("                                                        \r\n");
   printf("                                                        \r\n");
 }
 
@@ -633,12 +629,12 @@ void loadEspConfig(void)
 
   res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider);
 
-  BOX(1, 13, 80, 11, 40);
-  AT(1, 13);
+  BOX(1, 15, 80, 8, 40);
+  AT(1, 15);
   puts("Config loaded:");
-  printf("     RBR_THR:0x%4x\r\n     IER    :0x%4x\r\n     IIR_FCR:0x%4x\r\n     LCR    :0x%4x\r\n", RBR_THR, IER, IIR_FCR, LCR);
-  printf("     MCR    :0x%4x\r\n     LSR    :0x%4x\r\n     MSR    :0x%4x\r\n     SR     :0x%4x\r\n", MCR, LSR, MSR, SR);
-  printf("     DIVIDER:%4u\r\n", divider);
+  printf("     RBR_THR:0x%4x     IER    :0x%4x\r\n     IIR_FCR:0x%4x     LCR    :0x%4x\r\n", RBR_THR, IER, IIR_FCR, LCR);
+  printf("     MCR    :0x%4x     LSR    :0x%4x\r\n     MSR    :0x%4x     SR     :0x%4x\r\n", MCR, LSR, MSR, SR);
+  printf("     DIV    :%u\r\n", divider);
 }
 
 ////////////////////////ESP32 PROCEDURES//////////////////////
@@ -1153,39 +1149,107 @@ unsigned char getTrack(unsigned long fileId)
   unsigned char cmdlist2[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; Radio)\r\n\r\n\0";
   unsigned char buffer[] = "0000000000";
   unsigned char socket;
-  unsigned int headskip;
+  unsigned int headskip = 0;
   unsigned long bytecount;
+
+  unsigned int packSize = 2000;
+  unsigned char cmd[256];
+  unsigned char link[512];
+  unsigned char sizeLink;
+  unsigned long toDownload, downloaded;
+  unsigned char byte = 0;
+  unsigned int dataSize;
+  unsigned char skipHeader = 0;
+
   clearStatus();
   printf("Getting track...");
 
-  socket = OpenSock(AF_INET, SOCK_STREAM);
-  todo = netConnect(socket);
   sprintf(buffer, "%lu", fileId);
   strcpy(netbuf, cmdlist1);
   strcat(netbuf, buffer);
   strcat(netbuf, cmdlist2);
-  todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
-
-  headskip = 0;
-  bytecount = 255;
   saveBuf(curFileStruct.picId, 00, 0);
-  while (bytecount != 0)
+
+  if (netDriver == 0)
   {
-    todo = tcpRead(socket);
-    if (todo == 0)
+    socket = OpenSock(AF_INET, SOCK_STREAM);
+    todo = netConnect(socket);
+    todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
+    do
     {
-      break;
-    }
-    if (headskip == 0)
-    {
-      headskip = 1;
-      todo = cutHeader(todo);
-      bytecount = contLen;
-    }
-    saveBuf(curFileStruct.picId, 01, todo);
-    bytecount = bytecount - todo;
+      todo = tcpRead(socket);
+      if (todo == 0)
+      {
+        break;
+      }
+      if (headskip == 0)
+      {
+        headskip = 1;
+        todo = cutHeader(todo);
+        bytecount = contLen;
+      }
+      saveBuf(curFileStruct.picId, 01, todo);
+      bytecount = bytecount - todo;
+    } while (bytecount != 0);
+
+    netShutDown(socket, 0);
   }
-  netShutDown(socket, 0);
+  else
+  {
+    strcpy(link, netbuf);
+    sizeLink = strlen(link);
+    sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
+    getAnswer(2); // CONNECT
+    getAnswer(0); // OK
+
+    strcpy(netbuf, cmdlist1);
+    sprintf(buffer, "%lu", fileId);
+    strcat(netbuf, buffer);
+    strcat(netbuf, cmdlist2);
+    // todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
+    strcpy(cmd, "AT+CIPSEND=");
+    sprintf(netbuf, "%u", sizeLink + 2); // second CRLF in send command
+    strcat(cmd, netbuf);
+    sendcommand(cmd);
+    do
+    {
+      byte = uart_readBlock();
+      // putchar(byte);
+    } while (byte != '>');
+
+    sendcommand(link);
+    getAnswer(2); // Recv 132 bytes
+    getAnswer(2); // SEND OK
+    getAnswer(2); //+IPD,3872
+    downloaded = 0;
+    do
+    {
+      headlng = 0;
+      strcpy(netbuf, "AT+CIPRECVDATA=");
+      sprintf(link, "%u", packSize);
+      strcat(netbuf, link);
+      sendcommand(netbuf);
+      dataSize = recvHead();
+      getdataEsp(dataSize); // Requested size
+      if (skipHeader == 0)
+      {
+        dataSize = cutHeader(dataSize);
+        toDownload = contLen;
+        skipHeader = 1;
+      }
+      downloaded = downloaded + dataSize;
+      saveBuf(curFileStruct.picId, 01, dataSize);       
+      //memcpy(picture + downloaded - dataSize, netbuf + headlng, dataSize);
+      toDownload = toDownload - dataSize;
+      getAnswer(2); // OK
+      if (toDownload > 0)
+      {
+        getAnswer(2); // +IPD,1824
+      }
+    } while (toDownload > 0);
+    sendcommand("AT+CIPCLOSE");
+    getAnswer(0); // CLOSED
+  }
   return 0;
 }
 
@@ -1392,13 +1456,6 @@ C_task main(int argc, char *argv[])
   ATRIB(33);
   ATRIB(40);
 
-  /*
-    ipadress = OS_DNSRESOLVE("zxart.ee");
-    printf("\n\r  OS_DNSRESOLVE =  %lu \n\r", ipadress);
-    printf("------------------------\n\r");
-    printf("OS_GETPATH = %s\r\n", curPath);
-  */
-
   keypress = _low_level_get();
   if (keypress == 'l' || keypress == 'L')
   {
@@ -1442,7 +1499,6 @@ resume:
   printStatus();
   printInfo();
 rekey:
-  YIELD();
   keypress = _low_level_get();
   if (keypress != 0)
   {
