@@ -1,1 +1,1 @@
-term.com zxartrad.com
+term.com zxartrad.com %1
