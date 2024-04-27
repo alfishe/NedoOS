@@ -23,8 +23,8 @@ unsigned int divider = 1;
 
 unsigned char ver[] = "2.0";
 unsigned char queryType[64];
-unsigned char netbuf[4000];
-unsigned char dataBuffer[6096];
+unsigned char netbuf[3048];
+unsigned char dataBuffer[6132];
 unsigned char crlf[2] = {13, 10};
 unsigned char formats[4][4] = {"pt3", "pt2", "tfc", "ts"};
 unsigned char status, key, curFormat;
@@ -37,6 +37,7 @@ union APP_PAGES main_pg;
 union APP_PAGES player_pg;
 unsigned int loaded;
 unsigned int headlng;
+unsigned char cmd[256];
 
 struct fileStruct
 {
@@ -553,7 +554,6 @@ unsigned int recvHead(void)
 unsigned int fillDataBufferEsp(void)
 {
   unsigned int packSize = 2000;
-  unsigned char cmd[256];
   unsigned char link[512];
   unsigned char sizeLink;
   unsigned long toDownload, downloaded;
@@ -908,9 +908,9 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
 
 void getData(unsigned char socket)
 {
-  unsigned int todo, w, bPos, headskip;
+  unsigned int todo, w, bPos, skipHeader;
 
-  headskip = 0;
+  skipHeader = 0;
   bPos = 0;
   while (1)
   {
@@ -919,9 +919,9 @@ void getData(unsigned char socket)
     {
       break;
     }
-    if (headskip == 0)
+    if (skipHeader == 0)
     {
-      headskip = 1;
+      skipHeader = 1;
       todo = cutHeader(todo);
     }
 
@@ -1149,17 +1149,15 @@ unsigned char getTrack(unsigned long fileId)
   unsigned char cmdlist2[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; Radio)\r\n\r\n\0";
   unsigned char buffer[] = "0000000000";
   unsigned char socket;
-  unsigned int headskip = 0;
+  unsigned int skipHeader = 0;
   unsigned long bytecount;
 
   unsigned int packSize = 2000;
-  unsigned char cmd[256];
   unsigned char link[512];
   unsigned char sizeLink;
   unsigned long toDownload, downloaded;
   unsigned char byte = 0;
   unsigned int dataSize;
-  unsigned char skipHeader = 0;
 
   clearStatus();
   printf("Getting track...");
@@ -1182,9 +1180,9 @@ unsigned char getTrack(unsigned long fileId)
       {
         break;
       }
-      if (headskip == 0)
+      if (skipHeader == 0)
       {
-        headskip = 1;
+        skipHeader = 1;
         todo = cutHeader(todo);
         bytecount = contLen;
       }
@@ -1238,8 +1236,8 @@ unsigned char getTrack(unsigned long fileId)
         skipHeader = 1;
       }
       downloaded = downloaded + dataSize;
-      saveBuf(curFileStruct.picId, 01, dataSize);       
-      //memcpy(picture + downloaded - dataSize, netbuf + headlng, dataSize);
+      saveBuf(curFileStruct.picId, 01, dataSize);
+      // memcpy(picture + downloaded - dataSize, netbuf + headlng, dataSize);
       toDownload = toDownload - dataSize;
       getAnswer(2); // OK
       if (toDownload > 0)
@@ -1487,8 +1485,8 @@ start:
   {
     clearStatus();
     printf("Error getting author %lu", atol(curFileStruct.authorIds));
-    strcpy(curFileStruct.authorTitle, " Error getting Tittle ");
-    // strcpy(curFileStruct.authorRealName, " \0");
+    strcpy(curFileStruct.authorTitle, "-");
+    strcpy(curFileStruct.authorRealName, "-");
   }
 replay:
   errn = getTrack(iddqd); // Downloading the track
