@@ -733,7 +733,7 @@ void ncReplace(void)
   unsigned char len;
   for (len = 0; len < strlen(curFileStruct.afn); len++)
   {
-    if (curFileStruct.afn[len] < ' ')
+    if ((curFileStruct.afn[len] < ' ') || (curFileStruct.afn[len] > 0xef) || (curFileStruct.afn[len] > 0x7e && curFileStruct.afn[len] < 0xb0))
     {
       curFileStruct.afn[len] = '_';
     }
@@ -741,7 +741,7 @@ void ncReplace(void)
 
   for (len = 0; len < strlen(curFileStruct.pfn); len++)
   {
-    if (curFileStruct.pfn[len] < ' ')
+        if ((curFileStruct.pfn[len] < ' ') || (curFileStruct.pfn[len] > 0xef) || (curFileStruct.pfn[len] > 0x7e && curFileStruct.pfn[len] < 0xb0))
     {
       curFileStruct.pfn[len] = '_';
     }
