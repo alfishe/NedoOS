@@ -80,16 +80,16 @@ ismidfile
 	ret
 
 playerinit
-;hl = GPSETTINGS
+;hl,ix = GPSETTINGS
 ;a = player page
 ;out: zf=1 if init is successful, hl=init message
 	ld (playerpage),a
-	call setuartdelay
 	ld a,(hl)
 	ld (page8000),a
 	inc hl
 	ld a,(hl)
 	ld (pageC000),a
+	call setuartdelay
 	ld a,(waitspincount)
 	or a
 	call z,initwaitspincount
@@ -98,8 +98,7 @@ playerinit
 	ret
 
 setuartdelay
-	push hl
-	pop ix
+;ix = GPSETTINGS
 	ld de,(ix+GPSETTINGS.midiuartdelayoverride)
 	ld a,d
 	or e
@@ -110,15 +109,14 @@ setuartdelay
 	jr c,.done
 	cp 10
 	jr nc,.done
-	ld (.digit),a
+	ld h,a
 	ld a,c
 	add a,a
 	ld c,a
 	add a,a
 	add a,a
 	add a,c
-.digit=$+1
-	add a,0
+	add a,h
 	ld c,a
 	inc de
 	djnz .loop
@@ -287,8 +285,15 @@ SSG_DAT = 0xbffd
 	macro wait_32us reducebytstates
 	ld a,(waitspincount)
 	add a,-(20+reducebytstates+7)/14
+.loop	dec a
+	jp z,.done
 	dec a
-	jp nz,$-1
+	jp z,.done
+	dec a
+	jp z,.done
+	dec a
+	jp nz,.loop
+.done   ;that's all, folks
 	endm
 
 midinitport
@@ -345,7 +350,7 @@ initwaitspincount
 	ld e,0
 	xor a
 	ld (.spincount),a
-	ld a,33
+	ld a,32
 	halt
 ;--> 42 t-states loop start
 .loop	inc e

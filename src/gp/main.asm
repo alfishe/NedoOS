@@ -11,7 +11,7 @@ FILE_NAME_OFFSET = FILE_DISPLAY_INFO_OFFSET+FILE_DISPLAY_INFO_SIZE
 FILE_NAME_SIZE = SFN_SIZE
 FILE_ATTRIB_OFFSET = FILE_NAME_OFFSET+FILE_NAME_SIZE
 FILE_ATTRIB_SIZE = 1
-BROWSER_FILE_COUNT=168
+BROWSER_FILE_COUNT=162
 PLAYLIST_FILE_COUNT=40
 PANELCOLOR = 0x4f
 CURSORCOLOR = 0x28
@@ -55,6 +55,7 @@ mainbegin
 	OS_SETSYSDRV
 	call loadsettings
 	call detectmoonsound
+	call detecttfm
 	call loadplayers
 	jp nz,printerrorandexit
 
@@ -67,6 +68,8 @@ mainbegin
 
 	ld de,defaultplaylistfilename
 	call loadplaylist
+	xor a
+	ld (playlistchanged),a
 
 	ld hl,COMMANDLINE
 	call skipword_hl
@@ -177,7 +180,13 @@ gotop
 	ld (ix+PANEL.firstfiletoshow),a
 	jp drawcurrentpanelfilelist
 
+markplaylistdirty
+	ld a,255
+	ld (playlistchanged),a
+	ret
+
 clearplaylist
+	call markplaylistdirty
 	ld ix,playlistpanel
 	call clearpanel
 	jp drawplaylistwindow
@@ -217,6 +226,7 @@ setcurrentpanel
 	jp drawplaylistfileslist
 
 addtoplaylist
+	call markplaylistdirty
 	ld a,(browserpanel.isinactive)
 	or a
 	jr nz,removefromplaylist
@@ -313,7 +323,9 @@ playerdeinitloop
 	ld (playlistpanel.isinactive),a
 	OS_SETSYSDRV
 	ld de,defaultplaylistfilename
-	call saveplaylist
+	ld a,(playlistchanged)
+	or a
+	call nz,saveplaylist
 	QUIT
 
 saveplaylist
@@ -539,6 +551,7 @@ gopageup
 
 loadplaylist
 ;de = filename
+	call markplaylistdirty
 	call openstream_file
 	or a
 	jr nz,initemptyplaylist
@@ -1092,10 +1105,12 @@ initializing2str
 	db "...",0
 detectingmoonsoundstr
 	db "Detecting MoonSound...",0
+detectingtfmstr
+	db "Detecting TurboSound FM...",0
 notfoundstr
 	db "no device!\r\n",0
 foundstr
-	db "OK\r\n",0
+	db "found!\r\n",0
 rom001200
 	db "Copyright"
 loadingstr
@@ -1143,6 +1158,7 @@ loadplayer
 	ld hl,initializing2str
 	call print_hl
 	ld hl,gpsettings
+	ld ix,gpsettings
 	ld a,(.playerpage)
 	call playerinit
 	push af
@@ -1228,6 +1244,17 @@ detectmoonsound
 	call print_hl
 	YIELDGETKEYLOOP
 	ret
+
+detecttfm
+	ld hl,detectingtfmstr
+	call print_hl
+	call istfmpresent
+	ld hl,notfoundstr
+	jp nz,print_hl
+	ld a,1
+	ld (gpsettings.tfmstatus),a
+	ld hl,foundstr
+	jp print_hl
 
 loadsettings
 	ld de,settingsfilename
@@ -1560,8 +1587,9 @@ isfilesupported jumpindirect ISFILESUPPORTEDPROCADDR
 	include "../_sdk/file.asm"
 	include "common/radixsort.asm"
 	include "common/opl4.asm"
+	include "common/opn.asm"
 
-trywritingfm1
+trywritingmoonsoundfm1
 	djnz $
 	ld a,e
 	out (MOON_REG1),a
@@ -1583,12 +1611,12 @@ ismoonsoundpresent
 	or a
 	ret nz
 ;start timer
-	ld de,0x8003
-	call trywritingfm1
+	ld de,0xff03
+	call trywritingmoonsoundfm1
 	ld de,0x4204
-	call trywritingfm1
+	call trywritingmoonsoundfm1
 	ld d,0x80
-	call trywritingfm1
+	call trywritingmoonsoundfm1
 ;wait for the timer to finish
 	YIELD
 	YIELD
@@ -1596,8 +1624,45 @@ ismoonsoundpresent
 	in a,(MOON_STAT)
 	cp 0xa0
 	ret nz
-;no kidding, there must be MoonSound in this system
+;there must be MoonSound in this system
 	call opl4mute
+	xor a
+	ret
+
+trywritingtfm1
+	dec a
+	jr nz,$-1
+	ld bc,OPN_REG
+	out (c),e
+	dec a
+	jr nz,$-1
+	ld bc,OPN_DAT
+	out (c),d
+	ret
+
+istfmpresent
+;check for non-zero as an early exit condition
+	ld bc,OPN_REG
+	ld a,%11111100
+	out (c),a
+	in a,(c)
+	or a
+	ret nz
+;start timer
+	ld de,0xff26
+	call trywritingtfm1
+	ld de,0x2a27
+	call trywritingtfm1
+;wait for the timer to finish
+	YIELD
+	YIELD
+;check the timer flags
+	ld bc,OPN_REG
+	in a,(c)
+	cp 2
+	ret nz
+;there must be TFM in this system
+	call opnmute
 	xor a
 	ret
 
@@ -1702,10 +1767,9 @@ playlistdatasize=$-playlistdatastart
 
 musicprogress ds 1
 playercount ds 1
+playlistchanged ds 1
 
-page0dataend = $
-
-	assert page0dataend <= 0x3e00 ;reserve 512 bytes for stack
+	assert $ <= 0x3e00 ;reserve 512 bytes for stack
 
 	savebin "gp.com",mainbegin,mainend-mainbegin
 

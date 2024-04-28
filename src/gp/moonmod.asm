@@ -36,13 +36,11 @@ nosupportedfiles
 	ret
 
 playerinit
-;hl = GPSETTINGS
+;hl,ix = GPSETTINGS
 ;a = player page
 ;out: zf=1 if init is successful, hl=init message
 	ld (.settingsaddr),hl
-	ld de,GPSETTINGS.moonsoundstatus
-	add hl,de
-	ld a,(hl)
+	ld a,(ix+GPSETTINGS.moonsoundstatus)
 	cp 2
 	ld hl,nodevicestr
 	ret nz
@@ -62,9 +60,9 @@ playerinit
 ;start initing vars after the table was copied
 	pop af
 	ld (modperiodlookuppage),a
-.settingsaddr=$+1
-	ld hl,0
-	ld a,(hl)
+.settingsaddr=$+2
+	ld ix,0
+	ld a,(ix)
 	ld (modfilebufferpage),a
 	call setdefaultpanning
 	ld hl,initokstr
@@ -73,9 +71,7 @@ playerinit
 	ret
 
 setdefaultpanning
-;hl = GPSETTINGS
-	push hl
-	pop ix
+;ix = GPSETTINGS
 	ld de,(ix+GPSETTINGS.moonmoddefaultpanning)
 	ld a,d
 	or e

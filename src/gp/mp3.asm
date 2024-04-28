@@ -112,7 +112,7 @@ ismodfile
 	ret
 
 playerinit
-;hl = GPSETTINGS
+;hl,ix = GPSETTINGS
 ;a = player page
 ;out: zf=1 if init is successful, hl=init message
 	ld a,(hl)
@@ -120,7 +120,6 @@ playerinit
 	inc hl
 	ld a,(hl)
 	ld (pageC000),a
-
 ;	call gssoftreset
 ;b==0 if no reply from GS
 ;	dec b
@@ -132,7 +131,6 @@ playerinit
 	cp 1
 	ld hl,nodevicestr
 	ret c
-
 ;get chip id
 	call gsstartcode
 	SC CMDGETCHIPID
@@ -141,7 +139,6 @@ playerinit
 	GD
 	ld (vsversion),a
 	call gscodereset
-
 	ld a,(vsversion)
 	cp SS_VER_VS1103+1
 	ld hl,gsinitok

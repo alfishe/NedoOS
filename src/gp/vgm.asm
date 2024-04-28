@@ -18,6 +18,7 @@ HEADER_LOOP_SAMPLES_COUNT = 0x8020
 TITLELENGTH = 64
 MEMORYSTREAMMAXPAGES = 210
 MEMORYSTREAMERRORMASK = 255 ; TODO: do we need to enforce loading the entire file?
+ENABLE_FM = 1
 
 	org PLAYERSTART
 
@@ -45,7 +46,7 @@ isfilesupported
 	jp initprogress
 
 playerinit
-;hl = GPSETTINGS
+;hl,ix = GPSETTINGS
 ;a = player page
 ;out: zf=1 if init is successful, hl=init message
 	ld a,(hl)
@@ -56,10 +57,10 @@ playerinit
 	inc hl
 	ld a,(hl)
 	ld (filedatapage),a
-	ld de,GPSETTINGS.moonsoundstatus-2
-	add hl,de
-	ld a,(hl)
+	ld a,(ix+GPSETTINGS.moonsoundstatus)
 	ld (moonsoundstatus),a
+	ld a,(ix+GPSETTINGS.tfmstatus)
+	ld (tfmstatus),a
 ;hardware detection is done when loading VGM
 	ld hl,initokstr
 	xor a
@@ -139,6 +140,7 @@ musicload
 	a_or_dw HEADER_CLOCK_YM2203
 	ld (useYM2203),a
 	call nz,initYM2203
+	jp nz,memorystreamfree ;sets zf=0
 ;init Moonsound
 	xor a
 	a_or_dw HEADER_CLOCK_YM3812
@@ -175,9 +177,15 @@ musicload
 initAY8910 equ ssginit
 
 initYM2203
+tfmstatus=$+1
+	ld a,0
+	dec a
+	ret m
 	call opninit
 	set_timer opnwaittimer60hz,735
-	jp opninittimer60hz
+	call opninittimer60hz
+	xor a
+	ret
 
 musicunload
 useYMF278B=$+1
@@ -202,6 +210,7 @@ playerdeinit
 	include "common/memorystream.asm"
 	include "common/opl4.asm"
 	include "vgm/opl4.asm"
+	include "common/opn.asm"
 	include "vgm/opn.asm"
 	include "vgm/ssg.asm"
 	include "progress.asm"

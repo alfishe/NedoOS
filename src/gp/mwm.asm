@@ -27,15 +27,13 @@ mwmsupported=$+1
 	jp initprogress
 
 playerinit
-;hl = GPSETTINGS
+;hl,ix = GPSETTINGS
 ;a = player page
 ;out: zf=1 if init is successful, hl=init message
 	ld de,songdata_bank1
 	ld bc,3
 	ldir
-	ld de,GPSETTINGS.moonsoundstatus-3
-	add hl,de
-	ld a,(hl)
+	ld a,(ix+GPSETTINGS.moonsoundstatus)
 	cp 2
 	ld hl,initokstr
 	ret z

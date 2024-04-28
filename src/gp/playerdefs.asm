@@ -33,4 +33,5 @@ usemoonmod dw 0
 moonmoddefaultpanning dw 0
 midiuartdelayoverride dw 0
 moonsoundstatus ds 1 ; 0 - no device, 1 - MoonSound with old firmware (wave ports not working), 2 - MoonSound OK
+tfmstatus ds 1 ; 0 - no device, 1 - found TFM
 	ends
