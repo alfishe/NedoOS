@@ -53,7 +53,7 @@ INImons_nolive
         add a,a
         add a,a
         inc hl
-        add a,(hl) ;phase
+        ;add a,(hl) ;phase
         inc hl
         inc de
         ld (de),a

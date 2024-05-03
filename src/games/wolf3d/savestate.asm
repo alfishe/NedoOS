@@ -1,6 +1,3 @@
-firedelaycounter
-        db 0
-
 level
         DB "W"
 gfxnr   DB "0"
@@ -18,6 +15,17 @@ yx      DW 0x8080
 YX      DW 0xBA08
 angle   DW 64
 endlev
+
+health
+        db 20
+bullets
+        db 10
+leveltime
+        dw 0
+gametime
+        dw 0
+firedelaycounter
+        db 0
 
         DS ((-$)&7)&0xff
 MONSTRS
