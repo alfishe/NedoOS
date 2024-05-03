@@ -1143,7 +1143,7 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
   return curFileStruct.picId;
 }
 
-unsigned char getTrack(unsigned long fileId)
+unsigned char getTrack2(unsigned long fileId)
 {
   unsigned int todo;
   unsigned char cmdlist1[] = "GET /file/id:";
@@ -1152,113 +1152,107 @@ unsigned char getTrack(unsigned long fileId)
   unsigned char socket;
   unsigned int skipHeader = 0;
   unsigned long bytecount;
-
-  clearStatus();
-  printf("Getting track...");
-
-  strcpy(netbuf, cmdlist1);
-  sprintf(buffer, "%lu", fileId);
-  strcat(netbuf, buffer);
-  strcat(netbuf, cmdlist2);
-
-  socket = OpenSock(AF_INET, SOCK_STREAM);
-  todo = netConnect(socket);
-  todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
-  saveBuf(curFileStruct.picId, 00, 0);
-  do
-  {
-    todo = tcpRead(socket);
-    if (todo == 0)
-    {
-      break;
-    }
-    if (skipHeader == 0)
-    {
-      skipHeader = 1;
-      todo = cutHeader(todo);
-      bytecount = contLen;
-    }
-    saveBuf(curFileStruct.picId, 01, todo);
-    bytecount = bytecount - todo;
-  } while (bytecount != 0);
-
-  netShutDown(socket, 0);
-
-  return 0;
-}
-
-unsigned char getTrackEsp(unsigned long fileId)
-{
-  unsigned char cmdlist1[] = "GET /file/id:";
-  unsigned char cmdlist2[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; Radio)\r\n\r\n\0";
-  unsigned char buffer[] = "0000000000";
-  unsigned int skipHeader = 0;
   unsigned int packSize = 2000;
   unsigned char sizeLink;
   unsigned long toDownload, downloaded;
-  unsigned char byte;
+  unsigned char byte = 0;
   unsigned int dataSize;
-  byte = 0;
-  clearStatus();
-  printf("Getting track...");
 
-  sprintf(buffer, "%lu", fileId);
-  strcpy(netbuf, cmdlist1);
-  strcat(netbuf, buffer);
-  strcat(netbuf, cmdlist2);
-  saveBuf(curFileStruct.picId, 00, 0);
-
-  strcpy(link, netbuf);
-  sizeLink = strlen(link);
-  sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
-  getAnswer(2); // CONNECT
-  getAnswer(0); // OK
-
-  strcpy(netbuf, cmdlist1);
-  sprintf(buffer, "%lu", fileId);
-  strcat(netbuf, buffer);
-  strcat(netbuf, cmdlist2);
-  strcpy(cmd, "AT+CIPSEND=");
-  sprintf(netbuf, "%u", sizeLink + 2); // second CRLF in send command
-  strcat(cmd, netbuf);
-  sendcommand(cmd);
-  do
+  if (netDriver == 0)
   {
-    byte = uart_readBlock();
-    // putchar(byte);
-  } while (byte != '>');
+    clearStatus();
+    printf("Getting track...");
 
-  sendcommand(link);
-  getAnswer(2); // Recv 132 bytes
-  getAnswer(2); // SEND OK
-  getAnswer(2); //+IPD,3872
-  downloaded = 0;
-  do
+    strcpy(netbuf, cmdlist1);
+    sprintf(buffer, "%lu", fileId);
+    strcat(netbuf, buffer);
+    strcat(netbuf, cmdlist2);
+
+    socket = OpenSock(AF_INET, SOCK_STREAM);
+    todo = netConnect(socket);
+    todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
+    saveBuf(curFileStruct.picId, 00, 0);
+    do
+    {
+      todo = tcpRead(socket);
+      if (todo == 0)
+      {
+        break;
+      }
+      if (skipHeader == 0)
+      {
+        skipHeader = 1;
+        todo = cutHeader(todo);
+        bytecount = contLen;
+      }
+      saveBuf(curFileStruct.picId, 01, todo);
+      bytecount = bytecount - todo;
+    } while (bytecount != 0);
+    netShutDown(socket, 0);
+  }
+  else
   {
-    headlng = 0;
-    strcpy(netbuf, "AT+CIPRECVDATA=");
-    sprintf(link, "%u", packSize);
-    strcat(netbuf, link);
-    sendcommand(netbuf);
-    dataSize = recvHead();
-    getdataEsp(dataSize); // Requested size
-    if (skipHeader == 0)
+    clearStatus();
+    printf("Getting track...");
+
+    sprintf(buffer, "%lu", fileId);
+    strcpy(netbuf, cmdlist1);
+    strcat(netbuf, buffer);
+    strcat(netbuf, cmdlist2);
+    saveBuf(curFileStruct.picId, 00, 0);
+
+    strcpy(link, netbuf);
+    sizeLink = strlen(link);
+    sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
+    getAnswer(2); // CONNECT
+    getAnswer(0); // OK
+
+    strcpy(netbuf, cmdlist1);
+    sprintf(buffer, "%lu", fileId);
+    strcat(netbuf, buffer);
+    strcat(netbuf, cmdlist2);
+    strcpy(cmd, "AT+CIPSEND=");
+    sprintf(netbuf, "%u", sizeLink + 2); // second CRLF in send command
+    strcat(cmd, netbuf);
+    sendcommand(cmd);
+    do
     {
-      dataSize = cutHeader(dataSize);
-      toDownload = contLen;
-      skipHeader = 1;
-    }
-    downloaded = downloaded + dataSize;
-    saveBuf(curFileStruct.picId, 01, dataSize);
-    toDownload = toDownload - dataSize;
-    getAnswer(2); // OK
-    if (toDownload > 0)
+      byte = uart_readBlock();
+      // putchar(byte);
+    } while (byte != '>');
+
+    sendcommand(link);
+    getAnswer(2); // Recv 132 bytes
+    getAnswer(2); // SEND OK
+    getAnswer(2); //+IPD,3872
+    downloaded = 0;
+    do
     {
-      getAnswer(2); // +IPD,1824
-    }
-  } while (toDownload > 0);
-  sendcommand("AT+CIPCLOSE");
-  getAnswer(0); // CLOSED
+      headlng = 0;
+      strcpy(netbuf, "AT+CIPRECVDATA=");
+      sprintf(link, "%u", packSize);
+      strcat(netbuf, link);
+      sendcommand(netbuf);
+      dataSize = recvHead();
+      getdataEsp(dataSize); // Requested size
+      if (skipHeader == 0)
+      {
+        dataSize = cutHeader(dataSize);
+        toDownload = contLen;
+        skipHeader = 1;
+      }
+      downloaded = downloaded + dataSize;
+      saveBuf(curFileStruct.picId, 01, dataSize);
+      toDownload = toDownload - dataSize;
+      getAnswer(2); // OK
+      if (toDownload > 0)
+      {
+        getAnswer(2); // +IPD,1824
+      }
+    } while (toDownload > 0);
+    sendcommand("AT+CIPCLOSE");
+    getAnswer(0); // CLOSED
+  }
   return 0;
 }
 
@@ -1500,14 +1494,9 @@ start:
     strcpy(curFileStruct.authorRealName, "-");
   }
 replay:
-  if (netDriver == 0)
-  {
-    errn = getTrack(iddqd); // Downloading the track
-  }
-  else
-  {
-    errn = getTrackEsp(iddqd); // Downloading the track
-  }
+
+  errn = getTrack2(iddqd); // Downloading the track
+
 resume:
   startTimer = time();
   printProgress(0);
@@ -1648,14 +1637,9 @@ rekey:
     {
       saveBak = saveFlag;
       saveFlag = 1;
-      if (netDriver == 0)
-      {
-        errn = getTrack(iddqd); // Downloading the track
-      }
-      else
-      {
-        errn = getTrackEsp(iddqd); // Downloading the track
-      }
+
+      errn = getTrack2(iddqd); // Downloading the track
+
       saveFlag = saveBak;
       clearStatus();
       printf("File saved: [%s]...", curFileStruct.fileName);
@@ -1702,7 +1686,6 @@ rekey:
     printProgress(1);
     oldTimer = curTimer;
   }
-
   YIELD();
   goto rekey;
 }
