@@ -4,7 +4,7 @@
 #include "../_sdk/emit.h"
 
 PROC asmorgword FORWARD(LONG addr);
-PROC asmloop FORWARD();
+PROC fsm FORWARD();
 PROC initmemmodel FORWARD();
 
 FUNC UINT findlabel FORWARD(PBYTE labeltext);
@@ -524,7 +524,7 @@ PROC asmpass(PCHAR fn)
     _waseof = +FALSE;
     _curlnbeg = 1; //todo при include и потом восстанавливать
 
-    asmloop();
+    fsm();
 
     fclose(_fin); //closefin();
   }ELSE {

@@ -75,7 +75,7 @@ EXTERN UINT _plabel_index; //после findlabel содержит указатель на начало данных
 #include "asmf_z80.c" //// машиннозависимые процедуры и объявления
 #endif
 
-PROC asmloop()
+PROC fsm()
 {
 VAR UINT scale; //показатель системы счисления
 #ifdef TARGET_SCRIPT

@@ -117,7 +117,7 @@ editcmd_noscrollright
         ld de,CMDLINEY*256+0
         SETX_;SETXY_
         ld hl,cmdprompt
-        ld c,0
+        ;ld c,0
         call prtext
         push bc
         ld a,'>'
@@ -128,10 +128,10 @@ editcmd_noscrollright
         ld h,0
         ld de,cmdbuf
         add hl,de
-        call prtext
+        call prtext_c
 ;добьём остаток строки пробелами
         ;ld hl,tspaces
-        ;jp prtext
+        ;jp prtext_c
         jp clearrestofline
 
 ;tspaces
@@ -152,9 +152,14 @@ cmdprNchars
         ret
         
 prtext
+        ;ld c,0
+        push hl ;text
+        call strlen ;hl=length
+        jr prtextgo
+prtext_c
 ;c=x
+        push hl ;text
         push bc
-        push hl
         ld a,txtscrwid-1
         sub c
         ld c,a
@@ -165,8 +170,9 @@ prtext
         call minhl_bc_tobc
         ld h,b
         ld l,c
-        pop de
         pop bc ;c=x
+prtextgo
+        pop de ;text
         ld a,h
         or l
 ;de=buf

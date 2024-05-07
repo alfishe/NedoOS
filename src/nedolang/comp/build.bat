@@ -12,4 +12,12 @@ type err.f
 type asmerr.f
 del compc_os.bin
 move /Y comp_os.bin comp.com > nul
-if "%currentdir%"=="" (pause)
+
+if "%currentdir%"=="" (
+ FOR %%j IN (*.com) DO (
+ copy /Y %%j "../../../release/bin/" > nul
+ "../../../tools/dmimg.exe" ../../../us/sd_nedo.vhd put %%j /bin/%%j
+ )
+rem pause
+ if "%makeall%"=="" ..\..\..\us\emul.exe
+)

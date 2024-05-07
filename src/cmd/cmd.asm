@@ -693,9 +693,10 @@ loadapp
 ;out: nz=error, cy=end of .bat, or else e=id
         ld hl,cmdbuf
         ld de,wordbuf
+        push de
         call getword
 ;учесть путь в имени (TODO использовать OS_OPENHANDLE)
-        ld hl,wordbuf
+        pop hl ;ld hl,wordbuf
         push hl
         call findlastslash. ;de=after last slash or beginning of path
         pop hl
@@ -718,7 +719,9 @@ loadapp_finddot0
         jp z,strcpexec_tryrun_bat
 ;считаем, что написано .com (в принципе расширение безразлично - просто запускаем)
         jr loadapp_finddotok1
+
 loadapp_nodot
+;TODO или сначала проверять bat, потом com?
 ;a=0
         ld (hl),'.'
         inc hl
@@ -789,7 +792,7 @@ open_file_exec
         ret
 exthlpointer
         dw 0000
-        dw 0000    
+        ;dw 0000    
 
 readapp
         ld a,b
@@ -881,9 +884,9 @@ strcpexec_tryrun_bat
         ld de,wordbuf ;pop de
         OS_OPENHANDLE
         or a
-        ld a,b
-        ld (curbathandle),a	
         ret nz ;jp nz,execcmd_error ;NC!
+        ld a,b
+        ld (curbathandle),a
         
          ld a,0x3c ;"inc a"
          ld (readbyte_readbuf_last),a
@@ -980,6 +983,7 @@ curbathandle=$+1
         push de
         ld hl,128
         OS_READHANDLE
+        ;jr $
         pop iy
 ;HL = Number of bytes actually read, A=error
         ;sub 1
@@ -1064,10 +1068,9 @@ cmd_dir2_0
         or a
         jr nz,$+5
         ld hl,filinfo+FILINFO_FNAME
-        ;ld c,0 ;c=x
+        ;ld c,0 ;c=x???
         call prtext
-;c=x
-        
+;c=x???
         call prcrlf
        pop bc ;nfiles
         inc bc ;nfiles
@@ -1565,24 +1568,16 @@ cmd_type
         or a
         jp z,cmd_error_nopars
         ld de,wordbuf
+        push de
         call getword ;hl=terminator/space addr
-
-       if DEBUG
-        ld hl,wordbuf
-        ld c,0
-        call prtext
-        call prcrlf
-       endif
-
-        ld de,wordbuf ;de=drive/path/file
+        pop de ;ld de,wordbuf ;de=drive/path/file
         OS_OPENHANDLE
         or a
         jp nz,cmd_error_wrongfile
         ld a,b
         ld (close_file1_handle),a
         ld hl,close_file1
-        push hl
-        
+        push hl       
 cmd_type0
 ;B = file handle, DE = Buffer address, HL = Number of bytes to read
         push bc
@@ -1609,9 +1604,9 @@ cmd_tee
         or a
         jp z,cmd_error_nopars
         ld de,wordbuf
+        push de
         call getword ;hl=terminator/space addr
-
-        ld de,wordbuf ;de=drive/path/file
+        pop de ;ld de,wordbuf ;de=drive/path/file
         OS_CREATEHANDLE
         or a
         jp nz,cmd_error_wrongfile
@@ -1619,7 +1614,6 @@ cmd_tee
         ld (close_file1_handle),a
         ld hl,close_file1
         push hl
-        
 cmd_tee0
         push bc
         GETKEY_
@@ -1636,17 +1630,17 @@ cmd_tee0
 ;HL = Number of bytes actually written, A=error?
         pop bc
         jr cmd_tee0
+
 cmd_uname
-		ld hl,nedostr
+	ld hl,nedostr
         call prtext
-		OS_GETCONFIG
-		push ix
-		pop de
-		ld h,b
-		ld l,c
-		call prdword_dehl
-        call prcrlf
-		ret
+	OS_GETCONFIG
+	push ix
+	pop de
+	ld h,b
+	ld l,c
+	call prdword_dehl
+        jp prcrlf
 nedostr defb "NedoOS Kernel revision ",0
 
 cmd_echo
@@ -1657,35 +1651,36 @@ cmd_echo
 cmd_pause
         call getkey
         ld hl,(execcmd_pars)
-		ld a,(hl)
+	ld a,(hl)
         or a
-        jp z,cmd_pause_infin
-		ld de,copybuf
-		call strtobyte_hltode
-		ld hl,(copybuf)	;умножаем на 48 интов в секунде
-		add hl,hl
-		add hl,hl
-		add hl,hl
-		add hl,hl
-		ld d,h
-		ld e,l
-		add hl,hl
-		add hl,de
-		display "cmd_pause ",cmd_pause
+        jr z,cmd_pause_infin
+	ld de,copybuf
+	call strtobyte_hltode
+	ld hl,(copybuf)	;умножаем на 50 интов в секунде
+	ld d,h
+	ld e,l
+	add hl,hl
+	add hl,de
+	add hl,hl
+	add hl,hl
+	add hl,hl
+	add hl,de
+	add hl,hl
+	;display "cmd_pause ",cmd_pause
 cmd_pause_loop	;ждем окончания счетчика, либо кнопку
-		ld a,h
-		or l
-		ret z
-		push hl
-			ld c,CMD_YIELD
-			call BDOS	;YIELD
-			call getkey
-		pop hl
+	ld a,h
+	or l
+	ret z
+	push hl
+	ld c,CMD_YIELD
+	call BDOS	;YIELD
+	call getkey
+	pop hl
         ret c ;error
-		or a
-		ret nz
-		dec hl
-		jr cmd_pause_loop
+	or a
+	ret nz
+	dec hl
+	jr cmd_pause_loop
 		
 cmd_pause_infin
         call yieldgetkeyloop ;YIELDGETKEYLOOP
@@ -1713,10 +1708,10 @@ cmd_copydir_go
         ld a,'>'
         PRCHAR_
         ld hl,wordbuf2
+        push hl
         call prtext
         call prcrlf
-        
-        ld de,wordbuf2
+        pop de ;ld de,wordbuf2
         OS_MKDIR
 
         ld bc,0 ;номер файла в директории
@@ -2093,10 +2088,9 @@ printcurdir
         push de
         OS_GETPATH
         pop hl
-        ld c,0
+        ;ld c,0
         call prtext
-        call prcrlf
-        ret
+        jp prcrlf
 
 curdir__
         ds 256

@@ -5,7 +5,7 @@ rem asm.com tok_os.S_
 comp ../_sdk/emit.c commands.c
 type err.f
 tok compc_os.s ../_sdk/emit.ast ../_sdk/emit.var commands.ast commands.var
-tok ../_sdk/lib.i ../_sdk/io_os.i ../_sdk/str.i ../../_sdk/sysdefs.asm
+tok ../_sdk/lib.i ../_sdk/io_os.i ../_sdk/str.i lbltype.i ../../_sdk/sysdefs.asm
 asm compc_os.S_
 type asmerr.f
 pause
