@@ -44,6 +44,7 @@ int main(int argc,char* argv[])
   char *filename;
 //VAR STRUCT zzz* pzz1 = &zuzu;
 //VAR PBYTE pp = &(pzz1->ba);
+  _jplbl = 0; //сбрасываем нумерацию автометок переходов (без префикса) здесь, т.к. может быть несколько файлов
 
   _ferr = openwrite("err.f");
   _errs = +TRUE;

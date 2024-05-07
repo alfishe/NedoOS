@@ -152,7 +152,8 @@ CONST UINT _MAXPARS = 16; /**максимальное число параметров в вызове функции*/
 //todo ограничить глубину рекурсии f(g(h(...()...)
 
 //состояние компилятора (плюс ещё состояния commands и codetg):
-VAR UINT _curlbl; //номер автометки
+VAR UINT _curlbl; //номер автометки в функции
+VAR UINT _jplbl; //номер автометки переходов (без префикса)
 VAR UINT _tmpendlbl; //номер автометки для выхода из цикла while/repeat
 
 VAR BYTE _namespclvl; //глубина вложенности пространства имён (число точек в префиксе)
@@ -247,7 +248,7 @@ PROC jautonum(UINT n)
 
 PROC genjplbl(UINT n)
 {
-  _lenjoined = strcopy(_title, _lentitle, _joined);
+  _joined[0] = '_'; _lenjoined = 1;//_lenjoined = strcopy(_title, _lentitle, _joined);
   jautonum(n);
 }
 
@@ -508,8 +509,7 @@ VAR UINT typeaddr; //для cast
     _t = _T_CHAR; cmdpushnum();
   }ELSE IF (_opsym == '\"') {
     _lenjoined = strcopy(_title, _lentitle, _joined);
-    jautonum(_curlbl);
-    INC _curlbl;
+    jautonum(_curlbl); INC _curlbl;
     _t = _T_POI|_T_CHAR; cmdpushnum();
     varstrz(); //с меткой joined
   }ELSE IF (_opsym == '+') {
@@ -854,8 +854,8 @@ VAR UINT wasendlbl;
 #endif
   _exprlvl = 0x00; //jp optimization possible
   wasendlbl = _tmpendlbl;
-  beglbl = _curlbl; INC _curlbl;
-  _tmpendlbl = _curlbl; INC _curlbl;
+  beglbl = _jplbl; INC _jplbl;
+  _tmpendlbl = _jplbl; INC _jplbl;
   genjplbl(beglbl); cmdlabel();
   eat('(');
   eatexpr(); //parentheses not included
@@ -881,8 +881,8 @@ VAR UINT wasendlbl;
 ;;  hintstr("//repeat"); endhint();
 #endif
   wasendlbl = _tmpendlbl;
-  beglbl = _curlbl; INC _curlbl;
-  _tmpendlbl = _curlbl; INC _curlbl;
+  beglbl = _jplbl; INC _jplbl;
+  _tmpendlbl = _jplbl; INC _jplbl;
   genjplbl(beglbl); cmdlabel();
   eatcmd(); //тело repeat
   IF ( (CHAR)((BYTE)(*(PCHAR)_tword)|0x20)!='u'/**"until"*/ ) err_tword("UNTIL");
@@ -918,8 +918,8 @@ VAR UINT endiflbl;
 ;;  hintstr("//if"); endhint();
 #endif
   _exprlvl = 0x00; //jp optimization possible
-  elselbl = _curlbl; INC _curlbl;
-  endiflbl = _curlbl; INC _curlbl;
+  elselbl = _jplbl; INC _jplbl;
+  endiflbl = _jplbl; INC _jplbl;
   eat('(');
   eatexpr(); //parentheses not included
   genjplbl(elselbl); cmdjpiffalse();
@@ -1047,8 +1047,7 @@ PROC do_const_num(TYPE t)
     _lenjoined = strcopy(_title, _lentitle, _joined);
     IF ((t&_T_ARRAY)!=(TYPE)0x00) { //строка внутри массива
       jdot();
-      jautonum(_curlbl);
-      INC _curlbl;
+      jautonum(_curlbl); INC _curlbl;
       //_joined[_lenjoined] = '\0'; //strclose(_joined, _lenjoined);
       var_num(_T_ARRAY|_T_UINT, _joined); //_T_ARRAY не даёт создать метку
       asmstrz(); //с меткой _joined //костыль вместо varstrz //todo целиком заполнить указатели, потом генерировать строки? (нельзя будет &str в const pchar arr[]?)
@@ -1518,7 +1517,8 @@ VAR UINT sz;
     _lenname = strcopy(_joined, _lenjoined, _name);
     addlbl(_t, /**isloc*/+FALSE, sz/**, "0", _lenncells*/); //(_name)
 
-    genjplbl(i);
+    _lenjoined = strcopy(_title, _lentitle, _joined);
+    jautonum(i); //genjplbl(i);
     _lenname = strcopy(_joined, _lenjoined, _name);
     addlbl(_t, /**isloc*/+FALSE, sz/**, "0", _lenncells*/); //автонумерованная (_name)
     INC i;
@@ -1551,7 +1551,7 @@ VAR BYTE ib;
 VAR UINT wastmpendlbl;
   //rdword(); //'('
   wastmpendlbl = _tmpendlbl;
-  _tmpendlbl = _curlbl; INC _curlbl;
+  _tmpendlbl = _jplbl; INC _jplbl;
 
   //pushvar <title>.J
   _lenjoined = strcopy(_title, _lentitle, _joined);
@@ -1847,6 +1847,7 @@ RETURN last; //после последнего терминатора
 
 PROC compile(PCHAR fn)
 {
+  //_jplbl = 0; //не сбрасываем нумерацию автометок переходов (без префикса), т.к. может быть несколько файлов
   _doskipcond = 1;
 
   _prefix = (PCHAR)_s1; //заполняется в doprefix: module/func/const/var/extern - локально, joinvarname

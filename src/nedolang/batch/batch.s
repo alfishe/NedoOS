@@ -4,7 +4,7 @@ DOSBUF=0xff00 ;aligned
 CH_ADD=23645
 ;PARADDR=0x5801
 RUNADDR=0x6000
-	org 64000
+	org 0x4000;64000
         ld hl,start.
         ld (23834),hl ;адрес запуска
         ld hl,467 ;выход (иначе возврат в бейсик после RUN "..." CODE невозможен)

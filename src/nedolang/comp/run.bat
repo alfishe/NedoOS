@@ -16,7 +16,7 @@ del nedolang
 ren comp.bin nedolang
 nedotrd test.trd -n
 nedotrd test.trd -ah ..\batch\batch.$b
-nedotrd test.trd -s 64000 -ac ..\batch\batch
+nedotrd test.trd -s 16384 -ac ..\batch\batch
 nedotrd test.trd -a compile.bat
 nedotrd test.trd -a ..\comp\nedolang
 nedotrd test.trd -a ..\tok\nedotok

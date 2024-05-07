@@ -342,6 +342,8 @@ VAR BYTE labelflag;
     }ELSE IF ((labelflag&_ASMLABEL_DEFINED)!=0x00) {
       IF (*(PLONG)&plabel[1] != labelvalue) { //если метка определена и значение не соответствует
         _labelchanged = +TRUE;
+        //;;errstr("old "); erruint(*(PUINT)&plabel[1]); enderr();
+        //;;errstr("new "); erruint((UINT)labelvalue); enderr();
       };
     }ELSE { //иначе (не определена) определяем
       POKE *(PBYTE)(plabel) = labelflag|_isaddr|_ASMLABEL_DEFINED;
@@ -515,6 +517,7 @@ PROC asmpass(PCHAR fn)
   _nvalues = 0x00;
   _ninclfiles = 0x00;
 
+  //;;errstr("pass "); erruint(_passindex); enderr();
   //setfin("tok.f");
   _fin = nfopen(fn, "rb");
   IF (_fin != (PBYTE)0) {

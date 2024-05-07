@@ -1,7 +1,7 @@
 nedotrd test.trd -n
 nedotrd test.trd -ah ..\batch\batch.$b
 nedotrd test.trd -ah ..\batch\ace.$b
-nedotrd test.trd -s 64000 -ac ..\batch\batch
+nedotrd test.trd -s 16384 -ac ..\batch\batch
 nedotrd test.trd -a ..\asm\compile.bat
 nedotrd test.trd -a ..\comp\nedolang
 nedotrd test.trd -a ..\tok\nedotok
