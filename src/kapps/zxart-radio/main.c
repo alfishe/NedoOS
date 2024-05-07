@@ -423,6 +423,7 @@ void uart_init(unsigned char divisor)
   output(IER, 0x00);        // (divider 0). Divider is 16 bit, so we get (#0002 divider)
   output(LCR, 0x03);        // 8n1, DLAB=0
   output(IER, 0x00);        // Disable int
+  output(MCR, 0x2f);        // Enable AFE
   uart_setrts(0);
 }
 

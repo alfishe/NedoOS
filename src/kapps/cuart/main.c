@@ -5,21 +5,23 @@
 #include <osfs.h>
 #include <intrz80.h>
 #include <terminal.c>
-#define RBR_THR 0xF8EF
-#define IER 0xF9EF
-#define IIR_FCR 0xFAEF
-#define LCR 0xFBEF
-#define MCR 0xFCEF
-#define LSR 0xFDEF
-#define MSR 0xFEEF
-#define SR 0xFFEF
+unsigned int RBR_THR = 0xF8EF;
+unsigned int IER = 0xF9EF;
+unsigned int IIR_FCR = 0xFAEF;
+unsigned int LCR = 0xFBEF;
+unsigned int MCR = 0xFCEF;
+unsigned int LSR = 0xFDEF;
+unsigned int MSR = 0xFEEF;
+unsigned int SR = 0xFFEF;
+unsigned int divider = 1;
 
 unsigned char key;
-unsigned char buffer[8500] = "";
-int bufferPos;
+int bufferPos = 0;
 int endPos;
 int curpos;
 int oldpos;
+
+unsigned char buffer[8500];
 
 void delay(unsigned long counter)
 {
@@ -38,6 +40,29 @@ void delay(unsigned long counter)
   }
 }
 
+void loadEspConfig(void)
+{
+  unsigned char curParam[256];
+  unsigned char res;
+  FILE *espcom;
+  OS_SETSYSDRV();
+  OS_CHDIR("browser");
+  espcom = OS_OPENHANDLE("espcom.ini", 0x80);
+  if (((int)espcom) & 0xff)
+  {
+    printf("mrfesp.ini opening error\r\n");
+    return;
+  }
+
+  OS_READHANDLE(curParam, espcom, 256);
+
+  res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider);
+  puts("Config loaded:");
+  printf("     RBR_THR:0x%4x\r\n     IER    :0x%4x\r\n     IIR_FCR:0x%4x\r\n     LCR    :0x%4x\r\n", RBR_THR, IER, IIR_FCR, LCR);
+  printf("     MCR    :0x%4x\r\n     LSR    :0x%4x\r\n     MSR    :0x%4x\r\n     SR     :0x%4x\r\n", MCR, LSR, MSR, SR);
+  printf("     DIVIDER:%4u\r\n", divider);
+}
+
 void uart_init(unsigned char divisor)
 {
   output(MCR, 0x00);        // Disable input
@@ -47,6 +72,7 @@ void uart_init(unsigned char divisor)
   output(IER, 0x00);        // (divider 0). Divider is 16 bit, so we get (#0002 divider)
   output(LCR, 0x03);        // 8n1, DLAB=0
   output(IER, 0x00);        // Disable int
+  output(MCR, 0x2f);        // Enable AFE
 }
 
 void uart_write(unsigned char data)
@@ -189,8 +215,11 @@ C_task main(void)
   AT(1, 1);
   ATRIB(92);
   puts("EVO UART TESTER. SEND AND RECEIVE BYTES.");
-  uart_init(1);
-  puts("Uart inited @ 115200\r\n");
+
+  loadEspConfig();
+
+  uart_init(divider);
+  printf("Uart inited (%u) @ 115200 [all speeds here for standart quartz]\r\n", divider);
   delay(250);
   cmd[0] = '\0';
   cmdpos = 0;
