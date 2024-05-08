@@ -19,6 +19,7 @@ unsigned int LSR = 0xFDEF;
 unsigned int MSR = 0xFEEF;
 unsigned int SR = 0xFFEF;
 unsigned int divider = 4;
+unsigned char comType = 0;
 
 struct fileStruct
 {
@@ -530,7 +531,7 @@ unsigned int fillPictureEsp(void)
   unsigned int dataSize;
   unsigned char skipHeader;
   strcpy(link, netbuf);
-  //strcat(link, "\r\n");
+  // strcat(link, "\r\n");
   sizeLink = strlen(link);
   sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
   getAnswer(2); // CONNECT
@@ -607,11 +608,11 @@ void loadEspConfig(void)
 
   OS_READHANDLE(curParam, espcom, 256);
 
-  res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider);
+  res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider, &comType);
   puts("Config loaded:");
   printf("     RBR_THR:0x%4x\r\n     IER    :0x%4x\r\n     IIR_FCR:0x%4x\r\n     LCR    :0x%4x\r\n", RBR_THR, IER, IIR_FCR, LCR);
   printf("     MCR    :0x%4x\r\n     LSR    :0x%4x\r\n     MSR    :0x%4x\r\n     SR     :0x%4x\r\n", MCR, LSR, MSR, SR);
-  printf("     DIVIDER:%4u\r\n", divider);
+  printf("     DIVIDER:%4u  \r\n     TYPE   :%4u\r\n", divider, comType);
 }
 
 ////////////////////////ESP32 PROCEDURES//////////////////////
@@ -742,7 +743,7 @@ void ncReplace(void)
 
   for (len = 0; len < strlen(curFileStruct.pfn); len++)
   {
-        if ((curFileStruct.pfn[len] < ' ') || (curFileStruct.pfn[len] > 0xef) || (curFileStruct.pfn[len] > 0x7e && curFileStruct.pfn[len] < 0xb0))
+    if ((curFileStruct.pfn[len] < ' ') || (curFileStruct.pfn[len] > 0xef) || (curFileStruct.pfn[len] > 0x7e && curFileStruct.pfn[len] < 0xb0))
     {
       curFileStruct.pfn[len] = '_';
     }

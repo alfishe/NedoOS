@@ -20,6 +20,7 @@ unsigned int LSR = 0xFDEF;
 unsigned int MSR = 0xFEEF;
 unsigned int SR = 0xFFEF;
 unsigned int divider = 1;
+unsigned char comType = 0;
 
 unsigned char ver[] = "2.1";
 unsigned char queryType[64];
@@ -629,14 +630,14 @@ void loadEspConfig(void)
 
   OS_READHANDLE(curParam, espcom, 256);
 
-  res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider);
+  res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider, &comType);
 
   BOX(1, 15, 80, 8, 40);
   AT(1, 15);
   puts("Config loaded:");
   printf("     RBR_THR:0x%4x     IER    :0x%4x\r\n     IIR_FCR:0x%4x     LCR    :0x%4x\r\n", RBR_THR, IER, IIR_FCR, LCR);
   printf("     MCR    :0x%4x     LSR    :0x%4x\r\n     MSR    :0x%4x     SR     :0x%4x\r\n", MCR, LSR, MSR, SR);
-  printf("     DIV    :%u\r\n", divider);
+  printf("     DIV    :%4u       TYPE   :%4u", divider, comType);
 }
 
 ////////////////////////ESP32 PROCEDURES//////////////////////
