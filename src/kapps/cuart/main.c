@@ -66,55 +66,151 @@ void loadEspConfig(void)
 
 void uart_init(unsigned char divisor)
 {
-  output(MCR, 0x00);        // Disable input
-  output(IIR_FCR, 0x87);    // Enable fifo 8 level, and clear it
-  output(LCR, 0x83);        // 8n1, DLAB=1
-  output(RBR_THR, divisor); // 115200 (divider 1-115200, 3 - 38400)
-  output(IER, 0x00);        // (divider 0). Divider is 16 bit, so we get (#0002 divider)
-  output(LCR, 0x03);        // 8n1, DLAB=0
-  output(IER, 0x00);        // Disable int
-  output(MCR, 0x2f);        // Enable AFE
+  switch (comType)
+  {
+  case 0:
+    output(MCR, 0x00);        // Disable input
+    output(IIR_FCR, 0x87);    // Enable fifo 8 level, and clear it
+    output(LCR, 0x83);        // 8n1, DLAB=1
+    output(RBR_THR, divisor); // 115200 (divider 1-115200, 3 - 38400)
+    output(IER, 0x00);        // (divider 0). Divider is 16 bit, so we get (#0002 divider)
+    output(LCR, 0x03);        // 8n1, DLAB=0
+    output(IER, 0x00);        // Disable int
+    output(MCR, 0x2f);        // Enable AFE
+    break;
+  case 1:
+    disable_interrupt();
+    input(0x55fe);
+    input((0xC3 << 8) | 0x00fe);
+    input((divisor << 8) | 0x00fe);
+    enable_interrupt();
+    break;
+  }
 }
 
 void uart_write(unsigned char data)
 {
-  while ((input(LSR) & 32) >> 5 == 0)
+  unsigned char status;
+  switch (comType)
   {
+  case 0:
+    while ((input(LSR) & 64) == 0)
+    {
+    }
+    output(RBR_THR, data);
+    break;
+  case 1:
+    disable_interrupt();
+    do
+    {
+      input(0x55fe);              // Переход в режим команд
+      status = input(0x42fe);     // Команда прочесть статус
+    } while ((status & 64) == 0); // Проверяем 6 бит
+
+    input(0x55fe);               // Переход в режим команд
+    input(0x03fe);               // Команда записать в порт
+    input((data << 8) | 0x00fe); // Записываем data в порт
+    enable_interrupt();
+    break;
   }
-  output(RBR_THR, data);
 }
 
-void uart_flashrts(void)
+void uart_setrts(unsigned char mode)
 {
-  disable_interrupt();
-  output(MCR, 2);
-  output(MCR, 0);
-  enable_interrupt();
+  switch (comType)
+  {
+  case 0:
+    switch (mode)
+    {
+    case 1:
+      output(MCR, 2);
+      break;
+    case 0:
+      output(MCR, 0);
+      break;
+    default:
+      disable_interrupt();
+      output(MCR, 2);
+      output(MCR, 0);
+      enable_interrupt();
+    }
+    break;
+  case 1:
+    switch (mode)
+    {
+    case 1:
+      disable_interrupt();
+      input(0x55fe); // Переход в режим команд
+      input(0x43fe); // Команда установить статус
+      input(0x03fe); // Устанавливаем готовность DTR и RTS
+      enable_interrupt();
+      break;
+    case 0:
+      disable_interrupt();
+      input(0x55fe); // Переход в режим команд
+      input(0x43fe); // Команда установить статус
+      input(0x00fe); // Снимаем готовность DTR и RTS
+      enable_interrupt();
+      break;
+    default:
+      disable_interrupt();
+      input(0x55fe); // Переход в режим команд
+      input(0x43fe); // Команда установить статус
+      input(0x03fe); // Устанавливаем готовность DTR и RTS
+      input(0x55fe); // Переход в режим команд
+      input(0x43fe); // Команда установить статус
+      input(0x00fe); // Снимаем готовность DTR и RTS
+      enable_interrupt();
+      break;
+    }
+  }
 }
-
 unsigned char uart_hasByte(void)
 {
   unsigned char queue;
-  queue = input(LSR);
-  queue = queue & 1;
-  return queue;
+  switch (comType)
+  {
+  case 0:
+    return (1 & input(LSR));
+  case 1:
+    disable_interrupt();
+    input(0x55fe);         // Переход в режим команд
+    queue = input(0xc2fe); // Получаем количество байт в приемном буфере
+    enable_interrupt();
+    return queue;
+  }
+  return 255;
 }
 
-unsigned char uart_read(void)
+unsigned char uart_readBlock(void)
 {
-  unsigned char data;
-  data = input(RBR_THR);
-  return data;
+  switch (comType)
+  {
+  case 0:
+    while (uart_hasByte() == 0)
+    {
+      uart_setrts(2);
+    }
+    return input(RBR_THR);
+  case 1:
+    do
+    {
+      /* code */
+    } while (uart_hasByte == 0);
+    input(0x55fe);        // Переход в режим команд
+    return input(0x02fe); // Команда прочесть из порта
+  }
+  return 255;
 }
 
 void getdata(void)
 {
   unsigned char readbyte;
-  uart_flashrts();
+  uart_setrts(2);
   while (uart_hasByte() != 0)
   {
-    uart_flashrts();
-    readbyte = uart_read();
+    uart_setrts(2);
+    readbyte = uart_readBlock();
     buffer[bufferPos] = readbyte;
     bufferPos++;
   }
@@ -187,7 +283,7 @@ void flushbuf(void)
 {
   while (uart_hasByte() != 0)
   {
-    uart_read();
+    uart_readBlock();
   }
 }
 
