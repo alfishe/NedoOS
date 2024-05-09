@@ -81,7 +81,7 @@ void uart_init(unsigned char divisor)
   case 1:
     disable_interrupt();
     input(0x55fe);
-    input((0xC3 << 8) | 0x00fe);
+    input(0xc3fe);
     input((divisor << 8) | 0x00fe);
     enable_interrupt();
     break;
@@ -103,8 +103,8 @@ void uart_write(unsigned char data)
     disable_interrupt();
     do
     {
-      input(0x55fe);              // Переход в режим команд
-      status = input(0x42fe);     // Команда прочесть статус
+      input(0x55fe);          // Переход в режим команд
+      status = input(0x42fe); // Команда прочесть статус
     } while ((status & 64) == 0); // Проверяем 6 бит
 
     input(0x55fe);               // Переход в режим команд
@@ -133,8 +133,8 @@ void uart_setrts(unsigned char mode)
       output(MCR, 2);
       output(MCR, 0);
       enable_interrupt();
+      break;
     }
-    break;
   case 1:
     switch (mode)
     {
@@ -184,6 +184,7 @@ unsigned char uart_hasByte(void)
 
 unsigned char uart_readBlock(void)
 {
+  unsigned char data;
   switch (comType)
   {
   case 0:
@@ -193,26 +194,44 @@ unsigned char uart_readBlock(void)
     }
     return input(RBR_THR);
   case 1:
-    do
+    while (uart_hasByte == 0)
     {
-      /* code */
-    } while (uart_hasByte == 0);
-    input(0x55fe);        // Переход в режим команд
-    return input(0x02fe); // Команда прочесть из порта
+      uart_setrts(2);
+    }
+    disable_interrupt();
+    input(0x55fe); // Переход в режим команд
+    input(0x02fe); // Команда прочесть из порта
+    enable_interrupt();
+    return data;
+  }
+  return 255;
+}
+
+unsigned char uart_read(void)
+{
+  unsigned char data;
+  switch (comType)
+  {
+  case 0:
+    return input(RBR_THR);
+  case 1:
+    disable_interrupt();
+    input(0x55fe); // Переход в режим команд
+    input(0x02fe); // Команда прочесть из порта
+    enable_interrupt();
+    return data;
   }
   return 255;
 }
 
 void getdata(void)
 {
-  unsigned char readbyte;
   uart_setrts(2);
   while (uart_hasByte() != 0)
   {
-    uart_setrts(2);
-    readbyte = uart_readBlock();
-    buffer[bufferPos] = readbyte;
+    buffer[bufferPos] = uart_read();
     bufferPos++;
+    uart_setrts(2);
   }
   if (bufferPos > 8191)
   {
@@ -230,19 +249,19 @@ void renderWin(void)
   oldpos = curpos;
 }
 
-void sendcommand(char commandline[])
+void sendcommand(char *commandline)
 {
-  int pos = 0;
-  while (commandline[pos] != '\0')
+  unsigned int count, cmdLen;
+  cmdLen = strlen(commandline);
+  for (count = 0; count < cmdLen; count++)
   {
-    uart_write(commandline[pos]);
-    pos++;
+    uart_write(commandline[count]);
   }
   uart_write('\r');
   uart_write('\n');
-  delay(100);
+  // printf("Sended:[%s] \r\n", commandline);
+  YIELD();
 }
-
 void saveBuff(void)
 {
   int len;
@@ -279,33 +298,23 @@ void saveBuff(void)
   puts("buffer.log saved.");
 }
 
-void flushbuf(void)
-{
-  while (uart_hasByte() != 0)
-  {
-    uart_readBlock();
-  }
-}
-
 void testQueue(void)
 {
-  unsigned char cmd[6000];
-  sendcommand("AT+CIPMUX=0\0");
-  sendcommand("AT+CIPSERVER=0\0");
-  sendcommand("AT+CIPDINFO=0\0");
-  sendcommand("AT+CIPRECVMODE=1\0");
-  sendcommand("AT+CIPSTART=\"TCP\",\"ti6.nedopc.com\",80\0");
+  sendcommand("AT+CIPMUX=0");
+
+  sendcommand("AT+CIPSERVER=0");
+  sendcommand("AT+CIPDINFO=0");
+  sendcommand("AT+CIPRECVMODE=1");
+  sendcommand("AT+CIPSTART=\"TCP\",\"ti6.nedopc.com\",80");
   delay(1000);
-  strcpy(cmd, "AT+CIPSEND=");
-  strcat(cmd, "132\0");
-  sendcommand(cmd);
-  sendcommand("GET /attachments/pages/your_game6_160.png HTTP/1.1\r\nHost: ti6.nedopc.com\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\0");
+  sendcommand("AT+CIPSEND=132");
+  sendcommand("GET /attachments/pages/your_game6_160.png HTTP/1.1\r\nHost: ti6.nedopc.com\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n");
   delay(1000);
-  sendcommand("AT+CIPRECVDATA=5000\0");
+  sendcommand("AT+CIPRECVDATA=5000");
 }
 C_task main(void)
 {
-  unsigned char cmd[256];
+  unsigned char cmd[512];
   unsigned char cmdpos;
   os_initstdio();
   BOX(1, 1, 80, 25, 40);
@@ -318,7 +327,7 @@ C_task main(void)
   uart_init(divider);
   printf("Uart inited (%u) @ 115200 [all speeds here for standart quartz]\r\n", divider);
   delay(250);
-  cmd[0] = '\0';
+  cmd[0] = 0;
   cmdpos = 0;
   while (1)
   {
@@ -392,10 +401,10 @@ C_task main(void)
         break;
 
       case 13:
-        cmd[cmdpos] = '\0';
+        cmd[cmdpos] = 0;
         sendcommand(cmd);
         cmdpos = 0;
-        cmd[cmdpos] = '\0';
+        cmd[cmdpos] = 0;
         putchar('\r');
         putchar('\n');
         key = 0;
@@ -413,7 +422,7 @@ C_task main(void)
         if (cmdpos != 0)
         {
           cmdpos--;
-          cmd[cmdpos] = '\0';
+          cmd[cmdpos] = 0;
           putchar('\r');
           for (count = 0; count < cmdpos + 1; count++)
           {
@@ -421,7 +430,7 @@ C_task main(void)
           }
           putchar('\r');
           count = 0;
-          while (cmd[count] != '\0')
+          while (cmd[count] != 0)
           {
             putchar(cmd[count]);
             count++;
@@ -431,7 +440,7 @@ C_task main(void)
         break;
 
       case 246: // +
-        sendcommand("AT+GMR\0");
+        sendcommand("AT+GMR");
         key = 0;
         break;
 
