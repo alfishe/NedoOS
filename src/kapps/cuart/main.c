@@ -5,22 +5,23 @@
 #include <osfs.h>
 #include <intrz80.h>
 #include <terminal.c>
-unsigned int RBR_THR = 0xF8EF;
-unsigned int IER = 0xF9EF;
-unsigned int IIR_FCR = 0xFAEF;
-unsigned int LCR = 0xFBEF;
-unsigned int MCR = 0xFCEF;
-unsigned int LSR = 0xFDEF;
-unsigned int MSR = 0xFEEF;
-unsigned int SR = 0xFFEF;
+unsigned int RBR_THR = 0xf8ef;
+unsigned int IER = 0xf9ef;
+unsigned int IIR_FCR = 0xfaef;
+unsigned int LCR = 0xfbef;
+unsigned int MCR = 0xfcef;
+unsigned int LSR = 0xfdef;
+unsigned int MSR = 0xfeef;
+unsigned int SR = 0xffef;
 unsigned int divider = 1;
 unsigned char comType = 0;
+unsigned char directMode = 0;
 
 unsigned char key;
 int bufferPos = 0;
-int endPos;
-int curpos;
-int oldpos;
+int endPos = 0;
+int curpos = 0;
+int oldpos = 0;
 
 unsigned char buffer[8500];
 
@@ -262,6 +263,7 @@ void sendcommand(char *commandline)
   // printf("Sended:[%s] \r\n", commandline);
   YIELD();
 }
+
 void saveBuff(void)
 {
   int len;
@@ -335,7 +337,26 @@ C_task main(void)
     getdata();
     renderWin();
     key = _low_level_get();
-    if (key != 0)
+
+    if (directMode == 1 && key != 0)
+    {
+      if (key == 30)
+      {
+        directMode = 0;
+        puts("\r\nDirect mode disabled.");
+      }
+      else
+      {
+        uart_write(key);
+        if (key == 13)
+        {
+          uart_write(10);
+          putchar('\r');
+          putchar('\n');
+        }
+      }
+    }
+    if (key != 0 && directMode == 0)
     {
       // printf("key = %u   ", key);
       switch (key)
@@ -439,17 +460,25 @@ C_task main(void)
         key = 0;
         break;
 
-      case 246: // +
+      case 246: // PgUp
         sendcommand("AT+GMR");
         key = 0;
         break;
 
-      case 247: // -
+      case 30: // End
+        directMode = 1;
+        puts("\r\nDirect mode enabled.");
+
         key = 0;
         break;
 
       case 28: // home
         testQueue();
+        key = 0;
+        break;
+
+      case 21: // <ext> + <U>
+        sendcommand("AT+CIUPDATE");
         key = 0;
         break;
       }
