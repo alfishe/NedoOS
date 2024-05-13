@@ -667,6 +667,41 @@ OS_CLS:
 	ret
 	ENDMOD
 
+
+
+	MODULE OS_GETKEY
+	PUBLIC OS_GETKEY
+	RSEG CODE
+OS_GETKEY:
+	push ix
+	push iy
+    rst 0x08	;out: a=key (NOKEY=no key), de=mouse position (y,x), l=mouse buttons (bits 0,1,2: 0=pressed)+mouse wheel (bits 7..4), h=high bits of key|register, bc=keynolang, lx=kempston joystick, nz=no focus (mouse position=0, ignore it!)
+	pop iy
+	pop ix
+	ld l,a
+	ld h,c
+	ld bc,0x8000
+	jp nz, focusFalse
+	ld bc,0x0000
+	focusFalse:
+	ret 		;B = флаг фокуса  C=0 H=код интернациональный L=код с языком
+	ENDMOD
+
+
+;Возвращает нажатую кнопку клавиатуры, кнопки мыши и координаты мыши.
+;Фактически чтение происходит только процессом с фокусом. При отсутствии фокуса возвращается 
+;код символа NOKEY и флаг Z установлен в 0 (т.е. верно условие NZ).
+;    Аргументов нет.
+;    Возвращаемые значения в регистрах:
+;        A - код символа(кнопки). Допустимые коды смотри в 'sysdefs.asm' секция 'Usable key codes'
+;        C - код символа(кнопки) без учета текущего языкового модификатора. Как правило, используется для обработки "горячих кнопок"
+;        DE - позиция мыши (y,x) (возвращает 0 при отсутствии фокуса)
+;        L - кнопки мыши (bits 0(LMB),1(RMB),2(MMB): 0=pressed; bits 7..4=положение колёсика)
+;        LX - Kempston joystick (0bP2JFUDLR): 1=pressed, - при отсутствии джойстика 0 (а не 0xff)
+;        Флаг Z - если 0(NZ), то отсутствует фокус.
+
+
+
 	MODULE OS_DIHALT
 	PUBLIC OS_DIHALT
 	RSEG CODE

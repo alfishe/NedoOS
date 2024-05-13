@@ -60,9 +60,24 @@ void loadEspConfig(void)
 
   res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider, &comType);
   puts("Config loaded:");
-  printf("     RBR_THR:0x%4x\r\n     IER    :0x%4x\r\n     IIR_FCR:0x%4x\r\n     LCR    :0x%4x\r\n", RBR_THR, IER, IIR_FCR, LCR);
-  printf("     MCR    :0x%4x\r\n     LSR    :0x%4x\r\n     MSR    :0x%4x\r\n     SR     :0x%4x\r\n", MCR, LSR, MSR, SR);
-  printf("     DIVIDER:%4u  \r\n     TYPE   :%4u\r\n", divider, comType);
+  printf("     RBR_THR:0x%4x     IER    :0x%4x     \r\n     IIR_FCR:0x%4x     LCR    :0x%4x\r\n", RBR_THR, IER, IIR_FCR, LCR);
+  printf("     MCR    :0x%4x     LSR    :0x%4x     \r\n     MSR    :0x%4x     SR     :0x%4x\r\n", MCR, LSR, MSR, SR);
+  printf("     DIVIDER:%4u       TYPE   :%4u(", divider, comType);
+
+  switch (comType)
+  {
+  case 0:
+    puts("16550 like w/o AFC)");
+    break;
+  case 1:
+    puts("ATM Turbo 2+)");
+    break;
+  case 2:
+    puts("16550 like with AFC)");
+  default:
+    puts("Unknown type)");
+    break;
+  }
 }
 
 void uart_init(unsigned char divisor)
@@ -70,6 +85,7 @@ void uart_init(unsigned char divisor)
   switch (comType)
   {
   case 0:
+  case 2:
     output(MCR, 0x00);        // Disable input
     output(IIR_FCR, 0x87);    // Enable fifo 8 level, and clear it
     output(LCR, 0x83);        // 8n1, DLAB=1
@@ -95,6 +111,7 @@ void uart_write(unsigned char data)
   switch (comType)
   {
   case 0:
+  case 2:
     while ((input(LSR) & 64) == 0)
     {
     }
@@ -164,6 +181,8 @@ void uart_setrts(unsigned char mode)
       enable_interrupt();
       break;
     }
+  case 2:
+    break;
   }
 }
 unsigned char uart_hasByte(void)
@@ -172,6 +191,7 @@ unsigned char uart_hasByte(void)
   switch (comType)
   {
   case 0:
+  case 2:
     return (1 & input(LSR));
   case 1:
     disable_interrupt();
@@ -204,6 +224,11 @@ unsigned char uart_readBlock(void)
     input(0x02fe); // Команда прочесть из порта
     enable_interrupt();
     return data;
+  case 2:
+    while (uart_hasByte() == 0)
+    {
+    }
+    return input(RBR_THR);
   }
   return 255;
 }
@@ -214,6 +239,7 @@ unsigned char uart_read(void)
   switch (comType)
   {
   case 0:
+  case 2:
     return input(RBR_THR);
   case 1:
     disable_interrupt();
@@ -320,14 +346,14 @@ C_task main(void)
   unsigned char cmdpos;
   os_initstdio();
   BOX(1, 1, 80, 25, 40);
-  AT(1, 1);
+  AT(25, 1);
   ATRIB(92);
-  puts("EVO UART TESTER. SEND AND RECEIVE BYTES.");
-
+  puts("[UART COMMUNICATION PROGRAMM]");
   loadEspConfig();
 
   uart_init(divider);
-  printf("Uart inited (%u) @ 115200 [all speeds here for standart quartz]\r\n", divider);
+  printf("\r\nUart inited. Divider (%u)\r\n", divider);
+  puts("===============================================================================");
   delay(250);
   cmd[0] = 0;
   cmdpos = 0;
@@ -363,61 +389,61 @@ C_task main(void)
       {
       case 177:
         uart_init(1);
-        puts("Uart inited @ 115200");
+        puts("Uart inited @ 115200 [Div:1]");
         key = 0;
         break;
 
       case 178:
         uart_init(2);
-        puts("Uart inited @ 57600");
+        puts("Uart inited @ 57600 [Div:2]");
         key = 0;
         break;
 
       case 179:
         uart_init(3);
-        puts("Uart inited @ 38400");
+        puts("Uart inited @ 38400 [Div:3]");
         key = 0;
         break;
 
       case 180:
         uart_init(4);
-        puts("Uart inited @ 28800");
+        puts("Uart inited @ 28800 [Div:4]");
         key = 0;
         break;
 
       case 181:
         uart_init(6);
-        puts("Uart inited @ 19200");
+        puts("Uart inited @ 19200 [Div:6]");
         key = 0;
         break;
 
       case 182:
         uart_init(8);
-        puts("Uart inited @ 14400");
+        puts("Uart inited @ 14400 [Div:8]");
         key = 0;
         break;
 
       case 183:
         uart_init(12);
-        puts("Uart inited @ 9600");
+        puts("Uart inited @ 9600 [Div:12]");
         key = 0;
         break;
 
       case 184:
         uart_init(24);
-        puts("Uart inited @ 4800");
+        puts("Uart inited @ 4800 [Div:24]");
         key = 0;
         break;
 
       case 185:
         uart_init(48);
-        puts("Uart inited @ 2400");
+        puts("Uart inited @ 2400 [Div:48]");
         key = 0;
         break;
 
       case 176:
         uart_init(96);
-        puts("Uart inited @ 1200");
+        puts("Uart inited @ 1200 [Div:96]");
         key = 0;
         break;
 

@@ -27,7 +27,7 @@ struct diskOp
 	unsigned long sector;
 	unsigned char count;
 };
-
+signed long OS_GETKEY (void);// BC HL
 unsigned int OS_READSECTORS(struct diskOp *);
 unsigned int OS_WRITESECTORS(struct diskOp *);
 unsigned long OS_GETTIME(void); // out: bc=date, hl=time

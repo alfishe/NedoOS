@@ -10,15 +10,15 @@
 #include <graphic.h>
 #include <terminal.c>
 
-unsigned int RBR_THR = 0xF8EF;
-unsigned int IER = 0xF9EF;
-unsigned int IIR_FCR = 0xFAEF;
-unsigned int LCR = 0xFBEF;
-unsigned int MCR = 0xFCEF;
-unsigned int LSR = 0xFDEF;
-unsigned int MSR = 0xFEEF;
-unsigned int SR = 0xFFEF;
-unsigned int divider = 4;
+unsigned int RBR_THR = 0xf8ef;
+unsigned int IER = 0xf9ef;
+unsigned int IIR_FCR = 0xfaef;
+unsigned int LCR = 0xfbef;
+unsigned int MCR = 0xfcef;
+unsigned int LSR = 0xfdef;
+unsigned int MSR = 0xfeef;
+unsigned int SR = 0xffef;
+unsigned int divider = 1;
 unsigned char comType = 0;
 
 struct fileStruct
@@ -612,7 +612,22 @@ void loadEspConfig(void)
   puts("Config loaded:");
   printf("     RBR_THR:0x%4x\r\n     IER    :0x%4x\r\n     IIR_FCR:0x%4x\r\n     LCR    :0x%4x\r\n", RBR_THR, IER, IIR_FCR, LCR);
   printf("     MCR    :0x%4x\r\n     LSR    :0x%4x\r\n     MSR    :0x%4x\r\n     SR     :0x%4x\r\n", MCR, LSR, MSR, SR);
-  printf("     DIVIDER:%4u  \r\n     TYPE   :%4u\r\n", divider, comType);
+  printf("     DIVIDER:%4u  \r\n     TYPE   :%4u(", divider, comType);
+
+  switch (comType)
+  {
+  case 0:
+    puts("16550 like w/o AFC)");
+    break;
+  case 1:
+    puts("ATM Turbo 2+)");
+    break;
+  case 2:
+    puts("16550 with AFC)");
+  default:
+    puts("Unknown type)");
+    break;
+  }
 }
 
 ////////////////////////ESP32 PROCEDURES//////////////////////
