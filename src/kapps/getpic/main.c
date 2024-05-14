@@ -20,6 +20,7 @@ unsigned int MSR = 0xfeef;
 unsigned int SR = 0xffef;
 unsigned int divider = 1;
 unsigned char comType = 0;
+unsigned int espType = 32;
 
 struct fileStruct
 {
@@ -38,7 +39,7 @@ struct fileStruct
 } curFileStruct;
 
 unsigned char ver[] = "2.6";
-unsigned char netbuf[2048];
+unsigned char netbuf[4096];
 unsigned char picture[16384];
 unsigned char crlf[2] = {13, 10};
 unsigned char keypress, verbose, randomPic, slideShow, netDriver;
@@ -447,7 +448,7 @@ void sendcommand(char *commandline)
   }
   uart_write('\r');
   uart_write('\n');
-  // printf("Sended:[%s] \r\n", commandline);
+  //printf("Sended:[%s] \r\n", commandline);
 }
 unsigned char getAnswer(unsigned char skip)
 {
@@ -469,21 +470,31 @@ unsigned char getAnswer(unsigned char skip)
     curPos++;
   }
   netbuf[curPos - 1] = 0;
-  // printf("Answer:[%s]\r\n", netbuf);
+  //printf("Answer:[%s]\r\n", netbuf);
+  //getchar();
   return curPos;
 }
 void espReBoot(void)
 {
-  unsigned char byte;
+  unsigned char byte, count;
+  const unsigned char gotWiFi[] = "WIFI GOT IP";
   uart_flush();
   sendcommand("AT+RST");
   printf("Resetting ESP...");
   do
   {
-    byte = uart_read();
-  } while (byte != 'P'); // WIFI GOT IP
-  uart_readBlock();      // CR
-  uart_readBlock();      // LN
+    byte = uart_readBlock();
+    if (byte == gotWiFi[count])
+    {
+      count++;
+    }
+    else
+    {
+      count = 0;
+    }
+  } while (count < strlen(gotWiFi));
+  uart_readBlock(); // CR
+  uart_readBlock(); // LN
   puts("Reset complete.\r\n");
 
   sendcommand("ATE0");
@@ -503,22 +514,25 @@ void espReBoot(void)
   getAnswer(2);
   sendcommand("AT+CIPSERVER=0");
   getAnswer(2);
-  sendcommand("AT+CIPRECVMODE=1");
+  sendcommand("AT+CIPRECVMODE=0");
   getAnswer(2);
 }
 unsigned int recvHead(void)
 {
   unsigned char byte, dataRead = 0;
+
   do
   {
     byte = uart_readBlock();
     netbuf[dataRead] = byte;
     dataRead++;
-  } while (byte != ',');
+  } while (byte != ':');
   netbuf[dataRead] = 0;
-  loaded = atoi(netbuf + 13); // <actual_len>
+  loaded = atoi(netbuf + 5); // <actual_len>
+  // printf("\r\n loaded %u\r\n", loaded);
   return loaded;
 }
+
 // in netbuf data to send
 unsigned int fillPictureEsp(void)
 {
@@ -534,12 +548,15 @@ unsigned int fillPictureEsp(void)
   // strcat(link, "\r\n");
   sizeLink = strlen(link);
   sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
-  getAnswer(2); // CONNECT
-  getAnswer(0); // OK
+
+  getAnswer(0); // CONNECT
+  getAnswer(2); // OK
+
   strcpy(cmd, "AT+CIPSEND=");
   sprintf(netbuf, "%u", sizeLink + 2); // second CRLF in send command
   strcat(cmd, netbuf);
   sendcommand(cmd);
+  getAnswer(2); // OK - ESP8266
   byte = 0;
   while (byte != '>')
   {
@@ -547,18 +564,26 @@ unsigned int fillPictureEsp(void)
     // putchar(byte);
   }
   sendcommand(link);
-  getAnswer(2); // Recv 132 bytes
-  getAnswer(2); // SEND OK
-  getAnswer(2); //+IPD,3872
+
+  if (espType == 32)
+  {
+    getAnswer(2); // Recv 132 bytes
+    getAnswer(2); // SEND OK
+    getAnswer(0); // CRLF
+  }
+  else
+  {
+    getAnswer(3); // Recv 132 bytes
+    getAnswer(2); // SEND OK
+    getAnswer(0); // CRLF
+  }
+
   skipHeader = 0;
   downloaded = 0;
+
   do
   {
     headlng = 0;
-    strcpy(netbuf, "AT+CIPRECVDATA=");
-    sprintf(link, "%u", packSize);
-    strcat(netbuf, link);
-    sendcommand(netbuf);
     dataSize = recvHead();
     getdata(dataSize); // Requested size
     if (skipHeader == 0)
@@ -570,14 +595,30 @@ unsigned int fillPictureEsp(void)
     downloaded = downloaded + dataSize;
     memcpy(picture + downloaded - dataSize, netbuf + headlng, dataSize);
     toDownload = toDownload - dataSize;
-    getAnswer(2); // OK
     if (toDownload > 0)
     {
-      getAnswer(2); // +IPD,1824
+      if (espType == 32)
+      {
+        getAnswer(2);
+      }
+      else
+      {
+        getAnswer(0); // CRLF
+      }
     }
   } while (toDownload > 0);
   sendcommand("AT+CIPCLOSE");
-  getAnswer(0); // CLOSED
+
+  if (espType == 32)
+  {
+    getAnswer(2);
+  } // CLOSED
+  else
+  {
+    getAnswer(0);
+  } // CLOSED
+
+  getAnswer(2); // OK
   return 0;
 }
 unsigned char getPicEsp(unsigned long fileId)
@@ -608,11 +649,11 @@ void loadEspConfig(void)
 
   OS_READHANDLE(curParam, espcom, 256);
 
-  res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider, &comType);
+  res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u %u %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider, &comType, &espType);
   puts("Config loaded:");
   printf("     RBR_THR:0x%4x\r\n     IER    :0x%4x\r\n     IIR_FCR:0x%4x\r\n     LCR    :0x%4x\r\n", RBR_THR, IER, IIR_FCR, LCR);
   printf("     MCR    :0x%4x\r\n     LSR    :0x%4x\r\n     MSR    :0x%4x\r\n     SR     :0x%4x\r\n", MCR, LSR, MSR, SR);
-  printf("     DIVIDER:%4u  \r\n     TYPE   :%4u(", divider, comType);
+  printf("     DIVIDER:  %4u\r\n     TYPE   :  %4u\r\n     ESP    : %u\r\n(", divider, comType, espType);
 
   switch (comType)
   {
@@ -1029,7 +1070,7 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     return -2;
   }
 
-  netbuf[0] = '\0';
+  netbuf[0] = 0;
   if (queryNum < 3)
   {
     parseJson("\"id\":");
