@@ -157,11 +157,11 @@ ZOMBIEMANgo
         db 11
 
 ZOMBIEMANrotate
-        db 8+128 ;side step1
-        db 9+128 ;side step2
+        db 14+128 ;side step1
+        db 15+128 ;side step2
         db 1 ;front step1
-        db 1+128 ;front step2
-        db 8 ;side step1
-        db 9 ;side step2
+        db 9+128 ;front step2
+        db 14 ;side step1
+        db 15 ;side step2
         db MONSTEROR+0 ;back step1
-        db 0+128 ;back step2
+        db 8+128 ;back step2
