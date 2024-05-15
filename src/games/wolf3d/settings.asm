@@ -5,7 +5,7 @@
 ;doublescr=1
 showfps=1-atm
 
-crosshair=0
+crosshair=1;0
 
 	if atm
 ID_DOOR=0+(22*2);127

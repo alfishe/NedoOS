@@ -67,8 +67,8 @@ ZOMBIEMANgo
         db 5
         db 5
         db 5
-        db 5,0
-        db 5,0
+        db 10,11
+        db 10,0
 ;HEALTH
         db 6
         db 6
