@@ -39,14 +39,22 @@ struct fileStruct
 } curFileStruct;
 
 unsigned char ver[] = "2.6";
-unsigned char netbuf[4096];
+const unsigned char sendOk[] = "SEND OK";
+const unsigned char gotWiFi[] = "WIFI GOT IP";
+unsigned char buffer[] = "0000000000";
+unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; GetPic)\r\n\r\n\0";
+unsigned char cmd[256];
+unsigned char link[512];
+unsigned char fileIdChar[10];
+
+unsigned char netbuf[6000];
 unsigned char picture[16384];
 unsigned char crlf[2] = {13, 10};
 unsigned char keypress, verbose, randomPic, slideShow, netDriver;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 unsigned long contLen;
-unsigned long count;
+unsigned long count = 0;
 unsigned int headlng;
 unsigned int slideShowTime = 0;
 unsigned int loaded;
@@ -448,36 +456,35 @@ void sendcommand(char *commandline)
   }
   uart_write('\r');
   uart_write('\n');
-  //printf("Sended:[%s] \r\n", commandline);
+  // printf("Sended:[%s] \r\n", commandline);
 }
-unsigned char getAnswer(unsigned char skip)
+
+unsigned char getAnswer2(void)
 {
   unsigned char readbyte;
   unsigned int curPos = 0;
-  while (skip != 0)
-  {
-    uart_readBlock();
-    skip--;
-  }
-  while (42)
+  do
   {
     readbyte = uart_readBlock();
-    if (readbyte == 0x0a)
-    {
-      break;
-    }
+  } while (((readbyte == 0x0a) || (readbyte == 0x0d)));
+  netbuf[curPos] = readbyte;
+  curPos = 1;
+  do
+  {
+    readbyte = uart_readBlock();
     netbuf[curPos] = readbyte;
     curPos++;
-  }
+  } while (readbyte != 0x0d);
   netbuf[curPos - 1] = 0;
-  //printf("Answer:[%s]\r\n", netbuf);
-  //getchar();
+  uart_readBlock(); // 0xa
+  // printf("Answer:[%s]\r\n", netbuf);
+  //  getchar();
   return curPos;
 }
+
 void espReBoot(void)
 {
   unsigned char byte, count;
-  const unsigned char gotWiFi[] = "WIFI GOT IP";
   uart_flush();
   sendcommand("AT+RST");
   printf("Resetting ESP...");
@@ -494,7 +501,7 @@ void espReBoot(void)
     }
   } while (count < strlen(gotWiFi));
   uart_readBlock(); // CR
-  uart_readBlock(); // LN
+  uart_readBlock(); // LF
   puts("Reset complete.\r\n");
 
   sendcommand("ATE0");
@@ -507,20 +514,25 @@ void espReBoot(void)
   uart_readBlock(); // LN
 
   sendcommand("AT+CIPCLOSE");
-  getAnswer(2);
+  getAnswer2();
   sendcommand("AT+CIPDINFO=0");
-  getAnswer(2);
+  getAnswer2();
   sendcommand("AT+CIPMUX=0");
-  getAnswer(2);
+  getAnswer2();
   sendcommand("AT+CIPSERVER=0");
-  getAnswer(2);
+  getAnswer2();
   sendcommand("AT+CIPRECVMODE=0");
-  getAnswer(2);
+  getAnswer2();
 }
 unsigned int recvHead(void)
 {
   unsigned char byte, dataRead = 0;
+  do
+  {
+    byte = uart_readBlock();
+  } while (byte != ',');
 
+  dataRead = 0;
   do
   {
     byte = uart_readBlock();
@@ -528,7 +540,7 @@ unsigned int recvHead(void)
     dataRead++;
   } while (byte != ':');
   netbuf[dataRead] = 0;
-  loaded = atoi(netbuf + 5); // <actual_len>
+  loaded = atoi(netbuf); // <actual_len>
   // printf("\r\n loaded %u\r\n", loaded);
   return loaded;
 }
@@ -536,51 +548,49 @@ unsigned int recvHead(void)
 // in netbuf data to send
 unsigned int fillPictureEsp(void)
 {
-  unsigned int packSize = 2000;
-  unsigned char cmd[256];
-  unsigned char link[512];
   unsigned char sizeLink;
   unsigned long toDownload, downloaded;
-  unsigned char byte;
+  unsigned char byte, count;
   unsigned int dataSize;
   unsigned char skipHeader;
+
   strcpy(link, netbuf);
-  // strcat(link, "\r\n");
   sizeLink = strlen(link);
   sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
 
-  getAnswer(0); // CONNECT
-  getAnswer(2); // OK
+  getAnswer2(); // CONNECT
+  getAnswer2(); // OK
+
 
   strcpy(cmd, "AT+CIPSEND=");
   sprintf(netbuf, "%u", sizeLink + 2); // second CRLF in send command
   strcat(cmd, netbuf);
   sendcommand(cmd);
-  getAnswer(2); // OK - ESP8266
-  byte = 0;
-  while (byte != '>')
+  getAnswer2();
+
+  do
   {
     byte = uart_readBlock();
     // putchar(byte);
-  }
+  } while (byte != '>');
   sendcommand(link);
-
-  if (espType == 32)
+  count = 0;
+  do
   {
-    getAnswer(2); // Recv 132 bytes
-    getAnswer(2); // SEND OK
-    getAnswer(0); // CRLF
-  }
-  else
-  {
-    getAnswer(3); // Recv 132 bytes
-    getAnswer(2); // SEND OK
-    getAnswer(0); // CRLF
-  }
-
+    byte = uart_readBlock();
+    if (byte == sendOk[count])
+    {
+      count++;
+    }
+    else
+    {
+      count = 0;
+    }
+  } while (count < strlen(sendOk));
+  uart_readBlock(); // CR
+  uart_readBlock(); // LF
   skipHeader = 0;
   downloaded = 0;
-
   do
   {
     headlng = 0;
@@ -595,35 +605,23 @@ unsigned int fillPictureEsp(void)
     downloaded = downloaded + dataSize;
     memcpy(picture + downloaded - dataSize, netbuf + headlng, dataSize);
     toDownload = toDownload - dataSize;
-    if (toDownload > 0)
-    {
-      if (espType == 32)
-      {
-        getAnswer(2);
-      }
-      else
-      {
-        getAnswer(0); // CRLF
-      }
-    }
   } while (toDownload > 0);
   sendcommand("AT+CIPCLOSE");
 
   if (espType == 32)
   {
-    getAnswer(2);
+    getAnswer2();
   } // CLOSED
   else
   {
-    getAnswer(0);
+    getAnswer2();
   } // CLOSED
 
-  getAnswer(2); // OK
+  getAnswer2(); // OK
   return 0;
 }
 unsigned char getPicEsp(unsigned long fileId)
 {
-  unsigned char buffer[] = "0000000000";
   netbuf[0] = '\0';
   sprintf(buffer, "%lu", fileId);
   strcat(netbuf, "GET /file/id:");
@@ -773,7 +771,6 @@ void stringRepair(unsigned char *pfn, unsigned int tSize)
 unsigned char getPic(unsigned long fileId)
 {
   unsigned int todo;
-  unsigned char buffer[] = "0000000000";
   signed char socket;
   socket = OpenSock(AF_INET, SOCK_STREAM);
   todo = netConnect(socket);
@@ -810,7 +807,6 @@ unsigned char savePic(unsigned long fileId)
 {
   FILE *fp2;
   unsigned char afnSize, tfnSize;
-  unsigned char fileIdChar[10];
 
   afnSize = sizeof(curFileStruct.afn) - 1;
   tfnSize = sizeof(curFileStruct.pfn) - 1;
@@ -991,10 +987,7 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
 {
   unsigned int retry, tSize;
   unsigned int todo;
-  unsigned char buffer[] = "000000000";
   unsigned char *count1, socket;
-  unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; GetPic)\r\n\r\n\0";
-
   switch (queryNum)
   {
   case 0:
@@ -1007,7 +1000,6 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     strcat(netbuf, "/order:date,desc");
     strcat(netbuf, userAgent);
     break;
-
   case 1:
     strcpy(netbuf, "GET /api/types:zxPicture/export:zxPicture/language:eng/start:0/limit:1/order:rand/filter:zxPictureMinRating=4;zxPictureType=standard");
     strcat(netbuf, userAgent);
@@ -1259,6 +1251,7 @@ start:
   switch (randomPic)
   {
   case 0:
+
     iddqd = processJson(count, 1, 0);
     break;
   case 1:
