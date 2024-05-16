@@ -456,7 +456,7 @@ void sendcommand(char *commandline)
   }
   uart_write('\r');
   uart_write('\n');
-  printf("Sended:[%s] \r\n", commandline);
+  //printf("Sended:[%s] \r\n", commandline);
 }
 
 unsigned char getAnswer2(void)
@@ -477,7 +477,7 @@ unsigned char getAnswer2(void)
   } while (readbyte != 0x0d);
   netbuf[curPos - 1] = 0;
   uart_readBlock(); // 0xa
-  printf("Answer:[%s]\r\n", netbuf);
+  //printf("Answer:[%s]\r\n", netbuf);
   //   getchar();
   return curPos;
 }
