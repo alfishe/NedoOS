@@ -221,7 +221,7 @@ unsigned char uart_readBlock(void)
     }
     disable_interrupt();
     input(0x55fe); // Переход в режим команд
-    input(0x02fe); // Команда прочесть из порта
+    data = input(0x02fe); // Команда прочесть из порта
     enable_interrupt();
     return data;
   case 2:
@@ -244,7 +244,7 @@ unsigned char uart_read(void)
   case 1:
     disable_interrupt();
     input(0x55fe); // Переход в режим команд
-    input(0x02fe); // Команда прочесть из порта
+    data = input(0x02fe); // Команда прочесть из порта
     enable_interrupt();
     return data;
   }
@@ -369,6 +369,7 @@ C_task main(void)
       if (key == 30)
       {
         directMode = 0;
+        key = 0;
         puts("\r\nDirect mode disabled.");
       }
       else
