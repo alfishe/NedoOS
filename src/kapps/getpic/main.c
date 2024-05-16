@@ -456,7 +456,7 @@ void sendcommand(char *commandline)
   }
   uart_write('\r');
   uart_write('\n');
-  // printf("Sended:[%s] \r\n", commandline);
+  printf("Sended:[%s] \r\n", commandline);
 }
 
 unsigned char getAnswer2(void)
@@ -477,8 +477,8 @@ unsigned char getAnswer2(void)
   } while (readbyte != 0x0d);
   netbuf[curPos - 1] = 0;
   uart_readBlock(); // 0xa
-  // printf("Answer:[%s]\r\n", netbuf);
-  //  getchar();
+  printf("Answer:[%s]\r\n", netbuf);
+  //   getchar();
   return curPos;
 }
 
@@ -550,17 +550,28 @@ unsigned int fillPictureEsp(void)
 {
   unsigned char sizeLink;
   unsigned long toDownload, downloaded;
-  unsigned char byte, count;
+  unsigned char byte, count = 0, try = 0;
   unsigned int dataSize;
   unsigned char skipHeader;
+  unsigned char *count1;
 
   strcpy(link, netbuf);
   sizeLink = strlen(link);
-  sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
+  try = 0;
+  do
+  {
+    try++;
+    if (try > 1)
+    {
+      printf("----->Retry:%u\r\n", try);
+      delay(500);
+    }
+    sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
+    getAnswer2(); // CONNECT or ERROR or link is not valid
+    count1 = strstr(netbuf, "CONNECT");
+  } while (count1 == NULL);
 
-  getAnswer2(); // CONNECT
   getAnswer2(); // OK
-
 
   strcpy(cmd, "AT+CIPSEND=");
   sprintf(netbuf, "%u", sizeLink + 2); // second CRLF in send command
@@ -608,15 +619,7 @@ unsigned int fillPictureEsp(void)
   } while (toDownload > 0);
   sendcommand("AT+CIPCLOSE");
 
-  if (espType == 32)
-  {
-    getAnswer2();
-  } // CLOSED
-  else
-  {
-    getAnswer2();
-  } // CLOSED
-
+  getAnswer2(); // CLOSED
   getAnswer2(); // OK
   return 0;
 }
