@@ -38,7 +38,7 @@ struct fileStruct
   unsigned char fileName[128];
 } curFileStruct;
 
-unsigned char ver[] = "2.6";
+unsigned char ver[] = "2.7";
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
@@ -436,7 +436,7 @@ void uart_flush(void)
   }
   printf("\r\nBuffer cleared.\r\n");
 }
-void getdata(unsigned int counted)
+void getdataEsp(unsigned int counted)
 {
   unsigned int counter;
   for (counter = 0; counter < counted; counter++)
@@ -456,7 +456,7 @@ void sendcommand(char *commandline)
   }
   uart_write('\r');
   uart_write('\n');
-  //printf("Sended:[%s] \r\n", commandline);
+  printf("Sended:[%s] \r\n", commandline);
 }
 
 unsigned char getAnswer2(void)
@@ -502,7 +502,7 @@ void espReBoot(void)
   } while (count < strlen(gotWiFi));
   uart_readBlock(); // CR
   uart_readBlock(); // LF
-  puts("Reset complete.\r\n");
+  puts("Reset complete.");
 
   sendcommand("ATE0");
   do
@@ -564,7 +564,7 @@ unsigned int fillPictureEsp(void)
     if (try > 1)
     {
       printf("----->Retry:%u\r\n", try);
-      delay(500);
+      delay(1000);
     }
     sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
     getAnswer2(); // CONNECT or ERROR or link is not valid
@@ -586,6 +586,7 @@ unsigned int fillPictureEsp(void)
   } while (byte != '>');
   sendcommand(link);
   count = 0;
+  
   do
   {
     byte = uart_readBlock();
@@ -606,7 +607,7 @@ unsigned int fillPictureEsp(void)
   {
     headlng = 0;
     dataSize = recvHead();
-    getdata(dataSize); // Requested size
+    getdataEsp(dataSize); // Requested size
     if (skipHeader == 0)
     {
       dataSize = cutHeader(dataSize);
@@ -618,7 +619,6 @@ unsigned int fillPictureEsp(void)
     toDownload = toDownload - dataSize;
   } while (toDownload > 0);
   sendcommand("AT+CIPCLOSE");
-
   getAnswer2(); // CLOSED
   getAnswer2(); // OK
   return 0;
@@ -654,20 +654,20 @@ void loadEspConfig(void)
   puts("Config loaded:");
   printf("     RBR_THR:0x%4x\r\n     IER    :0x%4x\r\n     IIR_FCR:0x%4x\r\n     LCR    :0x%4x\r\n", RBR_THR, IER, IIR_FCR, LCR);
   printf("     MCR    :0x%4x\r\n     LSR    :0x%4x\r\n     MSR    :0x%4x\r\n     SR     :0x%4x\r\n", MCR, LSR, MSR, SR);
-  printf("     DIVIDER:  %4u\r\n     TYPE   :  %4u\r\n     ESP    : %u\r\n(", divider, comType, espType);
+  printf("     DIVIDER:  %4u\r\n     TYPE   :  %4u\r\n     ESP    : %u\r\n", divider, comType, espType);
 
   switch (comType)
   {
   case 0:
-    puts("16550 like w/o AFC)");
+    puts("(16550 like w/o AFC)");
     break;
   case 1:
-    puts("ATM Turbo 2+)");
+    puts("(ATM Turbo 2+)");
     break;
   case 2:
-    puts("16550 with AFC)");
+    puts("(16550 with AFC)");
   default:
-    puts("Unknown type)");
+    puts("(Unknown type)");
     break;
   }
 }
