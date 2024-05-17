@@ -23,10 +23,21 @@ unsigned int divider = 1;
 unsigned char comType = 0;
 unsigned int espType = 32;
 
-unsigned char ver[] = "2.1";
+const unsigned char sendOk[] = "SEND OK";
+const unsigned char gotWiFi[] = "WIFI GOT IP";
+unsigned char buffer[] = "0000000000";
+const unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; Radio)\r\n\r\n\0";
+const unsigned char cmdlist1[] = "GET /file/id:";
+unsigned char userQuery[256] = "/api/export:zxMusic/limit:10/filter:zxMusicId=44816";
+unsigned char fileName[] = "radio/player.ovl";
+unsigned char appCmd[128] = "player.com ";
+unsigned char curPath[128];
+
+unsigned char ver[] = "2.2";
+
 unsigned char queryType[64];
 unsigned char netbuf[4096];
-unsigned char dataBuffer[6132];
+unsigned char dataBuffer[4096];
 unsigned char crlf[2] = {13, 10};
 unsigned char formats[4][4] = {"pt3", "pt2", "tfc", "ts"};
 unsigned char status, key, curFormat;
@@ -198,13 +209,13 @@ void printHelp(void)
 {
   AT(1, 15);
   ATRIB(97);
-  printf(" [<-] Previous track              [->] Next track\r\n");
-  printf(" [S]  Stop player                 [R]  Repeat track mode\r\n");
-  printf(" [K]  Toggle saving tracks        [D]  Download track\r\n");
+  printf(" [<-] [B] Previous track          [->] [ ] Next track      \r\n");
+  printf(" [S]  Stop player                 [R]  Repeat track mode   \r\n");
+  printf(" [K]  Toggle saving tracks        [D]  Download track      \r\n");
   printf(" [Q]  Select Query type           [F]  Select tracks format\r\n");
-  printf(" [I]  Interface ZXNETUSB/ESP32    [J]  Jump to NNNN file\r\n");
-  printf(" [L]  Toggle operation logging    [ESC] Exit to OS\r\n");
-  printf("                                                        \r\n");
+  printf(" [I]  Interface ZXNETUSB/ESP32    [J]  Jump to NNNN file   \r\n");
+  printf(" [L]  Toggle operation logging    [ESC] Exit to OS         \r\n");
+  printf("                                                           \r\n");
 }
 
 unsigned char OpenSock(unsigned char family, unsigned char protocol)
@@ -482,33 +493,32 @@ void sendcommand(char *commandline)
   uart_write('\n');
   // printf("Sended:[%s] \r\n", commandline);
 }
-unsigned char getAnswer(unsigned char skip)
+unsigned char getAnswer2(void)
 {
   unsigned char readbyte;
   unsigned int curPos = 0;
-  while (skip != 0)
-  {
-    uart_readBlock();
-    skip--;
-  }
-  while (42)
+  do
   {
     readbyte = uart_readBlock();
-    if (readbyte == 0x0a)
-    {
-      break;
-    }
+  } while (((readbyte == 0x0a) || (readbyte == 0x0d)));
+  netbuf[curPos] = readbyte;
+  curPos = 1;
+  do
+  {
+    readbyte = uart_readBlock();
     netbuf[curPos] = readbyte;
     curPos++;
-  }
+  } while (readbyte != 0x0d);
   netbuf[curPos - 1] = 0;
+  uart_readBlock(); // 0xa
   // printf("Answer:[%s]\r\n", netbuf);
+  // getchar();
   return curPos;
 }
+
 void espReBoot(void)
 {
   unsigned char byte, count;
-  const unsigned char gotWiFi[] = "WIFI GOT IP";
   uart_flush();
   sendcommand("AT+RST");
   clearStatus();
@@ -526,7 +536,7 @@ void espReBoot(void)
     }
   } while (count < strlen(gotWiFi));
   uart_readBlock(); // CR
-  uart_readBlock(); // LN
+  uart_readBlock(); // LF
   clearStatus();
   printf("Reset complete.");
 
@@ -540,20 +550,26 @@ void espReBoot(void)
   uart_readBlock(); // LN
 
   sendcommand("AT+CIPCLOSE");
-  getAnswer(2);
+  getAnswer2();
   sendcommand("AT+CIPDINFO=0");
-  getAnswer(2);
+  getAnswer2();
   sendcommand("AT+CIPMUX=0");
-  getAnswer(2);
+  getAnswer2();
   sendcommand("AT+CIPSERVER=0");
-  getAnswer(2);
+  getAnswer2();
   sendcommand("AT+CIPRECVMODE=0");
-  getAnswer(2);
+  getAnswer2();
 }
+
 unsigned int recvHead(void)
 {
   unsigned char byte, dataRead = 0;
+  do
+  {
+    byte = uart_readBlock();
+  } while (byte != ',');
 
+  dataRead = 0;
   do
   {
     byte = uart_readBlock();
@@ -561,7 +577,7 @@ unsigned int recvHead(void)
     dataRead++;
   } while (byte != ':');
   netbuf[dataRead] = 0;
-  loaded = atoi(netbuf + 5); // <actual_len>
+  loaded = atoi(netbuf); // <actual_len>
   // printf("\r\n loaded %u\r\n", loaded);
   return loaded;
 }
@@ -569,55 +585,66 @@ unsigned int recvHead(void)
 // in netbuf data to send
 unsigned int fillDataBufferEsp(void)
 {
-  unsigned char cmd[256];
-  unsigned char link[512];
   unsigned char sizeLink;
   unsigned long toDownload, downloaded;
-  unsigned char byte;
+  unsigned char byte, count = 0, try = 0;
   unsigned int dataSize;
   unsigned char skipHeader;
-  strcpy(link, netbuf);
-  // strcat(link, "\r\n");
-  sizeLink = strlen(link);
-  sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
+  unsigned char *count1;
 
-  getAnswer(0); // CONNECT
-  getAnswer(2); // OK
+  strcpy(link, netbuf);
+  sizeLink = strlen(link);
+  try = 0;
+  do
+  {
+    try++;
+    if (try > 1)
+    {
+      clearStatus();
+      printf("----->Retry:%u\r\n", try);
+      delay(500);
+    }
+    sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
+    getAnswer2(); // CONNECT or ERROR or link is not valid
+    count1 = strstr(netbuf, "CONNECT");
+  } while (count1 == NULL);
+
+  getAnswer2(); // OK
 
   strcpy(cmd, "AT+CIPSEND=");
   sprintf(netbuf, "%u", sizeLink + 2); // second CRLF in send command
   strcat(cmd, netbuf);
   sendcommand(cmd);
-  getAnswer(2); // OK - ESP8266
-  byte = 0;
-  while (byte != '>')
+  getAnswer2();
+
+  do
   {
     byte = uart_readBlock();
     // putchar(byte);
-  }
+  } while (byte != '>');
   sendcommand(link);
-
-  if (espType == 32)
+  count = 0;
+  do
   {
-    getAnswer(2); // Recv 132 bytes
-    getAnswer(2); // SEND OK
-    getAnswer(0); // CRLF
-  }
-  else
-  {
-    getAnswer(3); // Recv 132 bytes
-    getAnswer(2); // SEND OK
-    getAnswer(0); // CRLF
-  }
-
+    byte = uart_readBlock();
+    if (byte == sendOk[count])
+    {
+      count++;
+    }
+    else
+    {
+      count = 0;
+    }
+  } while (count < strlen(sendOk));
+  uart_readBlock(); // CR
+  uart_readBlock(); // LF
   skipHeader = 0;
   downloaded = 0;
-
   do
   {
     headlng = 0;
     dataSize = recvHead();
-    getdata(dataSize); // Requested size
+    getdataEsp(dataSize); // Requested size
     if (skipHeader == 0)
     {
       dataSize = cutHeader(dataSize);
@@ -625,35 +652,15 @@ unsigned int fillDataBufferEsp(void)
       skipHeader = 1;
     }
     downloaded = downloaded + dataSize;
-    memcpy(picture + downloaded - dataSize, netbuf + headlng, dataSize);
+    memcpy(dataBuffer + downloaded - dataSize, netbuf + headlng, dataSize);
     toDownload = toDownload - dataSize;
-    if (toDownload > 0)
-    {
-      if (espType == 32)
-      {
-        getAnswer(2);
-      }
-      else
-      {
-        getAnswer(0); // CRLF
-      }
-    }
   } while (toDownload > 0);
   sendcommand("AT+CIPCLOSE");
 
-  if (espType == 32)
-  {
-    getAnswer(2);
-  } // CLOSED
-  else
-  {
-    getAnswer(0);
-  } // CLOSED
-
-  getAnswer(2); // OK
+  getAnswer2(); // CLOSED
+  getAnswer2(); // OK
   return 0;
 }
-
 void loadEspConfig(void)
 {
   unsigned char curParam[256];
@@ -664,33 +671,31 @@ void loadEspConfig(void)
   espcom = OS_OPENHANDLE("espcom.ini", 0x80);
   if (((int)espcom) & 0xff)
   {
-    clearStatus();
-    printf("mrfesp.ini opening error");
+    printf("mrfesp.ini opening error\r\n");
     return;
   }
 
   OS_READHANDLE(curParam, espcom, 256);
 
   res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u %u %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider, &comType, &espType);
-
   BOX(1, 15, 80, 8, 40);
   AT(1, 15);
   puts("Config loaded:");
   printf("     RBR_THR:0x%4x     IER    :0x%4x\r\n     IIR_FCR:0x%4x     LCR    :0x%4x\r\n", RBR_THR, IER, IIR_FCR, LCR);
   printf("     MCR    :0x%4x     LSR    :0x%4x\r\n     MSR    :0x%4x     SR     :0x%4x\r\n", MCR, LSR, MSR, SR);
-  printf("     DIV    :%4u       TYPE   :%4u           ESP    : %u\r\n", divider, comType, , espType);
+  printf("     DIV    :%4u       TYPE   :%4u  \r\n     ESP    : %u ", divider, comType, espType);
   switch (comType)
   {
   case 0:
     puts("(16550 like w/o AFC)");
     break;
   case 1:
-    puts("ATM Turbo 2+)");
+    puts("(ATM Turbo 2+)");
     break;
   case 2:
-    puts("16550 with AFC)");
+    puts("(16550 with AFC)");
   default:
-    puts("Unknown type)");
+    puts("(Unknown type)");
     break;
   }
 }
@@ -1044,10 +1049,7 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
   FILE *fp3;
   unsigned int retry, tSize;
   unsigned int todo;
-  unsigned char buffer[] = "000000000";
   unsigned char *count, socket;
-  unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; Radio)\r\n\r\n\0";
-  unsigned char userQuery[256] = "/api/export:zxMusic/limit:10/filter:zxMusicId=44816";
   clearStatus();
   printf("Getting data(%u)...", queryNum);
 
@@ -1203,27 +1205,24 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
 unsigned char getTrack2(unsigned long fileId)
 {
   unsigned int todo;
-  unsigned char cmdlist1[] = "GET /file/id:";
-  unsigned char cmdlist2[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; Radio)\r\n\r\n\0";
-  unsigned char buffer[] = "0000000000";
   unsigned char socket;
   unsigned int skipHeader = 0;
   unsigned long bytecount;
   unsigned int packSize = 2000;
   unsigned char sizeLink;
   unsigned long toDownload, downloaded;
-  unsigned char byte = 0;
-  unsigned int dataSize;
+  unsigned char try = 0, byte = 0;
+  unsigned int dataSize, count;
+  unsigned char *count1;
+  clearStatus();
+  printf("Getting track...");
 
   if (netDriver == 0)
   {
-    clearStatus();
-    printf("Getting track...");
-
     strcpy(netbuf, cmdlist1);
     sprintf(buffer, "%lu", fileId);
     strcat(netbuf, buffer);
-    strcat(netbuf, cmdlist2);
+    strcat(netbuf, userAgent);
 
     socket = OpenSock(AF_INET, SOCK_STREAM);
     todo = netConnect(socket);
@@ -1249,47 +1248,69 @@ unsigned char getTrack2(unsigned long fileId)
   }
   else
   {
-    clearStatus();
-    printf("Getting track...");
-
     sprintf(buffer, "%lu", fileId);
     strcpy(netbuf, cmdlist1);
     strcat(netbuf, buffer);
-    strcat(netbuf, cmdlist2);
+    strcat(netbuf, userAgent);
     saveBuf(curFileStruct.picId, 00, 0);
 
     strcpy(link, netbuf);
     sizeLink = strlen(link);
-    sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
-    getAnswer(2); // CONNECT
-    getAnswer(0); // OK
+    try = 0;
+    do
+    {
+      try++;
+      if (try > 1)
+      {
+        clearStatus();
+        printf("----->Retry:%u\r\n", try);
+        delay(500);
+      }
+      sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
+      getAnswer2(); // CONNECT or ERROR or link is not valid
+      count1 = strstr(netbuf, "CONNECT");
+    } while (count1 == NULL);
+
+    getAnswer2(); // OK
 
     strcpy(netbuf, cmdlist1);
     sprintf(buffer, "%lu", fileId);
     strcat(netbuf, buffer);
-    strcat(netbuf, cmdlist2);
+    strcat(netbuf, userAgent);
     strcpy(cmd, "AT+CIPSEND=");
     sprintf(netbuf, "%u", sizeLink + 2); // second CRLF in send command
     strcat(cmd, netbuf);
     sendcommand(cmd);
+    getAnswer2();
+
     do
     {
       byte = uart_readBlock();
       // putchar(byte);
     } while (byte != '>');
-
     sendcommand(link);
-    getAnswer(2); // Recv 132 bytes
-    getAnswer(2); // SEND OK
-    getAnswer(2); //+IPD,3872
+    count = 0;
+
+    do
+    {
+      byte = uart_readBlock();
+      if (byte == sendOk[count])
+      {
+        count++;
+      }
+      else
+      {
+        count = 0;
+      }
+    } while (count < strlen(sendOk));
+    uart_readBlock(); // CR
+    uart_readBlock(); // LF
+    skipHeader = 0;
     downloaded = 0;
+
     do
     {
       headlng = 0;
-      strcpy(netbuf, "AT+CIPRECVDATA=");
-      sprintf(link, "%u", packSize);
-      strcat(netbuf, link);
-      sendcommand(netbuf);
       dataSize = recvHead();
       getdataEsp(dataSize); // Requested size
       if (skipHeader == 0)
@@ -1301,30 +1322,22 @@ unsigned char getTrack2(unsigned long fileId)
       downloaded = downloaded + dataSize;
       saveBuf(curFileStruct.picId, 01, dataSize);
       toDownload = toDownload - dataSize;
-      getAnswer(2); // OK
-      if (toDownload > 0)
-      {
-        getAnswer(2); // +IPD,1824
-      }
     } while (toDownload > 0);
     sendcommand("AT+CIPCLOSE");
-    getAnswer(0); // CLOSED
+    getAnswer2(); // CLOSED
+    getAnswer2(); // OK
   }
   return 0;
 }
-
 unsigned char runPlayer(void)
 {
   FILE *fp2;
-  unsigned char fileName[] = "radio/player.ovl";
-  unsigned char appCmd[128] = "player.com ";
-  unsigned char curPath[128];
   unsigned long playerSize, loaded, loop;
   unsigned char pgbak;
 
   clearStatus();
   printf("Running player...");
-
+  strcpy(appCmd, "player.com ");
   strcat(appCmd, curFileStruct.fileName);
   player_pg.l = OS_GETMAINPAGES();
   pgbak = main_pg.pgs.window_3;
