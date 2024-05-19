@@ -113,7 +113,7 @@ ismodfile
 musicload
 ;cde = file extension
 ;hl = input file name
-;out: zf=1 if the file is ready for playing, zf=0 otherwise
+;out: a = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
 	call ismodfile
 	ex de,hl
 	jr nz,.loads3m
@@ -155,6 +155,7 @@ musicload
 .notitle
 	xor a
 	ld (currentposition),a
+	ld a,DEVICE_MOONSOUND_MASK
 	ret
 
 musicunload
@@ -196,7 +197,7 @@ musicplay
 	include "progress.asm"
 
 playernamestr
-	db "MoonSound S3M/MOD Player",0
+	db "MoonSound S3M/MOD",0
 outofmemorystr
 	db "Out of memory!",0
 initokstr

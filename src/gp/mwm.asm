@@ -48,7 +48,7 @@ playerdeinit
 musicload
 ;cde = file extension
 ;hl = input file name
-;out: zf=1 if the file is ready for playing, zf=0 otherwise
+;out: a = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
 ;
 ;First try loading wavekit with the same filename as input file.
 ;This allows overriding wavekit specified in MWM header without
@@ -136,9 +136,7 @@ loadmwm
 	call mwmload
 	ret nz
 	call closestream_file
-
 	call start_music
-
 ;set music length
 	ld a,(xloop)
 	ld c,a
@@ -168,6 +166,7 @@ noloopinmusic
 	ld (loopcounter),a
 	ld hl,0
 	ld (playposacc),hl
+	ld a,DEVICE_MOONSOUND_MASK
 	ret
 
 musicunload
@@ -265,7 +264,7 @@ nodevicestr
 mwknone
 	db "NONE    "
 playernamestr
-	db "Moonblaster Wave Replayer",0
+	db "MBWave",0
 end
 
 	savebin "mwm.bin",begin,end-begin

@@ -6,15 +6,11 @@
 	include "playerdefs.asm"
 
 HEADER_DATA_OFFSET = 0x8034
-HEADER_CLOCK_YM2203 = 0x8044
-HEADER_CLOCK_YM3812 = 0x8050
-HEADER_CLOCK_YMF262 = 0x805c
-HEADER_CLOCK_YMF278B = 0x8060
-HEADER_CLOCK_AY8910 = 0x8074
+HEADER_LOOP_SAMPLES_COUNT = 0x8020
 HEADER_GD3_OFFSET = 0x8014
 HEADER_SAMPLES_COUNT = 0x8018
 HEADER_LOOP_OFFSET = 0x801c
-HEADER_LOOP_SAMPLES_COUNT = 0x8020
+HEADER_SIZE_MAX = 256
 TITLELENGTH = 64
 MEMORYSTREAMMAXPAGES = 210
 MEMORYSTREAMERRORMASK = 255 ; TODO: do we need to enforce loading the entire file?
@@ -85,7 +81,7 @@ playerinit
 musicload
 ;cde = file extension
 ;hl = input file name
-;out: zf=1 if the file is ready for playing, zf=0 otherwise
+;out: a = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
 	ld a,e
 	cp 'z'
 	ex de,hl
@@ -103,9 +99,32 @@ musicload
 	ld (samplecounterlo),hl
 	xor a
 	ld (samplecounterhi),a
+	ld (devicemask),a
 ;map header to 0x8000
 	ld a,(memorystreampages)
 	SETPG8000
+;copy header
+	ld bc,HEADER_SIZE_MAX
+	ld hl,vgmheadercopy
+	ld de,vgmheadercopy+1
+	ld (hl),0
+	ldir
+	ld hl,(HEADER_DATA_OFFSET)
+	ld a,h
+	or l
+	ld bc,0x40
+	jr z,$+4
+	ld c,0x34
+	add hl,bc
+	ld (.dataoffset),hl
+	ld bc,hl
+	ld hl,-HEADER_SIZE_MAX-1
+	add hl,bc
+	jr nc,$+5
+	ld bc,HEADER_SIZE_MAX
+	ld hl,0x8000
+	ld de,vgmheadercopy
+	ldir
 ;init progress
 	ld hl,(HEADER_SAMPLES_COUNT+2)
 	ld bc,(HEADER_LOOP_SAMPLES_COUNT+2)
@@ -133,12 +152,10 @@ musicload
 ;init AY before TFM in case of weird chip combos
 	xor a
 	a_or_dw HEADER_CLOCK_AY8910
-	ld (useAY8910),a
 	call nz,initAY8910
 ;init TFM
 	xor a
 	a_or_dw HEADER_CLOCK_YM2203
-	ld (useYM2203),a
 	call nz,initYM2203
 	jp nz,memorystreamfree ;sets zf=0
 ;init Moonsound
@@ -154,54 +171,20 @@ musicload
 	jp nz,memorystreamfree ;sets zf=0
 	or a
 .opl4notneeded
-	ld (useYMF278B),a
 	call nz,initYMF278B
 	jp nz,memorystreamfree ;sets zf=0
-;skip to the data
-	call memorystreamstart
-	ld hl,(HEADER_DATA_OFFSET)
-	ld a,(HEADER_DATA_OFFSET+2)
-	ld d,a
-	or l
-	or h
-	ld bc,0x40
-	jr z,$+4
-	ld c,0x34
-	add hl,bc
-	jr nc,$+3
-	inc d
-	call skipdatablock
-	xor a
-	ret
-
-initAY8910 equ ssginit
-
-initYM2203
-tfmstatus=$+1
+.dataoffset=$+1
+	ld hl,0
+	ld de,0
+	call memorystreamseek
+devicemask=$+1
 	ld a,0
+;zf=0 if there isn't any supported device
 	dec a
 	ret m
-	call opninit
-	set_timer opnwaittimer60hz,735
-	call opninittimer60hz
-	xor a
+	inc a
+	cp a
 	ret
-
-musicunload
-useYMF278B=$+1
-	ld a,0
-	or a
-	call nz,opl4mute
-useYM2203=$+1
-	ld a,0
-	or a
-	call nz,opnmute
-;mute AY after TFM in case of weird chip combos
-useAY8910=$+1
-	ld a,0
-	or a
-	call nz,ssgmute
-	jp memorystreamfree
 
 playerdeinit
 	ret
@@ -375,13 +358,8 @@ processdatablock
 	jp z,opl4loadromdatablock
 	cp 0x87
 	jp z,opl4loadramdatablock
-	jr skipdatablock
-
-skipdatablock
-;dhl = size
 	call setup24bitscounterloop
-.loop
-	call memorystreamskip
+.loop	call memorystreamskip
 	dec de
 	ld a,e
 	or d
@@ -1117,6 +1095,31 @@ GzipWriteOutputBuffer
 
 	include "common/gunzip.asm"
 
+initAY8910
+	call ssginit
+	ld hl,devicemask
+	ld a,(HEADER_CLOCK_AY8910+3)
+	and 0x40
+	jr nz,.dualchip
+	set DEVICE_AY_BIT,(hl)
+	ret
+.dualchip
+	set DEVICE_TURBOSOUND_BIT,(hl)
+	ret
+
+initYM2203
+tfmstatus=$+1
+	ld a,0
+	dec a
+	ret m
+	call opninit
+	set_timer opnwaittimer60hz,735
+	call opninittimer60hz
+	ld hl,devicemask
+	set DEVICE_TFM_BIT,(hl)
+	xor a
+	ret
+
 initYMF278B
 moonsoundstatus=$+1
 	ld a,0
@@ -1132,8 +1135,22 @@ useYM3812=$+1
 	call nz,opl4writefm2
 notOPL2 set_timer opl4waittimer60hz,735
 	call opl4inittimer60hz
+	ld hl,devicemask
+	set DEVICE_MOONSOUND_BIT,(hl)
 	xor a
 	ret
+
+musicunload
+	ld a,(devicemask)
+	and DEVICE_MOONSOUND_MASK
+	call nz,opl4mute
+	ld a,(devicemask)
+	and DEVICE_TFM_MASK
+	call nz,opnmute
+	ld a,(devicemask)
+	and DEVICE_AY_MASK|DEVICE_TURBOSOUND_MASK
+	call nz,ssgmute
+	jp memorystreamfree
 
 initokstr
 	db "OK\r\n",0
@@ -1150,8 +1167,16 @@ waveheaderbuffer = $
 waveheaderbufferend = waveheaderbuffer+WAVEHEADERBUFFERSIZE
 titlestr = waveheaderbufferend
 titlestrend = titlestr+TITLELENGTH
+vgmheadercopy = titlestrend
+vgmheadercopyend = vgmheadercopy+HEADER_SIZE_MAX
 
-	assert $ <= PLAYEREND ;ensure everything is within the player page
+HEADER_CLOCK_YM2203 = vgmheadercopy+0x44
+HEADER_CLOCK_YM3812 = vgmheadercopy+0x50
+HEADER_CLOCK_YMF262 = vgmheadercopy+0x5c
+HEADER_CLOCK_YMF278B = vgmheadercopy+0x60
+HEADER_CLOCK_AY8910 = vgmheadercopy+0x74
+
+	assert vgmheadercopyend <= PLAYEREND ;ensure everything is within the player page
 	assert GzipBuffersEnd <= 0x10000
 
 	savebin "vgm.bin",begin,end-begin

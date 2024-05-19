@@ -165,44 +165,38 @@ playerdeinit
 musicload
 ;cde = file extension
 ;hl = input file name
-;out: zf=1 if the file is ready for playing, zf=0 otherwise
+;out: a = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
 	call ismodfile
 	ld a,1
 	jr z,$+3
 	dec a
 	ld (isplayingmodfile),a
-
 	ex de,hl
 	call openstream_file
 	or a
 	ret nz
-
 page8000=$+1
 	ld a,0
 	SETPG8000
 pageC000=$+1
 	ld a,0
 	SETPGC000
-
 	ld a,(isplayingmodfile)
 	or a
 	jr nz,loadmod
-
 	ld a,(filehandle)
 	ld b,a
 	OS_GETFILESIZE
 	ld a,e
 	call setprogressdelta
-
 	call gsstartcode
-
 	ld hl,firstpaddingframedata
 	ld (paddingframedataptr),hl
 	ld hl,0
 	ld (paddingframecount),hl
 	ld (bufferdataleft),hl
-
-	xor a
+	ld a,DEVICE_NEOGS_MASK
+	cp a
 	ret
 
 TITLELENGTH = 64
@@ -275,13 +269,13 @@ loadmod
 	WC
 	xor a
 	ld (currentposition),a
+	ld a,DEVICE_GS_MASK
 	ret
 
 musicunload
 	ld a,(isplayingmodfile)
 	or a
 	jr nz,unloadmod
-
 	call closestream_file
 	jp gscodereset
 
@@ -338,12 +332,9 @@ checkifcanupload
 	GD
 	cp 6
 	jr nc,uploaddataloop	    ;keep uploading until we have less than 1024 free buffer space
-
 	ld (bufferreadptr),hl
 	ld (bufferdataleft),bc
-
 	YIELD
-
 	or 1
 	ret
 

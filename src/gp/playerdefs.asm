@@ -35,3 +35,19 @@ midiuartdelayoverride dw 0
 moonsoundstatus ds 1 ; 0 - no device, 1 - MoonSound with old firmware (wave ports not working), 2 - MoonSound OK
 tfmstatus ds 1 ; 0 - no device, 1 - found TFM
 	ends
+
+DEVICE_AY_BIT         = 0
+DEVICE_TURBOSOUND_BIT = 1
+DEVICE_TFM_BIT        = 2
+DEVICE_MOONSOUND_BIT  = 3
+DEVICE_GS_BIT         = 4
+DEVICE_NEOGS_BIT      = 5
+DEVICE_MIDI_UART_BIT  = 6
+
+DEVICE_AY_MASK         = 1<<DEVICE_AY_BIT
+DEVICE_TURBOSOUND_MASK = 1<<DEVICE_TURBOSOUND_BIT
+DEVICE_TFM_MASK        = 1<<DEVICE_TFM_BIT
+DEVICE_MOONSOUND_MASK  = 1<<DEVICE_MOONSOUND_BIT
+DEVICE_GS_MASK         = 1<<DEVICE_GS_BIT
+DEVICE_NEOGS_MASK      = 1<<DEVICE_NEOGS_BIT
+DEVICE_MIDI_UART_MASK  = 1<<DEVICE_MIDI_UART_BIT

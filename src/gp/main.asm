@@ -11,7 +11,7 @@ FILE_NAME_OFFSET = FILE_DISPLAY_INFO_OFFSET+FILE_DISPLAY_INFO_SIZE
 FILE_NAME_SIZE = SFN_SIZE
 FILE_ATTRIB_OFFSET = FILE_NAME_OFFSET+FILE_NAME_SIZE
 FILE_ATTRIB_SIZE = 1
-BROWSER_FILE_COUNT=162
+BROWSER_FILE_COUNT=158
 PLAYLIST_FILE_COUNT=40
 PANELCOLOR = 0x4f
 CURSORCOLOR = 0x28
@@ -394,6 +394,8 @@ startplaying
 	jp z,.loadplaylist
 	call findsupportedplayer
 	ret nz
+	xor a
+	ld (devicemask),a
 	call drawplayerwindow
 .filext1=$+1
 	ld bc,0
@@ -403,10 +405,12 @@ startplaying
 	ld hl,0
 	call musicload
 	jp nz,drawui
+	ld (devicemask),a
 	ld hl,playmsgtable
 	ld (currentmsgtable),hl
 	ld a,1
 	ld (isplaying),a
+	call drawplayerwindowtitle
 	call drawsongtitle
 	jp drawprogress
 .loadplaylist
@@ -687,13 +691,7 @@ drawplayerwindow
 	ld (playerwindowtitlepos),a
 	ld (songtitlepos),a
 	call drawwindow
-	ld de,CURSORCOLOR
-	OS_SETCOLOR
-playerwindowtitlepos=$+1
-	ld de,8*256+0
-	OS_SETXY
-	ld hl,playingstr
-	call print_hl
+	call drawplayerwindowtitle
 	call drawsongtitle
 	pop af
 	ret z
@@ -1094,7 +1092,11 @@ chdirfailedstr
 playliststr
 	db "Playlist",0
 playingstr
-	db "Playing...",0
+	db "Playing on ",0
+playing1str
+	db "...",0
+deviceseparatorstr
+	db " and ",0
 closingplayerstr
 	db "Closing old player instance...\r\n",0
 emptystr
@@ -1126,6 +1128,72 @@ drivedata
 	db "M: - SD Z-controller                  M:",0,0,0,0,0,0,0,0,0,0,0,FILE_ATTRIB_DRIVE
 	db "O: - USB ZX-NetUsb                    O:",0,0,0,0,0,0,0,0,0,0,0,FILE_ATTRIB_DRIVE
 drivedataend
+
+drawplayerwindowtitle
+	ld de,CURSORCOLOR
+	OS_SETCOLOR
+playerwindowtitlepos=$+1
+	ld de,8*256+0
+	OS_SETXY
+devicemask=$+1
+	ld a,0
+	ld hl,(PLAYERNAMESTRADDR)
+	or a
+	jp z,print_hl
+	ld b,a
+	ld c,0
+	ld hl,playingstr
+	ld de,filinfo
+	call strcopy_hltode
+	ld hl,devicelist
+.loop	bit 0,b
+	jr z,.skip
+	bit 0,c
+	jr z,.noseparator
+	push hl
+	ld hl,deviceseparatorstr
+	call strcopy_hltode
+	pop hl
+.noseparator
+	push hl
+	ld a,(hl)
+	inc hl
+	ld h,(hl)
+	ld l,a
+	call strcopy_hltode
+	pop hl
+	ld c,1
+.skip	inc hl
+	inc hl
+	srl b
+	jr nz,.loop
+	ld hl,playing1str
+	call strcopy_hltode
+	ld hl,filinfo
+	jp print_hl
+
+deviceay
+	db "AY8910",0
+deviceturbosound
+	db "TurboSound",0
+devicetfm
+	db "TurboSound FM",0
+devicemoonsound
+	db "MoonSound",0
+devicegs
+	db "GeneralSound",0
+deviceneogs
+	db "NeoGS",0
+devicemidiuart
+	db "MIDI UART",0
+devicelist
+	dw deviceay
+	dw deviceturbosound
+	dw devicetfm
+	dw devicemoonsound
+	dw devicegs
+	dw deviceneogs
+	dw devicemidiuart
 
 loadplayer
 ;de = code size
@@ -1385,16 +1453,13 @@ findsupportedplayer
 createfileslist
 	ld de,emptystr
 	OS_OPENDIR
-
 	ld a,(gpsettings.sharedpages)
 	SETPG8000
 	ld a,(gpsettings.sharedpages+1)
 	SETPGC000
-
 	xor a
 	ld (browserpanel.currentfileindex),a
 	ld (browserpanel.firstfiletoshow),a
-
 	ld hl,currentfolder+2
 	cp (hl)
 	ld hl,0x8000
