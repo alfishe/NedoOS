@@ -83,18 +83,18 @@ ZOMBIEMANgo
         db 7
         db 7,0
         db 7,0
-;
-        db 8
+;grenade
+        db 12
+        db 12+128
         db 11
         db 11
         db 11
         db 11
         db 11
         db 11
-        db 11
-;
-        db 9
-        db 11
+;fire
+        db 13
+        db 13+128
         db 11
         db 11
         db 11
