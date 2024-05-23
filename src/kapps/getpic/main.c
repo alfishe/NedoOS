@@ -456,7 +456,7 @@ void sendcommand(char *commandline)
   }
   uart_write('\r');
   uart_write('\n');
-  printf("Sended:[%s] \r\n", commandline);
+  //printf("Sended:[%s] \r\n", commandline);
 }
 
 unsigned char getAnswer2(void)
