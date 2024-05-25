@@ -33,13 +33,18 @@ unsigned char fileName[] = "radio/player.ovl";
 unsigned char appCmd[128] = "player.com ";
 unsigned char curPath[128];
 
-unsigned char ver[] = "2.2";
+unsigned char ver[] = "2.2+";
 
 unsigned char queryType[64];
 unsigned char netbuf[4096];
 unsigned char dataBuffer[4096];
 unsigned char crlf[2] = {13, 10};
 unsigned char formats[4][4] = {"pt3", "pt2", "tfc", "ts"};
+unsigned char interfaces[2][8] = {"nedoNET\0", "ESP-COM\0"};
+unsigned char cmd[256];
+unsigned char link[512];
+unsigned char toLog[256];
+
 unsigned char status, key, curFormat;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
@@ -50,8 +55,8 @@ union APP_PAGES main_pg;
 union APP_PAGES player_pg;
 unsigned int loaded;
 unsigned int headlng;
-unsigned char cmd[256];
-unsigned char link[512];
+unsigned char cutOff = 1;
+int remainTime;
 
 struct fileStruct
 {
@@ -73,6 +78,25 @@ struct fileStruct
   unsigned char tfn[64];
   unsigned char fileName2[256];
 } curFileStruct;
+
+void writeLog(char *logline)
+{
+  FILE *LogFile;
+  unsigned long fileSize;
+
+  LogFile = OS_OPENHANDLE("m:/bin/radio/radio.log", 0x80);
+  if (((int)LogFile) & 0xff)
+  {
+    LogFile = OS_CREATEHANDLE("m:/bin/radio/radio.log", 0x80);
+    OS_CLOSEHANDLE(LogFile);
+    LogFile = OS_OPENHANDLE("m:/bin/radio/radio.log", 0x80);
+  }
+
+  fileSize = OS_GETFILESIZE(LogFile);
+  OS_SEEKHANDLE(LogFile, fileSize);
+  OS_WRITEHANDLE(logline, LogFile, strlen(logline));
+  OS_CLOSEHANDLE(LogFile);
+}
 
 void delay(unsigned long counter)
 {
@@ -1334,7 +1358,7 @@ unsigned char runPlayer(void)
   FILE *fp2;
   unsigned long playerSize, loaded, loop;
   unsigned char pgbak;
-
+  // writeLog("runPlayer() entry.\r\n");
   clearStatus();
   printf("Running player...");
   strcpy(appCmd, "player.com ");
@@ -1365,6 +1389,10 @@ unsigned char runPlayer(void)
   OS_CLOSEHANDLE(fp2);
   SETPG32KHIGH(pgbak);
   OS_RUNAPP(player_pg.pgs.pId);
+
+  sprintf(toLog, "runPlayer() return [PID:%u]\r\n", player_pg.pgs.pId);
+  // writeLog(toLog);
+
   return player_pg.pgs.pId;
 }
 
@@ -1475,7 +1503,6 @@ unsigned char testPlayer(void)
 {
   union APP_PAGES player2_pg;
   player2_pg.l = OS_GETAPPMAINPAGES(player_pg.pgs.pId);
-
   if (errno == 0)
   {
     return 1;
@@ -1522,7 +1549,7 @@ C_task main(int argc, char *argv[])
   AT(1, 1);
   ATRIB(97);
   ATRIB(45);
-  printf("                           ZXART.EE radio for nedoNET                           \n\r");
+  printf("                           ZXART.EE radio for %s                           ", interfaces[netDriver]);
   AT(1, 24);
   printf("  [L]Enable logging(press on startup)                                          ");
 
@@ -1539,6 +1566,7 @@ C_task main(int argc, char *argv[])
   }
 
 start:
+  // writeLog("\r\n**********[Start new track]**********\r\n");
   OS_SETSYSDRV();
   printHelp();
   curFileStruct.fileSize = 0;
@@ -1563,6 +1591,12 @@ start:
     strcpy(curFileStruct.authorTitle, "-");
     strcpy(curFileStruct.authorRealName, "-");
   }
+
+  sprintf(toLog, "Playing[%u][", curFileStruct.picId);
+  // writeLog(toLog);
+  // writeLog(curFileStruct.trackName);
+  // writeLog("]\r\n");
+
 replay:
 
   errn = getTrack2(iddqd); // Downloading the track
@@ -1570,7 +1604,9 @@ replay:
 resume:
   startTimer = time();
   printProgress(0);
-  pId = runPlayer(); // Start thr Player!
+  // writeLog("runPlayer() before.\r\n");
+  pId = runPlayer(); // Start the Player!
+  // writeLog("runPlayer() after.\r\n");
   printStatus();
   printInfo();
 rekey:
@@ -1614,6 +1650,7 @@ rekey:
       printf("Player stopped...");
       saveFlag = !saveFlag;
       printStatus();
+      changedFormat = 0;
       goto replay;
     }
 
@@ -1643,6 +1680,7 @@ rekey:
         break;
       }
       count = 0;
+      changedFormat = 0;
       printStatus();
       goto start;
     }
@@ -1658,6 +1696,7 @@ rekey:
       {
         count = curFileStruct.totalAmount - 1;
       }
+      changedFormat = 0;
       goto start;
     }
 
@@ -1674,6 +1713,15 @@ rekey:
       }
       changedFormat = 1;
       curFileStruct.totalAmount = 1;
+      if (strstr(formats[curFormat], "tfc") != NULL)
+      {
+        cutOff = 5;
+      }
+      else
+      {
+        cutOff = 0;
+      }
+
       printStatus();
       printProgress(0);
       BOX(1, 2, 80, 6, 40);
@@ -1693,6 +1741,7 @@ rekey:
       clearStatus();
       printf("Player stopped...");
       printProgress(0);
+      changedFormat = 1;
       getchar();
       goto resume;
     }
@@ -1733,29 +1782,71 @@ rekey:
         clearStatus();
         printf("    ZXNETUSB mode enabled...");
       }
+      AT(1, 1);
+      ATRIB(97);
+      ATRIB(45);
+      printf("                           ZXART.EE radio for %s                    ", interfaces[netDriver]);
+      ATRIB(33);
+      ATRIB(40);
     }
   }
 
   curTimer = time();
   curFileStruct.curPos = (curTimer - startTimer) / 50;
-  alive = testPlayer();
+  /*
+    if ((curTimer - oldTimer) > 49)
+    {
+      alive = testPlayer();
+      sprintf(toLog, ",%u", alive);
+      //writeLog(toLog);
+    }
+    if (alive == 0 && !changedFormat)
+    {
+      if (rptFlag == 1)
+      {
+        goto resume;
+      }
+      //writeLog("\r\nalive == 0. Next track please.\r\n");
+      printProgress(2);
+      count = trackSelector(0);
+      goto start;
+    }
 
-  if (alive == 0 && !changedFormat)
+    if (alive == 1 && ((curTimer - oldTimer) > 49))
+    {
+      sprintf(toLog, ".%u", curFileStruct.trackInSeconds - curFileStruct.curPos);
+      //writeLog(toLog);
+      printProgress(1);
+      oldTimer = curTimer;
+    }
+  */
+
+  remainTime = curFileStruct.trackInSeconds - curFileStruct.curPos;
+
+  if ((remainTime < cutOff) && !changedFormat)
   {
+
+    OS_DROPAPP(pId);
+    clearStatus();
+    printf("Player stopped...");
+
     if (rptFlag == 1)
     {
       goto resume;
     }
+    // writeLog("\r\nalive == 0. Next track please.\r\n");
     printProgress(2);
     count = trackSelector(0);
     goto start;
   }
-
-  if (alive == 1 && ((curTimer - oldTimer) > 49))
+  if ((curTimer - oldTimer) > 49 && !changedFormat)
   {
+    sprintf(toLog, ".%u", remainTime);
+    // writeLog(toLog);
     printProgress(1);
     oldTimer = curTimer;
   }
+
   YIELD();
   goto rekey;
 }
