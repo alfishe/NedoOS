@@ -156,6 +156,7 @@ musicload
 ;init TFM
 	xor a
 	a_or_dw HEADER_CLOCK_YM2203
+	a_or_dw HEADER_CLOCK_YM2608
 	call nz,initYM2203
 	jp nz,memorystreamfree ;sets zf=0
 ;init Moonsound
@@ -541,8 +542,8 @@ cmdtable
 	db cmdunsupported  %256 ; 53
 	db cmdunsupported  %256 ; 54
 	db cmdYM2203       %256 ; 55
-	db cmdunsupported  %256 ; 56
-	db cmdunsupported  %256 ; 57
+	db cmdYM2608p0     %256 ; 56
+	db cmdYM2608p1     %256 ; 57
 	db cmdunsupported  %256 ; 58
 	db cmdunsupported  %256 ; 59
 	db cmdYM3812       %256 ; 5A
@@ -797,8 +798,8 @@ cmdtable
 	db cmdunsupported  /256 ; 53
 	db cmdunsupported  /256 ; 54
 	db cmdYM2203       /256 ; 55
-	db cmdunsupported  /256 ; 56
-	db cmdunsupported  /256 ; 57
+	db cmdYM2608p0     /256 ; 56
+	db cmdYM2608p1     /256 ; 57
 	db cmdunsupported  /256 ; 58
 	db cmdunsupported  /256 ; 59
 	db cmdYM3812       /256 ; 5A
@@ -1152,6 +1153,15 @@ musicunload
 	call nz,ssgmute
 	jp memorystreamfree
 
+cmdYM2608p0 equ cmdYM2203
+
+cmdYM2608p1
+	memory_stream_read_2 e,d
+	ld a,e
+	cp 0x30
+	ret c
+	jp opnwritefm2
+
 initokstr
 	db "OK\r\n",0
 playernamestr
@@ -1171,6 +1181,7 @@ vgmheadercopy = titlestrend
 vgmheadercopyend = vgmheadercopy+HEADER_SIZE_MAX
 
 HEADER_CLOCK_YM2203 = vgmheadercopy+0x44
+HEADER_CLOCK_YM2608 = vgmheadercopy+0x48
 HEADER_CLOCK_YM3812 = vgmheadercopy+0x50
 HEADER_CLOCK_YMF262 = vgmheadercopy+0x5c
 HEADER_CLOCK_YMF278B = vgmheadercopy+0x60

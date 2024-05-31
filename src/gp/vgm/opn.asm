@@ -1,4 +1,4 @@
-iscontrolregister
+opniscontrolregister
 ;a = register
 ;out: zf=1 if it's control register, zf=0 otherwise
 	cp 0x0e ;IO port
@@ -17,7 +17,7 @@ opnwritemusiconlyfm1
 ;e = register
 ;d = value
 	ld a,e
-	call iscontrolregister
+	call opniscontrolregister
 	ret z
 	cp 0x27 ;timers control
 	jp nz,opnwritefm1
@@ -32,7 +32,7 @@ opnwritemusiconlyfm2
 ;e = register
 ;d = value
 	ld a,e
-	call iscontrolregister
+	call opniscontrolregister
 	ret z
 	jp opnwritefm2
 
