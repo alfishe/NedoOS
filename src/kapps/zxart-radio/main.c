@@ -10,7 +10,6 @@
 #include <graphic.h>
 #include <terminal.c>
 #define COMMANDLINE 0x0080
-
 unsigned int RBR_THR = 0xf8ef;
 unsigned int IER = 0xf9ef;
 unsigned int IIR_FCR = 0xfaef;
@@ -678,8 +677,8 @@ void espReBoot(void)
   {
     byte = uart_readBlock();
   } while (byte != 'K'); // OK
-  //clearStatus();
-  //puts("ATE0 Answer:[OK]");
+  // clearStatus();
+  // puts("ATE0 Answer:[OK]");
   uart_readBlock(); // CR
   uart_readBlock(); // LN
 
@@ -735,7 +734,7 @@ unsigned int fillDataBufferEsp(void)
     if (try > 1)
     {
       clearStatus();
-      printf("----->Retry:%u\r\n", try);
+      printf("----->Retry:%u", try);
       delay(500);
     }
     sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
@@ -805,7 +804,8 @@ void loadEspConfig(void)
   espcom = OS_OPENHANDLE("espcom.ini", 0x80);
   if (((int)espcom) & 0xff)
   {
-    printf("mrfesp.ini opening error\r\n");
+    clearStatus();
+    printf("mrfesp.ini opening error");
     return;
   }
 
@@ -1404,7 +1404,7 @@ unsigned char getTrack2(unsigned long fileId)
       if (try > 1)
       {
         clearStatus();
-        printf("----->Retry:%u\r\n", try);
+        printf("----->Retry:%u", try);
         delay(500);
       }
       sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
@@ -1910,6 +1910,7 @@ rekey:
 
   curTimer = time();
   curFileStruct.curPos = (curTimer - startTimer) / 50;
+  alive++;// debug
   /*
     if ((curTimer - oldTimer) > 49)
     {
