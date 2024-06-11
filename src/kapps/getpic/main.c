@@ -22,6 +22,9 @@ unsigned int divider = 1;
 unsigned char comType = 0;
 unsigned int espType = 32;
 
+unsigned char picture[16384];
+unsigned char netbuf[8000];
+
 struct fileStruct
 {
   long picId;
@@ -43,22 +46,21 @@ const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
 unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; GetPic)\r\n\r\n\0";
-unsigned char cmd[256];
-unsigned char link[512];
-unsigned char fileIdChar[10];
-
-unsigned char netbuf[6000];
-unsigned char picture[16384];
-unsigned char crlf[2] = {13, 10};
 unsigned char keypress, verbose, randomPic, slideShow, netDriver;
-struct sockaddr_in targetadr;
-struct readstructure readStruct;
+
 unsigned long contLen;
 unsigned long count = 0;
 unsigned int headlng;
 unsigned int slideShowTime = 0;
 unsigned int loaded;
 
+unsigned char crlf[2] = {13, 10};
+unsigned char cmd[512];
+unsigned char link[512];
+unsigned char fileIdChar[10];
+
+struct sockaddr_in targetadr;
+struct readstructure readStruct;
 struct packetStruct
 {
   unsigned long contLen;
@@ -96,7 +98,7 @@ void printHelp(void)
   printf(" 'V' не выводить информацию об авторах\n\r");
   printf(" 'R' переход в режим  случайная картинка с рейтингом 4+\n\r");
   printf(" 'A' переход в режим  слайд-шоу\n\r");
-  printf(" 'D' Переключение режима ZXNETUSB/ESP32\n\r");
+  printf(" 'D' Переключение режима ZXNETUSB/ESP-AT\n\r");
   printf(" 'H' Данная справочная информация\n\r");
   printf("-----------------Нажмите любую кнопку------------------\n\r");
   ATRIB(93);
@@ -350,7 +352,7 @@ unsigned int cutHeader(unsigned int todo)
   else
   {
     contLen = atol(count1 + 15);
-    //printf("Content-Length: %lu \n\r", contLen);
+    // printf("Content-Length: %lu \n\r", contLen);
   }
 
   count1 = strstr(netbuf, "\r\n\r\n");
@@ -362,7 +364,7 @@ unsigned int cutHeader(unsigned int todo)
   {
     headlng = ((unsigned int)count1 - (unsigned int)netbuf + 4);
     recAmount = todo - headlng;
-    //printf("header %u bytes\r\n", headlng);
+    // printf("header %u bytes\r\n", headlng);
   }
   return recAmount;
 }
@@ -410,8 +412,10 @@ void uart_setrts(unsigned char mode)
       output(MCR, 0);
       break;
     default:
+      disable_interrupt();
       output(MCR, 2);
       output(MCR, 0);
+      enable_interrupt();
       break;
     }
   case 1:
@@ -436,6 +440,7 @@ void uart_setrts(unsigned char mode)
       input(0x55fe); // Переход в режим команд
       input(0x43fe); // Команда установить статус
       input(0x03fe); // Устанавливаем готовность DTR и RTS
+
       input(0x55fe); // Переход в режим команд
       input(0x43fe); // Команда установить статус
       input(0x00fe); // Снимаем готовность DTR и RTS
@@ -489,6 +494,7 @@ unsigned char uart_hasByte(void)
   }
   return 255;
 }
+
 unsigned char uart_read(void)
 {
   unsigned char data;
@@ -581,6 +587,7 @@ unsigned char getAnswer2(void)
     readbyte = uart_readBlock();
     // putdec(readbyte);
   } while (((readbyte == 0x0a) || (readbyte == 0x0d)));
+
   netbuf[curPos] = readbyte;
   curPos++;
   do
@@ -592,7 +599,7 @@ unsigned char getAnswer2(void)
   netbuf[curPos - 1] = 0;
   uart_readBlock(); // 0xa
   // printf("Answer:[%s]\r\n", netbuf);
-  //  getchar();
+  //   getchar();
   return curPos;
 }
 
@@ -662,11 +669,11 @@ unsigned int recvHead(void)
 // in netbuf data to send
 unsigned int fillPictureEsp(void)
 {
-  unsigned char sizeLink;
-  unsigned long toDownload, downloaded;
+  unsigned char sizeLink = 0;
+  unsigned long toDownload = 0, downloaded = 0;
   unsigned char byte, count = 0, try = 0;
-  unsigned int dataSize;
-  unsigned char skipHeader;
+  unsigned int dataSize = 0;
+  unsigned char skipHeader = 0;
   unsigned char *count1;
 
   strcpy(link, netbuf);
@@ -689,16 +696,17 @@ unsigned int fillPictureEsp(void)
 
   strcpy(cmd, "AT+CIPSEND=");
   sprintf(netbuf, "%u", sizeLink + 2); // second CRLF in send command
+
   strcat(cmd, netbuf);
   sendcommand(cmd);
   getAnswer2();
-
   do
   {
     byte = uart_readBlock();
     //putchar(byte);
   } while (byte != '>');
   sendcommand(link);
+
   count = 0;
 
   do
@@ -729,6 +737,7 @@ unsigned int fillPictureEsp(void)
       skipHeader = 1;
     }
     downloaded = downloaded + dataSize;
+
     memcpy(picture + downloaded - dataSize, netbuf + headlng, dataSize);
     toDownload = toDownload - dataSize;
   } while (toDownload > 0);
@@ -1261,7 +1270,7 @@ void printData(void)
   printf("%s\r\n", curFileStruct.authorRealName);
   ATRIB(96);
   printf("\r\n");
-  //YIELD();
+  // YIELD();
 }
 void safeKeys(unsigned char keypress)
 {
@@ -1337,10 +1346,11 @@ void safeKeys(unsigned char keypress)
     netDriver = !netDriver;
     if (netDriver == 1)
     {
-      printf("    ESP32 mode enabled...\r\n\r\n");
+      printf("    ESP-AT mode enabled...\r\n");
       loadEspConfig();
       uart_init(divider);
       espReBoot();
+      printf("    ESP-AT inited...\r\n");
     }
 
     else
@@ -1392,7 +1402,6 @@ start:
   if (verbose == 1)
   {
     idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
-
     if (idkfa < 0)
     {
       printf(" Cant parse curFileStruct.authorIds = %s \r\n\r\n", curFileStruct.authorIds);

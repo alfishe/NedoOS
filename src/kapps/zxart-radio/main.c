@@ -464,8 +464,10 @@ void uart_setrts(unsigned char mode)
       output(MCR, 0);
       break;
     default:
+      disable_interrupt();
       output(MCR, 2);
       output(MCR, 0);
+      enable_interrupt();
       break;
     }
   case 1:
@@ -1910,7 +1912,7 @@ rekey:
 
   curTimer = time();
   curFileStruct.curPos = (curTimer - startTimer) / 50;
-  alive++;// debug
+  alive++; // debug
   /*
     if ((curTimer - oldTimer) > 49)
     {
