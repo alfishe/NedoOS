@@ -482,6 +482,7 @@ void espReBoot(void)
 {
 	unsigned char byte, count;
 	uart_flush();
+/*
 	sendcommand("AT+RST");
 	printf("Resetting ESP...");
 	do
@@ -499,7 +500,7 @@ void espReBoot(void)
 	uart_readBlock(); // CR
 	uart_readBlock(); // LF
 	puts("Reset complete.");
-
+*/
 	sendcommand("ATE0");
 	do
 	{
