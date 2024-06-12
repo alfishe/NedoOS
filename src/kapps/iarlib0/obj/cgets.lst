@@ -1,0 +1,309 @@
+##############################################################################
+#                                                                            #
+# IAR Z80/64180 C-Compiler V4.06A/W32                                        #
+#                                                                            #
+#       Compile time  =  13/Jun/2024  01:06:14                               #
+#       Target option =  Z80                                                 #
+#       Memory model  =  large                                               #
+#       Source file   =  cgets.c                                             #
+#       List file     =  ./obj/cgets.lst                                     #
+#       Object file   =  ./obj/cgets.r01                                     #
+#       ASM file      =  ./obj/cgets.s01                                     #
+#       Command line  =  -v0 -S -ml -uu -b -q -x -K -gA -z7 -t4 -T -O./obj/  #
+#                        -L./obj/ -A./obj/ -I../../../iar/inc/ cgets.c       #
+#                                                                            #
+#                           Copyright 2001 IAR Systems. All rights reserved. #
+##############################################################################
+
+   \   0000                    MODULE  cgets(16)
+   \   0000                    RSEG    CODE(0)
+   \   0000                    RSEG    UDATA0(0)
+   \   0000                    EXTERN  OS_GETXY
+   \   0000                    EXTERN  OS_PRATTR
+   \   0000                    EXTERN  OS_SETXY
+   \   0000                    PUBLIC  cxy
+   \   0000                    EXTERN  getchar
+   \   0000                    PUBLIC  gets
+   \   0000                    EXTERN  putchar
+   \   0000                    EXTERN  ?CLZ80L_4_06_L00
+   \   0000                    EXTERN  ?C_V_SWITCH_L06
+   \   0000                    EXTERN  ?ENT_AUTO_DIRECT_L09
+   \   0000                    EXTERN  ?LEAVE_DIRECT_L09
+   \   0000                    EXTERN  ?STRCPY_L11
+   \   0000                    EXTERN  ?STRLEN_L11
+   \   0000                    RSEG    CODE
+      1          #include <oscalls.h>
+      2          #include <stdio.h>
+      3          #include <string.h>
+      4          
+      5          union{
+      6              unsigned int w;
+      7              struct{
+      8                  unsigned char x;
+      9                  unsigned char y;
+     10              }xy;
+     11          }cxy;
+     12          
+   \   0000            gets:
+   \   0000  CD0000            CALL    ?ENT_AUTO_DIRECT_L09
+   \   0003  FEFF              DEFW    -2
+   \   0005  FDE5              PUSH    IY
+     13          char * gets(char *str)  {
+     14              char * pstr;
+   \   0007  DD36FE00          LD      (IX-2),0
+     15              char curs = 0;
+     16              char ch;
+   \   000B  CD0000            CALL    OS_GETXY
+   \   000E  220000            LD      (cxy),HL
+     17              cxy.w = OS_GETXY();
+   \   0011  DD6E02            LD      L,(IX+2)
+   \   0014  DD6603            LD      H,(IX+3)
+   \   0017  3600              LD      (HL),0
+   \   0019            ?0011:
+     18              *str=0x00;
+   \   0019  AF                XOR     A
+   \   001A  3C                INC     A
+   \   001B            ?0037:
+   \   001B            ?0012:
+     19              while(1)
+     20              {
+   \   001B  ED4B0100          LD      BC,(cxy+1)
+   \   001F  ED5B0000          LD      DE,(cxy)
+   \   0023  CD0000            CALL    OS_SETXY
+     21                  OS_SETXY(cxy.xy.x,cxy.xy.y);
+   \   0026  DD6E02            LD      L,(IX+2)
+   \   0029  DD6603            LD      H,(IX+3)
+   \   002C  E5                PUSH    HL
+   \   002D  FDE1              POP     IY
+   \   002F            ?0014:
+     22                  pstr=str;
+   \   002F  AF                XOR     A
+   \   0030  FDB600            OR      (IY+0)
+   \   0033  280C              JR      Z,?0013
+   \   0035            ?0015:
+   \   0035  FD23              INC     IY
+   \   0037  FD5EFF            LD      E,(IY-1)
+   \   003A  1600              LD      D,0
+   \   003C  CD0000            CALL    putchar
+     23                  while(*pstr) putchar(*pstr++);
+   \   003F  18EE              JR      ?0014
+   \   0041            ?0013:
+   \   0041  112000            LD      DE,32
+   \   0044  CD0000            CALL    putchar
+     24                  putchar(' ');
+   \   0047  ED4B0100          LD      BC,(cxy+1)
+   \   004B  3A0000            LD      A,(cxy)
+   \   004E  DD86FE            ADD     A,(IX-2)
+   \   0051  5F                LD      E,A
+   \   0052  CD0000            CALL    OS_SETXY
+     25                  OS_SETXY(cxy.xy.x+curs,cxy.xy.y);
+   \   0055  1E2F              LD      E,47
+   \   0057  CD0000            CALL    OS_PRATTR
+     26                  OS_PRATTR(INK_WHITE|PAPER_CYAN);
+   \   005A  CD0000            CALL    getchar
+   \   005D  DD75FF            LD      (IX-1),L
+     27                  ch=getchar();
+   \   0060  1E07              LD      E,7
+   \   0062  CD0000            CALL    OS_PRATTR
+     28                  OS_PRATTR(INK_WHITE|PAPER_BLACK);
+   \   0065  DD5EFF            LD      E,(IX-1)
+   \   0068  CD0000            CALL    ?C_V_SWITCH_L06
+   \   006B  0400              DEFW    4
+   \   006D  08                DEFB    8
+   \   006E  0D                DEFB    13
+   \   006F  F8                DEFB    248
+   \   0070  FB                DEFB    251
+   \   0071  D300              DEFW    ?0027
+   \   0073  BE00              DEFW    ?0024
+   \   0075  B300              DEFW    ?0021
+   \   0077  7B00              DEFW    ?0017
+   \   0079  8A00              DEFW    ?0018
+   \   007B            ?0017:
+     29                  switch(ch){
+     30                      case 0x0d:
+   \   007B  110A00            LD      DE,10
+   \   007E  CD0000            CALL    putchar
+     31                          putchar(0x0a);
+   \   0081  DD6E02            LD      L,(IX+2)
+   \   0084  DD6603            LD      H,(IX+3)
+     32                          return str;
+   \   0087  C33801            JP      ?0035
+   \   008A            ?0018:
+     33                      case 0x08:
+   \   008A  AF                XOR     A
+   \   008B  DDB6FE            OR      (IX-2)
+   \   008E  2889              JR      Z,?0011
+   \   0090            ?0019:
+     34                          if(curs){
+   \   0090  DD4EFE            LD      C,(IX-2)
+   \   0093  0600              LD      B,0
+   \   0095  DD6E02            LD      L,(IX+2)
+   \   0098  DD6603            LD      H,(IX+3)
+   \   009B  09                ADD     HL,BC
+   \   009C  EB                EX      DE,HL
+   \   009D  DD4EFE            LD      C,(IX-2)
+   \   00A0  0600              LD      B,0
+   \   00A2  0B                DEC     BC
+   \   00A3  DD6E02            LD      L,(IX+2)
+   \   00A6  DD6603            LD      H,(IX+3)
+   \   00A9  09                ADD     HL,BC
+   \   00AA  CD0000            CALL    ?STRCPY_L11
+     35                              strcpy(str + curs - 1,str + curs);
+   \   00AD  DD35FE            DEC     (IX-2)
+   \   00B0            ?0020:
+     36                              curs--;
+     37                          }
+   \   00B0  C31900            JP      ?0011
+   \   00B3            ?0021:
+     38                          break;
+     39                      case 0xf8:
+   \   00B3  AF                XOR     A
+   \   00B4  DDB6FE            OR      (IX-2)
+   \   00B7  287C              JR      Z,?0029
+   \   00B9            ?0022:
+   \   00B9  DD35FE            DEC     (IX-2)
+   \   00BC            ?0023:
+     40                          if(curs)curs--;
+   \   00BC  1877              JR      ?0029
+   \   00BE            ?0024:
+     41                          break;
+     42                      case 0xfb:
+   \   00BE  DD4EFE            LD      C,(IX-2)
+   \   00C1  0600              LD      B,0
+   \   00C3  DD6E02            LD      L,(IX+2)
+   \   00C6  DD6603            LD      H,(IX+3)
+   \   00C9  09                ADD     HL,BC
+   \   00CA  7E                LD      A,(HL)
+   \   00CB  B7                OR      A
+   \   00CC  2867              JR      Z,?0029
+   \   00CE            ?0025:
+   \   00CE  DD34FE            INC     (IX-2)
+   \   00D1            ?0026:
+     43                          if(*(str+curs))curs++;
+   \   00D1  1862              JR      ?0029
+   \   00D3            ?0027:
+     44                          break;
+     45                      default:
+   \   00D3  DD4EFE            LD      C,(IX-2)
+   \   00D6  0600              LD      B,0
+   \   00D8  DD6E02            LD      L,(IX+2)
+   \   00DB  DD6603            LD      H,(IX+3)
+   \   00DE  09                ADD     HL,BC
+   \   00DF  CD0000            CALL    ?STRLEN_L11
+   \   00E2  DD4EFE            LD      C,(IX-2)
+   \   00E5  0600              LD      B,0
+   \   00E7  09                ADD     HL,BC
+   \   00E8  DD4E02            LD      C,(IX+2)
+   \   00EB  DD4603            LD      B,(IX+3)
+   \   00EE  09                ADD     HL,BC
+   \   00EF  E5                PUSH    HL
+   \   00F0  FDE1              POP     IY
+     46                          pstr = str + strlen(str+curs) + curs;
+   \   00F2  A7                AND     A
+   \   00F3  ED42              SBC     HL,BC
+   \   00F5  ED4B0000          LD      BC,(cxy)
+   \   00F9  0600              LD      B,0
+   \   00FB  09                ADD     HL,BC
+   \   00FC  3E4E              LD      A,78
+   \   00FE  AD                XOR     L
+   \   00FF  B4                OR      H
+   \   0100  2833              JR      Z,?0029
+   \   0102            ?0028:
+   \   0102            ?0031:
+     47                          if(((pstr - str) + cxy.xy.x)!=78){
+   \   0102  AF                XOR     A
+   \   0103  3C                INC     A
+   \   0104            ?0036:
+   \   0104            ?0032:
+     48                              while(1){
+   \   0104  FD4600            LD      B,(IY+0)
+   \   0107  FD7001            LD      (IY+1),B
+     49                                  pstr[1]=pstr[0];
+   \   010A  DD4EFE            LD      C,(IX-2)
+   \   010D  0600              LD      B,0
+   \   010F  DD6E02            LD      L,(IX+2)
+   \   0112  DD6603            LD      H,(IX+3)
+   \   0115  09                ADD     HL,BC
+   \   0116  FDE5              PUSH    IY
+   \   0118  C1                POP     BC
+   \   0119  A7                AND     A
+   \   011A  ED42              SBC     HL,BC
+   \   011C  2804              JR      Z,?0030
+   \   011E            ?0033:
+   \   011E            ?0034:
+     50                                  if(pstr==(str+curs)) break;
+   \   011E  FD2B              DEC     IY
+     51                                  pstr--;
+     52                              }
+   \   0120  18E0              JR      ?0028
+   \   0122            ?0030:
+   \   0122  DD4EFE            LD      C,(IX-2)
+   \   0125  0600              LD      B,0
+   \   0127  DD6E02            LD      L,(IX+2)
+   \   012A  DD6603            LD      H,(IX+3)
+   \   012D  09                ADD     HL,BC
+   \   012E  DD46FF            LD      B,(IX-1)
+   \   0131  70                LD      (HL),B
+     53                              *(str+curs) = ch;
+   \   0132  DD34FE            INC     (IX-2)
+   \   0135            ?0029:
+     54                              curs++;
+     55                          }
+   \   0135            ?0016:
+     56                          break;
+     57                  }
+     58              }
+   \   0135  C31900            JP      ?0011
+   \   0138            ?0010:
+     59              return str;
+   \   0138            ?0035:
+   \   0138  FDE1              POP     IY
+   \   013A  C30000            JP      ?LEAVE_DIRECT_L09
+     60          }
+   \   0000                    RSEG    UDATA0
+   \   0000            cxy:
+   \   0002                    DEFS    2
+   \   0002                    END
+
+
+                                       S Y M B O L - T A B L E
+                                       =======================
+
+
+            #include file(s):
+
+       [ 1]       ./obj/cgets.r01
+
+
+            Symbol                     Type     Class   Defline   Refline(s)
+            ------                     ----     -----   -------   ----------
+
+OS_GETXY                           function    extern     17:1         17
+OS_PRATTR                          function    extern     11:1         26       28
+OS_SETXY                           function    extern     12:1         21       25
+cxy                                   union    public       11         17       21       21       25
+                                                                       25       47
+errno                                  char    extern     75:1  
+getchar                            function    extern     29:2         27
+gets                               function    public       13       36:2
+mouse_btns                             char    extern     79:1  
+mouse_x                                char    extern     77:1  
+mouse_y                                char    extern     78:1  
+mouse_yx                              u_int    extern     76:1  
+putchar                            function    extern     28:2         23       24       31
+size_t                              u_short   typedef     89:4       29:5     31:5     33:5     35:5
+                                                                     37:5     43:5     47:5     49:5
+                                                                     51:5     61:5     65:5     71:5
+                                                                     71:5
+strcpy                             function intrinsic     63:5         35
+strlen                             function intrinsic     47:5         46
+t1251to866                            array    extern     80:1  
+va_list                               array   typedef    141:3       31:2     33:2
+
+
+Errors: none
+Warnings: none
+Code size: 317
+Constant size: 0
+Static variable size: Data(2) Iram(0)
+
