@@ -225,6 +225,24 @@ inetloop:
 }
 
 ///////////////////////////////////ESP-COM/////////////////////////////////////////
+void delay(unsigned long counter)
+{
+	unsigned long start, finish;
+	counter = counter / 20;
+	if (counter < 1)
+	{
+		counter = 1;
+	}
+	start = time();
+	finish = start + counter;
+
+	while (start < finish)
+	{
+		start = time();
+	}
+}
+
+
 void uart_setrts(unsigned char mode)
 {
 	switch (comType)
@@ -376,7 +394,7 @@ void uart_write(unsigned char data)
 void uart_flush(void)
 {
 	unsigned int count;
-	for (count = 0; count < 3000; count++)
+	for (count = 0; count < 5000; count++)
 	{
 		uart_setrts(1);
 		uart_read();
@@ -435,8 +453,7 @@ void loadEspConfig(void)
 		printf("     RBR_THR:0x%4x\r\n     IER    :0x%4x\r\n     IIR_FCR:0x%4x\r\n     LCR    :0x%4x\r\n", RBR_THR, IER, IIR_FCR, LCR);
 		printf("     MCR    :0x%4x\r\n     LSR    :0x%4x\r\n     MSR    :0x%4x\r\n     SR     :0x%4x\r\n", MCR, LSR, MSR, SR);
 	}
-	    printf("    DIVIDER:%u TYPE:%u ESP:%u\r\n", divider, comType, espType);
-
+	printf("    DIVIDER:%u TYPE:%u ESP:%u\r\n", divider, comType, espType);
 }
 
 void sendcommand(char *commandline)
@@ -474,15 +491,15 @@ unsigned char getAnswer2(void)
 	netbuf[curPos - 1] = 0;
 	uart_readBlock(); // 0xa
 	//printf("Answer:[%s]\r\n", netbuf);
-	//    getchar();
+	//     getchar();
 	return curPos;
 }
 
 void espReBoot(void)
 {
 	unsigned char byte, count;
-	uart_flush();
-/*
+	//uart_flush();
+
 	sendcommand("AT+RST");
 	printf("Resetting ESP...");
 	do
@@ -500,7 +517,7 @@ void espReBoot(void)
 	uart_readBlock(); // CR
 	uart_readBlock(); // LF
 	puts("Reset complete.");
-*/
+
 	sendcommand("ATE0");
 	do
 	{
@@ -509,40 +526,54 @@ void espReBoot(void)
 	// puts("Answer:[OK]");
 	uart_readBlock(); // CR
 	uart_readBlock(); // LN
-
-	sendcommand("AT+CIPCLOSE");
-	getAnswer2();
-	sendcommand("AT+CIPDINFO=0");
-	getAnswer2();
-	sendcommand("AT+CIPMUX=0");
-	getAnswer2();
-	sendcommand("AT+CIPSERVER=0");
-	getAnswer2();
-	sendcommand("AT+CIPRECVMODE=0");
-	getAnswer2();
+	/*
+		sendcommand("AT+CIPCLOSE");
+		getAnswer2();
+		sendcommand("AT+CIPDINFO=0");
+		getAnswer2();
+		sendcommand("AT+CIPMUX=0");
+		getAnswer2();
+		sendcommand("AT+CIPSERVER=0");
+		getAnswer2();
+		sendcommand("AT+CIPRECVMODE=0");
+		getAnswer2();
+	*/
 }
 
 void espntp_resolver(void)
 {
-	unsigned char *count1;
+	unsigned char *count1, retry = 10;
+
 	loadEspConfig();
 	uart_init(divider);
 	espReBoot();
 
-// AT+CIPSNTPCFG=1,8,"cn.ntp.org.cn","ntp.sjtu.edu.cn"
+	// AT+CIPSNTPCFG=1,8,"cn.ntp.org.cn","ntp.sjtu.edu.cn"
+retryTime:
+	weekday = 0;
+	month = 0;
+	day = 0;
+	hour = 0;
+	second = 0;
+	year = 170;
 
+	//	uart_flush();
 	strcpy(cmd, "AT+CIPSNTPCFG=1,");
 	sprintf(netbuf, "%u,\"%s\",\"time.google.com\"", GMT, defntp);
 	strcat(cmd, netbuf);
 	sendcommand(cmd);
 	getAnswer2(); // OK
+	delay(250);
 	sendcommand("AT+CIPSNTPTIME?");
-	getAnswer2();
+	getAnswer2();// TIME
 
 	count1 = strstr(netbuf, ":");
 	if (count1 == NULL)
 	{
 		puts("Error parsing answer...");
+		puts(netbuf);
+		getchar();
+		goto retryTime;
 	}
 	strncpy(cmd, count1 + 1, 3);
 	cmd[3] = 0;
@@ -644,13 +675,24 @@ void espntp_resolver(void)
 	strncpy(cmd, count1 + 23, 2);
 	cmd[4] = 0;
 	year = atoi(cmd) + 100;
-/*	
-	if (is_atm == 2 || is_atm == 3)
-	{
-	year = year + 100;
-	}
-*/
+
+	getAnswer2(); // OK
+	
 	//printf("day of week:%u Month:%u day:%u hours:%u minutes:%u seconds:%u year:%u\r\n", weekday, month, day, hour, minute, second, year);
+	
+	if (year == 170)
+	{
+		YIELD();
+		if (retry != 0)
+		{
+			retry--;
+			printf("Retry [%u]\r\n", retry);
+			delay(500);
+			goto retryTime;
+		}
+		puts("error getting time...");
+		exit(255);
+	}
 }
 
 void set_datetime(void)
