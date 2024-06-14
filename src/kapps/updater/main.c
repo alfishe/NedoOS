@@ -9,7 +9,21 @@
 #include <intrz80.h>
 #include <ctype.h>
 #include <math.h>
-unsigned char uVer[] = "0.46";
+
+unsigned int RBR_THR = 0xf8ef;
+unsigned int IER = 0xf9ef;
+unsigned int IIR_FCR = 0xfaef;
+unsigned int LCR = 0xfbef;
+unsigned int MCR = 0xfcef;
+unsigned int LSR = 0xfdef;
+unsigned int MSR = 0xfeef;
+unsigned int SR = 0xffef;
+unsigned int divider = 1;
+unsigned char comType = 0;
+unsigned int espType = 32;
+unsigned char netDriver = 0;
+
+unsigned char uVer[] = "0.47";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -44,7 +58,20 @@ struct configuration
 } config;
 
 unsigned int bufSize = 2048; // Some memory corruption at this point, some QnD
-unsigned char netbuf[4000];
+unsigned char netbuf[2048];
+
+unsigned char cmdlist1[] = " HTTP/1.1\r\nHost: nedoos.ru\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
+unsigned char binLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/&isdir=1";
+unsigned char pkunzipLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/pkunzip.com";
+unsigned char tarLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/tar.com";
+unsigned char cmdLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/cmd.com";
+unsigned char termLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/term.com";
+unsigned char updLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/updater.com";
+unsigned char newsLink[] = "/svn/dl.php?repname=NedoOS&path=/release/doc/updater.new";
+unsigned char wizNetLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/wizcfg.com";
+unsigned char netIniLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/net.ini";
+unsigned char relLink[] = "http://nedoos.ru/images/release.zip";
+unsigned char *nameBuf = "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
 
 void clearStatus(void)
 {
@@ -225,7 +252,7 @@ void infoBox(unsigned char *message)
 unsigned char OS_SHELL(unsigned char *command)
 {
 	unsigned char fileName[] = "bin/cmd.com";
-	unsigned char appCmd[127] = "cmd.com ";
+	unsigned char appCmd[128] = "cmd.com ";
 	unsigned int shellSize, loaded, loop, adr;
 	unsigned char pgbak;
 	union APP_PAGES shell_pg;
@@ -341,17 +368,11 @@ unsigned int httpError(void)
 	if (httpRes != NULL)
 	{
 		httpErr = atol(httpRes + 9);
-		if (httpErr == 200)
-		{
-			return httpErr;
-		}
 	}
-
-	BOX(1, 1, 80, 25, 40, 32);
-	AT(1, 1);
-	printf("HTTP ERROR %u", httpErr);
-
-	fatalError("Server response error!");
+	else
+	{
+		httpErr = 0;
+	}
 	return httpErr;
 }
 
@@ -437,25 +458,23 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 {
 	if (operation == 00)
 	{
-		unsigned char fileName[255];
-		strcpy(fileName, fileNamePtr);
-		fp2 = OS_CREATEHANDLE(fileName, 0x80);
+		fp2 = OS_CREATEHANDLE(fileNamePtr, 0x80);
 		if (((int)fp2) & 0xff)
 		{
 			clearStatus();
 			AT(1, 24);
-			printf("%s", fileName);
+			printf("%s", fileNamePtr);
 			printf(" creating error.");
 			exit(0);
 		}
 		OS_CLOSEHANDLE(fp2);
 
-		fp2 = OS_OPENHANDLE(fileName, 0x80);
+		fp2 = OS_OPENHANDLE(fileNamePtr, 0x80);
 		if (((int)fp2) & 0xff)
 		{
 			clearStatus();
 			AT(1, 24);
-			printf("%s", fileName);
+			printf("%s", fileNamePtr);
 			printf(" opening error. ");
 
 			exit(0);
@@ -526,28 +545,43 @@ unsigned int tcpRead(unsigned char socket)
 
 unsigned int cutHeader(unsigned int todo)
 {
-	unsigned int q;
-	unsigned char *count;
+	unsigned int err;
+	unsigned char *count1;
 
-	count = strstr(netbuf, "Content-Length:");
-	if (count == NULL)
+	err = httpError();
+	if (err != 200)
 	{
-		clearStatus();
-		AT(1, 24);
-		printf("Content-Length:  not found.");
+		BOX(1, 1, 80, 25, 40, 32);
+		AT(1, 1);
+		printf("HTTP ERROR %u", err);
+		puts("^^^^^^^^^^^^^^^^^^^^^");
+		puts(netbuf);
+		getchar();
+		fatalError("Server response error!");
+	}
+	count1 = strstr(netbuf, "Content-Length:");
+	if (count1 == NULL)
+	{
+		printf("contLen  not found \r\n");
 		contLen = 0;
 	}
 	else
 	{
-		contLen = atol(count + 15);
-		//    AT (1,24);
-		//      printf("=> Dlinna  soderzhimogo = %lu \n\r", contLen);
+		contLen = atol(count1 + 15);
+		// printf("Content-Length: %lu \n\r", contLen);
 	}
 
-	count = strstr(netbuf, "\r\n\r\n");
-	headlng = ((unsigned int)count - (unsigned int)netbuf + 4);
-	q = todo - headlng;
-	return q;
+	count1 = strstr(netbuf, "\r\n\r\n");
+	if (count1 == NULL)
+	{
+		printf("header not found\r\n");
+	}
+	else
+	{
+		headlng = ((unsigned int)count1 - (unsigned int)netbuf + 4);
+		// printf("header %u bytes\r\n", headlng);
+	}
+	return todo - headlng;
 }
 
 unsigned int tcpSend(unsigned char socket, unsigned int messageadr, unsigned int size)
@@ -582,13 +616,11 @@ wizwrite:
 unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 {
 	unsigned int todo;
-	unsigned char cmdlist1[] = " HTTP/1.1\r\nHost: nedoos.ru\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
 	unsigned char socket;
-	unsigned int headskip;
+	unsigned int headskip = 0;
 	unsigned long bytecount;
-	unsigned long fileSize1;
-	unsigned char fileName[255];
-	unsigned int httpErr;
+	unsigned int fileSize1;
+
 	strcpy(netbuf, "GET ");
 	strcat(netbuf, fileLink);
 	strcat(netbuf, cmdlist1);
@@ -597,14 +629,11 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 	todo = netConnect(socket);
 	todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
 
-	headskip = 0;
-	bytecount = 255;
 	downloaded = 0;
-	strcpy(fileName, fileNamePtr);
 	AT(1, 24);
-	printf("%s", fileName);
+	printf("%s", fileNamePtr);
 
-	while (bytecount != 0)
+	do
 	{
 		headlng = 0;
 		todo = tcpRead(socket);
@@ -614,23 +643,22 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 		}
 		if (headskip == 0)
 		{
-			httpErr = httpError();
 			headskip = 1;
 			todo = cutHeader(todo);
 			fileSize1 = contLen / 1024;
 			bytecount = contLen;
-			saveBuf(fileName, 00, 0);
+			saveBuf(fileNamePtr, 00, 0);
 		}
 		AT(32, 24);
-		printf("%lu of %lu kb  ", downloaded / 1024, fileSize1);
+		printf("%lu of %u kb  ", downloaded / 1024, fileSize1);
 
-		saveBuf(fileName, 01, todo);
+		saveBuf(fileNamePtr, 01, todo);
 		bytecount = bytecount - todo;
-
 		cancel();
-	}
+	} while (bytecount != 0);
+
 	netShutDown(socket, 0);
-	saveBuf(fileName, 02, 00);
+	saveBuf(fileNamePtr, 02, 00);
 	if (downloaded != contLen)
 	{
 		fatalError("File download error!");
@@ -671,7 +699,7 @@ unsigned char getConfig(void)
 	default:
 		strcpy(config.machineName, "NOT DETECED (ZX-Evo)");
 		strcpy(config.kernelName, "sd_boot.$C");
-		strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/sd_boot.%24C");
+		strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/sd_boot.s%24C");
 		break;
 	}
 	return config.is_atm;
@@ -679,15 +707,6 @@ unsigned char getConfig(void)
 // Downloading minimal tools for updating/boot
 void getTools(void)
 {
-	unsigned char pkunzipLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/pkunzip.com";
-	unsigned char tarLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/tar.com";
-	unsigned char cmdLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/cmd.com";
-	unsigned char termLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/term.com";
-	unsigned char updLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/updater.com";
-	unsigned char newsLink[] = "/svn/dl.php?repname=NedoOS&path=/release/doc/updater.new";
-	unsigned char wizNetLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/wizcfg.com";
-	unsigned char netIniLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/net.ini";
-
 	OS_MKDIR("bin"); // Create if not exist
 	ATRIB(cw.text);
 	ATRIB(cw.back);
@@ -709,68 +728,61 @@ void deleteWorkFiles(void)
 
 unsigned char ren2old(unsigned char *name)
 {
-	unsigned char *oldName = "0000000000000000000000000000000000";
-	unsigned char counter = 255;
+	unsigned char counter = 0;
 	OS_MKDIR((void *)name);
-	sprintf(oldName, "%s.old", name);
-	while (OS_RENAME((void *)name, (void *)oldName) != 0)
+	sprintf(nameBuf, "%s.old", name);
+	while (OS_RENAME((void *)name, (void *)nameBuf) != 0)
 	{
-		counter++;
+		
 		if (counter == 255)
 		{
 			fatalError("Unable to rename old folder");
 		}
-
-		sprintf(oldName, "%s.%u", name, counter);
+		counter++;
+		sprintf(nameBuf, "%s.%u", name, counter);
 	}
 	return counter;
 }
 
 void ren2tar(void)
 {
-	unsigned char *name = "0000000000000000000000000000000000";
-	unsigned int counter = 2500;
-	errn = 255;
-	sprintf(name, "bin.r%u", counter);
-	while (errn != 0)
+	unsigned int counter = 2400;
+	do
 	{
-		errn = OS_RENAME((void *)name, "bin.tar");
+		sprintf(nameBuf, "bin.r%u", counter);
+		errn = OS_RENAME((void *)nameBuf, "bin.tar");
 		counter--;
-		sprintf(name, "bin.r%u", counter);
-		if (counter < 1800)
+		if (counter < 2000)
 		{
 			fatalError("Unable to rename TAR file");
 		}
-	}
+	} while (errn != 0);
 }
 
 void ren2bin(void)
 {
-	unsigned char *name = "0000000000000000000000000000000000";
-	unsigned char counter = 17;
-	errn = 255;
-	sprintf(name, "bin.r%u", counter);
-	while (errn != 0)
+	unsigned char counter = 20;
+	sprintf(nameBuf, "bin.r%u", counter);
+	do
 	{
-		errn = OS_RENAME((void *)name, "bin");
+		errn = OS_RENAME((void *)nameBuf, "bin");
 		counter++;
-		sprintf(name, "bin.r%u", counter);
+		sprintf(nameBuf, "bin.r%u", counter);
 		if (counter > 99)
 		{
 			fatalError("Unable to rename BIN folder");
 		}
-	}
+	} while (errn != 0);
 }
 
 void restoreConfig(unsigned char oldBinExt)
 {
-	unsigned char *name = "0000000000000000000000000000000000";
 	unsigned char count;
 	errn = OS_CHDIR("/");
-	errn = OS_RENAME("bin/autoexec.bat", "bin/autoexec.new");
-	errn = OS_RENAME("bin/net.ini", "bin/net.new");
-	errn = OS_RENAME("bin/nv.ext", "bin/nv.new");
-	errn = OS_RENAME("bin/gp/gp.ini", "bin/gp/gpini.new");
+	errn = OS_RENAME("bin/autoexec.bat", "bin/autoexec.bat.new");
+	errn = OS_RENAME("bin/net.ini", "bin/net.ini.new");
+	errn = OS_RENAME("bin/nv.ext", "bin/nv.ext.new");
+	errn = OS_RENAME("bin/gp/gp.ini", "bin/gp/gp.ini.new");
 	errn = OS_RENAME("/bin/browser/index.gph", "/bin/browser/index.gph.new");
 
 	errn = OS_CHDIR("/");
@@ -790,38 +802,36 @@ void restoreConfig(unsigned char oldBinExt)
 	}
 	else
 	{
-		sprintf(name, "copy bin.%u/autoexec.bat bin/autoexec.bat", oldBinExt);
-		OS_SHELL((void *)name);
+		sprintf(nameBuf, "copy bin.%u/autoexec.bat bin/autoexec.bat", oldBinExt);
+		OS_SHELL((void *)nameBuf);
 
-		sprintf(name, "copy bin.%u/net.ini bin/net.ini", oldBinExt);
-		OS_SHELL((void *)name);
+		sprintf(nameBuf, "copy bin.%u/net.ini bin/net.ini", oldBinExt);
+		OS_SHELL((void *)nameBuf);
 
-		sprintf(name, "copy bin.%u/nv.ext bin/nv.ext", oldBinExt);
-		OS_SHELL((void *)name);
-		sprintf(name, "copy bin.%u/nv.pth bin/nv.pth", oldBinExt);
-		OS_SHELL((void *)name);
-		sprintf(name, "copy bin.%u/gp/gp.ini bin/gp/gp.ini", oldBinExt);
-		OS_SHELL((void *)name);
-		sprintf(name, "copy bin.%u/browser/index.gph bin/browser/index.gph", oldBinExt);
-		OS_SHELL((void *)name);
+		sprintf(nameBuf, "copy bin.%u/nv.ext bin/nv.ext", oldBinExt);
+		OS_SHELL((void *)nameBuf);
+		sprintf(nameBuf, "copy bin.%u/nv.pth bin/nv.pth", oldBinExt);
+		OS_SHELL((void *)nameBuf);
+		sprintf(nameBuf, "copy bin.%u/gp/gp.ini bin/gp/gp.ini", oldBinExt);
+		OS_SHELL((void *)nameBuf);
+		sprintf(nameBuf, "copy bin.%u/browser/index.gph bin/browser/index.gph", oldBinExt);
+		OS_SHELL((void *)nameBuf);
 	}
 	AT(1, 4);
 	for (count = 0; count < 15; count++)
 	{
 		putchar(176);
 	}
-	errn = OS_RENAME("bin/autoexec.new", "bin/autoexec.bat"); // If file already exist we dont rename
-	errn = OS_RENAME("bin/net.new", "bin/net.ini");
-	errn = OS_RENAME("bin/nv.new", "bin/nv.ext");
-	errn = OS_RENAME("bin/gp/gpini.new", "bin/gp/gp.ini");
+	errn = OS_RENAME("bin/bin/autoexec.bat.new", "bin/autoexec.bat"); // If file already exist we dont rename
+	errn = OS_RENAME("bin/net.ini.new", "bin/net.ini");
+	errn = OS_RENAME("bin/nv.ext.new", "bin/nv.ext");
+	errn = OS_RENAME("bin/gp/gp.ini.new", "bin/gp/gp.ini");
 	errn = OS_RENAME("bin/browser/index.gph.new", "bin/browser/index.gph");
 }
 
 // Download, backup, unpack release.bin
 void fullUpdate(void)
 {
-	unsigned char relLink[] = "http://nedoos.ru/images/release.zip";
-
 	BOX(1, 1, 80, 25, 40, 176);
 	cw.x = 20;
 	cw.y = 5;
@@ -892,7 +902,6 @@ void fullUpdate(void)
 // Updating only BIN folders, where is OS lives.
 void binUpdate(void)
 {
-	unsigned char binLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/&isdir=1";
 	BOX(1, 1, 80, 25, 40, 176);
 	cw.x = 20;
 	cw.y = 5;
