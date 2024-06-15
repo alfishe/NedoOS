@@ -545,6 +545,7 @@ void espReBoot(void)
 	uart_flush();
 	sendcommand("AT+RST");
 	printf("Resetting ESP...");
+	count = 0;
 	do
 	{
 		byte = uart_readBlock();

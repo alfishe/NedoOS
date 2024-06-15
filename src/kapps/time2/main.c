@@ -20,7 +20,7 @@ unsigned int espType = 32;
 unsigned char cmd[512];
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
-const unsigned char timeUpdated[] = "+CIPSNTPTIME";
+const unsigned char timeUpdated[] = "+CIPSNTPTIME:";
 int GMT = 3;
 unsigned char is_atm;
 unsigned char netbuf[4 * 1024];
@@ -476,19 +476,19 @@ unsigned char getAnswer2(void)
 	do
 	{
 		readbyte = uart_readBlock();
-		// putdec(readbyte);
+
 	} while (((readbyte == 0x0a) || (readbyte == 0x0d)));
 
 	netbuf[curPos] = readbyte;
-	curPos++;
+
 	do
 	{
+		curPos++;
 		readbyte = uart_readBlock();
 		netbuf[curPos] = readbyte;
-		curPos++;
 	} while (readbyte != 0x0d);
-	netbuf[curPos - 1] = 0;
-	uart_readBlock(); // 0xa
+	netbuf[curPos] = 0;
+	uart_readBlock(); // 0x0a
 	//printf("Answer:[%s]\r\n", netbuf);
 	//      getchar();
 	return curPos;
@@ -497,10 +497,10 @@ unsigned char getAnswer2(void)
 void espReBoot(void)
 {
 	unsigned char byte, count;
-	uart_flush();
-
+	//uart_flush();
 	sendcommand("AT+RST");
 	printf("Resetting ESP...");
+	count = 0;
 	do
 	{
 		byte = uart_readBlock();
@@ -541,33 +541,32 @@ void espReBoot(void)
 
 void espntp_resolver(void)
 {
-	unsigned char *count1, retry = 10;
-	unsigned char byte, count;
+	unsigned char retry = 10;
+	unsigned char byte, count = 0;
 	loadEspConfig();
 	uart_init(divider);
 	espReBoot();
 
 	// AT+CIPSNTPCFG=1,8,"cn.ntp.org.cn","ntp.sjtu.edu.cn"
-retryTime:
 	weekday = 0;
 	month = 0;
 	day = 0;
 	hour = 0;
 	second = 0;
 	year = 170;
-
-	//	uart_flush();
 	strcpy(cmd, "AT+CIPSNTPCFG=1,");
 	sprintf(netbuf, "%u,\"%s\",\"time.google.com\"", GMT, defntp);
 	strcat(cmd, netbuf);
 	sendcommand(cmd);
 	getAnswer2(); // OK
+retryTime:
+	count = 0;
 	delay(250);
 	sendcommand("AT+CIPSNTPTIME?");
-	
 	do
 	{
 		byte = uart_readBlock();
+		//printf("[%c]", byte);
 		if (byte == timeUpdated[count])
 		{
 			count++;
@@ -577,18 +576,10 @@ retryTime:
 			count = 0;
 		}
 	} while (count < strlen(timeUpdated));
-	
 	getAnswer2(); // TIME
 
-	count1 = strstr(netbuf, ":");
-	if (count1 == NULL)
-	{
-		puts("Error parsing answer...");
-		puts(netbuf);
-		getchar();
-		goto retryTime;
-	}
-	strncpy(cmd, count1 + 1, 3);
+
+	strncpy(cmd, netbuf, 3);
 	cmd[3] = 0;
 
 	if (cmd[0] == 'S' && cmd[1] == 'u')
@@ -620,7 +611,7 @@ retryTime:
 		weekday = 7;
 	}
 
-	strncpy(cmd, count1 + 5, 3);
+	strncpy(cmd, netbuf + 4, 3);
 	cmd[3] = 0;
 
 	if (cmd[0] == 'J' && cmd[1] == 'a')
@@ -672,26 +663,26 @@ retryTime:
 		month = 12;
 	}
 
-	strncpy(cmd, count1 + 9, 2);
+	strncpy(cmd, netbuf + 8, 2);
 	cmd[2] = 0;
 	day = atoi(cmd);
 
-	strncpy(cmd, count1 + 12, 2);
+	strncpy(cmd, netbuf + 11, 2);
 	hour = atoi(cmd);
 
-	strncpy(cmd, count1 + 15, 2);
+	strncpy(cmd, netbuf + 14, 2);
 	minute = atoi(cmd);
 
-	strncpy(cmd, count1 + 18, 2);
+	strncpy(cmd, netbuf + 17, 2);
 	second = atoi(cmd);
 
-	strncpy(cmd, count1 + 23, 2);
+	strncpy(cmd, netbuf + 22, 2);
 	cmd[4] = 0;
 	year = atoi(cmd) + 100;
 
 	getAnswer2(); // OK
 
-	// printf("day of week:%u Month:%u day:%u hours:%u minutes:%u seconds:%u year:%u\r\n", weekday, month, day, hour, minute, second, year);
+	//printf("day of week:%u Month:%u day:%u hours:%u minutes:%u seconds:%u year:%u\r\n", weekday, month, day, hour, minute, second, year);
 
 	if (year == 170)
 	{
@@ -700,7 +691,6 @@ retryTime:
 		{
 			retry--;
 			printf("Retry [%u]\r\n", retry);
-			delay(500);
 			goto retryTime;
 		}
 		puts("error getting time...");
@@ -819,10 +809,10 @@ C_task main(int argc, char *argv[])
 		set_datetime();
 		writecmos(0x06, weekday + 1);
 	}
-
 	puts("Now time:");
 	printf("%02u-%02u-%04u ", day, month, year + 1900);
 	printf("%02u:%02u:%02u\r\n", hour, minute, second);
+	uart_flush();
 	exit(0);
 	return 0;
 }

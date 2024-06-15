@@ -332,7 +332,7 @@ unsigned int tcpRead(signed char socket)
 }
 unsigned int cutHeader(unsigned int todo)
 {
-  unsigned int recAmount, err;
+  unsigned int err;
   unsigned char *count1;
 
   err = httpError();
@@ -363,10 +363,9 @@ unsigned int cutHeader(unsigned int todo)
   else
   {
     headlng = ((unsigned int)count1 - (unsigned int)netbuf + 4);
-    recAmount = todo - headlng;
     // printf("header %u bytes\r\n", headlng);
   }
-  return recAmount;
+  return todo - headlng;
 }
 
 ////////////////////////ESP32 PROCEDURES//////////////////////
@@ -609,6 +608,7 @@ void espReBoot(void)
   uart_flush();
   sendcommand("AT+RST");
   printf("Resetting ESP...");
+  count = 0;
   do
   {
     byte = uart_readBlock();
@@ -670,7 +670,7 @@ unsigned int recvHead(void)
 unsigned int fillPictureEsp(void)
 {
   unsigned char sizeLink = 0;
-  unsigned long toDownload = 0, downloaded = 0;
+  unsigned long downloaded = 0;
   unsigned char byte, count = 0, try = 0;
   unsigned int dataSize = 0;
   unsigned char skipHeader = 0;
@@ -733,14 +733,11 @@ unsigned int fillPictureEsp(void)
     if (skipHeader == 0)
     {
       dataSize = cutHeader(dataSize);
-      toDownload = contLen;
       skipHeader = 1;
     }
     downloaded = downloaded + dataSize;
-
     memcpy(picture + downloaded - dataSize, netbuf + headlng, dataSize);
-    toDownload = toDownload - dataSize;
-  } while (toDownload > 0);
+  } while (downloaded < contLen);
   sendcommand("AT+CIPCLOSE");
   getAnswer2(); // CLOSED
   getAnswer2(); // OK
