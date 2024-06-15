@@ -72,7 +72,7 @@ unsigned char netIniLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/net.i
 unsigned char relLink[] = "http://nedoos.ru/images/release.zip";
 unsigned char nameBuf1[256];
 unsigned char *nameBuf = nameBuf1;
-//unsigned char *nameBuf = "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+// unsigned char *nameBuf = "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char cmd[256];
@@ -1283,18 +1283,17 @@ void deleteWorkFiles(void)
 
 unsigned char ren2old(unsigned char *name)
 {
-	unsigned char counter = 0;
+	unsigned char counter = 255; // For OLD must be 255 
 	OS_MKDIR((void *)name);
 	sprintf(nameBuf, "%s.old", name);
 	while (OS_RENAME((void *)name, (void *)nameBuf) != 0)
 	{
-
+		counter++;
+		sprintf(nameBuf, "%s.%u", name, counter);
 		if (counter == 255)
 		{
 			fatalError("Unable to rename old folder");
 		}
-		counter++;
-		sprintf(nameBuf, "%s.%u", name, counter);
 	}
 	return counter;
 }
@@ -1374,7 +1373,7 @@ void restoreConfig(unsigned char oldBinExt)
 	{
 		putchar(176);
 	}
-	errn = OS_RENAME("bin/bin/autoexec.bat.new", "bin/autoexec.bat"); // If file already exist we dont rename
+	errn = OS_RENAME("bin/autoexec.bat.new", "bin/autoexec.bat"); // If file already exist we dont rename
 	errn = OS_RENAME("bin/net.ini.new", "bin/net.ini");
 	errn = OS_RENAME("bin/nv.ext.new", "bin/nv.ext");
 	errn = OS_RENAME("bin/gp/gp.ini.new", "bin/gp/gp.ini");
