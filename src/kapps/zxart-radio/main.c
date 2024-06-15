@@ -1469,6 +1469,7 @@ unsigned char getTrack2(unsigned long fileId)
     sendcommand("AT+CIPCLOSE");
     getAnswer2(); // CLOSED
     getAnswer2(); // OK
+    saveBuf(curFileStruct.picId, 02, 0);
   }
   return 0;
 }
@@ -1655,7 +1656,7 @@ C_task main(int argc, char *argv[])
     {
       netDriver = 1;
       clearStatus();
-      printf("    ESP32 mode enabled...");
+      printf("    ESP-COM mode enabled...");
       loadEspConfig();
       uart_init(divider);
       espReBoot();
@@ -1890,7 +1891,7 @@ rekey:
       if (netDriver == 1)
       {
         clearStatus();
-        printf("    ESP32 mode enabled...");
+        printf("    ESP-COM mode enabled...");
         loadEspConfig();
         uart_init(divider);
         espReBoot();
