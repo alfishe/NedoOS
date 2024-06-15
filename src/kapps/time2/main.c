@@ -20,7 +20,7 @@ unsigned int espType = 32;
 unsigned char cmd[512];
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
-
+const unsigned char timeUpdated[] = "+CIPSNTPTIME";
 int GMT = 3;
 unsigned char is_atm;
 unsigned char netbuf[4 * 1024];
@@ -241,7 +241,6 @@ void delay(unsigned long counter)
 		start = time();
 	}
 }
-
 
 void uart_setrts(unsigned char mode)
 {
@@ -491,14 +490,14 @@ unsigned char getAnswer2(void)
 	netbuf[curPos - 1] = 0;
 	uart_readBlock(); // 0xa
 	//printf("Answer:[%s]\r\n", netbuf);
-	//     getchar();
+	//      getchar();
 	return curPos;
 }
 
 void espReBoot(void)
 {
 	unsigned char byte, count;
-	//uart_flush();
+	uart_flush();
 
 	sendcommand("AT+RST");
 	printf("Resetting ESP...");
@@ -526,24 +525,24 @@ void espReBoot(void)
 	// puts("Answer:[OK]");
 	uart_readBlock(); // CR
 	uart_readBlock(); // LN
-	/*
-		sendcommand("AT+CIPCLOSE");
-		getAnswer2();
-		sendcommand("AT+CIPDINFO=0");
-		getAnswer2();
-		sendcommand("AT+CIPMUX=0");
-		getAnswer2();
-		sendcommand("AT+CIPSERVER=0");
-		getAnswer2();
-		sendcommand("AT+CIPRECVMODE=0");
-		getAnswer2();
-	*/
+					  /*
+						  sendcommand("AT+CIPCLOSE");
+						  getAnswer2();
+						  sendcommand("AT+CIPDINFO=0");
+						  getAnswer2();
+						  sendcommand("AT+CIPMUX=0");
+						  getAnswer2();
+						  sendcommand("AT+CIPSERVER=0");
+						  getAnswer2();
+						  sendcommand("AT+CIPRECVMODE=0");
+						  getAnswer2();
+					  */
 }
 
 void espntp_resolver(void)
 {
 	unsigned char *count1, retry = 10;
-
+	unsigned char byte, count;
 	loadEspConfig();
 	uart_init(divider);
 	espReBoot();
@@ -565,7 +564,21 @@ retryTime:
 	getAnswer2(); // OK
 	delay(250);
 	sendcommand("AT+CIPSNTPTIME?");
-	getAnswer2();// TIME
+	
+	do
+	{
+		byte = uart_readBlock();
+		if (byte == timeUpdated[count])
+		{
+			count++;
+		}
+		else
+		{
+			count = 0;
+		}
+	} while (count < strlen(timeUpdated));
+	
+	getAnswer2(); // TIME
 
 	count1 = strstr(netbuf, ":");
 	if (count1 == NULL)
@@ -677,9 +690,9 @@ retryTime:
 	year = atoi(cmd) + 100;
 
 	getAnswer2(); // OK
-	
-	//printf("day of week:%u Month:%u day:%u hours:%u minutes:%u seconds:%u year:%u\r\n", weekday, month, day, hour, minute, second, year);
-	
+
+	// printf("day of week:%u Month:%u day:%u hours:%u minutes:%u seconds:%u year:%u\r\n", weekday, month, day, hour, minute, second, year);
+
 	if (year == 170)
 	{
 		YIELD();
