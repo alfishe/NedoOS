@@ -465,7 +465,7 @@ void sendcommand(char *commandline)
 	}
 	uart_write('\r');
 	uart_write('\n');
-	//printf("Sended:[%s] \r\n", commandline);
+	// printf("Sended:[%s] \r\n", commandline);
 	YIELD();
 }
 
@@ -489,15 +489,15 @@ unsigned char getAnswer2(void)
 	} while (readbyte != 0x0d);
 	netbuf[curPos] = 0;
 	uart_readBlock(); // 0x0a
-	//printf("Answer:[%s]\r\n", netbuf);
-	//      getchar();
+	// printf("Answer:[%s]\r\n", netbuf);
+	//       getchar();
 	return curPos;
 }
 
 void espReBoot(void)
 {
 	unsigned char byte, count;
-	//uart_flush();
+	// uart_flush();
 	sendcommand("AT+RST");
 	printf("Resetting ESP...");
 	count = 0;
@@ -525,18 +525,17 @@ void espReBoot(void)
 	// puts("Answer:[OK]");
 	uart_readBlock(); // CR
 	uart_readBlock(); // LN
-					  /*
-						  sendcommand("AT+CIPCLOSE");
-						  getAnswer2();
-						  sendcommand("AT+CIPDINFO=0");
-						  getAnswer2();
-						  sendcommand("AT+CIPMUX=0");
-						  getAnswer2();
-						  sendcommand("AT+CIPSERVER=0");
-						  getAnswer2();
-						  sendcommand("AT+CIPRECVMODE=0");
-						  getAnswer2();
-					  */
+
+	sendcommand("AT+CIPCLOSE");
+	getAnswer2();
+	sendcommand("AT+CIPDINFO=0");
+	getAnswer2();
+	sendcommand("AT+CIPMUX=0");
+	getAnswer2();
+	sendcommand("AT+CIPSERVER=0");
+	getAnswer2();
+	sendcommand("AT+CIPRECVMODE=0");
+	getAnswer2();
 }
 
 void espntp_resolver(void)
@@ -566,7 +565,7 @@ retryTime:
 	do
 	{
 		byte = uart_readBlock();
-		//printf("[%c]", byte);
+		// printf("[%c]", byte);
 		if (byte == timeUpdated[count])
 		{
 			count++;
@@ -577,7 +576,6 @@ retryTime:
 		}
 	} while (count < strlen(timeUpdated));
 	getAnswer2(); // TIME
-
 
 	strncpy(cmd, netbuf, 3);
 	cmd[3] = 0;
@@ -682,7 +680,7 @@ retryTime:
 
 	getAnswer2(); // OK
 
-	//printf("day of week:%u Month:%u day:%u hours:%u minutes:%u seconds:%u year:%u\r\n", weekday, month, day, hour, minute, second, year);
+	// printf("day of week:%u Month:%u day:%u hours:%u minutes:%u seconds:%u year:%u\r\n", weekday, month, day, hour, minute, second, year);
 
 	if (year == 170)
 	{
@@ -691,6 +689,7 @@ retryTime:
 		{
 			retry--;
 			printf("Retry [%u]\r\n", retry);
+			delay(250);
 			goto retryTime;
 		}
 		puts("error getting time...");
@@ -812,7 +811,7 @@ C_task main(int argc, char *argv[])
 	puts("Now time:");
 	printf("%02u-%02u-%04u ", day, month, year + 1900);
 	printf("%02u:%02u:%02u\r\n", hour, minute, second);
-	uart_flush();
+	uart_setrts(1);
 	exit(0);
 	return 0;
 }
