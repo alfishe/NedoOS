@@ -23,7 +23,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "0.47";
+unsigned char uVer[] = "0.48";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -31,8 +31,8 @@ unsigned int errn, headlng;
 unsigned long contLen;
 unsigned char saveFlag, saveBak;
 unsigned char crlf[2] = {13, 10};
-unsigned long downloaded;
-unsigned char status, key, curFormat;
+
+unsigned char status, curFormat;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 FILE *fp2;
@@ -57,8 +57,7 @@ struct configuration
 	unsigned char is_atm;
 } config;
 
-unsigned int bufSize = 2048; // Some memory corruption at this point, some QnD
-unsigned char netbuf[2048];
+unsigned char netbuf[4096];
 
 unsigned char cmdlist1[] = " HTTP/1.1\r\nHost: nedoos.ru\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
 unsigned char binLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/&isdir=1";
@@ -71,7 +70,14 @@ unsigned char newsLink[] = "/svn/dl.php?repname=NedoOS&path=/release/doc/updater
 unsigned char wizNetLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/wizcfg.com";
 unsigned char netIniLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/net.ini";
 unsigned char relLink[] = "http://nedoos.ru/images/release.zip";
-unsigned char *nameBuf = "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+unsigned char nameBuf1[256];
+unsigned char *nameBuf = nameBuf1;
+//unsigned char *nameBuf = "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+const unsigned char sendOk[] = "SEND OK";
+const unsigned char gotWiFi[] = "WIFI GOT IP";
+unsigned char cmd[256];
+unsigned char link[512];
+unsigned char dataBuffer[4096];
 
 void clearStatus(void)
 {
@@ -217,7 +223,6 @@ void fatalError(unsigned char *message)
 	cw.h = 4;
 	cw.text = 97;
 	cw.back = 41;
-
 	drawWindow(cw);
 	AT(cw.x + 2, cw.y + 3);
 	printf("%s", message);
@@ -302,8 +307,351 @@ unsigned char OS_SHELL(unsigned char *command)
 	OS_WAITPID(shell_pg.pgs.pId);
 	return shell_pg.pgs.pId;
 }
+
+////////////////////////ESP32 PROCEDURES//////////////////////
+void uart_write(unsigned char data)
+{
+	unsigned char status;
+	switch (comType)
+	{
+	case 0:
+	case 2:
+		while ((input(LSR) & 64) == 0)
+		{
+		}
+		output(RBR_THR, data);
+		break;
+	case 1:
+		disable_interrupt();
+		do
+		{
+			input(0x55fe);			// Переход в режим команд
+			status = input(0x42fe); // Команда прочесть статус
+		} while ((status & 64) == 0); // Проверяем 6 бит
+
+		input(0x55fe);				 // Переход в режим команд
+		input(0x03fe);				 // Команда записать в порт
+		input((data << 8) | 0x00fe); // Записываем data в порт
+		enable_interrupt();
+		break;
+	}
+}
+
+void uart_setrts(unsigned char mode)
+{
+	switch (comType)
+	{
+	case 0:
+		switch (mode)
+		{
+		case 1:
+			output(MCR, 2);
+			break;
+		case 0:
+			output(MCR, 0);
+			break;
+		default:
+			disable_interrupt();
+			output(MCR, 2);
+			output(MCR, 0);
+			enable_interrupt();
+			break;
+		}
+	case 1:
+		switch (mode)
+		{
+		case 1:
+			disable_interrupt();
+			input(0x55fe); // Переход в режим команд
+			input(0x43fe); // Команда установить статус
+			input(0x03fe); // Устанавливаем готовность DTR и RTS
+			enable_interrupt();
+			break;
+		case 0:
+			disable_interrupt();
+			input(0x55fe); // Переход в режим команд
+			input(0x43fe); // Команда установить статус
+			input(0x00fe); // Снимаем готовность DTR и RTS
+			enable_interrupt();
+			break;
+		default:
+			disable_interrupt();
+			input(0x55fe); // Переход в режим команд
+			input(0x43fe); // Команда установить статус
+			input(0x03fe); // Устанавливаем готовность DTR и RTS
+			input(0x55fe); // Переход в режим команд
+			input(0x43fe); // Команда установить статус
+			input(0x00fe); // Снимаем готовность DTR и RTS
+			enable_interrupt();
+			break;
+		}
+	case 2:
+		break;
+	}
+}
+
+void uart_init(unsigned char divisor)
+{
+	switch (comType)
+	{
+	case 0:
+	case 2:
+		output(MCR, 0x00);		  // Disable input
+		output(IIR_FCR, 0x87);	  // Enable fifo 8 level, and clear it
+		output(LCR, 0x83);		  // 8n1, DLAB=1
+		output(RBR_THR, divisor); // 115200 (divider 1-115200, 3 - 38400)
+		output(IER, 0x00);		  // (divider 0). Divider is 16 bit, so we get (#0002 divider)
+		output(LCR, 0x03);		  // 8n1, DLAB=0
+		output(IER, 0x00);		  // Disable int
+		output(MCR, 0x2f);		  // Enable AFE
+		break;
+	case 1:
+		disable_interrupt();
+		input(0x55fe);
+		input(0xc3fe);
+		input((divisor << 8) | 0x00fe);
+		enable_interrupt();
+		break;
+	}
+}
+
+unsigned char uart_hasByte(void)
+{
+	unsigned char queue;
+	switch (comType)
+	{
+	case 0:
+	case 2:
+		return (1 & input(LSR));
+	case 1:
+		disable_interrupt();
+		input(0x55fe);		   // Переход в режим команд
+		queue = input(0xc2fe); // Получаем количество байт в приемном буфере
+		enable_interrupt();
+		return queue;
+	}
+	return 255;
+}
+
+unsigned char uart_read(void)
+{
+	unsigned char data;
+	switch (comType)
+	{
+	case 0:
+	case 2:
+		return input(RBR_THR);
+	case 1:
+		disable_interrupt();
+		input(0x55fe);		  // Переход в режим команд
+		data = input(0x02fe); // Команда прочесть из порта
+		enable_interrupt();
+		return data;
+	}
+	return 255;
+}
+
+unsigned char uart_readBlock(void)
+{
+	unsigned char data;
+	switch (comType)
+	{
+	case 0:
+		while (uart_hasByte() == 0)
+		{
+			uart_setrts(2);
+		}
+		return input(RBR_THR);
+	case 1:
+		while (uart_hasByte() == 0)
+		{
+			uart_setrts(2);
+		}
+		disable_interrupt();
+		input(0x55fe);		  // Переход в режим команд
+		data = input(0x02fe); // Команда прочесть из порта
+		enable_interrupt();
+		return data;
+	case 2:
+		while (uart_hasByte() == 0)
+		{
+		}
+		return input(RBR_THR);
+	}
+	return 255;
+}
+
+void uart_flush(void)
+{
+	unsigned int count;
+	for (count = 0; count < 6000; count++)
+	{
+		uart_setrts(1);
+		uart_read();
+	}
+}
+
+void getdataEsp(unsigned int counted)
+{
+	unsigned int counter;
+	for (counter = 0; counter < counted; counter++)
+	{
+		netbuf[counter] = uart_readBlock();
+	}
+	netbuf[counter] = 0;
+}
+
+void sendcommand(char *commandline)
+{
+	unsigned int count, cmdLen;
+	cmdLen = strlen(commandline);
+	for (count = 0; count < cmdLen; count++)
+	{
+		uart_write(commandline[count]);
+	}
+	uart_write('\r');
+	uart_write('\n');
+	// printf("Sended:[%s] \r\n", commandline);
+}
+
+unsigned char getAnswer2(void)
+{
+	unsigned char readbyte;
+	unsigned int curPos = 0;
+	do
+	{
+		readbyte = uart_readBlock();
+		// putdec(readbyte);
+	} while (((readbyte == 0x0a) || (readbyte == 0x0d)));
+
+	netbuf[curPos] = readbyte;
+	curPos++;
+	do
+	{
+		readbyte = uart_readBlock();
+		netbuf[curPos] = readbyte;
+		curPos++;
+	} while (readbyte != 0x0d);
+	netbuf[curPos - 1] = 0;
+	uart_readBlock(); // 0xa
+	// printf("Answer:[%s]\r\n", netbuf);
+	//    getchar();
+	return curPos;
+}
+
+void espReBoot(void)
+{
+	unsigned char byte, count;
+	uart_flush();
+	sendcommand("AT+RST");
+	printf("Resetting ESP...");
+	do
+	{
+		byte = uart_readBlock();
+		if (byte == gotWiFi[count])
+		{
+			count++;
+		}
+		else
+		{
+			count = 0;
+		}
+	} while (count < strlen(gotWiFi));
+	uart_readBlock(); // CR
+	uart_readBlock(); // LF
+	printf("Reset complete.");
+
+	sendcommand("ATE0");
+	do
+	{
+		byte = uart_readBlock();
+	} while (byte != 'K'); // OK
+	// puts("ATE0 Answer:[OK]");
+	uart_readBlock(); // CR
+	uart_readBlock(); // LN
+
+	sendcommand("AT+CIPCLOSE");
+	getAnswer2();
+	sendcommand("AT+CIPDINFO=0");
+	getAnswer2();
+	sendcommand("AT+CIPMUX=0");
+	getAnswer2();
+	sendcommand("AT+CIPSERVER=0");
+	getAnswer2();
+	sendcommand("AT+CIPRECVMODE=0");
+	getAnswer2();
+}
+
+unsigned int recvHead(void)
+{
+	unsigned char byte, dataRead = 0;
+	unsigned int loaded;
+	do
+	{
+		byte = uart_readBlock();
+	} while (byte != ',');
+
+	dataRead = 0;
+	do
+	{
+		byte = uart_readBlock();
+		netbuf[dataRead] = byte;
+		dataRead++;
+	} while (byte != ':');
+	netbuf[dataRead] = 0;
+	loaded = atoi(netbuf); // <actual_len>
+	// printf("\r\n loaded %u\r\n", loaded);
+	return loaded;
+}
+
+void loadEspConfig(void)
+{
+	unsigned char curParam[256];
+	unsigned char res;
+	FILE *espcom;
+	OS_SETSYSDRV();
+	OS_CHDIR("browser");
+	espcom = OS_OPENHANDLE("espcom.ini", 0x80);
+	if (((int)espcom) & 0xff)
+	{
+		clearStatus();
+		printf("mrfesp.ini opening error");
+		return;
+	}
+
+	OS_READHANDLE(curParam, espcom, 256);
+
+	res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u %u %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider, &comType, &espType);
+	puts("Config loaded:");
+	if (comType == 1)
+	{
+		puts("     Controller base port: 0x55fe");
+	}
+	else
+	{
+		printf("     RBR_THR:0x%4x     IER    :0x%4x\r\n     IIR_FCR:0x%4x     LCR    :0x%4x\r\n", RBR_THR, IER, IIR_FCR, LCR);
+		printf("     MCR    :0x%4x     LSR    :0x%4x\r\n     MSR    :0x%4x     SR     :0x%4x\r\n", MCR, LSR, MSR, SR);
+	}
+	printf("     DIV    :%u    TYPE    :%u    ESP    :%u ", divider, comType, espType);
+	switch (comType)
+	{
+	case 0:
+		puts("(16550 like w/o AFC)");
+		break;
+	case 1:
+		puts("(ATM Turbo 2+)");
+		break;
+	case 2:
+		puts("(16550 with AFC)");
+	default:
+		puts("(Unknown type)");
+		break;
+	}
+}
+
+////////////////////////ESP32 PROCEDURES//////////////////////
+
 //////////////// NETWORK PART //////////////////////
-// #include <network.c>
 void errorPrint(unsigned int error)
 {
 	clearStatus();
@@ -352,11 +700,10 @@ void errorPrint(unsigned int error)
 		printf("[%u] UNKNOWN ERROR", error);
 		break;
 	}
-	YIELD();
 	do
 	{
-		key = _low_level_get();
-	} while (key == 0);
+		YIELD();
+	} while (_low_level_get() == 0);
 }
 
 unsigned int httpError(void)
@@ -486,7 +833,6 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 	if (operation == 01)
 	{
 		OS_WRITEHANDLE(netbuf + headlng, fp2, sizeOfBuf);
-		downloaded = downloaded + sizeOfBuf;
 		return 0;
 	}
 
@@ -498,22 +844,13 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 	return 0;
 }
 
-void cancel(void)
-{
-	key = _low_level_get();
-	if (key == 27)
-	{
-		fatalError("File download aborted!");
-	}
-}
-
 unsigned int tcpRead(unsigned char socket)
 {
 	unsigned char retry = 20;
 	unsigned int todo;
 	readStruct.socket = socket;
 	readStruct.BufAdr = (unsigned int)&netbuf;
-	readStruct.bufsize = bufSize;
+	readStruct.bufsize = sizeof(netbuf);
 	readStruct.protocol = SOCK_STREAM;
 
 	while (retry > 0)
@@ -606,7 +943,10 @@ wizwrite:
 			exit(0);
 		}
 		retry--;
-		cancel();
+		if (_low_level_get() == 27)
+		{
+			fatalError("File download aborted!");
+		}
 		delay(100);
 		goto wizwrite;
 	}
@@ -617,56 +957,271 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 {
 	unsigned int todo;
 	unsigned char socket;
-	unsigned int headskip = 0;
-	unsigned long bytecount;
+	unsigned int skipHeader = 0;
 	unsigned int fileSize1;
+	unsigned long downloaded = 0;
+
+	unsigned char sizeLink;
+	unsigned char byte, count = 0, try = 0;
+	unsigned char *count1;
 
 	strcpy(netbuf, "GET ");
 	strcat(netbuf, fileLink);
 	strcat(netbuf, cmdlist1);
 	clearStatus();
-	socket = OpenSock(AF_INET, SOCK_STREAM);
-	todo = netConnect(socket);
-	todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
-
-	downloaded = 0;
 	AT(1, 24);
 	printf("%s", fileNamePtr);
 
-	do
+	if (netDriver == 0)
 	{
-		headlng = 0;
-		todo = tcpRead(socket);
-		if (todo == 0)
+		socket = OpenSock(AF_INET, SOCK_STREAM);
+		todo = netConnect(socket);
+		todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
+		do
 		{
-			break;
-		}
-		if (headskip == 0)
+			headlng = 0;
+			todo = tcpRead(socket);
+			if (todo == 0)
+			{
+				break;
+			}
+			if (skipHeader == 0)
+			{
+				skipHeader = 1;
+				todo = cutHeader(todo);
+				fileSize1 = contLen / 1024;
+				saveBuf(fileNamePtr, 00, 0);
+			}
+			downloaded = downloaded + todo;
+			AT(32, 24);
+			printf("%lu of %u kb  ", downloaded / 1024, fileSize1);
+
+			saveBuf(fileNamePtr, 01, todo);
+			if (_low_level_get() == 27)
+			{
+				fatalError("File download aborted!");
+			}
+		} while (downloaded < contLen);
+
+		netShutDown(socket, 0);
+		saveBuf(fileNamePtr, 02, 00);
+
+		if (downloaded != contLen)
 		{
-			headskip = 1;
-			todo = cutHeader(todo);
-			fileSize1 = contLen / 1024;
-			bytecount = contLen;
-			saveBuf(fileNamePtr, 00, 0);
+			fatalError("File download error!");
 		}
-		AT(32, 24);
-		printf("%lu of %u kb  ", downloaded / 1024, fileSize1);
-
-		saveBuf(fileNamePtr, 01, todo);
-		bytecount = bytecount - todo;
-		cancel();
-	} while (bytecount != 0);
-
-	netShutDown(socket, 0);
-	saveBuf(fileNamePtr, 02, 00);
-	if (downloaded != contLen)
-	{
-		fatalError("File download error!");
 	}
+	if (netDriver == 1)
+	{
+		strcpy(link, netbuf);
+		sizeLink = strlen(link);
+		try = 0;
+		do
+		{
+			try++;
+			if (try > 1)
+			{
+				clearStatus();
+				printf("----->Retry:%u", try);
+				delay(500);
+			}
+			sendcommand("AT+CIPSTART=\"TCP\",\"nedoos.ru\",80");
+			getAnswer2(); // CONNECT or ERROR or link is not valid
+			count1 = strstr(netbuf, "CONNECT");
+		} while (count1 == NULL);
+
+		getAnswer2(); // OK
+
+		strcpy(cmd, "AT+CIPSEND=");
+		sprintf(netbuf, "%u", sizeLink + 2); // second CRLF in send command
+		strcat(cmd, netbuf);
+		sendcommand(cmd);
+		getAnswer2();
+
+		do
+		{
+			byte = uart_readBlock();
+			// putchar(byte);
+		} while (byte != '>');
+		sendcommand(link);
+		count = 0;
+
+		do
+		{
+			byte = uart_readBlock();
+			if (byte == sendOk[count])
+			{
+				count++;
+			}
+			else
+			{
+				count = 0;
+			}
+		} while (count < strlen(sendOk));
+		uart_readBlock(); // CR
+		uart_readBlock(); // LF
+
+		do
+		{
+			headlng = 0;
+			todo = recvHead();
+			getdataEsp(todo); // Requested size
+			if (skipHeader == 0)
+			{
+				skipHeader = 1;
+				todo = cutHeader(todo);
+				fileSize1 = contLen / 1024;
+				saveBuf(fileNamePtr, 00, 0);
+			}
+			downloaded = downloaded + todo;
+			AT(32, 24);
+			printf("%lu of %u kb   ", downloaded / 1024, fileSize1);
+
+			saveBuf(fileNamePtr, 01, todo);
+
+			if (_low_level_get() == 27)
+			{
+				fatalError("File download aborted!");
+			}
+		} while (downloaded < contLen);
+		saveBuf(fileNamePtr, 02, 00);
+		sendcommand("AT+CIPCLOSE");
+		getAnswer2(); // CLOSED
+		getAnswer2(); // OK
+	}
+
 	return 0;
 }
 ////////////////////////////////////////////////////
+/*
+unsigned char getTrack2(unsigned long fileId)
+{
+	unsigned int todo;
+	unsigned char socket;
+	unsigned int skipHeader = 0;
+	unsigned long bytecount;
+	unsigned int packSize = 2000;
+	unsigned char sizeLink;
+	unsigned long toDownload, downloaded;
+	unsigned char try = 0, byte = 0;
+	unsigned int todo, count;
+	unsigned char *count1;
+	clearStatus();
+	printf("Getting track...");
 
+	if (netDriver == 0)
+	{
+		strcpy(netbuf, cmdlist1);
+		sprintf(buffer, "%lu", fileId);
+		strcat(netbuf, buffer);
+		strcat(netbuf, userAgent);
+
+		socket = OpenSock(AF_INET, SOCK_STREAM);
+		todo = netConnect(socket);
+		todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
+		saveBuf(curFileStruct.picId, 00, 0);
+		do
+		{
+			todo = tcpRead(socket);
+			if (todo == 0)
+			{
+				break;
+			}
+			if (skipHeader == 0)
+			{
+				skipHeader = 1;
+				todo = cutHeader(todo);
+				bytecount = contLen;
+			}
+			saveBuf(curFileStruct.picId, 01, todo);
+			bytecount = bytecount - todo;
+		} while (bytecount != 0);
+		netShutDown(socket, 0);
+	}
+	else
+	{
+		sprintf(buffer, "%lu", fileId);
+		strcpy(netbuf, cmdlist1);
+		strcat(netbuf, buffer);
+		strcat(netbuf, userAgent);
+		saveBuf(curFileStruct.picId, 00, 0);
+
+		strcpy(link, netbuf);
+		sizeLink = strlen(link);
+		try = 0;
+		do
+		{
+			try++;
+			if (try > 1)
+			{
+				clearStatus();
+				printf("----->Retry:%u", try);
+				delay(500);
+			}
+			sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
+			getAnswer2(); // CONNECT or ERROR or link is not valid
+			count1 = strstr(netbuf, "CONNECT");
+		} while (count1 == NULL);
+
+		getAnswer2(); // OK
+
+		strcpy(netbuf, cmdlist1);
+		sprintf(buffer, "%lu", fileId);
+		strcat(netbuf, buffer);
+		strcat(netbuf, userAgent);
+		strcpy(cmd, "AT+CIPSEND=");
+		sprintf(netbuf, "%u", sizeLink + 2); // second CRLF in send command
+		strcat(cmd, netbuf);
+		sendcommand(cmd);
+		getAnswer2();
+
+		do
+		{
+			byte = uart_readBlock();
+			// putchar(byte);
+		} while (byte != '>');
+		sendcommand(link);
+		count = 0;
+
+		do
+		{
+			byte = uart_readBlock();
+			if (byte == sendOk[count])
+			{
+				count++;
+			}
+			else
+			{
+				count = 0;
+			}
+		} while (count < strlen(sendOk));
+		uart_readBlock(); // CR
+		uart_readBlock(); // LF
+		skipHeader = 0;
+		downloaded = 0;
+
+		do
+		{
+			headlng = 0;
+			todo = recvHead();
+			getdataEsp(todo); // Requested size
+			if (skipHeader == 0)
+			{
+				todo = cutHeader(todo);
+				toDownload = contLen;
+				skipHeader = 1;
+			}
+			downloaded = downloaded + todo;
+			saveBuf(curFileStruct.picId, 01, todo);
+			toDownload = toDownload - todo;
+		} while (toDownload > 0);
+		sendcommand("AT+CIPCLOSE");
+		getAnswer2(); // CLOSED
+		getAnswer2(); // OK
+	}
+	return 0;
+}
+*/
 unsigned char getConfig(void)
 {
 	config.is_atm = (unsigned char)OS_GETCONFIG();
@@ -733,7 +1288,7 @@ unsigned char ren2old(unsigned char *name)
 	sprintf(nameBuf, "%s.old", name);
 	while (OS_RENAME((void *)name, (void *)nameBuf) != 0)
 	{
-		
+
 		if (counter == 255)
 		{
 			fatalError("Unable to rename old folder");
@@ -750,6 +1305,7 @@ void ren2tar(void)
 	do
 	{
 		sprintf(nameBuf, "bin.r%u", counter);
+
 		errn = OS_RENAME((void *)nameBuf, "bin.tar");
 		counter--;
 		if (counter < 2000)
@@ -795,8 +1351,6 @@ void restoreConfig(unsigned char oldBinExt)
 
 		errn = OS_SHELL("copy bin.old/nv.ext bin/nv.ext");
 
-		errn = OS_SHELL("copy bin.old/nv.pth bin/nv.pth");
-
 		errn = OS_SHELL("copy bin.old/gp/gp.ini bin/gp/gp.ini");
 		errn = OS_SHELL("copy bin.old/browser/index.gph bin/browser/index.gph");
 	}
@@ -809,8 +1363,6 @@ void restoreConfig(unsigned char oldBinExt)
 		OS_SHELL((void *)nameBuf);
 
 		sprintf(nameBuf, "copy bin.%u/nv.ext bin/nv.ext", oldBinExt);
-		OS_SHELL((void *)nameBuf);
-		sprintf(nameBuf, "copy bin.%u/nv.pth bin/nv.pth", oldBinExt);
 		OS_SHELL((void *)nameBuf);
 		sprintf(nameBuf, "copy bin.%u/gp/gp.ini bin/gp/gp.ini", oldBinExt);
 		OS_SHELL((void *)nameBuf);
@@ -960,7 +1512,6 @@ void binUpdate(void)
 	AT(cw.x + 2, cw.y + 3);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-
 	printf("3.Renaming bin.r?? to bin.tar...");
 
 	ren2tar();
@@ -1011,6 +1562,26 @@ C_task main(int argc, char *argv[])
 	{
 		if (argv[1][0] == 'F')
 		{
+			fullUpdate();
+		}
+		else if (argv[1][0] == 'e')
+		{
+			netDriver = 1;
+			clearStatus();
+			printf("    ESP-COM mode enabled...");
+			loadEspConfig();
+			uart_init(divider);
+			espReBoot();
+			binUpdate();
+		}
+		else if (argv[1][0] == 'E')
+		{
+			netDriver = 1;
+			clearStatus();
+			printf("    ESP-COM mode enabled...");
+			loadEspConfig();
+			uart_init(divider);
+			espReBoot();
 			fullUpdate();
 		}
 		else
