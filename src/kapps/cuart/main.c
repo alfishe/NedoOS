@@ -15,6 +15,7 @@ unsigned int MSR = 0xfeef;
 unsigned int SR = 0xffef;
 unsigned int divider = 1;
 unsigned char comType = 0;
+unsigned int espType = 32;
 unsigned char directMode = 0;
 
 unsigned char key;
@@ -57,25 +58,32 @@ void loadEspConfig(void)
   }
 
   OS_READHANDLE(curParam, espcom, 256);
+  
+  res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u %u %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider, &comType, &espType);
 
-  res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider, &comType);
-  puts("Config loaded:");
-  printf("     RBR_THR:0x%4x     IER    :0x%4x     \r\n     IIR_FCR:0x%4x     LCR    :0x%4x\r\n", RBR_THR, IER, IIR_FCR, LCR);
-  printf("     MCR    :0x%4x     LSR    :0x%4x     \r\n     MSR    :0x%4x     SR     :0x%4x\r\n", MCR, LSR, MSR, SR);
-  printf("     DIVIDER:%4u       TYPE   :%4u(", divider, comType);
+  if (comType == 1)
+  {
+    puts("     Controller base port: 0x55fe");
+  }
+  else
+  {
+    printf("     RBR_THR:0x%4x\r\n     IER    :0x%4x\r\n     IIR_FCR:0x%4x\r\n     LCR    :0x%4x\r\n", RBR_THR, IER, IIR_FCR, LCR);
+    printf("     MCR    :0x%4x\r\n     LSR    :0x%4x\r\n     MSR    :0x%4x\r\n     SR     :0x%4x\r\n", MCR, LSR, MSR, SR);
+  }
+  printf("     DIVIDER:%u  ESP:%u  TYPE:%u", divider, espType, comType);
 
   switch (comType)
   {
   case 0:
-    puts("16550 like w/o AFC)");
+    puts("(16550 like w/o AFC)");
     break;
   case 1:
-    puts("ATM Turbo 2+)");
+    puts("(ATM Turbo 2+)");
     break;
   case 2:
-    puts("16550 like with AFC)");
+    puts("(16550 like with AFC)");
   default:
-    puts("Unknown type)");
+    puts("(Unknown type)");
     break;
   }
 }
@@ -220,7 +228,7 @@ unsigned char uart_readBlock(void)
       uart_setrts(2);
     }
     disable_interrupt();
-    input(0x55fe); // Переход в режим команд
+    input(0x55fe);        // Переход в режим команд
     data = input(0x02fe); // Команда прочесть из порта
     enable_interrupt();
     return data;
@@ -243,7 +251,7 @@ unsigned char uart_read(void)
     return input(RBR_THR);
   case 1:
     disable_interrupt();
-    input(0x55fe); // Переход в режим команд
+    input(0x55fe);        // Переход в режим команд
     data = input(0x02fe); // Команда прочесть из порта
     enable_interrupt();
     return data;
@@ -505,7 +513,12 @@ C_task main(void)
         break;
 
       case 21: // <ext> + <U>
-        sendcommand("AT+CIUPDATE");
+        // sendcommand("AT+CIUPDATE");
+        sendcommand("AT+CIPSNTPTIME?");
+        delay(1000);
+        sendcommand("AT+CIPSNTPCFG=1,300,\"0.pool.ntp.org\",\"time.google.com\"");
+        delay(1000);
+        sendcommand("AT+CIPSNTPTIME?");
         key = 0;
         break;
       }
