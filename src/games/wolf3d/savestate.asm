@@ -20,6 +20,8 @@ health
         db 20
 bullets
         db 10
+grenades
+        db 2
 leveltime
         dw 0
 gametime

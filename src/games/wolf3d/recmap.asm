@@ -200,6 +200,8 @@ remonsq
         LD HL,#C000
         CALL INICLS
        ENDIF 
+        ld a,55
+        ld (drawhudflag),a
 
         XOR A
         LD H,scrbuf/256
@@ -225,5 +227,5 @@ INICLS
         LD BC,767
         LD (HL),colour
         LDIR 
-        RET 
+        ret
        endif

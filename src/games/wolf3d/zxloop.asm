@@ -1,4 +1,9 @@
 ZXLOOP
+drawhudflag=$
+        scf
+        call c,drawhud
+        ld a,55+128
+        ld (drawhudflag),a
        if atm
        call changescrpg
 ;        ld a,1
@@ -189,5 +194,7 @@ pgsfx=$+1
        else
         inc a
 	call queue_next
-	ret ;TODO
+        ld a,55
+        ld (drawhudflag),a ;звук значит событие
+        ret
        endif

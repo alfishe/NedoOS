@@ -15,6 +15,7 @@ copy wolfspr3.bmp wolf3d
 rem "../../_sdk/nedores.exe" textures_01_64x64_.bmp walls.dat walls.ast
 "../../_sdk/nedores.exe" goods.bmp goods.dat goods.ast
 "../../_sdk/nedores.exe" goods2.bmp goods.dat goods2.ast
+nedores frontscr.bmp hud.dat hud.ast
 sjasmplus --nologo --msg=war walls.ast --raw=walls.bin
 sjasmplus --nologo --msg=war walls2.ast --raw=walls2.bin
 sjasmplus --nologo --msg=war goods.ast --raw=goods.bin

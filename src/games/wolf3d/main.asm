@@ -409,6 +409,10 @@ gettexpgsturn1
         pop de ;e=pg
         ret
 
+drawhud
+;TODO
+        ret
+
 shutay
 	ld de,0xe00
 shutay0
