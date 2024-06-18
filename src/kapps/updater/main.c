@@ -1284,7 +1284,7 @@ void deleteWorkFiles(void)
 
 unsigned char ren2old(unsigned char *name)
 {
-	unsigned char counter = 255; // For OLD must be 255 
+	unsigned char counter = 255; // For OLD must be 255
 	OS_MKDIR((void *)name);
 	sprintf(nameBuf, "%s.old", name);
 	while (OS_RENAME((void *)name, (void *)nameBuf) != 0)
@@ -1340,7 +1340,7 @@ void restoreConfig(unsigned char oldBinExt)
 	errn = OS_RENAME("bin/nv.ext", "bin/nv.ext.new");
 	errn = OS_RENAME("bin/gp/gp.ini", "bin/gp/gp.ini.new");
 	errn = OS_RENAME("/bin/browser/index.gph", "/bin/browser/index.gph.new");
-
+	errn = OS_RENAME("/bin/browser/espcom.ini", "/bin/browser/espcom.ini.new");
 	errn = OS_CHDIR("/");
 
 	if (oldBinExt == 255)
@@ -1353,6 +1353,7 @@ void restoreConfig(unsigned char oldBinExt)
 
 		errn = OS_SHELL("copy bin.old/gp/gp.ini bin/gp/gp.ini");
 		errn = OS_SHELL("copy bin.old/browser/index.gph bin/browser/index.gph");
+		errn = OS_SHELL("copy bin.old/browser/espcom.ini bin/browser/espcom.ini");
 	}
 	else
 	{
@@ -1368,8 +1369,11 @@ void restoreConfig(unsigned char oldBinExt)
 		OS_SHELL((void *)nameBuf);
 		sprintf(nameBuf, "copy bin.%u/browser/index.gph bin/browser/index.gph", oldBinExt);
 		OS_SHELL((void *)nameBuf);
+		sprintf(nameBuf, "copy bin.%u/browser/espcom.ini bin/browser/espcom.ini", oldBinExt);
+		OS_SHELL((void *)nameBuf);
 	}
 	AT(1, 4);
+	ATRIB(40);
 	for (count = 0; count < 15; count++)
 	{
 		putchar(176);
@@ -1379,6 +1383,7 @@ void restoreConfig(unsigned char oldBinExt)
 	errn = OS_RENAME("bin/nv.ext.new", "bin/nv.ext");
 	errn = OS_RENAME("bin/gp/gp.ini.new", "bin/gp/gp.ini");
 	errn = OS_RENAME("bin/browser/index.gph.new", "bin/browser/index.gph");
+	errn = OS_RENAME("bin/browser/espcom.ini.new", "bin/browser/espcom.ini");
 }
 
 // Download, backup, unpack release.bin
@@ -1602,8 +1607,8 @@ C_task main(int argc, char *argv[])
 	deleteWorkFiles();
 	clearStatus();
 	infoBox("System Updated successfully!");
-	getchar();
-	OS_DELETE("release.zip");
+	// getchar();
+	// OS_DELETE("release.zip");
 	ATRIB(40);
 	ATRIB(32);
 	exit(0);
