@@ -22,32 +22,47 @@ drawhudflag=$
         ;CALL SETPG
 
 ;------------------------
+waithalt
        IF atm
         call setpgmap4000
        ENDIF 
-        LD HL,(timer)
+	ld a,(timer)
 oldtimer=$+1
-        LD BC,0
-        LD (oldtimer),HL
-        OR A
-        SBC HL,BC
-        jr Z,nONTIMER
-         ld bc,8
-         or a
-         sbc hl,bc
-         add hl,bc
-         jr c,ONTIMER0
-         ld h,b
-         ld l,c ;hl<=8
-ONTIMER0
-        PUSH HL
-        CALL CONTROL ;там же логика
-        POP HL
-        DEC HL
-        LD A,H
-        OR L
-        jr NZ,ONTIMER0
-nONTIMER
+	ld e,0
+	sub e
+         cp RENDERSPEEDLIMIT
+	jp c,waithalt;mainloop
+        add a,e
+	ld (oldtimer),a
+   if LOGICSPEED ;логика на скорости LOGICSPEED
+       sub e ;a=сколько прошло фреймов
+logicframesremained=$+1
+       add a,0 ;0..LOGICSPEED-1
+timeraction0
+        ld (logicframesremained),a
+        sub LOGICSPEED
+        jr c,timeraction0q
+	push af
+	call my_logic
+	pop af
+	jr timeraction0  ;4200 при 25 fps таймере (10000 при 50 fps таймере) на этот цикл
+timeraction0q
+   else ;всегда 25 fps логика (или 50 при RENDERSPEEDLIMIT==1) - на 17 fps дёргается
+      if RENDERSPEEDLIMIT > 1
+       res 0,a
+       res 0,e
+      endif
+       sub e
+      if RENDERSPEEDLIMIT > 1
+       srl a
+      endif
+	ld b,a
+timeraction0
+	push bc
+	call my_logic
+	pop bc
+	djnz timeraction0  ;4200 при 25 fps таймере (10000 при 50 fps таймере) на этот цикл
+   endif
        IF atm == 0
        IF doublescr
         LD A,#10

@@ -4,6 +4,7 @@
 ;atm=1
 ;doublescr=1
 showfps=1-atm
+EDITOR=1;0
 
 crosshair=1;0
 
@@ -14,14 +15,14 @@ ID_DOOR=0x40+((22-16)*2);127
 	endif
 
 ;ZX data:
-;music=0;1
+music=doublescr
 
 debug=0
 demorec=0
 demoplay=0;1
 
 ;control:
-doublespeed=0;1
+doublespeed=1
 doublerotate=1
 autostrafe=1
 kempston=0;1
@@ -41,17 +42,12 @@ viewrange=6
 MONSTERviewrange=3
 MONSTERBACKviewrange=2
 
-TIME_WOUNDED=30
-TIME_WANTATTACK=40
-TIME_ATTACK=25
-TIME_STEP=10
-
 scale64=3;1 ;0 не поддерживается
 
 ;render:
+        if atm
 scrwid=32 ;chr$
 scrtopx=(32-scrwid)/2
-        if atm
 scrhgt=200;128 ;pixels
 scrhgtpix=scrhgt
 Ycenter=100
@@ -60,6 +56,8 @@ Ybottom=Ycenter+(scrhgt/2)
 scrbase=0x4000+4
 scrtop=Ytop*40+scrbase
         else
+scrwid=24;32 ;chr$
+scrtopx=(32-scrwid)/2
 scrhgt=20;24 ;chr$ (10,12,...,24)
 scrhgtpix=scrhgt*8
 scrtop=(24-scrhgt)*16+#4000+scrtopx
@@ -85,13 +83,13 @@ lowmaxscale=25 ;fit in low screen
 mapdifbit=5;7
         IF atm == 0
 lores=0
-optres=0;1&(1-lores) ;+22t на мелких, выигрыш на крупных
+optres=1&(1-lores) ;+22t на мелких, выигрыш на крупных
         ELSE 
 lores=1
 optres=0
         ENDIF 
 optfast=0
-loresspr=0|atm
+loresspr=0|lores
 optresspr=1&(1-loresspr) ;выигрыш на крупных
 loresspr_hires=loresspr&(1-lores)
 pixperchr=8>>lores
@@ -125,3 +123,11 @@ invmap=1
 tscale=#C000 ;128x64, множители 0 и 63 выдают константы 0 и 3
              ;64x64 при scale64=1
         endif
+
+RENDERSPEEDLIMIT=2 ;1=50 fps, 2=25 fps, 3=17 fps
+LOGICSPEED=2       ;1=50 fps, 2=25 fps, 3=17 fps
+
+TIME_WOUNDED=30/LOGICSPEED
+TIME_WANTATTACK=40/LOGICSPEED
+TIME_ATTACK=25/LOGICSPEED
+TIME_STEP=10/LOGICSPEED

@@ -28,6 +28,8 @@ gametime
         dw 0
 firedelaycounter
         db 0
+downtimer_time
+        db 1
 
         DS ((-$)&7)&0xff
 MONSTRS

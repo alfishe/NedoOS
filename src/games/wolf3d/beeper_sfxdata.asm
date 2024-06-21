@@ -6,3 +6,4 @@ sfxdata
 	db 2, 32, 128, 255, 0 ;get obj
 	db 2, 32, 33, 255, 0 ;shout
 	db 1, 32, 120, 252, 0 ;door
+	db 2, 22, 1, -63, 0 ;explode
