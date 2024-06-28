@@ -64,7 +64,7 @@ PROGRESBARWINHGTWID=0x0324 ;0x051f ;bc=hgt,wid
         PRCHAR
        endif
         endm
-
+        
         macro MYSETXY
        if PRSTDIO
         SETXY_
@@ -410,7 +410,7 @@ drawpanel_head ;ix=panel (keep!!!)
 	sbc hl,de
 	add hl,de
 	jr nz,drawpanel_dir
-	ld de,_FILECURSORCOLOR
+        ld de,_FILECURSORCOLOR
 	jr drawpanel_dir0
 drawpanel_dir
 	ld de,_PANELCOLOR
@@ -450,7 +450,6 @@ drawpanel_with_files
 
 	call drawpanel_head
         call drawpanelfilesandsize
-
 drawpanel_files
 ;ix=panel
 	call setpanelcolor
@@ -990,7 +989,6 @@ keyfromcalledapp=$+1
         ld (keyfromcalledapp),a
         jr controlloop_nokeyq
 controlloop_nokey
-        
         ld ix,(curpanel)
         ld a,(ix+PANEL.files)
         or (ix+PANEL.files+1)
@@ -1006,10 +1004,11 @@ controlloop_nokey
         ;SETX_ ;force reprint cursor
 
        if PRSTDIO
-        call yieldgetkeyloop
+        call yieldgetkeyloop_rtc
        else
         YIELDGETKEYLOOP
        endif
+
          or a
          jr z,controlloop_nokey ;TODO handle mouse events
         push af
@@ -1031,7 +1030,6 @@ controlloop_nokey
          call nv_setcolor ;even if we didn't reprint command line, draw windows with its color
 controlloop_nokeyq
         pop af
-
         ld hl,tnvcmds
         ld bc,nnvcmds
         cpir
@@ -2075,6 +2073,7 @@ editcmd_F6
         pop hl
         ld de,tnewfilename
         call strcopy
+     
         ;ld bc,64 ;max filename size+terminator
         ;ldir
         else
@@ -2087,8 +2086,43 @@ editcmd_F6
         ld bc,12
         ldir
         endif
+;Kulich 20240622
+; Нельзя проверять при переименовании.
+;        call getcurpaneldir_hl
+;        ld a,(hl)
+;        push af
+;	call getanotherpanel_hl
+;        add hl,de
+;        pop af
+;        ld b,(hl)
+;        cp b
+;        jp nz, name_error
 
-	ld de,_COLOR_DIALOG
+	call getanotherpanel_hl
+	ld de,PANEL.dir
+        inc de;'M'
+        inc de;':'
+        add hl,de
+	ld de,dir2_buf
+	call strcopy;nv_strcopy_hltode
+        dec de
+        dec de
+        ld a,(de)
+        cp '/'
+        inc de
+        jp z, editcmd_no_slash
+        ld a,'/'
+        ld (de),a
+        inc de
+        xor a
+        ld(de),a
+editcmd_no_slash
+        ld hl,tnewfilename
+	call strcopy;nv_strcopy_hltode
+        ld hl,dir2_buf
+        ld de,tnewfilename
+        call strcopy;nv_strcopy_hltode
+        ld de,_COLOR_DIALOG
 	call nv_setcolor
 
         ld hl,winrename
@@ -2096,7 +2130,8 @@ editcmd_F6
 	ld c,63;13 ;max filename size
         call prwindow_edit ;CY=OK
         ret nc ;cancel
-;если в имени есть символы :,/,\, то выйти с ошибкой
+;если в имени есть символ :то выйти с ошибкой
+
         ld hl,tnewfilename
 editcmd_ren_checkname0
         ld a,(hl)
@@ -2104,17 +2139,19 @@ editcmd_ren_checkname0
         jr z,editcmd_ren_checknameq
         inc hl
         cp ':'
-        ret z ;error
-        cp '/'
-        ret z ;error
-        cp 0x5c;'\\'
-        ret z ;error
+        jp z,name_error ;error
         jr editcmd_ren_checkname0
 editcmd_ren_checknameq
         ld de,filenametext
         ld hl,tnewfilename
         OS_RENAME
         ;todo error
+        ret
+name_error
+	ld de,_COLOR_RED
+	call nv_setcolor
+        ld hl,ren_error1
+	call prwindow_waitkey
         ret
 
 editcmd_7 ;mkdir
@@ -2963,6 +3000,13 @@ windrverr
 	db "Drive error!",0 
         db 0 ;end of window
 
+ren_error1
+        dw 0x0c0f ;de=yx
+        dw 0x0534 ;bc=hgt,wid
+        db 3 ;next line
+	db "file movement is only available within disk!",0 
+        db 0 ;end of window
+
 tdotdot
 	dw "..",0
 
@@ -3162,7 +3206,25 @@ filinfo
         include "cmdpr.asm"
        if PRSTDIO
         include "../_sdk/stdio.asm"
+        include "nvclock.asm"
+
+yieldgetkeyloop_rtc
+        call printRTC
+        ld c,CMD_YIELD
+        call BDOS	;YIELD
+        call getkey
+        ret c ;error
+
+        jr z,yieldgetkeyloop_rtc ;no event
+         scf
+         ccf ;no error
+        ret
+
+
        endif
+
+
+
 
         align 256
 searchbuf
