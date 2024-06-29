@@ -1,5 +1,14 @@
 printRTC
-	ld de, 0x0600;0x040f
+	ld hl,displaytimer
+	inc (hl)
+	ret nz
+
+	ld hl,displaytimer
+	ld a,100
+	ld (hl),a
+
+printRTCnow
+	ld de, 0x0600
 	SETCOLOR_
     ld de, 0074
 	MYSETXY
@@ -9,7 +18,8 @@ printRTC
 	call cmdcalccurxy
 	MYSETXY
 
-    call readTime	
+    call readTime
+
 	ld a, (oldminutes)
 	ld d,a
 	ld a, (minutes)
@@ -146,6 +156,8 @@ seconds
 	db 0
 decimalS	ds 7 ;десятичные цифры
 stringTime
-    db "33:33",0
+    db "00:00",0
 oldminutes		; не убирать под услоаие
 	db 255
+displaytimer
+	db 100

@@ -433,6 +433,11 @@ drawpanel_dir0
         ld de,tdoublehoriz
         push ix
         call sendchars
+
+       if PRSTDIO
+        call printRTCnow
+       endif
+
         pop ix
         ret
 
@@ -3207,7 +3212,6 @@ filinfo
        if PRSTDIO
         include "../_sdk/stdio.asm"
         include "nvclock.asm"
-
 yieldgetkeyloop_rtc
         call printRTC
         ld c,CMD_YIELD
