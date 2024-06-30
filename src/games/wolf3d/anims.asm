@@ -88,10 +88,8 @@ ZOMBIEMANgo
         db 12+128
         db 11
         db 11
-        db 11
-        db 11
-        db 11
-        db 11
+        db 10,11
+        db 11,0
 ;fire
         db 13
         db 13+128
