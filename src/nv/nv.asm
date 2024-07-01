@@ -435,7 +435,7 @@ drawpanel_dir0
         call sendchars
 
        if PRSTDIO
-        call printRTCnow
+        call printRTCnow        ;Если обновили панель, то обновим и часы
        endif
 
         pop ix
@@ -1009,7 +1009,7 @@ controlloop_nokey
         ;SETX_ ;force reprint cursor
 
        if PRSTDIO
-        call yieldgetkeyloop_rtc
+        call yieldgetkeyloop_rtc        ; Частично перенесена из stdio.asm чтобы вклинить в нее обновление часов
        else
         YIELDGETKEYLOOP
        endif
@@ -3211,9 +3211,10 @@ filinfo
         include "cmdpr.asm"
        if PRSTDIO
         include "../_sdk/stdio.asm"
-        include "nvclock.asm"
+        include "nvclock.asm"   ; сейчас часв реализованы только в nv.com поэтому весь код под условием.
+
 yieldgetkeyloop_rtc
-        call printRTC
+        call printRTC           ; Обновляем часы даже если не трогаем клавиатуру.
         ld c,CMD_YIELD
         call BDOS	;YIELD
         call getkey

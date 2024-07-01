@@ -1,13 +1,13 @@
-printRTC
+printRTC					;Получение и отображение времени из RTC
 	ld hl,displaytimer
-	inc (hl)
-	ret nz
+	dec (hl)
+	ret nz					; Обновляем время с интервалом 155 опросов клавиатуры (порядка 3х секунд).
 
+printRTCnow					; Если нужно отобразить часы сдесь и сейчас.
 	ld hl,displaytimer
-	ld a,100
+	ld a,155
 	ld (hl),a
 
-printRTCnow
 	ld de, 0x0600
 	SETCOLOR_
     ld de, 0074
@@ -15,19 +15,20 @@ printRTCnow
 	ld hl, stringTime
     call printZ
 	
-	call cmdcalccurxy
+	call cmdcalccurxy		; Восстановим положение курсора для командной строки.
 	MYSETXY
 
-    call readTime
+    call readTime			; Получить время из RTC
 
 	ld a, (oldminutes)
 	ld d,a
 	ld a, (minutes)
-	cp d					; Update only if minutes changed
+	cp d					; Запускаем конвертацию в текст только если поменялась минута
 	ret z
 
 	ld (oldminutes), a
-  	ld h,0
+
+  	ld h,0					; Конвертация времени в текст
 	ld a,(hours) ;часы
 	ld l,a
 	call toDecimal
@@ -45,9 +46,6 @@ printRTCnow
 	ld hl,decimalS+3
     ld de, stringTime+3    
     call strcopy;nv_strcopy_hltode
-	;dec de
-    ;ld a,']'
-    ;ld (de),a
 	ret
 
 toDecimal		;конвертирует 2 байта в 5 десятичных цифр
@@ -117,7 +115,7 @@ printZ
 	jr printZ
 
 
-readTime
+readTime	; получение  из OS даты и времени и конвертация из DOS-time
     OS_GETTIME;out: ix=date, hl=time
 	di
 	push ix
@@ -154,10 +152,11 @@ minutes
 	db 0
 seconds
 	db 0
-decimalS	ds 7 ;десятичные цифры
+decimalS
+	ds 7 ;десятичные цифры
 stringTime
     db "00:00",0
-oldminutes		; не убирать под услоаие
+oldminutes
 	db 255
 displaytimer
-	db 100
+	db 1
