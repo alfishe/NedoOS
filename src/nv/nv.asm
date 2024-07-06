@@ -2625,6 +2625,13 @@ proceditcmd_copy_fcb
         ;ld b,64
         call strcopy_maxb64
 
+        ;hl=string to test bc=string tester
+        ;out: Z if equal
+        ld hl,wincopy_src
+        ld bc,wincopy_dest
+        call comparestr         ;Don't try copy file into himself
+        ret z
+
 	ld hl,wincopy2
 	call upwindow_text
 
@@ -2905,6 +2912,31 @@ editcmd_typeword_empty
         ld a,l
         ld (curcmdx),a
         ret
+
+comparestr:		
+;hl=string to test	bc=string tester
+;Z if equal
+		push de
+comparestr2		
+		ld a, (hl)
+		ld d, a
+		ld a, (bc)
+		cp d
+		jp nz, notequal
+		inc bc
+		inc hl
+		ld a, (bc)
+		cp 0
+		jp nz, comparestr2
+		pop de
+		ld a, 0
+                or a
+		ret
+notequal:
+		pop de
+		ld a,1
+                or a
+		ret
 
 windrv
         dw 0x0003 ;de=yx
