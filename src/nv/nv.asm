@@ -3280,7 +3280,7 @@ HS_strpg
         ds 256;DIRPAGES*2+2 ;по 1 байту на маркеры "0"
         align 256
 textpages
-        ds 256
+        ds 164; 255
 twinto866
         incbin "../_sdk/codepage/winto866"
 cmd_end
