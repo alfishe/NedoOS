@@ -3320,6 +3320,8 @@ yieldgetkeyloop_rtc
        endif
 
        align 256
+twinto866
+        incbin "../_sdk/codepage/winto866"
 searchbuf
 SEARCHBUF_SZ=128 ;2 таких
 file_buf
@@ -3337,8 +3339,7 @@ HS_strpg
         align 256
 textpages
         ds 164;256
-twinto866
-        incbin "../_sdk/codepage/winto866"
+
 cmd_end
 
 	display "nv size ",cmd_end-cmd_begin," bytes"
