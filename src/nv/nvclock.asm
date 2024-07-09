@@ -55,12 +55,16 @@ printZ
 	ld a,(hl)
 	or a
 	ret z
+	cp 32
+	call z,pintZ0
 	inc hl
 	push hl
     MYPRCHAR
 	pop hl
 	jr printZ
-
+pintZ0
+	ld a,'0'
+	ret
 
 readTime	; получение  из OS даты и времени и конвертация из DOS-time
     OS_GETTIME;out: ix=date, hl=time
