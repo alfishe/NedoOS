@@ -49,6 +49,29 @@ prwindow_waitkey_keyyes
         scf
         ret
 
+prwindow_waitkey_any
+;Функция возвращает код нажатой любой клавиши, также дополнительно обрабатывает  как ОК все кнопке кроме N/Esc
+;hl=window
+;out: CY=OK A=key
+        call prwindow_text
+       if PRSTDIO
+        call yieldgetkeyloop
+       else
+        YIELDGETKEYLOOP
+       endif
+        ld a,c
+        cp key_esc
+        ret z
+        cp 'n'
+        ret z
+        cp 'N'
+        ret z
+        cp key_redraw
+        ret z
+prwindow_waitkey_any_keyyes
+        scf
+        ret
+
 upwindow_text
 	ld a,0
 	call prwindow_text0

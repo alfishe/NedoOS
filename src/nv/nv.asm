@@ -2297,7 +2297,7 @@ editcmd_5_0
 
         ld hl,wincopy
 	ld de,dir2_buf
-	ld c,60
+	ld c,60 ;c=texteditsize
         call prwindow_edit ;CY=OK
         jp nc,editcmd_reprintall_noreaddir
 
@@ -2310,8 +2310,11 @@ editcmd_5_0
 ;        ld de,PROGRESBARWINXY
 ;        ld bc,PROGRESBARWINHGTWID
 ;        call prwin
-	ld hl,wincopy2
-	call prwindow_text
+        ld hl,overwriteflag     ;0-skip all; 1-ask each; 2-over all
+        ld (hl),1   
+        
+        call printwincopy2
+        
         ld hl,proceditcmd_copy
         ld ix,(curpanel)
 	jp processfiles
@@ -2629,20 +2632,17 @@ proceditcmd_copy_fcb
         ;out: Z if equal
         ld hl,wincopy_src
         ld bc,wincopy_dest
-        call comparestr         ;Don't try copy file into himself
-        ret z
+        call comparestr                 ;Don't try copy file into himself
+        ret z 
 
-	ld hl,wincopy2
-	call upwindow_text
+        ;ld de,_COLOR_DIALOG
+	;call nv_setcolor
+        ld hl,wincopy2          ; Print filename
+        call upwindow_text
 
 	ld de,dir3_buf
-        ;push de
-	;ld bc,filenametext
-	;ld hl,dir_buf
-	;call nv_makefilepath_hltode
-        ;pop de
         push de
-        OS_OPENHANDLE
+        OS_OPENHANDLE   ;Test for source file.
         pop de
         or a
         ret nz ;jp nz,cmd_error_wrongfile
@@ -2655,17 +2655,63 @@ proceditcmd_copy_fcb
         OS_GETFILETIME ;ix=date, hl=time
         ld (proceditcmd_copy_time),hl
         ld (proceditcmd_copy_date),ix
-
-	;ld de,dir2_buf
-	;OS_CHDIR
 	ld de,dir3_buf;wincopy_dest ;256 bytes
-         push de
-	 ld bc,filenametext
-	 ld hl,dir2_buf
-	 call nv_makefilepath_hltode
-         pop de
-        ;ld de,filenametext;swordbuf2 ;de=drive/path/file
-        OS_CREATEHANDLE
+        push de
+	ld bc,filenametext
+	ld hl,dir2_buf
+	call nv_makefilepath_hltode
+       
+        pop de  
+        push de       
+        OS_OPENHANDLE
+        or a
+        jp  nz,notargetfile                     ; Файл назначения не существует
+        OS_CLOSEHANDLE
+
+        ld hl,overwriteflag
+        ld a,(hl) 
+        or a                                    ;Проверка  на skip all
+        jp z, pop_exit
+        cp 2
+        jp z,notargetfile                       ;Проверка на replace all
+                                                
+        ld de,_COLOR_RED
+        call nv_setcolor
+        ld hl,overwritefile 
+        call prwindow_waitkey_any ;CY=OK;A=KEY  ; если не выбрали что-либо all, выводим вопрос
+        push af
+        ld de,_COLOR_DIALOG
+        call nv_setcolor
+        call printwincopy2                      ; Восстанавливаем окно копирования                              
+        pop af
+        jp c, no_exit
+pop_exit
+        pop de
+        ret 
+no_exit
+        cp 'r'                                   ; Давай все перезапишем
+        jp nz,proceditcmd_nextkey0 
+
+        ld hl,overwriteflag
+        ld (hl),2               
+        jp notargetfile;notargetfile_nopop
+proceditcmd_nextkey0
+        cp 's'                                   ; Давай все пропустим
+        jp nz,proceditcmd_nextkey1
+        
+        ld hl,overwriteflag
+        ld (hl),0
+        pop de
+        ret
+proceditcmd_nextkey1
+        ld hl,overwriteflag                       ; Давай будем спрашивать каждый файл
+        ld (hl),1
+        
+notargetfile        
+        ;ld de,_COLOR_DIALOG    ; moved to 2686
+        ;call nv_setcolor
+        pop de
+        OS_CREATEHANDLE                           ; создаем файл получатель
         or a
         ret nz ;jp nz,cmd_error_cant_copy
         ld a,b
@@ -2689,8 +2735,8 @@ cmd_copy0
 ;HL = Number of bytes actually read, A=error
         ld b,h
         ld c,l
-       pop hl
-       pop de
+        pop hl
+        pop de
         ld a,b
         or c
         ret z ;0 bytes remain
@@ -2698,9 +2744,9 @@ cmd_copy0
         sbc hl,bc
         jr nc,$+3
         dec de
-       push bc
-       push de
-       push hl
+        push bc
+        push de
+        push hl
         push bc
         push de
         ld de,11*256+32
@@ -2714,9 +2760,9 @@ cmd_copy0
         pop hl
 ;B = file handle, DE = Buffer address, HL = Number of bytes to write
         OS_WRITEHANDLE
-       pop hl
-       pop de
-       pop bc
+        pop hl
+        pop de
+        pop bc
         jr cmd_copy0
 
 cmd_copy_close_file1
@@ -2918,26 +2964,30 @@ comparestr:
 ;Z if equal
 		push de
 comparestr2		
-		ld a, (hl)
-		ld d, a
-		ld a, (bc)
-		cp d
-		jp nz, notequal
-		inc bc
-		inc hl
-		ld a, (bc)
-		cp 0
-		jp nz, comparestr2
-		pop de
-		ld a, 0
-                or a
-		ret
+	ld a, (hl)
+	ld d, a
+	ld a, (bc)
+	cp d
+	jp nz, notequal
+	inc bc
+	inc hl
+	ld a, (bc)
+	cp 0
+	jp nz, comparestr2
+	pop de
+        xor a
+	ret
 notequal:
-		pop de
-		ld a,1
-                or a
-		ret
-
+	pop de
+	ld a,1
+        or a
+	ret
+printwincopy2
+        ld de,_COLOR_DIALOG
+	call nv_setcolor
+        ld hl,wincopy2          ; Print filename
+        call prwindow_text
+        ret
 windrv
         dw 0x0003 ;de=yx
         dw 256*(3+NDRIVES)+28 ;0x0809 ;bc=hgt,wid
@@ -2980,7 +3030,7 @@ winrename
 
 wincopy
         dw 0x0a07 ;de=yx
-        dw 0x0544 ;bc=hgt,wid
+        dw 0x0543 ;bc=hgt,wid
         db "Copy ",0
 	db 1
 	db " file(s)/dir(s) to:",0
@@ -3043,6 +3093,16 @@ ren_error1
         db 3 ;next line
 	db "file movement is only available within disk!",0 
         db 0 ;end of window
+
+overwritefile
+	dw 0x0d15 ;de=yx
+        dw 0x0628 ;bc=hgt,wid
+        db 3 ;next line
+	db "          OVERWRITE FILE?",0,3 
+        db "[Y]es/[No]/[S]kip all/[R]eplace All",0 
+        db 0 ;end of window
+
+
 
 tdotdot
 	dw "..",0
@@ -3118,7 +3178,8 @@ ndirpgs
         db 0
 tdirpgs
         ds 64
-
+overwriteflag
+        db 0
 washobetarunner
 ;pgsys=pagexor-10
 ;pgfatfs=pagexor-9
@@ -3243,7 +3304,7 @@ filinfo
         include "cmdpr.asm"
        if PRSTDIO
         include "../_sdk/stdio.asm"
-        include "nvclock.asm"   ; сейчас часв реализованы только в nv.com поэтому весь код под условием.
+        include "nvclock.asm"   ; сейчас часы реализованы только в nv.com поэтому весь код под условием.
 
 yieldgetkeyloop_rtc
         call printRTC           ; Обновляем часы даже если не трогаем клавиатуру.
@@ -3256,14 +3317,9 @@ yieldgetkeyloop_rtc
          scf
          ccf ;no error
         ret
-
-
        endif
 
-
-
-
-        align 256
+       align 256
 searchbuf
 SEARCHBUF_SZ=128 ;2 таких
 file_buf
@@ -3280,17 +3336,19 @@ HS_strpg
         ds 256;DIRPAGES*2+2 ;по 1 байту на маркеры "0"
         align 256
 textpages
-        ds 164; 255
+        ds 164;256
 twinto866
         incbin "../_sdk/codepage/winto866"
 cmd_end
 
 	display "nv size ",cmd_end-cmd_begin," bytes"
-
        if PRSTDIO
-	savebin "nv.com",cmd_begin,cmd_end-cmd_begin
+	 display "nv.com free space ",0x4000-cmd_end
+        savebin "nv.com",cmd_begin,cmd_end-cmd_begin
        else
-	savebin "nvfast.com",cmd_begin,cmd_end-cmd_begin
+	display "nvfast.com free space ",0x4000-cmd_end
+        savebin "nvfast.com",cmd_begin,cmd_end-cmd_begin
        endif
 
 	LABELSLIST "../../us/user.l",1
+v
