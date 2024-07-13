@@ -2310,9 +2310,10 @@ editcmd_5_0
 ;        ld de,PROGRESBARWINXY
 ;        ld bc,PROGRESBARWINHGTWID
 ;        call prwin
-        ld hl,overwriteflag     ;0-skip all; 1-ask each; 2-over all
-        ld (hl),1   
         
+        ld hl,overwriteflag     ;0-skip all; 1-ask each; 2-over all; 3-отмена
+        ld (hl),1   
+
         call printwincopy2
         
         ld hl,proceditcmd_copy
@@ -2586,6 +2587,12 @@ proceditcmd_copy
 
 proceditcmd_copy_fcb
 ;нельзя CHDIR, потому что это вызывается в цикле чтения директории в nv_batch1!
+
+        ld hl,overwriteflag     ;0-skip all; 1-ask each; 2-over all; отмена
+        ld a,(hl) 
+        cp 3                                    ;Проверка  на отмена всего
+        ret z
+
         ld hl,proceditcmd_copy_q
         push hl
 	;ld de,dir_buf
@@ -2635,8 +2642,6 @@ proceditcmd_copy_fcb
         call comparestr                 ;Don't try copy file into himself
         ret z 
 
-        ;ld de,_COLOR_DIALOG
-	;call nv_setcolor
         ld hl,wincopy2          ; Print filename
         call upwindow_text
 
@@ -2694,16 +2699,26 @@ no_exit
 
         ld hl,overwriteflag
         ld (hl),2               
-        jp notargetfile;notargetfile_nopop
+        jp notargetfile
 proceditcmd_nextkey0
-        cp 's'                                   ; Давай все пропустим
+        cp 's'                                   ; Давай все существующие пропустим
         jp nz,proceditcmd_nextkey1
         
         ld hl,overwriteflag
         ld (hl),0
         pop de
         ret
+
 proceditcmd_nextkey1
+        cp 'c'                                   ; Давай все отменим
+        jp nz,proceditcmd_nextkey2
+      
+        ld hl,overwriteflag
+        ld (hl),3
+        pop de
+        ret
+
+proceditcmd_nextkey2
         ld hl,overwriteflag                       ; Давай будем спрашивать каждый файл
         ld (hl),1
         
@@ -3096,10 +3111,11 @@ ren_error1
 
 overwritefile
 	dw 0x0d15 ;de=yx
-        dw 0x0628 ;bc=hgt,wid
-        db 3 ;next line
+        dw 0x0528 ;bc=hgt,wid
+        ;db 3 ;next line
 	db "          OVERWRITE FILE?",0,3 
-        db "[Y]es/[No]/[S]kip all/[R]eplace All",0 
+        db "[Y]es/[No]/[S]kip all/[R]eplace All",0,3
+        db "             [C]ancel",0  
         db 0 ;end of window
 
 
@@ -3320,8 +3336,6 @@ yieldgetkeyloop_rtc
        endif
 
        align 256
-twinto866
-        incbin "../_sdk/codepage/winto866"
 searchbuf
 SEARCHBUF_SZ=128 ;2 таких
 file_buf
@@ -3336,10 +3350,10 @@ dir3_buf
         align 256
 HS_strpg
         ds 256;DIRPAGES*2+2 ;по 1 байту на маркеры "0"
-        align 256
+twinto866
+        incbin "../_sdk/codepage/winto866"
 textpages
         ds 164;256
-
 cmd_end
 
 	display "nv size ",cmd_end-cmd_begin," bytes"
@@ -3352,4 +3366,3 @@ cmd_end
        endif
 
 	LABELSLIST "../../us/user.l",1
-v
