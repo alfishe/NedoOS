@@ -328,7 +328,6 @@ Z604D
         OS_MKDIR
         jp SKIP_noclose
 readzip_nodir
-        
         ld hl,Z664A;filename
         call prtext
         call prcrlf
@@ -1524,8 +1523,8 @@ savelastblock;_ZD1C4
         ;jr $
 ;save whole buffer
 ;сюда попадаем в конце файла
-         ld hl,tsavelast
-         call prtext
+;       ld hl,tsavelast
+;       call prtext
         LD HL,(U6546)
         ;ld a,h
         ;cp 0x50
@@ -1578,7 +1577,7 @@ CON1
         RET 
 
 tsaveblock
-        db 13,"save block #",0
+        db "  save block #",0
 tsavelast
         db 13,10,"save last block",13,10,0
 
@@ -1597,6 +1596,7 @@ progressbar
         call toDecimal
         ld hl,decimalS
         call prtext
+        call prcrlf
         ret
 toDecimal		;конвертирует 2 байта в 5 десятичных цифр
 				;на входе в HL число
