@@ -23,7 +23,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "0.48";
+unsigned char uVer[] = "0.50";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -60,7 +60,7 @@ struct configuration
 unsigned char netbuf[4096];
 
 unsigned char cmdlist1[] = " HTTP/1.1\r\nHost: nedoos.ru\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
-unsigned char binLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/&isdir=1";
+unsigned char binLink[] = "http://nedoos.ru/images/sysbin.zip";
 unsigned char pkunzipLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/pkunzip.com";
 unsigned char tarLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/tar.com";
 unsigned char cmdLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/cmd.com";
@@ -266,6 +266,8 @@ unsigned char OS_SHELL(unsigned char *command)
 	main_pg.l = OS_GETMAINPAGES();
 	pgbak = main_pg.pgs.window_3;
 	OS_GETPATH((unsigned int)&curPath);
+	OS_CHDIR("/");
+
 	strcat(appCmd, command);
 	fp3 = OS_OPENHANDLE(fileName, 0x80);
 	if (((int)fp3) & 0xff)
@@ -277,14 +279,14 @@ unsigned char OS_SHELL(unsigned char *command)
 		getchar();
 		exit(0);
 	}
+
 	shellSize = OS_GETFILESIZE(fp3);
 
+	OS_CHDIR(curPath);
+	
 	OS_NEWAPP((unsigned int)&shell_pg);
-
 	shell_pg.l = OS_GETAPPMAINPAGES(shell_pg.pgs.pId);
-
 	SETPG32KHIGH(shell_pg.pgs.window_0);
-
 	memcpy((unsigned char *)(0xC080), (unsigned char *)(&appCmd), strlen(appCmd) + 1);
 
 	loop = 0;
@@ -1263,7 +1265,6 @@ unsigned char getConfig(void)
 // Downloading minimal tools for updating/boot
 void getTools(void)
 {
-	OS_MKDIR("bin"); // Create if not exist
 	ATRIB(cw.text);
 	ATRIB(cw.back);
 	getFile(wizNetLink, "bin/wizcfg.com");
@@ -1273,13 +1274,7 @@ void getTools(void)
 	getFile(cmdLink, "bin/cmd.com");
 	getFile(termLink, "bin/term.com");
 	getFile(updLink, "bin/updater.com");
-	getFile(netIniLink, "bin/net_.ini");
-}
-
-void deleteWorkFiles(void)
-{
-	OS_DELETE("bin.zip");
-	OS_DELETE("bin.tar");
+	getFile(netIniLink, "bin/net.ini");
 }
 
 unsigned char ren2old(unsigned char *name)
@@ -1341,7 +1336,6 @@ void restoreConfig(unsigned char oldBinExt)
 	errn = OS_RENAME("bin/gp/gp.ini", "bin/gp/gp.ini.new");
 	errn = OS_RENAME("/bin/browser/index.gph", "/bin/browser/index.gph.new");
 	errn = OS_RENAME("/bin/browser/espcom.ini", "/bin/browser/espcom.ini.new");
-	errn = OS_CHDIR("/");
 
 	if (oldBinExt == 255)
 	{
@@ -1438,20 +1432,28 @@ void fullUpdate(void)
 	AT(cw.x + 2, cw.y + 5);
 	printf("3.Downloading tools...\r\n");
 
+	OS_MKDIR("bin");
+
 	getTools();
 
 	BOX(1, 1, 80, 25, 40, 32);
 	AT(1, 1);
-	printf("Depacking release. Its take about 10 hours. Please wait.\r\n");
-	printf("First hours going without signs of life.\r\n");
+	printf("Depacking release. Its take about 5 hours. Please wait.\r\n");
 
 	printNews();
-
 	YIELD();
+
 	OS_SHELL("pkunzip.com release.zip");
+
 	BOX(1, 1, 80, 25, 40, 176);
 	drawWindow(cw);
 	AT(cw.x + 2, cw.y + 3);
+	printf("1.Downloading release.zip...");
+	AT(cw.x + 2, cw.y + 4);
+	printf("2.Backuping old system...\r\n");
+	AT(cw.x + 2, cw.y + 5);
+	printf("3.Downloading tools...\r\n");
+	AT(cw.x + 2, cw.y + 6);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
 	printf("Restoring configs...");
@@ -1484,79 +1486,61 @@ void binUpdate(void)
 	OS_GETPATH((unsigned int)&curPath);
 	curLetter = curPath[0];
 
-	deleteWorkFiles();
-
 	clearStatus();
 
 	AT(cw.x + 2, cw.y + 10);
 	printf(">To full update start 'updater.com F'<");
 
 	AT(cw.x + 2, cw.y + 3);
-	printf("1.Downloading bin.zip...");
+	ATRIB(cw.text);
+	ATRIB(cw.back);
+	printf("1.Backuping bin to bin.old...");
+	oldBinExt = ren2old("bin");
 
-	getFile(binLink, "bin.zip"); //  Downloading the file
+	OS_MKDIR("bin");
+
+	AT(cw.x + 2, cw.y + 4);
+	printf("2.Downloading bin.zip...");
+	getFile(binLink, "bin/bin.zip"); //  Downloading the file
 
 	clearStatus();
-	AT(cw.x + 2, cw.y + 4);
-	printf("2.Downloading tools...");
-
+	AT(cw.x + 2, cw.y + 5);
+	printf("3.Downloading tools...");
 	getTools();
 
 	BOX(1, 1, 80, 25, 40, 32);
 	AT(1, 1);
-	printf("Please, make sure you don't have bin.r* folder on disk!!!\r\n");
 	printf("Depacking release. Its take about 10 minutes. Please wait...\r\n");
 
 	printNews();
 	YIELD();
 
+	OS_CHDIR("bin");
 	OS_SHELL("pkunzip.com bin.zip");
+
 	BOX(1, 1, 80, 25, 40, 176);
+	AT(1, 1);
+	ATRIB(cw.text);
+	ATRIB(cw.back);
+	printf("                  [STANDART UPDATE - UPDATING ONLY BIN FOLDER]                  ");
 	drawWindow(cw);
-	clearStatus();
+
+	ATRIB(cw.text);
+	ATRIB(cw.back);
 	AT(cw.x + 2, cw.y + 3);
-	ATRIB(cw.text);
-	ATRIB(cw.back);
-	printf("3.Renaming bin.r?? to bin.tar...");
-
-	ren2tar();
-
+	printf("1.Backuping bin to bin.old...");
 	AT(cw.x + 2, cw.y + 4);
-	ATRIB(cw.text);
-	ATRIB(cw.back);
-	printf("4.Untaring bin.tar, please wait...");
-	clearStatus();
-	OS_SHELL("tar.com bin.tar");
-
+	printf("2.Downloading bin.zip...");
 	AT(cw.x + 2, cw.y + 5);
-	ATRIB(cw.text);
-	ATRIB(cw.back);
-	printf("5.Backuping old bin to bin.old...");
-
-	oldBinExt = ren2old("bin");
-
+	printf("3.Downloading tools...");
 	AT(cw.x + 2, cw.y + 6);
-	ATRIB(cw.text);
-	ATRIB(cw.back);
-	printf("6.Renaming NEW BIN...");
-
-	ren2bin();
-
+	printf("4.Downloading kernel [%s]...", config.machineName);
+	errn = OS_CHDIR("/");
+	errn = getFile(config.kernelLink, config.kernelName); //  Downloading the file
 	AT(cw.x + 2, cw.y + 7);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("7.Deleting zip & tar...");
-
-	AT(cw.x + 2, cw.y + 8);
-	ATRIB(cw.text);
-	ATRIB(cw.back);
-	printf("8.Downloading kernel [%s]...", config.machineName);
-	errn = OS_CHDIR("/");
-	errn = getFile(config.kernelLink, config.kernelName); //  Downloading the file
-	AT(cw.x + 2, cw.y + 9);
-	ATRIB(cw.text);
-	ATRIB(cw.back);
-	printf("9.Restoring configs...");
+	printf("5.Restoring configs...");
 }
 
 C_task main(int argc, char *argv[])
@@ -1604,7 +1588,7 @@ C_task main(int argc, char *argv[])
 		binUpdate();
 	}
 	restoreConfig(oldBinExt);
-	deleteWorkFiles();
+	OS_DELETE("bin/bin.zip");
 	clearStatus();
 	infoBox("System Updated successfully!");
 	// getchar();
