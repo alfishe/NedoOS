@@ -44,9 +44,43 @@ unsigned int OS_WIZNETREAD (struct readstructure *);
 
 unsigned int OS_WIZNETWRITE (struct readstructure *);
 //CMD_WIZNETWRITE=0xde
-//if TCP: A=SOCKET, de=buffer_ptr, HL=sizeof(buffer)
-//else:	 A=SOCKET, IX=buffer_ptr, HL=sizeof(buffer), de=sockaddr_in ptr
+//in : A=SOCKET, de=buffer_ptr, HL=sizeof(buffer)
 //out: HL=count if HL < 0 then A=error 
+
+
+unsigned int OS_WIZNETWRITE_UDP (struct readstructure *, struct sockaddr_in *);
+//CMD_WIZNETWRITE=0xde
+//in : A=SOCKET, IX=buffer_ptr, HL=sizeof(buffer), de=sockaddr_in ptr
+//out: HL=count if HL < 0 then A=error 
+
+/*
+  A - SOCKET
+  DE - указатель на структуру sockaddr_in, в неё необходимо поместить IP-адрес и порт хоста получателя
+  IX - указатель на буфер с данными
+  HL - размер данных(в байтах), в текущей реализации максимум 8192 байта
+ Возвращаемые значения в регистрах:
+  HL - при отрицательном значении функция завершилась с ошибкой,
+   иначе возвращается действительный размер(в байтах) отправленных данных,
+  А - errno при ошибке.
+*/
+
+
+
+
+
+unsigned int OS_WIZNETREAD_UDP (struct readstructure *, struct sockaddr_in *);
+/*
+  A - SOCKET
+  DE - указатель на структуру sockaddr_in, в неё помещается(ядром) IP-адрес и порт хоста отправившего данные.
+  IX - указатель на буфер для принятия данных
+  HL - размер буфера(в байтах)
+ Возвращаемые значения в регистрах:
+  HL - при отрицательном значении функция завершилась с ошибкой,
+   про значении больше нуля возвращается действительный размер(в байтах) принятых данных,
+   нулевого значения вызов не возвращает.
+  А - errno при ошибке.
+*/
+
 
 unsigned int OS_BIND(unsigned char socket,struct sockaddr_in *);
 //	A=SOCKET, DE=sockaddr ptr {unsigned char sin_family /*net type*/; unsigned short sin_port; struct in_addr sin_addr /*4 bytes IP*/; char sin_zero[8];}

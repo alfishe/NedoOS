@@ -21,7 +21,6 @@ OS_NETSOCKET:
 	pop bc
 	ld h, l
 	ld l, a
-	
 	ret
 ENDMOD
 
@@ -64,21 +63,6 @@ RSEG CODE
 ;out: HL=count if HL < 0 then A=error 
 OS_WIZNETREAD:	
 	push bc
-	ld b, e
-	ld a, e
-	add a, 05	; protocol
-	ld e, a		
-	ld a, (de)	;(0x01 tcp/ip, 0x02 icmp, 0x03 udp/ip	
-	cp 01
-	jp z, tcpread
-	cp 02
-	jp z, icmpread
-	cp 03
-	jp z, udpread
-
-
-tcpread:
-	ld e, b 	
 	ex de,hl
 	ld a, (hl) 	;socket
 	inc hl
@@ -102,39 +86,10 @@ tcpread:
 	jp z, readok 	;noerror just return
 	ld l, a
 	jp readnot
-
-icmpread:
-udpread:
-	ld e, b 	
-	ex de,hl
-	ld a, (hl) 	;socket
-	inc hl
-	ld (store_ix1), hl
-	ld IX, (store_ix1) 	; buffer HL
-	inc hl
-	inc hl
-	ld c, (hl) 			;size L
-	inc hl
-	ld b, (hl) 			;size H
-	ld l, c
-	ld h, b
-	ex af,af'
-	ld c, CMD_WIZNETREAD
-	push ix
-	push iy
-	call BDOS
-	pop iy
-	pop ix
-	bit 7, h
-	jp z, readok 	;noerror just return
-	ld l, a
-
 readok:
 readnot:
 	pop bc
 	ret
-store_ix1:
-defb 0,0,0,0,0,0,0,0
 ENDMOD
 
 MODULE OS_WIZNETWRITE
@@ -146,20 +101,6 @@ RSEG CODE
 ;out: HL=count if HL < 0 then A=error 
 OS_WIZNETWRITE	
 	push bc
-	ld b, e
-	ld a, e
-	add a, 05	; protocol
-	ld e, a		
-	ld a, (de)	;(0x01 tcp/ip, 0x02 icmp, 0x03 udp/ip	
-	cp 01
-	jp z, tcpsend
-	cp 02
-	jp z, icmpsend
-	cp 03
-	jp z, udpsend
-
-tcpsend:	
-	ld e, b 
 	ex de,hl
 	ld a, (hl) 			;socket
 	inc hl
@@ -183,24 +124,78 @@ tcpsend:
 	jp z, writeok 		;noerror just return
 	ld l, a
 	jp writenot
-	
-udpsend:
-icmpsend:
-	ld e, b 
-	ex de,hl
-	ld a, (hl) 			; socket
+writeok:
+writenot:
+	pop bc
+	ret
+ENDMOD
+
+/*
+  A - SOCKET
+  DE - указатель на структуру sockaddr_in, в неё помещается(ядром) IP-адрес и порт хоста отправившего данные.
+  IX - указатель на буфер для принятия данных
+  HL - размер буфера(в байтах)
+ Возвращаемые значения в регистрах:
+  HL - при отрицательном значении функция завершилась с ошибкой,
+   про значении больше нуля возвращается действительный размер(в байтах) принятых данных,
+   нулевого значения вызов не возвращает.
+  А - errno при ошибке.
+ Возможные ошибки:
+  ERR_NOTSOCK - не действительный дескриптор сокета
+  ERR_EAGAIN - входящих данных пока нет
+  ERR_NOTCONN - сокет с неустановленным\пропавшем соединением(при протоколе TCP/IP)
+
+Если количество параметров неопределённо (printf(...) и т.п.), то все параметры передаются через стек.
+Иначе первый параметр передаётся в E, DE, CDE или BCDE, в зависимости от разрядности значения. 
+Если первый и второй параметры не шире 16 бит каждый, то второй параметр передаётся в регистрах B или BC, иначе через стек. 
+Возвращаемое значение из функции передаётся в регистрах A (L при банкинге), HL, CHL или BCHL, в зависимости от разрядности значения.
+Сохранять надо ix и iy обязательно.
+DE и  BC сохранять если они не юзаются в качестве параметров
+
+struct readstructure
+			{
+			unsigned char  	socket; 
+			unsigned int	BufAdr;
+			unsigned int 	bufsize;
+			unsigned char	protocol;
+			};
+
+*/
+
+
+MODULE OS_WIZNETWRITE_UDP
+PUBLIC OS_WIZNETWRITE_UDP
+#include "sysdefs.asm"
+RSEG CODE
+OS_WIZNETWRITE_UDP	
+; DE - readstructure BC - sockaddr_in
+	ex de,hl			;HL - sockaddr_in, DE - garbage
+	ld a, (hl) 			;A  - socket
 	inc hl
-	ld (store_ix), hl
-	ld IX, (store_ix) 	; buffer HL
+	ld e,(hl)
 	inc hl
+	ld d,(hl)
 	inc hl
-	ld c, (hl) 			; size L
+	push de
+	ld (store_ix),ix
+	pop ix				;IX - BufAdr
+	ld e, (hl) 			;E - Bufsize L
 	inc hl
-	ld b, (hl) 			; size H
-	inc hl				; protocol
-	inc hl
-	ex de,hl			; DE-HL now point at sockaddr_in
+	ld d, (hl) 			;D  - Bufsize H
+	ex de,hl			;HL - Bufsize
+	ld d,b				;DE - sockaddr_in
+	ld e,c				
 	ex af,af'
+/*
+  A  - SOCKET
+  DE - указатель на структуру sockaddr_in, в неё необходимо поместить IP-адрес и порт хоста получателя
+  IX - указатель на буфер с данными
+  HL - размер данных(в байтах), в текущей реализации максимум 8192 байта
+ Возвращаемые значения в регистрах:
+  HL - при отрицательном значении функция завершилась с ошибкой,
+  иначе возвращается действительный размер(в байтах) отправленных данных,
+  А  - errno при ошибке.
+*/
 	ld c, CMD_WIZNETWRITE
 	push ix
 	push iy
@@ -212,10 +207,62 @@ icmpsend:
 	ld l, a
 writeok:
 writenot:
-	pop bc
+	ld ix,(store_ix)
 	ret
 store_ix:
-defb 0,0,0,0,0,0,0,0
+	defb 0,0,0
+
+ENDMOD
+
+MODULE OS_WIZNETREAD_UDP
+PUBLIC OS_WIZNETREAD_UDP
+#include "sysdefs.asm"
+RSEG CODE
+OS_WIZNETREAD_UDP:	
+; DE - readstructure BC - sockaddr_in
+	ex de,hl			;HL - readstructure, DE - garbage
+	ld a, (hl) 			;A  - socket
+	inc hl
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	inc hl
+	push de
+	ld (store_ix),ix
+	pop ix
+	ld e, (hl) 			;E - Bufsize L
+	inc hl
+	ld d, (hl) 			;D  - Bufsize H
+	ex de,hl			;HL - Bufsize
+	ld d,b				;DE - sockaddr_in
+	ld e,c				;
+	ex af,af'
+/*
+  A - SOCKET
+  DE - указатель на структуру sockaddr_in, в неё помещается(ядром) IP-адрес и порт хоста отправившего данные.
+  IX - указатель на буфер для принятия данных
+  HL - размер буфера(в байтах)
+ Возвращаемые значения в регистрах:
+  HL - при отрицательном значении функция завершилась с ошибкой,
+   про значении больше нуля возвращается действительный размер(в байтах) принятых данных,
+   нулевого значения вызов не возвращает.
+  А - errno при ошибке.
+*/
+	ld c, CMD_WIZNETREAD
+	push ix
+	push iy
+	call BDOS
+	pop iy
+	pop ix
+	bit 7, h
+	jp z, readok 	;noerror just return
+	ld l, a
+readok:
+readnot:
+	ld ix,(store_ix)
+	ret
+store_ix:
+	defb 0,0,0
 ENDMOD
 
 MODULE OS_BIND
@@ -335,6 +382,7 @@ ENDMOD
 
 MODULE OS_GETDNS
 PUBLIC OS_GETDNS
+
 #include "sysdefs.asm"
 RSEG CODE
 OS_GETDNS:
@@ -368,166 +416,4 @@ OS_SETDNS:
 	pop ix
 	ret
 ENDMOD
-
-MODULE LIB_DNS_RESOLVER
-	PUBLIC DNS_RESOLVER
-	EXTERN errno, OS_NETSOCKET, OS_NETSHUTDOWN, YIELD
-	EXTERN OS_NETCONNECT, OS_WIZNETREAD, OS_WIZNETWRITE
-	EXTERN OS_GETDNS
-		
-	RSEG	CODE
-DNS_RESOLVER:		;DE-domain name
-	push ix
-	push de
-    ld de,dns_ia + 3
-    call OS_GETDNS
-	ld hl,dns_head
-	ld de,dnsbuf
-	ld bc,6
-	ldir
-	ex de,hl
-	ld de,dnsbuf+7
-	ld (hl),0
-	ld bc,256-7
-	ldir
-	ld de,dnsbuf+12
-	ld h,d
-	ld l,e
-	pop bc
-name_loop:
-	inc hl
-	ld a,(bc)
-	ld (hl),a
-	inc bc
-	cp '.'
-	jr z,is_dot
-	or a
-	jr nz,name_loop
-is_dot:
-	sbc hl,de
-	ex de,hl
-	dec e
-	ld (hl),e
-	inc e
-	add hl,de
-	ld d,h
-	ld e,l
-	or a
-	jr nz,name_loop
-	inc a
-	inc hl
-	inc hl
-	ld (hl),a
-	inc hl
-	inc hl
-	ld (hl),a
-	inc hl
-	push hl
-	
-	ld de,0x0203
-	call OS_NETSOCKET
-	ld (dnssoc),a
-	or a
-	jp m,exiterr
-	;LD	C,A
-	;LD	DE,dns_ia
-	;CALL	OS_NETCONNECT
-	;or a
-	;jp m,exiterr
-	
-	pop hl
-	push hl
-	ld de,0xffff&(-dnsbuf)
-	add hl,de
-	PUSH	HL
-	LD	bc,(dnssoc)
-	LD	ix,dnsbuf
-	ld	de,dns_ia
-	CALL	OS_WIZNETWRITE
-	pop af
-	bit 7,h
-	jr nz,exitcode
-	ld b,50
-	push bc
-	jr recv_wait1
-recv_wait:
-	push bc
-	call YIELD
-recv_wait1:
-	ld hl,256
-	PUSH	HL
-	LD	bc,(dnssoc)
-	LD	DE,dnsbuf
-	LD	ix,dnsbuf
-	CALL	OS_WIZNETREAD
-	pop af
-	pop bc
-	;ld a,h
-	;or l
-	bit 7,h
-	jr z,recv_wait_end
-	djnz recv_wait
-	ld a,54	;ERR_CONNRESET
-	ld (errno),a
-	jr exiterr
-recv_wait_end:
-	ld a,65		;ERR_HOSTUNREACH
-	ld (errno),a
-	bit 7,h
-	jr nz,exitcode
-	ld a,(dnsbuf+3)
-	and 0x0f	
-	jr nz,exiterr
-exitcode:
-	LD	BC,(dnssoc)
-	LD	E,0
-	CALL	OS_NETSHUTDOWN
-	pop hl
-	pop ix
-reqpars_l
-	inc hl
-	inc hl
-	inc hl
-	ld a,(hl)
-	ld de,7
-	add hl,de
-	ld b,(hl)
-	inc hl
-	ld c,(hl)
-	inc hl
-	dec a
-	ret z
-	cp 4
-	jr nz,exiterr1
-	add hl,bc
-	jr reqpars_l
-	
-exiterr:
-	pop af
-	ld a,(errno)
-	push af
-	LD	BC,(dnssoc)
-	LD	E,0
-	CALL	OS_NETSHUTDOWN
-	pop af
-	ld (errno),a
-	pop ix
-exiterr1:
-	ld hl,0
-	ret
-	
-	RSEG	CONST
-dns_head
-	defb 0x11,0x22,0x01,0x00,0x00,0x01
-dns_ia:
-	defb 0,0,53,8,8,8,8
-	RSEG	NO_INIT
-dnssoc:
-	DEFS 1	
-dnsbuf:
-	DEFS 256
-	
-ENDMOD
-
-
 END
