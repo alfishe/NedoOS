@@ -7,7 +7,6 @@
 #include <intrz80.h>
 #include <ctype.h>
 #include <tcp.h>
-#include <graphic.h>
 #include <terminal.c>
 #define COMMANDLINE 0x0080
 unsigned int RBR_THR = 0xf8ef;
