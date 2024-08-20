@@ -1,16 +1,16 @@
 
 	MODULE LIB_DNS_RESOLVER
-	PUBLIC dns_resolver
-	EXTERN errno, OS_NETSOCKET, OS_NETCLOSE, YIELD
-	EXTERN OS_NETCONNECT, OS_NETRECV, OS_NETSEND
-	EXTERN os_getdns
+	PUBLIC DNS_RESOLVER
+	EXTERN errno, OS_NETSOCKET, OS_NETSHUTDOWN, YIELD
+	EXTERN OS_NETCONNECT, OS_WIZNETREAD_UDP, OS_WIZNETWRITE_UDP
+	EXTERN OS_GETDNS
 		
 	RSEG	CODE
-dns_resolver:		;DE-domain name
+DNS_RESOLVER:		;DE-domain name
 	push ix
 	push de
     ld de,dns_ia + 3
-    call os_getdns
+    call OS_GETDNS
 	ld hl,dns_head
 	ld de,dnsbuf
 	ld bc,6
@@ -56,27 +56,28 @@ is_dot:
 	
 	ld de,0x0203
 	call OS_NETSOCKET
+	ld a,h
 	ld (dnssoc),a
 	or a
 	jp m,exiterr
-	;LD	C,A
-	;LD	DE,dns_ia
-	;CALL	OS_NETCONNECT
-	;or a
-	;jp m,exiterr
 	
 	pop hl
 	push hl
 	ld de,0xffff&(-dnsbuf)
 	add hl,de
-	PUSH	HL
-	LD	bc,(dnssoc)
+	push hl
+
+//else:	 A=SOCKET, IX=buffer_ptr, HL=sizeof(buffer), de=sockaddr_in ptr
+//out: HL=count if HL < 0 then A=error 
+
+	LD	a,(dnssoc)
 	LD	ix,dnsbuf
 	ld	de,dns_ia
-	CALL	OS_NETSEND
+	call OS_WIZNETWRITE_UDP
 	pop af
 	bit 7,h
 	jr nz,exitcode
+
 	ld b,50
 	push bc
 	jr recv_wait1
@@ -85,15 +86,13 @@ recv_wait:
 	call YIELD
 recv_wait1:
 	ld hl,256
-	PUSH	HL
-	LD	bc,(dnssoc)
+	push hl
+	LD	a,(dnssoc)
 	LD	DE,dnsbuf
 	LD	ix,dnsbuf
-	CALL	OS_NETRECV
+	CALL OS_WIZNETREAD_UDP
 	pop af
 	pop bc
-	;ld a,h
-	;or l
 	bit 7,h
 	jr z,recv_wait_end
 	djnz recv_wait
@@ -109,9 +108,9 @@ recv_wait_end:
 	and 0x0f	
 	jr nz,exiterr
 exitcode:
-	LD	BC,(dnssoc)
+	LD	a,(dnssoc)
 	LD	E,0
-	CALL	OS_NETCLOSE
+	CALL	OS_NETSHUTDOWN
 	pop hl
 	pop ix
 reqpars_l
@@ -138,7 +137,7 @@ exiterr:
 	push af
 	LD	BC,(dnssoc)
 	LD	E,0
-	CALL	OS_NETCLOSE
+	CALL	OS_NETSHUTDOWN
 	pop af
 	ld (errno),a
 	pop ix
@@ -150,12 +149,12 @@ exiterr1:
 dns_head
 	defb 0x11,0x22,0x01,0x00,0x00,0x01
 dns_ia:
-	defb 0,0,53,8,8,8,8
+	defb 02,00,53,08,08,08,08
 	RSEG	NO_INIT
 dnssoc:
 	DEFS 1	
 dnsbuf:
 	DEFS 256
-	
+
 	END
 		
