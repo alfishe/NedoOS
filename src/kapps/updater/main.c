@@ -23,7 +23,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "0.50";
+unsigned char uVer[] = "0.60";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -33,8 +33,11 @@ unsigned char saveFlag, saveBak;
 unsigned char crlf[2] = {13, 10};
 
 unsigned char status, curFormat;
+
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
+struct sockaddr_in dnsaddress;
+
 FILE *fp2;
 
 struct window
@@ -115,6 +118,24 @@ void delay(unsigned long counter)
 	while (start < finish)
 	{
 		start = time();
+	}
+}
+
+void delayLong(unsigned long counter)
+{
+	unsigned long start, finish;
+	counter = counter / 20;
+	if (counter < 1)
+	{
+		counter = 1;
+	}
+	start = time();
+	finish = start + counter;
+
+	while (start < finish)
+	{
+		start = time();
+		YIELD();
 	}
 }
 
@@ -283,7 +304,7 @@ unsigned char OS_SHELL(unsigned char *command)
 	shellSize = OS_GETFILESIZE(fp3);
 
 	OS_CHDIR(curPath);
-	
+
 	OS_NEWAPP((unsigned int)&shell_pg);
 	shell_pg.l = OS_GETAPPMAINPAGES(shell_pg.pgs.pId);
 	SETPG32KHIGH(shell_pg.pgs.window_0);
@@ -770,14 +791,6 @@ unsigned char netConnect(unsigned char socket)
 	unsigned int todo;
 	unsigned char retry = 10;
 
-	targetadr.family = AF_INET;
-	targetadr.porth = 00;
-	targetadr.portl = 80;
-	targetadr.b1 = 31;
-	targetadr.b2 = 31;
-	targetadr.b3 = 65;
-	targetadr.b4 = 35;
-
 	while (retry > 0)
 	{
 		todo = OS_NETCONNECT(socket, &targetadr);
@@ -1096,135 +1109,7 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 	return 0;
 }
 ////////////////////////////////////////////////////
-/*
-unsigned char getTrack2(unsigned long fileId)
-{
-	unsigned int todo;
-	unsigned char socket;
-	unsigned int skipHeader = 0;
-	unsigned long bytecount;
-	unsigned int packSize = 2000;
-	unsigned char sizeLink;
-	unsigned long toDownload, downloaded;
-	unsigned char try = 0, byte = 0;
-	unsigned int todo, count;
-	unsigned char *count1;
-	clearStatus();
-	printf("Getting track...");
 
-	if (netDriver == 0)
-	{
-		strcpy(netbuf, cmdlist1);
-		sprintf(buffer, "%lu", fileId);
-		strcat(netbuf, buffer);
-		strcat(netbuf, userAgent);
-
-		socket = OpenSock(AF_INET, SOCK_STREAM);
-		todo = netConnect(socket);
-		todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
-		saveBuf(curFileStruct.picId, 00, 0);
-		do
-		{
-			todo = tcpRead(socket);
-			if (todo == 0)
-			{
-				break;
-			}
-			if (skipHeader == 0)
-			{
-				skipHeader = 1;
-				todo = cutHeader(todo);
-				bytecount = contLen;
-			}
-			saveBuf(curFileStruct.picId, 01, todo);
-			bytecount = bytecount - todo;
-		} while (bytecount != 0);
-		netShutDown(socket, 0);
-	}
-	else
-	{
-		sprintf(buffer, "%lu", fileId);
-		strcpy(netbuf, cmdlist1);
-		strcat(netbuf, buffer);
-		strcat(netbuf, userAgent);
-		saveBuf(curFileStruct.picId, 00, 0);
-
-		strcpy(link, netbuf);
-		sizeLink = strlen(link);
-		try = 0;
-		do
-		{
-			try++;
-			if (try > 1)
-			{
-				clearStatus();
-				printf("----->Retry:%u", try);
-				delay(500);
-			}
-			sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
-			getAnswer2(); // CONNECT or ERROR or link is not valid
-			count1 = strstr(netbuf, "CONNECT");
-		} while (count1 == NULL);
-
-		getAnswer2(); // OK
-
-		strcpy(netbuf, cmdlist1);
-		sprintf(buffer, "%lu", fileId);
-		strcat(netbuf, buffer);
-		strcat(netbuf, userAgent);
-		strcpy(cmd, "AT+CIPSEND=");
-		sprintf(netbuf, "%u", sizeLink + 2); // second CRLF in send command
-		strcat(cmd, netbuf);
-		sendcommand(cmd);
-		getAnswer2();
-
-		do
-		{
-			byte = uart_readBlock();
-			// putchar(byte);
-		} while (byte != '>');
-		sendcommand(link);
-		count = 0;
-
-		do
-		{
-			byte = uart_readBlock();
-			if (byte == sendOk[count])
-			{
-				count++;
-			}
-			else
-			{
-				count = 0;
-			}
-		} while (count < strlen(sendOk));
-		uart_readBlock(); // CR
-		uart_readBlock(); // LF
-		skipHeader = 0;
-		downloaded = 0;
-
-		do
-		{
-			headlng = 0;
-			todo = recvHead();
-			getdataEsp(todo); // Requested size
-			if (skipHeader == 0)
-			{
-				todo = cutHeader(todo);
-				toDownload = contLen;
-				skipHeader = 1;
-			}
-			downloaded = downloaded + todo;
-			saveBuf(curFileStruct.picId, 01, todo);
-			toDownload = toDownload - todo;
-		} while (toDownload > 0);
-		sendcommand("AT+CIPCLOSE");
-		getAnswer2(); // CLOSED
-		getAnswer2(); // OK
-	}
-	return 0;
-}
-*/
 unsigned char getConfig(void)
 {
 	config.is_atm = (unsigned char)OS_GETCONFIG();
@@ -1543,6 +1428,148 @@ void binUpdate(void)
 	printf("5.Restoring configs...");
 }
 
+void dnsResolve(unsigned char *domainName)
+{
+	unsigned char socket, retry, retryInv;
+	unsigned int todo, queryPos, queryType, queryLng, domainLng, comaCount, reqSize;
+	unsigned int loop;
+
+	unsigned char dnsQuery1[] = {0x11, 0x22, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	unsigned char dnsQuery2[] = {0x00, 0x00, 0x01, 0x00, 0x01};
+
+	domainLng = strlen(domainName);
+	comaCount = 0;
+	loop = domainLng;
+	cmd[loop + 1] = 0;
+
+	do
+	{
+		if (domainName[loop - 1] == '.')
+		{
+			cmd[loop] = comaCount;
+			comaCount = 0;
+		}
+		else
+		{
+			cmd[loop] = domainName[loop - 1];
+			comaCount++;
+		}
+		loop--;
+	} while (loop != 0);
+	cmd[0] = comaCount;
+
+	memcpy(netbuf, dnsQuery1, sizeof(dnsQuery1));
+	memcpy(netbuf + sizeof(dnsQuery1), cmd, domainLng + 1);
+	memcpy(netbuf + domainLng + sizeof(dnsQuery1) + 1, dnsQuery2, sizeof(dnsQuery2));
+	reqSize = sizeof(dnsQuery1) + sizeof(dnsQuery2) + domainLng + 1;
+
+	socket = OpenSock(AF_INET, SOCK_DGRAM);
+	readStruct.socket = socket;
+	readStruct.BufAdr = (unsigned int)&netbuf;
+	readStruct.bufsize = (unsigned int)reqSize;
+	readStruct.protocol = SOCK_DGRAM;
+
+	targetadr.family = AF_INET;
+	targetadr.porth = 00;
+	targetadr.portl = 80;
+	targetadr.b1 = 31;
+	targetadr.b2 = 31;
+	targetadr.b3 = 65;
+	targetadr.b4 = 35;
+
+	todo = OS_WIZNETWRITE_UDP(&readStruct, &dnsaddress);
+	if (todo > 32767)
+	{
+		errorPrint(todo & 255);
+		puts("Error quering DNS server[Query], using address:217.146.69.13");
+		return;
+	}
+	else
+	{
+		// printf("OS_WIZNETWRITE_UDP: %u bytes written. \n\r", todo);
+	}
+
+	readStruct.BufAdr = (unsigned int)&netbuf;
+	readStruct.bufsize = (unsigned int)sizeof(netbuf);
+	retry = 20;
+	retryInv = retry;
+
+	do
+	{
+		todo = OS_WIZNETREAD_UDP(&readStruct, &dnsaddress);
+		if (todo > 32767)
+		{
+			// errorPrint(todo & 255);
+			if (retry == 0)
+			{
+				puts(" Error quering[Response] DNS server, using address:217.146.69.13");
+				return;
+			}
+			retry--;
+			delayLong(200);
+			// printf(" Retry [%d]\r\n", retryInv - retry);
+		}
+		else
+		{
+			// printf("OS_WIZNETREAD_UDP: %u bytes read. \n\r", todo);
+			break;
+		}
+	} while (todo > 32767);
+
+	netShutDown(socket, 0);
+
+	if (!(netbuf[2] && 0x0f))
+	{
+		puts("Error quering[Parsing] DNS server, using address:217.146.69.13");
+		return;
+	}
+
+	queryPos = 11;
+	queryLng = 0;
+	do
+	{
+		queryPos++;
+	} while (netbuf[queryPos] != 0);
+
+	queryPos = queryPos + 7; // Skip to answer data
+	do
+	{
+		if (queryPos > sizeof(netbuf) - 11)
+		{
+			puts("Error quering DNS server[Buffer overrun], using address: 217.146.69.13");
+			return;
+		}
+		queryType = netbuf[queryPos] * 256 + netbuf[queryPos + 1];
+		// printf("Query type (0x0001): %d\r\n", queryType);
+
+		queryPos = queryPos + 8; // Skip to answer lenght
+
+		queryLng = netbuf[queryPos] * 256 + netbuf[queryPos + 1];
+		// printf("Query data lenght: %d\r\n", queryLng);
+		queryPos = queryPos + queryLng + 4;
+	} while (queryType != 1);
+
+	targetadr.b1 = netbuf[queryPos - 6];
+	targetadr.b2 = netbuf[queryPos - 5];
+	targetadr.b3 = netbuf[queryPos - 4];
+	targetadr.b4 = netbuf[queryPos - 3];
+
+	//printf("\r\nAddress:%u.%u.%u.%u:80\r\n", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4);
+}
+
+void get_dns(void)
+{
+	unsigned char ipaddress[4];
+	OS_GETDNS(ipaddress);
+	dnsaddress.family = AF_INET;
+	dnsaddress.porth = 00;
+	dnsaddress.portl = 53;
+	dnsaddress.b1 = ipaddress[0];
+	dnsaddress.b2 = ipaddress[1];
+	dnsaddress.b3 = ipaddress[2];
+	dnsaddress.b4 = ipaddress[3];
+}
+
 C_task main(int argc, char *argv[])
 {
 	os_initstdio();
@@ -1551,6 +1578,8 @@ C_task main(int argc, char *argv[])
 	{
 		if (argv[1][0] == 'F')
 		{
+			get_dns();
+			dnsResolve("nedoos.ru");
 			fullUpdate();
 		}
 		else if (argv[1][0] == 'e')
@@ -1585,6 +1614,8 @@ C_task main(int argc, char *argv[])
 	}
 	else
 	{
+		get_dns();
+		dnsResolve("nedoos.ru");
 		binUpdate();
 	}
 	restoreConfig(oldBinExt);

@@ -31,7 +31,7 @@ unsigned char fileName[] = "radio/player.ovl";
 unsigned char appCmd[128] = "player.com ";
 unsigned char curPath[128];
 
-unsigned char ver[] = "2.3";
+unsigned char ver[] = "2.5";
 
 unsigned char queryType[64];
 unsigned char netbuf[4096];
@@ -43,12 +43,14 @@ unsigned char cmd[256];
 unsigned char link[512];
 unsigned char toLog[256];
 
-unsigned char status, key, curFormat;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
+struct sockaddr_in dnsaddress;
+
 unsigned long contLen;
 long count;
 unsigned char saveFlag, saveBak, logFlag, rptFlag, netDriver;
+unsigned char status, key, curFormat;
 union APP_PAGES main_pg;
 union APP_PAGES player_pg;
 unsigned int loaded;
@@ -117,6 +119,24 @@ void clearStatus(void)
 {
   AT(1, 25);
   printf("                                                                               \r");
+}
+
+void delayLong(unsigned long counter)
+{
+  unsigned long start, finish;
+  counter = counter / 20;
+  if (counter < 1)
+  {
+    counter = 1;
+  }
+  start = time();
+  finish = start + counter;
+
+  while (start < finish)
+  {
+    start = time();
+    YIELD();
+  }
 }
 
 void printProgress(unsigned char type)
@@ -290,13 +310,6 @@ unsigned char netConnect(unsigned char socket)
 {
   unsigned int todo, retry = 10;
 
-  targetadr.family = AF_INET;
-  targetadr.porth = 00;
-  targetadr.portl = 80;
-  targetadr.b1 = 217;
-  targetadr.b2 = 146;
-  targetadr.b3 = 69;
-  targetadr.b4 = 13;
   while (retry > 0)
   {
     todo = OS_NETCONNECT(socket, &targetadr);
@@ -1633,10 +1646,153 @@ unsigned char testPlayer(void)
   }
 }
 
+void dnsResolve(unsigned char *domainName)
+{
+  unsigned char socket, retry, retryInv;
+  unsigned int todo, queryPos, queryType, queryLng, domainLng, comaCount, reqSize;
+  unsigned int loop;
+
+  unsigned char dnsQuery1[] = {0x11, 0x22, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  unsigned char dnsQuery2[] = {0x00, 0x00, 0x01, 0x00, 0x01};
+
+  domainLng = strlen(domainName);
+  comaCount = 0;
+  loop = domainLng;
+  cmd[loop + 1] = 0;
+
+  do
+  {
+    if (domainName[loop - 1] == '.')
+    {
+      cmd[loop] = comaCount;
+      comaCount = 0;
+    }
+    else
+    {
+      cmd[loop] = domainName[loop - 1];
+      comaCount++;
+    }
+    loop--;
+  } while (loop != 0);
+  cmd[0] = comaCount;
+
+  memcpy(netbuf, dnsQuery1, sizeof(dnsQuery1));
+  memcpy(netbuf + sizeof(dnsQuery1), cmd, domainLng + 1);
+  memcpy(netbuf + domainLng + sizeof(dnsQuery1) + 1, dnsQuery2, sizeof(dnsQuery2));
+  reqSize = sizeof(dnsQuery1) + sizeof(dnsQuery2) + domainLng + 1;
+
+  socket = OpenSock(AF_INET, SOCK_DGRAM);
+  readStruct.socket = socket;
+  readStruct.BufAdr = (unsigned int)&netbuf;
+  readStruct.bufsize = (unsigned int)reqSize;
+  readStruct.protocol = SOCK_DGRAM;
+
+  targetadr.family = AF_INET;
+  targetadr.porth = 00;
+  targetadr.portl = 80;
+  targetadr.b1 = 217; // D9
+  targetadr.b2 = 146; // 92
+  targetadr.b3 = 69;  // 45
+  targetadr.b4 = 13;  // 0D
+
+  todo = OS_WIZNETWRITE_UDP(&readStruct, &dnsaddress);
+  if (todo > 32767)
+  {
+    errorPrint(todo & 255);
+    puts("Error quering DNS server[Query], using address:217.146.69.13");
+    return;
+  }
+  else
+  {
+    // printf("OS_WIZNETWRITE_UDP: %u bytes written. \n\r", todo);
+  }
+
+  readStruct.BufAdr = (unsigned int)&netbuf;
+  readStruct.bufsize = (unsigned int)sizeof(netbuf);
+  retry = 20;
+  retryInv = retry;
+
+  do
+  {
+    todo = OS_WIZNETREAD_UDP(&readStruct, &dnsaddress);
+    if (todo > 32767)
+    {
+      // errorPrint(todo & 255);
+      if (retry == 0)
+      {
+        puts(" Error quering[Response] DNS server, using address:217.146.69.13");
+        return;
+      }
+      retry--;
+      delayLong(200);
+      // printf(" Retry [%d]\r\n", retryInv - retry);
+    }
+    else
+    {
+      // printf("OS_WIZNETREAD_UDP: %u bytes read. \n\r", todo);
+      break;
+    }
+  } while (todo > 32767);
+
+  netShutDown(socket, 0);
+
+  if (!(netbuf[2] && 0x0f))
+  {
+    puts("Error quering[Parsing] DNS server, using address:217.146.69.13");
+    return;
+  }
+
+  queryPos = 11;
+  queryLng = 0;
+  do
+  {
+    queryPos++;
+  } while (netbuf[queryPos] != 0);
+
+  queryPos = queryPos + 7; // Skip to answer data
+  do
+  {
+    if (queryPos > sizeof(netbuf) - 11)
+    {
+      puts("Error quering DNS server[Buffer overrun], using address: 217.146.69.13");
+      return;
+    }
+    queryType = netbuf[queryPos] * 256 + netbuf[queryPos + 1];
+    // printf("Query type (0x0001): %d\r\n", queryType);
+
+    queryPos = queryPos + 8; // Skip to answer lenght
+
+    queryLng = netbuf[queryPos] * 256 + netbuf[queryPos + 1];
+    // printf("Query data lenght: %d\r\n", queryLng);
+    queryPos = queryPos + queryLng + 4;
+  } while (queryType != 1);
+
+  targetadr.b1 = netbuf[queryPos - 6];
+  targetadr.b2 = netbuf[queryPos - 5];
+  targetadr.b3 = netbuf[queryPos - 4];
+  targetadr.b4 = netbuf[queryPos - 3];
+
+  //printf("Address:%u.%u.%u.%u:80\r\n", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4);
+  //getchar();
+}
+
+void get_dns(void)
+{
+  unsigned char ipaddress[4];
+  OS_GETDNS(ipaddress);
+  dnsaddress.family = AF_INET;
+  dnsaddress.porth = 00;
+  dnsaddress.portl = 53;
+  dnsaddress.b1 = ipaddress[0];
+  dnsaddress.b2 = ipaddress[1];
+  dnsaddress.b3 = ipaddress[2];
+  dnsaddress.b4 = ipaddress[3];
+}
+
 C_task main(int argc, char *argv[])
 {
   unsigned char errn, keypress, queryNum, pId, alive, changedFormat;
-  long iddqd, idkfa, ipadress;
+  long iddqd, idkfa;
   unsigned long curTimer, startTimer, oldTimer;
   os_initstdio();
   srand(time());
@@ -1684,7 +1840,11 @@ C_task main(int argc, char *argv[])
     printf("Logging enabled");
     getchar();
   }
-
+  if (netDriver == 0)
+  {
+    get_dns();
+    dnsResolve("zxart.ee");
+  }
 start:
   // writeLog("\r\n**********[Start new track]**********\r\n");
   OS_SETSYSDRV();
