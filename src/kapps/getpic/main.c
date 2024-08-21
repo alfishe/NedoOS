@@ -1,5 +1,3 @@
-// #include <ctype.h>
-// #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -115,6 +113,24 @@ void delay(unsigned long counter)
   while (start < finish)
   {
     start = time();
+  }
+}
+
+void delayLong(unsigned long counter)
+{
+  unsigned long start, finish;
+  counter = counter / 20;
+  if (counter < 1)
+  {
+    counter = 1;
+  }
+  start = time();
+  finish = start + counter;
+
+  while (start < finish)
+  {
+    start = time();
+    YIELD();
   }
 }
 
@@ -1349,9 +1365,9 @@ void safeKeys(unsigned char keypress)
 }
 void dnsResolve(void)
 {
-  unsigned char socket;
+  unsigned char socket, retry, retryInv;
   unsigned int todo, queryPos, queryType, queryLng;
-  //unsigned int loop;
+  // unsigned int loop;
   unsigned char dnsQuery[] = {
       0x11, 0x22, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
       0x05, 0x7a, 0x78, 0x61, 0x72, 0x74, 0x02, 0x65, 0x65, 0x00,
@@ -1380,40 +1396,50 @@ void dnsResolve(void)
   }
   else
   {
-    //printf("OS_WIZNETWRITE_UDP: %u bytes written. \n\r", todo);
+    // printf("OS_WIZNETWRITE_UDP: %u bytes written. \n\r", todo);
   }
-
-  delay(500);
 
   readStruct.BufAdr = (unsigned int)&netbuf;
   readStruct.bufsize = (unsigned int)sizeof(netbuf);
+  retry = 20;
+  retryInv = retry;
 
-  todo = OS_WIZNETREAD_UDP(&readStruct, &dnsaddress);
-  if (todo > 32767)
+  do
   {
-    errorPrint(todo & 255);
-    puts(" Error quering[Response] DNS server, using address:217.146.69.13");
-    return;
-  }
-  else
-  {
-    //printf("OS_WIZNETREAD_UDP: %u bytes read. \n\r", todo);
-  }
+    todo = OS_WIZNETREAD_UDP(&readStruct, &dnsaddress);
+    if (todo > 32767)
+    {
+      //errorPrint(todo & 255);
+      if (retry == 0)
+      {
+        puts(" Error quering[Response] DNS server, using address:217.146.69.13");
+        return;
+      }
+      retry--;
+      delayLong(200);
+      //printf(" Retry [%d]\r\n", retryInv - retry);
+    }
+    else
+    {
+      // printf("OS_WIZNETREAD_UDP: %u bytes read. \n\r", todo);
+      break;
+    }
+  } while (todo > 32767);
 
   netShutDown(socket, 0);
-/*
-  puts("--------------------------ANSWER-----------------------------");
+  /*
+    puts("--------------------------ANSWER-----------------------------");
 
-  for (loop = 0; loop < todo; loop++)
-  {
-    printf("%02X ", (int)netbuf[loop]);
-    if ((loop + 1) % 16 == 0)
+    for (loop = 0; loop < todo; loop++)
     {
-      printf("\r\n");
+      printf("%02X ", (int)netbuf[loop]);
+      if ((loop + 1) % 16 == 0)
+      {
+        printf("\r\n");
+      }
     }
-  }
-  puts("\r\n--------------------------ANSWER-----------------------------");
-*/
+    puts("\r\n--------------------------ANSWER-----------------------------");
+  */
 
   if (!(netbuf[2] && 0x0f))
   {
@@ -1437,12 +1463,12 @@ void dnsResolve(void)
       return;
     }
     queryType = netbuf[queryPos] * 256 + netbuf[queryPos + 1];
-    //printf("Query type (0x0001): %d\r\n", queryType);
+    // printf("Query type (0x0001): %d\r\n", queryType);
 
     queryPos = queryPos + 8; // Skip to answer lenght
 
     queryLng = netbuf[queryPos] * 256 + netbuf[queryPos + 1];
-    //printf("Query data lenght: %d\r\n", queryLng);
+    // printf("Query data lenght: %d\r\n", queryLng);
     queryPos = queryPos + queryLng + 4;
   } while (queryType != 1);
 
