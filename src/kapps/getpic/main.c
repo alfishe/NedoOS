@@ -1363,20 +1363,46 @@ void safeKeys(unsigned char keypress)
     }
   }
 }
-void dnsResolve(void)
+void dnsResolve(unsigned char *domainName)
 {
   unsigned char socket, retry, retryInv;
-  unsigned int todo, queryPos, queryType, queryLng;
-  // unsigned int loop;
-  unsigned char dnsQuery[] = {
-      0x11, 0x22, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x05, 0x7a, 0x78, 0x61, 0x72, 0x74, 0x02, 0x65, 0x65, 0x00,
-      0x00, 0x01, 0x00, 0x01};
+  unsigned int todo, queryPos, queryType, queryLng, domainLng, comaCount, reqSize;
+  unsigned int loop;
+
+  unsigned char dnsQuery1[] = {
+      0x11, 0x22, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  unsigned char dnsQuery2[] = {0x00, 0x00, 0x01, 0x00, 0x01};
+
+  domainLng = strlen(domainName);
+  comaCount = 0;
+  loop = domainLng;
+  cmd[loop + 1] = 0;
+
+  do
+  {
+    if (domainName[loop - 1] == '.')
+    {
+      cmd[loop] = comaCount;
+      comaCount = 0;
+    }
+    else
+    {
+      cmd[loop] = domainName[loop - 1];
+      comaCount++;
+    }
+    loop--;
+  } while (loop != 0);
+  cmd[0] = comaCount;
+
+  memcpy(netbuf, dnsQuery1, sizeof(dnsQuery1));
+  memcpy(netbuf + sizeof(dnsQuery1), cmd, domainLng + 1);
+  memcpy(netbuf + domainLng + sizeof(dnsQuery1) + 1, dnsQuery2, sizeof(dnsQuery2));
+  reqSize = sizeof(dnsQuery1) + sizeof(dnsQuery2) + domainLng + 1;
 
   socket = OpenSock(AF_INET, SOCK_DGRAM);
   readStruct.socket = socket;
-  readStruct.BufAdr = (unsigned int)&dnsQuery;
-  readStruct.bufsize = (unsigned int)sizeof(dnsQuery);
+  readStruct.BufAdr = (unsigned int)&netbuf;
+  readStruct.bufsize = (unsigned int)reqSize;
   readStruct.protocol = SOCK_DGRAM;
 
   targetadr.family = AF_INET;
@@ -1409,7 +1435,7 @@ void dnsResolve(void)
     todo = OS_WIZNETREAD_UDP(&readStruct, &dnsaddress);
     if (todo > 32767)
     {
-      //errorPrint(todo & 255);
+      // errorPrint(todo & 255);
       if (retry == 0)
       {
         puts(" Error quering[Response] DNS server, using address:217.146.69.13");
@@ -1417,7 +1443,7 @@ void dnsResolve(void)
       }
       retry--;
       delayLong(200);
-      //printf(" Retry [%d]\r\n", retryInv - retry);
+      // printf(" Retry [%d]\r\n", retryInv - retry);
     }
     else
     {
@@ -1514,7 +1540,7 @@ C_task main(void)
   if (netDriver == 0)
   {
     get_dns();
-    dnsResolve();
+    dnsResolve("zxart.ee");
   }
 
 start:
