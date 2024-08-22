@@ -75,7 +75,6 @@ unsigned char netIniLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/net.i
 unsigned char relLink[] = "http://nedoos.ru/images/release.zip";
 unsigned char nameBuf1[256];
 unsigned char *nameBuf = nameBuf1;
-// unsigned char *nameBuf = "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char cmd[256];
@@ -248,7 +247,10 @@ void fatalError(unsigned char *message)
 	AT(cw.x + 2, cw.y + 3);
 	printf("%s", message);
 	AT(1, 1);
-	getchar();
+	do
+	{
+		YIELD();
+	} while (_low_level_get() == 0);
 	exit(0);
 }
 
@@ -297,7 +299,10 @@ unsigned char OS_SHELL(unsigned char *command)
 		AT(1, 24);
 		printf("%s", fileName);
 		printf(" not found.");
-		getchar();
+		do
+		{
+			YIELD();
+		} while (_low_level_get() == 0);
 		exit(0);
 	}
 
@@ -724,10 +729,6 @@ void errorPrint(unsigned int error)
 		printf("[%u] UNKNOWN ERROR", error);
 		break;
 	}
-	do
-	{
-		YIELD();
-	} while (_low_level_get() == 0);
 }
 
 unsigned int httpError(void)
@@ -812,7 +813,12 @@ unsigned char netConnect(unsigned char socket)
 			return 1;
 		}
 	}
-	getchar();
+
+	do
+	{
+		YIELD();
+	} while (_low_level_get() == 0);
+
 	exit(0);
 	return 0;
 }
@@ -891,7 +897,12 @@ unsigned int tcpRead(unsigned char socket)
 			return todo;
 		}
 	}
-	getchar();
+
+	do
+	{
+		YIELD();
+	} while (_low_level_get() == 0);
+
 	exit(0);
 	return todo;
 }
@@ -1343,6 +1354,53 @@ void fullUpdate(void)
 	ATRIB(cw.back);
 	printf("Restoring configs...");
 }
+
+unsigned char testConect(void)
+{
+	unsigned char *count1;
+	/*
+		unsigned char todo, socket;
+		if (netDriver == 0)
+		{
+			socket = OpenSock(AF_INET, SOCK_STREAM);
+			todo = OS_NETCONNECT(socket, &targetadr);
+			netShutDown(socket, 0);
+			if (todo > 32767)
+			{
+				clearStatus();
+				printf("OS_NETCONNECT [ERROR:");
+				errorPrint(todo & 255);
+				YIELD();
+				getchar();
+				return 0;
+			}
+			else
+			{
+				puts("TODO = 0000000");
+				getchar();
+			}
+		}
+	*/
+	if (netDriver == 1)
+	{
+		sendcommand("AT+CIPSTART=\"TCP\",\"nedoos.ru\",80");
+		getAnswer2(); // CONNECT or ERROR or link is not valid
+		count1 = strstr(netbuf, "CONNECT");
+
+		if (count1 == NULL)
+		{
+			YIELD();
+			uart_flush();
+			return 0;
+		}
+		getAnswer2(); // OK
+		sendcommand("AT+CIPCLOSE");
+		getAnswer2(); // CLOSED
+		getAnswer2(); // OK
+	}
+	return 1;
+}
+
 // Updating only BIN folders, where is OS lives.
 void binUpdate(void)
 {
@@ -1428,7 +1486,7 @@ void binUpdate(void)
 	printf("5.Restoring configs...");
 }
 
-void dnsResolve(unsigned char *domainName)
+unsigned char dnsResolve(unsigned char *domainName)
 {
 	unsigned char socket, retry, retryInv;
 	unsigned int todo, queryPos, queryType, queryLng, domainLng, comaCount, reqSize;
@@ -1481,8 +1539,8 @@ void dnsResolve(unsigned char *domainName)
 	if (todo > 32767)
 	{
 		errorPrint(todo & 255);
-		puts("Error quering DNS server[Query], using address:217.146.69.13");
-		return;
+		puts(" Error quering DNS server[Query], using address:217.146.69.13    ");
+		return 0;
 	}
 	else
 	{
@@ -1502,8 +1560,8 @@ void dnsResolve(unsigned char *domainName)
 			// errorPrint(todo & 255);
 			if (retry == 0)
 			{
-				puts(" Error quering[Response] DNS server, using address:217.146.69.13");
-				return;
+				puts(" Error quering[Response] DNS server, using address:217.146.69.13    ");
+				return 0;
 			}
 			retry--;
 			delayLong(200);
@@ -1520,8 +1578,8 @@ void dnsResolve(unsigned char *domainName)
 
 	if (!(netbuf[2] && 0x0f))
 	{
-		puts("Error quering[Parsing] DNS server, using address:217.146.69.13");
-		return;
+		puts(" Error quering[Parsing] DNS server, using address:217.146.69.13    ");
+		return 0;
 	}
 
 	queryPos = 11;
@@ -1536,8 +1594,8 @@ void dnsResolve(unsigned char *domainName)
 	{
 		if (queryPos > sizeof(netbuf) - 11)
 		{
-			puts("Error quering DNS server[Buffer overrun], using address: 217.146.69.13");
-			return;
+			puts(" Error quering DNS server[Buffer overrun], using address: 217.146.69.13    ");
+			return 0;
 		}
 		queryType = netbuf[queryPos] * 256 + netbuf[queryPos + 1];
 		// printf("Query type (0x0001): %d\r\n", queryType);
@@ -1554,7 +1612,8 @@ void dnsResolve(unsigned char *domainName)
 	targetadr.b3 = netbuf[queryPos - 4];
 	targetadr.b4 = netbuf[queryPos - 3];
 
-	//printf("\r\nAddress:%u.%u.%u.%u:80\r\n", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4);
+	// printf("\r\nAddress:%u.%u.%u.%u:80\r\n", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4);
+	return 1;
 }
 
 void get_dns(void)
@@ -1572,15 +1631,20 @@ void get_dns(void)
 
 C_task main(int argc, char *argv[])
 {
+	unsigned char test;
 	os_initstdio();
 
 	if (argc > 1)
 	{
 		if (argv[1][0] == 'F')
 		{
+			netDriver == 0;
 			get_dns();
-			dnsResolve("nedoos.ru");
-			fullUpdate();
+			test = dnsResolve("nedoos.ru");
+			if (test)
+			{
+				fullUpdate();
+			}
 		}
 		else if (argv[1][0] == 'e')
 		{
@@ -1590,7 +1654,11 @@ C_task main(int argc, char *argv[])
 			loadEspConfig();
 			uart_init(divider);
 			espReBoot();
-			binUpdate();
+			test = testConect();
+			if (test)
+			{
+				binUpdate();
+			}
 		}
 		else if (argv[1][0] == 'E')
 		{
@@ -1600,7 +1668,11 @@ C_task main(int argc, char *argv[])
 			loadEspConfig();
 			uart_init(divider);
 			espReBoot();
-			fullUpdate();
+			test = testConect();
+			if (test)
+			{
+				fullUpdate();
+			}
 		}
 		else
 		{
@@ -1614,9 +1686,18 @@ C_task main(int argc, char *argv[])
 	}
 	else
 	{
+		netDriver == 0;
 		get_dns();
-		dnsResolve("nedoos.ru");
-		binUpdate();
+		test = dnsResolve("nedoos.ru");
+		if (test)
+		{
+			binUpdate();
+		}
+	}
+
+	if (!test)
+	{
+		fatalError("Check connection to the server!");
 	}
 	restoreConfig(oldBinExt);
 	OS_DELETE("bin/bin.zip");
@@ -1626,5 +1707,6 @@ C_task main(int argc, char *argv[])
 	// OS_DELETE("release.zip");
 	ATRIB(40);
 	ATRIB(32);
+	AT(1, 25);
 	exit(0);
 }
