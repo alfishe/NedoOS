@@ -766,11 +766,11 @@ void loadEspConfig(void)
   unsigned char res;
   FILE *espcom;
   OS_SETSYSDRV();
-  OS_CHDIR("browser");
+  OS_CHDIR("../ini");
   espcom = OS_OPENHANDLE("espcom.ini", 0x80);
   if (((int)espcom) & 0xff)
   {
-    printf("mrfesp.ini opening error\r\n");
+    printf("espcom.ini opening error\r\n");
     return;
   }
 

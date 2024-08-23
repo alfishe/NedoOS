@@ -815,12 +815,12 @@ void loadEspConfig(void)
   unsigned char res;
   FILE *espcom;
   OS_SETSYSDRV();
-  OS_CHDIR("browser");
+  OS_CHDIR("../ini");
   espcom = OS_OPENHANDLE("espcom.ini", 0x80);
   if (((int)espcom) & 0xff)
   {
     clearStatus();
-    printf("mrfesp.ini opening error");
+    printf("espcom.ini opening error");
     return;
   }
 
@@ -1250,13 +1250,13 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
 
   case 3: // GET /api/export:zxMusic/limit:1/start:1/filter:zxMusicFormat=pt3;authorId=7744/order:date,desc HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)
 
-    fp3 = OS_OPENHANDLE("radio/user.que", 0x80);
+    fp3 = OS_OPENHANDLE("../ini/user.que", 0x80);
     if (((int)fp3) & 0xff)
     {
-      fp3 = OS_CREATEHANDLE("radio/user.que", 0x80);
+      fp3 = OS_CREATEHANDLE("../ini/user.que", 0x80);
       OS_WRITEHANDLE(userQuery, fp3, sizeof(userQuery));
       OS_CLOSEHANDLE(fp3);
-      fp3 = OS_OPENHANDLE("radio/user.que", 0x80);
+      fp3 = OS_OPENHANDLE("../ini/user.que", 0x80);
     }
     OS_READHANDLE(userQuery, fp3, sizeof(userQuery));
     OS_CLOSEHANDLE(fp3);

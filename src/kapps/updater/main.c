@@ -639,12 +639,12 @@ void loadEspConfig(void)
 	unsigned char res;
 	FILE *espcom;
 	OS_SETSYSDRV();
-	OS_CHDIR("browser");
+	OS_CHDIR("../ini");
 	espcom = OS_OPENHANDLE("espcom.ini", 0x80);
 	if (((int)espcom) & 0xff)
 	{
 		clearStatus();
-		printf("mrfesp.ini opening error");
+		printf("espcom.ini opening error");
 		return;
 	}
 
@@ -1231,7 +1231,7 @@ void restoreConfig(unsigned char oldBinExt)
 	errn = OS_RENAME("bin/nv.ext", "bin/nv.ext.new");
 	errn = OS_RENAME("bin/gp/gp.ini", "bin/gp/gp.ini.new");
 	errn = OS_RENAME("/bin/browser/index.gph", "/bin/browser/index.gph.new");
-	errn = OS_RENAME("/bin/browser/espcom.ini", "/bin/browser/espcom.ini.new");
+	//errn = OS_RENAME("/bin/browser/espcom.ini", "/bin/browser/espcom.ini.new");
 
 	if (oldBinExt == 255)
 	{
@@ -1243,7 +1243,7 @@ void restoreConfig(unsigned char oldBinExt)
 
 		errn = OS_SHELL("copy bin.old/gp/gp.ini bin/gp/gp.ini");
 		errn = OS_SHELL("copy bin.old/browser/index.gph bin/browser/index.gph");
-		errn = OS_SHELL("copy bin.old/browser/espcom.ini bin/browser/espcom.ini");
+		//errn = OS_SHELL("copy bin.old/browser/espcom.ini bin/browser/espcom.ini");
 	}
 	else
 	{
@@ -1259,8 +1259,8 @@ void restoreConfig(unsigned char oldBinExt)
 		OS_SHELL((void *)nameBuf);
 		sprintf(nameBuf, "copy bin.%u/browser/index.gph bin/browser/index.gph", oldBinExt);
 		OS_SHELL((void *)nameBuf);
-		sprintf(nameBuf, "copy bin.%u/browser/espcom.ini bin/browser/espcom.ini", oldBinExt);
-		OS_SHELL((void *)nameBuf);
+		//sprintf(nameBuf, "copy bin.%u/browser/espcom.ini bin/browser/espcom.ini", oldBinExt);
+		//OS_SHELL((void *)nameBuf);
 	}
 	AT(1, 4);
 	ATRIB(40);
@@ -1273,7 +1273,7 @@ void restoreConfig(unsigned char oldBinExt)
 	errn = OS_RENAME("bin/nv.ext.new", "bin/nv.ext");
 	errn = OS_RENAME("bin/gp/gp.ini.new", "bin/gp/gp.ini");
 	errn = OS_RENAME("bin/browser/index.gph.new", "bin/browser/index.gph");
-	errn = OS_RENAME("bin/browser/espcom.ini.new", "bin/browser/espcom.ini");
+	//errn = OS_RENAME("bin/browser/espcom.ini.new", "bin/browser/espcom.ini");
 }
 
 // Download, backup, unpack release.bin
@@ -1322,6 +1322,7 @@ void fullUpdate(void)
 
 	oldBinExt = ren2old("bin");
 	ren2old("doc");
+	ren2old("ini");
 	ren2old("nedodemo");
 	ren2old("nedogame");
 
