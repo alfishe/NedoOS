@@ -2021,7 +2021,7 @@ rekey:
       clearStatus();
       printf("Player stopped...");
       printProgress(0);
-      changedFormat = 1;
+      changedFormat = 0;
       getchar();
       goto resume;
     }
