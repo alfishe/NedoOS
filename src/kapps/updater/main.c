@@ -3,7 +3,7 @@
 #include <intrz80.h>
 #include <stdlib.h>
 #include <oscalls.h>
-#include <terminal.c>
+#include <../common/terminal.c>
 #include <tcp.h>
 #include <osfs.h>
 #include <intrz80.h>
@@ -119,25 +119,6 @@ void delay(unsigned long counter)
 		start = time();
 	}
 }
-
-void delayLong(unsigned long counter)
-{
-	unsigned long start, finish;
-	counter = counter / 20;
-	if (counter < 1)
-	{
-		counter = 1;
-	}
-	start = time();
-	finish = start + counter;
-
-	while (start < finish)
-	{
-		start = time();
-		YIELD();
-	}
-}
-
 void printNews(void) // max 20 lines in total and 59 col.
 {
 	FILE *fpNews;
@@ -680,148 +661,9 @@ void loadEspConfig(void)
 
 ////////////////////////ESP32 PROCEDURES//////////////////////
 
-//////////////// NETWORK PART //////////////////////
-void errorPrint(unsigned int error)
-{
-	clearStatus();
-	switch (error)
-	{
-	case 2:
-		printf("02 SHUT_RDWR");
-		break;
-	case 4:
-		printf("04 ERR_INTR");
-		break;
-	case 23:
-		printf("23 ERR_NFILE");
-		break;
-	case 35:
-		printf("35 ERR_EAGAIN");
-		break;
-	case 37:
-		printf("37 ERR_ALREADY");
-		break;
-	case 38:
-		printf("38 ERR_NOTSOCK");
-		break;
-	case 40:
-		printf("40 ERR_EMSGSIZE");
-		break;
-	case 41:
-		printf("41 ERR_PROTOTYPE");
-		break;
-	case 47:
-		printf("47 ERR_AFNOSUPPORT");
-		break;
-	case 53:
-		printf("53 ERR_ECONNABORTED");
-		break;
-	case 54:
-		printf("54 ERR_CONNRESET");
-		break;
-	case 57:
-		printf("57 ERR_NOTCONN");
-		break;
-	case 65:
-		printf("65 ERR_HOSTUNREACH");
-		break;
-	default:
-		printf("[%u] UNKNOWN ERROR", error);
-		break;
-	}
-}
-
-unsigned int httpError(void)
-{
-	unsigned char *httpRes;
-	unsigned int httpErr;
-	httpRes = strstr(netbuf, "HTTP/1.1 ");
-
-	if (httpRes != NULL)
-	{
-		httpErr = atol(httpRes + 9);
-	}
-	else
-	{
-		httpErr = 0;
-	}
-	return httpErr;
-}
-
-unsigned char OpenSock(unsigned char family, unsigned char protocol)
-{
-	unsigned char socket;
-	unsigned int todo;
-	todo = OS_NETSOCKET((family << 8) + protocol);
-	if (todo > 32767)
-	{
-		clearStatus();
-		AT(1, 24);
-		printf("OS_NETSOCKET: ");
-		errorPrint(todo & 255);
-		exit(0);
-	}
-	else
-	{
-		socket = ((todo & 65280) >> 8);
-	}
-	return socket;
-}
-
-signed char netShutDown(signed char socket, unsigned char type)
-{
-	unsigned int todo;
-	todo = OS_NETSHUTDOWN(socket, type);
-	if (todo > 32767)
-	{
-		clearStatus();
-		printf("OS_NETSHUTDOWN: [ERROR:");
-		errorPrint(todo & 255);
-		printf("] Press any key.");
-		return -1;
-	}
-	else
-	{
-		// printf("Socket #%d closed.\n\r", socket);
-	}
-	return 1;
-}
-
-unsigned char netConnect(unsigned char socket)
-{
-	unsigned int todo;
-	unsigned char retry = 10;
-
-	while (retry > 0)
-	{
-		todo = OS_NETCONNECT(socket, &targetadr);
-
-		if (todo > 32767)
-		{
-			retry--;
-			clearStatus();
-			printf("OS_NETCONNECT [ERROR:");
-			errorPrint(todo & 255);
-			printf("] [Retry:%u]", retry);
-			YIELD();
-			netShutDown(socket, 0);
-			socket = OpenSock(AF_INET, SOCK_STREAM);
-		}
-		else
-		{
-			// printf("OS_NETCONNECT: connection successful, %u\n\r", (todo & 255));
-			return 1;
-		}
-	}
-
-	do
-	{
-		YIELD();
-	} while (_low_level_get() == 0);
-
-	exit(0);
-	return 0;
-}
+///////////////////////////
+#include <../common/network.c>
+//////////////////////////
 
 unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsigned int sizeOfBuf)
 {
@@ -866,47 +708,6 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 	return 0;
 }
 
-unsigned int tcpRead(unsigned char socket)
-{
-	unsigned char retry = 20;
-	unsigned int todo;
-	readStruct.socket = socket;
-	readStruct.BufAdr = (unsigned int)&netbuf;
-	readStruct.bufsize = sizeof(netbuf);
-	readStruct.protocol = SOCK_STREAM;
-
-	while (retry > 0)
-	{
-		todo = OS_WIZNETREAD(&readStruct);
-
-		if (todo > 32767)
-		{
-			if ((todo & 255) != ERR_EAGAIN)
-			{
-				clearStatus();
-				printf("OS_WIZNETREAD: [ERROR:");
-				errorPrint(todo & 255);
-				printf("] [Retry:%u]", retry);
-				YIELD();
-				retry--;
-			}
-		}
-		else
-		{
-			// printf("OS_WIZNETREAD: %u bytes read. \n\r", todo);
-			return todo;
-		}
-	}
-
-	do
-	{
-		YIELD();
-	} while (_low_level_get() == 0);
-
-	exit(0);
-	return todo;
-}
-
 unsigned int cutHeader(unsigned int todo)
 {
 	unsigned int err;
@@ -948,42 +749,10 @@ unsigned int cutHeader(unsigned int todo)
 	return todo - headlng;
 }
 
-unsigned int tcpSend(unsigned char socket, unsigned int messageadr, unsigned int size)
-{
-	unsigned char retry = 20;
-	unsigned int todo;
-	readStruct.socket = socket;
-	readStruct.BufAdr = messageadr;
-	readStruct.bufsize = size;
-	readStruct.protocol = SOCK_STREAM;
-
-wizwrite:
-	todo = OS_WIZNETWRITE(&readStruct);
-	if (todo > 32767)
-	{
-		clearStatus();
-		AT(1, 24);
-		printf("OS_WIZNETWRITE: ");
-		errorPrint(todo & 255);
-		if (retry == 0)
-		{
-			exit(0);
-		}
-		retry--;
-		if (_low_level_get() == 27)
-		{
-			fatalError("File download aborted!");
-		}
-		delay(100);
-		goto wizwrite;
-	}
-
-	return todo;
-}
 unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 {
-	unsigned int todo;
-	unsigned char socket;
+	int todo;
+	char socket;
 	unsigned int skipHeader = 0;
 	unsigned int fileSize1;
 	unsigned long downloaded = 0;
@@ -1001,13 +770,21 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 
 	if (netDriver == 0)
 	{
+		clearStatus();
 		socket = OpenSock(AF_INET, SOCK_STREAM);
-		todo = netConnect(socket);
-		todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
+		testOperation("OS_NETSOCKET", socket);
+
+		todo = netConnect(socket, 10);
+		testOperation("OS_NETCONNECT", todo);
+
+		todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), 10);
+		testOperation("OS_WIZNETWRITE", todo);
 		do
 		{
 			headlng = 0;
-			todo = tcpRead(socket);
+			todo = tcpRead(socket, 10);
+			clearStatus();
+			testOperation("OS_WIZNETREAD", todo);
 			if (todo == 0)
 			{
 				break;
@@ -1231,7 +1008,7 @@ void restoreConfig(unsigned char oldBinExt)
 	errn = OS_RENAME("bin/nv.ext", "bin/nv.ext.new");
 	errn = OS_RENAME("bin/gp/gp.ini", "bin/gp/gp.ini.new");
 	errn = OS_RENAME("/bin/browser/index.gph", "/bin/browser/index.gph.new");
-	//errn = OS_RENAME("/bin/browser/espcom.ini", "/bin/browser/espcom.ini.new");
+	// errn = OS_RENAME("/bin/browser/espcom.ini", "/bin/browser/espcom.ini.new");
 
 	if (oldBinExt == 255)
 	{
@@ -1243,7 +1020,7 @@ void restoreConfig(unsigned char oldBinExt)
 
 		errn = OS_SHELL("copy bin.old/gp/gp.ini bin/gp/gp.ini");
 		errn = OS_SHELL("copy bin.old/browser/index.gph bin/browser/index.gph");
-		//errn = OS_SHELL("copy bin.old/browser/espcom.ini bin/browser/espcom.ini");
+		// errn = OS_SHELL("copy bin.old/browser/espcom.ini bin/browser/espcom.ini");
 	}
 	else
 	{
@@ -1259,8 +1036,8 @@ void restoreConfig(unsigned char oldBinExt)
 		OS_SHELL((void *)nameBuf);
 		sprintf(nameBuf, "copy bin.%u/browser/index.gph bin/browser/index.gph", oldBinExt);
 		OS_SHELL((void *)nameBuf);
-		//sprintf(nameBuf, "copy bin.%u/browser/espcom.ini bin/browser/espcom.ini", oldBinExt);
-		//OS_SHELL((void *)nameBuf);
+		// sprintf(nameBuf, "copy bin.%u/browser/espcom.ini bin/browser/espcom.ini", oldBinExt);
+		// OS_SHELL((void *)nameBuf);
 	}
 	AT(1, 4);
 	ATRIB(40);
@@ -1273,7 +1050,7 @@ void restoreConfig(unsigned char oldBinExt)
 	errn = OS_RENAME("bin/nv.ext.new", "bin/nv.ext");
 	errn = OS_RENAME("bin/gp/gp.ini.new", "bin/gp/gp.ini");
 	errn = OS_RENAME("bin/browser/index.gph.new", "bin/browser/index.gph");
-	//errn = OS_RENAME("bin/browser/espcom.ini.new", "bin/browser/espcom.ini");
+	// errn = OS_RENAME("bin/browser/espcom.ini.new", "bin/browser/espcom.ini");
 }
 
 // Download, backup, unpack release.bin
@@ -1487,46 +1264,10 @@ void binUpdate(void)
 	printf("5.Restoring configs...");
 }
 
-unsigned char dnsResolve(unsigned char *domainName)
+C_task main(int argc, char *argv[])
 {
-	unsigned char socket, retry, retryInv;
-	unsigned int todo, queryPos, queryType, queryLng, domainLng, comaCount, reqSize;
-	unsigned int loop;
-
-	unsigned char dnsQuery1[] = {0x11, 0x22, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-	unsigned char dnsQuery2[] = {0x00, 0x00, 0x01, 0x00, 0x01};
-
-	domainLng = strlen(domainName);
-	comaCount = 0;
-	loop = domainLng;
-	cmd[loop + 1] = 0;
-
-	do
-	{
-		if (domainName[loop - 1] == '.')
-		{
-			cmd[loop] = comaCount;
-			comaCount = 0;
-		}
-		else
-		{
-			cmd[loop] = domainName[loop - 1];
-			comaCount++;
-		}
-		loop--;
-	} while (loop != 0);
-	cmd[0] = comaCount;
-
-	memcpy(netbuf, dnsQuery1, sizeof(dnsQuery1));
-	memcpy(netbuf + sizeof(dnsQuery1), cmd, domainLng + 1);
-	memcpy(netbuf + domainLng + sizeof(dnsQuery1) + 1, dnsQuery2, sizeof(dnsQuery2));
-	reqSize = sizeof(dnsQuery1) + sizeof(dnsQuery2) + domainLng + 1;
-
-	socket = OpenSock(AF_INET, SOCK_DGRAM);
-	readStruct.socket = socket;
-	readStruct.BufAdr = (unsigned int)&netbuf;
-	readStruct.bufsize = (unsigned int)reqSize;
-	readStruct.protocol = SOCK_DGRAM;
+	unsigned char test;
+	os_initstdio();
 
 	targetadr.family = AF_INET;
 	targetadr.porth = 00;
@@ -1535,105 +1276,8 @@ unsigned char dnsResolve(unsigned char *domainName)
 	targetadr.b2 = 31;
 	targetadr.b3 = 65;
 	targetadr.b4 = 35;
-
-	todo = OS_WIZNETWRITE_UDP(&readStruct, &dnsaddress);
-	if (todo > 32767)
-	{
-		errorPrint(todo & 255);
-		puts(" Error quering DNS server[Query], using address:217.146.69.13    ");
-		return 0;
-	}
-	else
-	{
-		// printf("OS_WIZNETWRITE_UDP: %u bytes written. \n\r", todo);
-	}
-
-	readStruct.BufAdr = (unsigned int)&netbuf;
-	readStruct.bufsize = (unsigned int)sizeof(netbuf);
-	retry = 20;
-	retryInv = retry;
-
-	do
-	{
-		todo = OS_WIZNETREAD_UDP(&readStruct, &dnsaddress);
-		if (todo > 32767)
-		{
-			// errorPrint(todo & 255);
-			if (retry == 0)
-			{
-				puts(" Error quering[Response] DNS server, using address:217.146.69.13    ");
-				return 0;
-			}
-			retry--;
-			delayLong(200);
-			// printf(" Retry [%d]\r\n", retryInv - retry);
-		}
-		else
-		{
-			// printf("OS_WIZNETREAD_UDP: %u bytes read. \n\r", todo);
-			break;
-		}
-	} while (todo > 32767);
-
-	netShutDown(socket, 0);
-
-	if (!(netbuf[2] && 0x0f))
-	{
-		puts(" Error quering[Parsing] DNS server, using address:217.146.69.13    ");
-		return 0;
-	}
-
-	queryPos = 11;
-	queryLng = 0;
-	do
-	{
-		queryPos++;
-	} while (netbuf[queryPos] != 0);
-
-	queryPos = queryPos + 7; // Skip to answer data
-	do
-	{
-		if (queryPos > sizeof(netbuf) - 11)
-		{
-			puts(" Error quering DNS server[Buffer overrun], using address: 217.146.69.13    ");
-			return 0;
-		}
-		queryType = netbuf[queryPos] * 256 + netbuf[queryPos + 1];
-		// printf("Query type (0x0001): %d\r\n", queryType);
-
-		queryPos = queryPos + 8; // Skip to answer lenght
-
-		queryLng = netbuf[queryPos] * 256 + netbuf[queryPos + 1];
-		// printf("Query data lenght: %d\r\n", queryLng);
-		queryPos = queryPos + queryLng + 4;
-	} while (queryType != 1);
-
-	targetadr.b1 = netbuf[queryPos - 6];
-	targetadr.b2 = netbuf[queryPos - 5];
-	targetadr.b3 = netbuf[queryPos - 4];
-	targetadr.b4 = netbuf[queryPos - 3];
-
-	// printf("\r\nAddress:%u.%u.%u.%u:80\r\n", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4);
-	return 1;
-}
-
-void get_dns(void)
-{
-	unsigned char ipaddress[4];
-	OS_GETDNS(ipaddress);
-	dnsaddress.family = AF_INET;
-	dnsaddress.porth = 00;
-	dnsaddress.portl = 53;
-	dnsaddress.b1 = ipaddress[0];
-	dnsaddress.b2 = ipaddress[1];
-	dnsaddress.b3 = ipaddress[2];
-	dnsaddress.b4 = ipaddress[3];
-}
-
-C_task main(int argc, char *argv[])
-{
-	unsigned char test;
-	os_initstdio();
+	
+	clearStatus();
 
 	if (argc > 1)
 	{

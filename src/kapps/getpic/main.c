@@ -4,9 +4,9 @@
 #include <oscalls.h>
 #include <osfs.h>
 #include <intrz80.h>
-#include <tcp.h>
 #include <graphic.h>
-#include <terminal.c>
+#include <../common/terminal.c>
+#include <tcp.h>
 
 unsigned int RBR_THR = 0xf8ef;
 unsigned int IER = 0xf9ef;
@@ -43,7 +43,7 @@ struct sockaddr_in dnsaddress;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 
-unsigned char ver[] = "3.0";
+unsigned char ver[] = "3.1";
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
@@ -116,227 +116,11 @@ void delay(unsigned long counter)
   }
 }
 
-void delayLong(unsigned long counter)
-{
-  unsigned long start, finish;
-  counter = counter / 20;
-  if (counter < 1)
-  {
-    counter = 1;
-  }
-  start = time();
-  finish = start + counter;
+///////////////////////////
+#include <../common/network.c>
+//////////////////////////
 
-  while (start < finish)
-  {
-    start = time();
-    YIELD();
-  }
-}
-
-unsigned int httpError(void)
-{
-  unsigned char *httpRes;
-  unsigned int httpErr;
-  httpRes = strstr(netbuf, "HTTP/1.1 ");
-
-  if (httpRes != NULL)
-  {
-    httpErr = atol(httpRes + 9);
-  }
-  else
-  {
-    httpErr = 0;
-  }
-  return httpErr;
-}
-
-void errorPrint(unsigned int error)
-{
-  switch (error)
-  {
-  case 2:
-    printf("02 SHUT_RDWR");
-    break;
-  case 4:
-    printf("04 ERR_INTR");
-    break;
-  case 23:
-    printf("23 ERR_NFILE");
-    break;
-  case 35:
-    printf("35 ERR_EAGAIN");
-    break;
-  case 37:
-    printf("37 ERR_ALREADY");
-    break;
-  case 38:
-    printf("38 ERR_NOTSOCK");
-    break;
-  case 40:
-    printf("40 ERR_EMSGSIZE");
-    break;
-  case 41:
-    printf("41 ERR_PROTOTYPE");
-    break;
-  case 47:
-    printf("47 ERR_AFNOSUPPORT");
-    break;
-  case 53:
-    printf("53 ERR_ECONNABORTED");
-    break;
-  case 54:
-    printf("54 ERR_CONNRESET");
-    break;
-  case 57:
-    printf("57 ERR_NOTCONN");
-    break;
-  case 65:
-    printf("65 ERR_HOSTUNREACH");
-    break;
-  default:
-    printf("%u UNKNOWN ERROR", error);
-    break;
-  }
-}
-
-signed char OpenSock(unsigned char family, unsigned char protocol)
-{
-  signed char socket;
-  unsigned int todo;
-  todo = OS_NETSOCKET((family << 8) + protocol);
-  if (todo > 32767)
-  {
-    printf("OS_NETSOCKET: [ERROR:");
-    errorPrint(todo & 255);
-    printf("] Press any key.");
-    getchar();
-    exit(0);
-  }
-  else
-  {
-    socket = ((todo & 65280) >> 8);
-    // printf("OS_NETSOCKET: Socket #%d created\n\r", socket);
-  }
-  return socket;
-}
-
-signed char netShutDown(signed char socket, unsigned char type)
-{
-  unsigned int todo;
-  todo = OS_NETSHUTDOWN(socket, type);
-  if (todo > 32767)
-  {
-    printf("OS_NETSHUTDOWN: [ERROR:");
-    errorPrint(todo & 255);
-    return -1;
-  }
-  else
-  {
-    // printf("Socket #%d closed.\n\r", socket);
-  }
-  return 1;
-}
-
-unsigned char netConnect(signed char socket)
-{
-  unsigned int todo, retry = 10;
-
-  while (retry != 0)
-  {
-    todo = OS_NETCONNECT(socket, &targetadr);
-
-    if (todo > 32767)
-    {
-      retry--;
-      printf("OS_NETCONNECT [ERROR:");
-      errorPrint(todo & 255);
-      printf("] [Retry:%u] [Pic:%lu]\r\n", retry, count);
-      YIELD();
-      netShutDown(socket, 0);
-      puts("before socket");
-      socket = OpenSock(AF_INET, SOCK_STREAM);
-      puts("after socket");
-    }
-    else
-    {
-      // printf("OS_NETCONNECT: connection successful, %u\n\r", (todo & 255));
-      return 1;
-    }
-  }
-  puts("try to exit");
-  getchar();
-  exit(0);
-  return 0;
-}
-
-unsigned int tcpSend(signed char socket, unsigned int messageadr, unsigned int size)
-{
-  unsigned char retry = 10;
-  unsigned int todo;
-  readStruct.socket = socket;
-  readStruct.BufAdr = messageadr;
-  readStruct.bufsize = size;
-  readStruct.protocol = SOCK_STREAM;
-  while (retry > 0)
-  {
-    todo = OS_WIZNETWRITE(&readStruct);
-    if (todo > 32767)
-    {
-      printf("OS_WIZNETWRITE: [ERROR:");
-      errorPrint(todo & 255);
-      printf("] [Retry:%u] [Pic:%lu]\r\n", retry, count);
-      YIELD();
-      retry--;
-    }
-    else
-    {
-      // printf("OS_WIZNETWRITE: %u bytes written. \n\r", todo);
-      return todo;
-    }
-  }
-
-  getchar();
-  exit(0);
-  return todo;
-}
-
-unsigned int tcpRead(signed char socket)
-{
-  unsigned char retry = 10;
-  unsigned int todo;
-
-  readStruct.socket = socket;
-  readStruct.BufAdr = (unsigned int)&netbuf;
-  readStruct.bufsize = sizeof(netbuf);
-  readStruct.protocol = SOCK_STREAM;
-
-  while (retry > 0)
-  {
-    todo = OS_WIZNETREAD(&readStruct);
-
-    if (todo > 32767)
-    {
-      if ((todo & 255) != ERR_EAGAIN)
-      {
-        printf("OS_WIZNETREAD: [ERROR:");
-        errorPrint(todo & 255);
-        printf("] [Retry:%u] [Pic:%lu]\r\n", retry, count);
-        YIELD();
-        retry--;
-      }
-    }
-    else
-    {
-      // printf("OS_WIZNETREAD: %u bytes read. \n\r", todo);
-      return todo;
-    }
-  }
-  getchar();
-  exit(0);
-  return todo;
-}
-unsigned int cutHeader(unsigned int todo)
+int cutHeader(unsigned int todo)
 {
   unsigned int err;
   unsigned char *count1;
@@ -373,6 +157,7 @@ unsigned int cutHeader(unsigned int todo)
   }
   return todo - headlng;
 }
+
 
 ////////////////////////ESP32 PROCEDURES//////////////////////
 void uart_write(unsigned char data)
@@ -839,13 +624,15 @@ char *str_replace(char *dst, int num, const char *str,
 
 void fillPicture(signed char socket)
 {
-  unsigned int todo, w, pPos, headskip;
+  int todo;
+  unsigned int w, pPos, headskip;
   headskip = 0;
   pPos = 0;
   while (42)
   {
     headlng = 0;
-    todo = tcpRead(socket);
+    todo = tcpRead(socket, 10);
+    testOperation("OS_WIZNETREAD", todo);
     if (todo == 0)
     {
       break;
@@ -906,15 +693,20 @@ void stringRepair(unsigned char *pfn, unsigned int tSize)
 
 unsigned char getPic(unsigned long fileId)
 {
-  unsigned int todo;
-  signed char socket;
+  int todo;
+  char socket;
   socket = OpenSock(AF_INET, SOCK_STREAM);
-  todo = netConnect(socket);
+  testOperation("OS_NETSOCKET", socket);
+
+  todo = netConnect(socket, 10);
+  testOperation("OS_NETCONNECT", todo);
+
   sprintf(buffer, "%lu", fileId);
   strcpy(netbuf, "GET /file/id:");
   strcat(netbuf, buffer);
   strcat(netbuf, " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0");
-  todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
+  todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), 10);
+  testOperation("OS_WIZNETWRITE", todo);
   fillPicture(socket);
   return 0;
 }
@@ -1122,7 +914,7 @@ void convert866(void)
 long processJson(unsigned long startPos, unsigned char limit, unsigned char queryNum)
 {
   unsigned int retry, tSize;
-  unsigned int todo;
+  int todo;
   unsigned char *count1, socket;
   switch (queryNum)
   {
@@ -1161,8 +953,14 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     if (netDriver == 0)
     {
       socket = OpenSock(AF_INET, SOCK_STREAM);
-      netConnect(socket);
-      todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf));
+      testOperation("OS_NETSOCKET", socket);
+
+      todo = netConnect(socket, 10);
+      testOperation("OS_NETCONNECT", todo);
+
+      todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), 10);
+      testOperation("OS_WIZNETWRITE", todo);
+
       fillPicture(socket);
     }
     else
@@ -1301,7 +1099,7 @@ void safeKeys(unsigned char keypress)
 
     if (verbose == 0)
     {
-      BOX(1, 1, 80, 25, 40);
+      BOX(1, 1, 80, 25, 40, ' ');
       AT(1, 1);
     }
   }
@@ -1363,161 +1161,6 @@ void safeKeys(unsigned char keypress)
     }
   }
 }
-void dnsResolve(unsigned char *domainName)
-{
-  unsigned char socket, retry, retryInv;
-  unsigned int todo, queryPos, queryType, queryLng, domainLng, comaCount, reqSize;
-  unsigned int loop;
-
-  unsigned char dnsQuery1[] = {
-      0x11, 0x22, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-  unsigned char dnsQuery2[] = {0x00, 0x00, 0x01, 0x00, 0x01};
-
-  domainLng = strlen(domainName);
-  comaCount = 0;
-  loop = domainLng;
-  cmd[loop + 1] = 0;
-
-  do
-  {
-    if (domainName[loop - 1] == '.')
-    {
-      cmd[loop] = comaCount;
-      comaCount = 0;
-    }
-    else
-    {
-      cmd[loop] = domainName[loop - 1];
-      comaCount++;
-    }
-    loop--;
-  } while (loop != 0);
-  cmd[0] = comaCount;
-
-  memcpy(netbuf, dnsQuery1, sizeof(dnsQuery1));
-  memcpy(netbuf + sizeof(dnsQuery1), cmd, domainLng + 1);
-  memcpy(netbuf + domainLng + sizeof(dnsQuery1) + 1, dnsQuery2, sizeof(dnsQuery2));
-  reqSize = sizeof(dnsQuery1) + sizeof(dnsQuery2) + domainLng + 1;
-
-  socket = OpenSock(AF_INET, SOCK_DGRAM);
-  readStruct.socket = socket;
-  readStruct.BufAdr = (unsigned int)&netbuf;
-  readStruct.bufsize = (unsigned int)reqSize;
-  readStruct.protocol = SOCK_DGRAM;
-
-  targetadr.family = AF_INET;
-  targetadr.porth = 00;
-  targetadr.portl = 80;
-  targetadr.b1 = 217; // D9
-  targetadr.b2 = 146; // 92
-  targetadr.b3 = 69;  // 45
-  targetadr.b4 = 13;  // 0D
-
-  todo = OS_WIZNETWRITE_UDP(&readStruct, &dnsaddress);
-  if (todo > 32767)
-  {
-    errorPrint(todo & 255);
-    puts("Error quering DNS server[Query], using address:217.146.69.13");
-    return;
-  }
-  else
-  {
-    // printf("OS_WIZNETWRITE_UDP: %u bytes written. \n\r", todo);
-  }
-
-  readStruct.BufAdr = (unsigned int)&netbuf;
-  readStruct.bufsize = (unsigned int)sizeof(netbuf);
-  retry = 20;
-  retryInv = retry;
-
-  do
-  {
-    todo = OS_WIZNETREAD_UDP(&readStruct, &dnsaddress);
-    if (todo > 32767)
-    {
-      // errorPrint(todo & 255);
-      if (retry == 0)
-      {
-        puts(" Error quering[Response] DNS server, using address:217.146.69.13");
-        return;
-      }
-      retry--;
-      delayLong(200);
-      // printf(" Retry [%d]\r\n", retryInv - retry);
-    }
-    else
-    {
-      // printf("OS_WIZNETREAD_UDP: %u bytes read. \n\r", todo);
-      break;
-    }
-  } while (todo > 32767);
-
-  netShutDown(socket, 0);
-  /*
-    puts("--------------------------ANSWER-----------------------------");
-
-    for (loop = 0; loop < todo; loop++)
-    {
-      printf("%02X ", (int)netbuf[loop]);
-      if ((loop + 1) % 16 == 0)
-      {
-        printf("\r\n");
-      }
-    }
-    puts("\r\n--------------------------ANSWER-----------------------------");
-  */
-
-  if (!(netbuf[2] && 0x0f))
-  {
-    puts("Error quering[Parsing] DNS server, using address:217.146.69.13");
-    return;
-  }
-
-  queryPos = 11;
-  queryLng = 0;
-  do
-  {
-    queryPos++;
-  } while (netbuf[queryPos] != 0);
-
-  queryPos = queryPos + 7; // Skip to answer data
-  do
-  {
-    if (queryPos > sizeof(netbuf) - 11)
-    {
-      puts("Error quering DNS server[Buffer overrun], using address: 217.146.69.13");
-      return;
-    }
-    queryType = netbuf[queryPos] * 256 + netbuf[queryPos + 1];
-    // printf("Query type (0x0001): %d\r\n", queryType);
-
-    queryPos = queryPos + 8; // Skip to answer lenght
-
-    queryLng = netbuf[queryPos] * 256 + netbuf[queryPos + 1];
-    // printf("Query data lenght: %d\r\n", queryLng);
-    queryPos = queryPos + queryLng + 4;
-  } while (queryType != 1);
-
-  targetadr.b1 = netbuf[queryPos - 6];
-  targetadr.b2 = netbuf[queryPos - 5];
-  targetadr.b3 = netbuf[queryPos - 4];
-  targetadr.b4 = netbuf[queryPos - 3];
-
-  printf("Address:%u.%u.%u.%u:80\r\n", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4);
-}
-
-void get_dns(void)
-{
-  unsigned char ipaddress[4];
-  OS_GETDNS(ipaddress);
-  dnsaddress.family = AF_INET;
-  dnsaddress.porth = 00;
-  dnsaddress.portl = 53;
-  dnsaddress.b1 = ipaddress[0];
-  dnsaddress.b2 = ipaddress[1];
-  dnsaddress.b3 = ipaddress[2];
-  dnsaddress.b4 = ipaddress[3];
-}
 
 C_task main(void)
 {
@@ -1532,15 +1175,26 @@ C_task main(void)
   slideShow = 0;
   netDriver = 0;
 
-  BOX(1, 1, 80, 25, 40);
+  targetadr.family = AF_INET;
+  targetadr.porth = 00;
+  targetadr.portl = 80;
+  targetadr.b1 = 217; // D9
+  targetadr.b2 = 146; // 92
+  targetadr.b3 = 69;  // 45
+  targetadr.b4 = 13;  // 0D
+
+
+  BOX(1, 1, 80, 25, 40, ' ');
   AT(1, 1);
   printHelp();
   safeKeys(keypress);
 
   if (netDriver == 0)
   {
+    
     get_dns();
     dnsResolve("zxart.ee");
+    printf("\r\n");
   }
 
 start:

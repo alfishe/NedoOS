@@ -12,8 +12,6 @@ void putdec(int c)
   }
 }
 
-
-
 void AT(int X, int Y)
 {
   putchar(27);
@@ -32,9 +30,7 @@ void ATRIB( int color)
   putchar('m');
 }
 
-
-
-void BOX(unsigned char Xbox, unsigned char Ybox, unsigned char Wbox, unsigned char Hbox, unsigned char Cbox)
+void BOX(unsigned char Xbox, unsigned char Ybox, unsigned char Wbox, unsigned char Hbox, unsigned char Cbox,unsigned char character )
 {
 unsigned char x,y;
   ATRIB(Cbox);
@@ -43,7 +39,7 @@ unsigned char x,y;
 	  AT (Xbox,Ybox + y);
 	  for (x = 0; x < Wbox;x++)
 	  {
-		putchar(' ');  
+		putchar(character);  
 	  }
   }
 }

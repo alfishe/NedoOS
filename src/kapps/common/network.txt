@@ -1,0 +1,19 @@
+/*
+Библиотека для работы с сетевыми вызовами ZXNETUSB. Представляет собой обертку над стандартными сетевыми вызовами.
+Для стандартизации работы с сетью в приложениях
+*/
+
+// процедура для длительного ожидания, заполняет время ожидания вызовами YIELD() на входе минимальное желаемое время задержки.
+void delayLong(unsigned long counter);
+// функция возвращает статус ответа http 1.1 запроса, возвращает статус (200,404) или ноль если не удалось разобрать заголовок.
+int httpError(void);
+// процедура печатает текстовое представление ошибки полученной от ZXNETUSB. На входе у нее код ошибки.
+void errorPrint(unsigned int error);
+// процедура проверяет статус сетевой операции, если операция завершилась с ошибкой, выодит ее и прекращает выполнение программы. На вход получает строку с названием операции и код ошибки.
+void testOperation(unsigned char *process, int socket);
+// функция открывает сетевой сокет, возвращает номер сокета, в случае ошибки возращает отрицательный номер ошибки.
+char OpenSock(unsigned char family, unsigned char protocol);
+char netShutDown(signed char socket, unsigned char type);
+char netConnect(signed char socket, unsigned char retry);
+int tcpSend(signed char socket, unsigned int messageadr, unsigned int size, unsigned char retry);
+int tcpRead(signed char socket, unsigned char retry);
