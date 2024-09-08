@@ -5,8 +5,7 @@
 #include <osfs.h>
 #include <intrz80.h>
 #include <tcp.h>
-#include <terminal.c>
-
+#include <../common/terminal.c>
 
 FILE *fp1;
 
@@ -23,15 +22,13 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 
 unsigned char netbuf[1024];
-unsigned char tempbuf[128];
+unsigned char tempbuf[256];
+unsigned int netDriver = 32768;
 
 unsigned char ver[] = "0.2";
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
-unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; GetPic)\r\n\r\n\0";
-unsigned char zxart[] = "zxart.ee";
-unsigned char keypress, verbose, randomPic, slideShow, netDriver;
 
 unsigned long contLen;
 unsigned long count = 0;
@@ -42,15 +39,9 @@ unsigned int loaded;
 unsigned char crlf[2] = {13, 10};
 unsigned char cmd[512];
 unsigned char link[512];
-unsigned char fileIdChar[10];
 
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
-struct packetStruct
-{
-  unsigned long contLen;
-  unsigned int headlng;
-} pack;
 
 void delay(unsigned long counter)
 {
@@ -729,7 +720,7 @@ void loadParm(void)
 {
   FILE *params;
   unsigned char param[256];
-  unsigned int ip16[5];
+  unsigned int ip16[6];
   unsigned int porthl;
 
   OS_GETPATH((unsigned int)&tempbuf);
@@ -743,8 +734,10 @@ void loadParm(void)
   }
 
   OS_READHANDLE(param, params, 256);
+  OS_CLOSEHANDLE(params);
+  OS_CHDIR(tempbuf);
 
-  if (sscanf(param, "%d.%d.%d.%d:%d", ip16, ip16 + 1, ip16 + 2, ip16 + 3, ip16 + 4) == 5)
+  if (sscanf(param, "%d.%d.%d.%d:%d.%d", ip16, ip16 + 1, ip16 + 2, ip16 + 3, ip16 + 4, ip16 + 5) == 6)
   {
     targetadr.b1 = ip16[0];
     targetadr.b2 = ip16[1];
@@ -753,6 +746,7 @@ void loadParm(void)
     porthl = ip16[4];
     targetadr.porth = porthl >> 8;
     targetadr.portl = porthl;
+    netDriver = ip16[5];
   }
   else
   {
@@ -761,11 +755,18 @@ void loadParm(void)
   }
   targetadr.family = AF_INET;
   ATRIB(97);
-  printf("Printer afress: %d.%d.%d.%d:%d\r\n", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4, porthl);
-  ATRIB(37);
+  printf("Printer adress: %d.%d.%d.%d:%d ", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4, porthl);
 
-  OS_CLOSEHANDLE(params);
-  OS_CHDIR(tempbuf);
+  switch (netDriver)
+  {
+  case 0:
+    printf("thru NedoNet\r\n");
+    break;
+  case 1:
+    printf("thru EspCom\r\n");
+    break;
+  }
+  ATRIB(37);
 }
 
 C_task main(int argc, char *argv[])
@@ -794,10 +795,9 @@ C_task main(int argc, char *argv[])
     printf("Error: %s opening error\r\n", argv[1]);
     exit(0);
   }
-
+  ATRIB(93);
   socket = OpenSock(AF_INET, SOCK_STREAM);
   netConnect(socket);
-  ATRIB(93);
   do
   {
     todo = OS_READHANDLE(netbuf, fp1, sizeof(netbuf));
@@ -805,12 +805,11 @@ C_task main(int argc, char *argv[])
     printf("Bytes sended: %lu...     \r", progress);
     tcpSend(socket, (unsigned int)&netbuf, todo);
   } while (todo != 0 && errno == 0);
+  OS_CLOSEHANDLE(fp1);
+  netShutDown(socket, 0);
 
   ATRIB(37);
   ATRIB(40);
-
-  OS_CLOSEHANDLE(fp1);
-  netShutDown(socket, 0);
   printf("\r\n");
   exit(0);
 }

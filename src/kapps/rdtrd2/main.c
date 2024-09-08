@@ -4,7 +4,7 @@
 #include <oscalls.h>
 #include <osfs.h>
 #include <intrz80.h>
-#include <terminal.c>
+#include <../common/terminal.c>
 	unsigned char trdBuf[8192];
 	unsigned char fileName[256];
 	struct diskOp readParam;
@@ -13,11 +13,11 @@ void interface (void)
 {
 char fnPos;
 	fnPos = (41-9-argLng)/2 + 20;
-	BOX(20, 5, 41, 1, 47);
+	BOX(20, 5, 41, 1, 47, ' ');
     ATRIB(34);
 	AT (21,5);
 	printf("RDTRD2 Make TRD images from floppy disk");
-	BOX(20, 6, 41, 6, 44);
+	BOX(20, 6, 41, 6, 4, ' ');
 	ATRIB(37);
 	AT (fnPos,7);
 	printf("filename:");

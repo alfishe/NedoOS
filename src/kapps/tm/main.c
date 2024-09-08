@@ -1,10 +1,9 @@
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <oscalls.h>
 #include <intrz80.h>
-#include <terminal.c>
+#include <../common/terminal.c>
 #define COMMANDLINE 0x0080
 
 struct process
@@ -28,7 +27,7 @@ void redraw(void)
 {
     unsigned char c3;
 
-    BOX(14, 5, 41, prccount, 43);
+    BOX(14, 5, 41, prccount, 43, ' ');
 
     for (c3 = 0; c3 < prccount; c3++)
     {
@@ -43,19 +42,18 @@ void redraw(void)
         puts(table[c3].name);
         AT(50, 5 + c3);
         printf("%u  ", table[c3].used);
-        
+
         AT(55, 5 + c3);
         printf("%2X.", table[c3].window_0);
         printf("%2X.", table[c3].window_1);
         printf("%2X.", table[c3].window_2);
         printf("%2X", table[c3].window_3);
-        
     }
-    BOX(12, 5 + prccount, 54, 1, 41);
+    BOX(12, 5 + prccount, 54, 1, 41, ' ');
     AT(12, 5 + prccount);
     ATRIB(33);
     printf("    Free:%u pages     Used:%u pages  Sys:%u pages", freemem, usedmem, sysmem);
-    BOX(12, 6 + prccount, 54, 2, 40);
+    BOX(12, 6 + prccount, 54, 2, 40, ' ');
 }
 void filltable(void)
 {
@@ -119,8 +117,8 @@ C_task main(void)
 {
     curpos = 1;
     os_initstdio();
-    BOX(1, 1, 80, 25, 40);
-    BOX(12, 4, 54, 1, 41);
+    BOX(1, 1, 80, 25, 40, ' ');
+    BOX(12, 4, 54, 1, 41, ' ');
     AT(33, 4);
     ATRIB(33);
     puts("TASK MANAGER");
@@ -170,7 +168,7 @@ C_task main(void)
             OS_DROPAPP(table[curpos - 1].nomer);
         }
     }
-    BOX(1, 1, 80, 25, 40);
+    BOX(1, 1, 80, 25, 40, ' ');
     AT(1, 1);
     ATRIB(47);
     return 0;

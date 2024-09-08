@@ -4,7 +4,7 @@
 #include <oscalls.h>
 #include <osfs.h>
 #include <intrz80.h>
-#include <terminal.c>
+#include <../common/terminal.c>
 unsigned int RBR_THR = 0xf8ef;
 unsigned int IER = 0xf9ef;
 unsigned int IIR_FCR = 0xfaef;
@@ -353,7 +353,7 @@ C_task main(void)
   unsigned char cmd[512];
   unsigned char cmdpos;
   os_initstdio();
-  BOX(1, 1, 80, 25, 40);
+  BOX(1, 1, 80, 25, 40, ' ');
   AT(25, 1);
   ATRIB(92);
   puts("[UART COMMUNICATION PROGRAMM]");

@@ -4,7 +4,6 @@
 #include <string.h>
 #include <oscalls.h>
 #include <intrz80.h>
-#include <terminal.c>
 #define COMMANDLINE 0x0080
 
 

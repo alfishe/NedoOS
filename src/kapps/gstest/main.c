@@ -3,7 +3,7 @@
 #include <string.h>
 #include <oscalls.h>
 #include <intrz80.h>
-#include <terminal.c>
+#include <../common/terminal.c>
 #define datareg 179
 #define cmdreg 187
 #include <booter.c>
@@ -93,7 +93,7 @@ C_task main(void)
 
     getDat();
 
-    BOX(1, 1, 80, 25, 40);
+    BOX(1, 1, 80, 25, 40, ' ');
     AT(23, 1);
     ATRIB(92);
     printf("[GENERAL SOUND LOW LEVEL TESTER]\r\n\r\n");
