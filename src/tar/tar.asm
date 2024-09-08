@@ -863,7 +863,7 @@ readtar0
          xor a
          ld (header+100),a ;на всякий случай, если длина имени = 100
         ld de,filename
-        call copyname83
+        call copyname328
         
         ld a,(header+0x09c) ;type (0=file, 5=dir)
         cp '5'
@@ -1085,60 +1085,60 @@ nfopenfnslash0.
 	jr nz,nfopenfnslash0.
 	jr nfopenfnslash.
 
-copyname83
+copyname328
 ;hl->de
-copyname83_element
-        ld b,8
-copyname83_0
+copyname328_element
+        ld b,32
+copyname328_0
         ld a,(hl)
         inc hl
         or a
-        jr z,copyname83_q
+        jr z,copyname328_q
         cp '/'
-        jr z,copyname83_endelement
+        jr z,copyname328_endelement
         cp '.'
-        jr z,copyname83_ext
+        jr z,copyname328_ext
         ld (de),a
         inc de
-        djnz copyname83_0
+        djnz copyname328_0
 ;8 chars of name copied, wait for dot or slash or terminator
-copyname83_skipname0
+copyname328_skipname0
         ld a,(hl)
         inc hl
         or a
-        jr z,copyname83_q
+        jr z,copyname328_q
         cp '/'
-        jr z,copyname83_endelement
+        jr z,copyname328_endelement
         cp '.'
-        jr nz,copyname83_skipname0
-copyname83_ext
+        jr nz,copyname328_skipname0
+copyname328_ext
         ld (de),a ;'.'
         inc de
-        ld b,3
-copyname83_ext0
+        ld b,8
+copyname328_ext0
         ld a,(hl)
         inc hl
         or a
-        jr z,copyname83_q
+        jr z,copyname328_q
         cp '/'
-        jr z,copyname83_endelement
+        jr z,copyname328_endelement
         cp '.'
-        jr z,copyname83_skipext0
+        jr z,copyname328_skipext0
         ld (de),a
         inc de
-        djnz copyname83_ext0
-copyname83_skipext0
+        djnz copyname328_ext0
+copyname328_skipext0
         ld a,(hl)
         inc hl
         or a
-        jr z,copyname83_q
+        jr z,copyname328_q
         cp '/'
-        jr nz,copyname83_skipext0
-copyname83_endelement
+        jr nz,copyname328_skipext0
+copyname328_endelement
         ld (de),a ;'/'
         inc de
-        jr copyname83_element
-copyname83_q
+        jr copyname328_element
+copyname328_q
         ld (de),a ;0
         ret
         
