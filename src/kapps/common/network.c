@@ -242,14 +242,6 @@ unsigned char dnsResolve(unsigned char *domainName)
   readStruct.bufsize = (unsigned int)reqSize;
   readStruct.protocol = SOCK_DGRAM;
 
-  targetadr.family = AF_INET;
-  targetadr.porth = 00;
-  targetadr.portl = 80;
-  targetadr.b1 = 31;
-  targetadr.b2 = 31;
-  targetadr.b3 = 65;
-  targetadr.b4 = 35;
-
   todo = OS_WIZNETWRITE_UDP(&readStruct, &dnsaddress);
   if (todo > 32767)
   {
@@ -327,7 +319,7 @@ unsigned char dnsResolve(unsigned char *domainName)
   targetadr.b3 = netbuf[queryPos - 4];
   targetadr.b4 = netbuf[queryPos - 3];
 
-  // printf("\r\nAddress:%u.%u.%u.%u:80\r\n", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4);
+  printf("\r\nAddress:%u.%u.%u.%u:%u\r\n", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4, targetadr.porth * 256 + targetadr.portl);
   return 1;
 }
 

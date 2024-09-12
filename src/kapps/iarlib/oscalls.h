@@ -27,21 +27,24 @@ struct diskOp
 	unsigned long sector;
 	unsigned char count;
 };
+
 signed long OS_GETKEY (void);// BC HL
+unsigned long OS_GETMOUSE(void);// BC HL
+
 unsigned int OS_READSECTORS(struct diskOp *);
 unsigned int OS_WRITESECTORS(struct diskOp *);
 unsigned long OS_GETTIME(void); // out: bc=date, hl=time
 unsigned int OS_NEWPAGE(void);
 unsigned int OS_CHDIR(unsigned char *trgPathPtr);
 unsigned int OS_GETPATH(unsigned int curPathPtr); // in: de = ptr to buffer out: hl = ptr to last symbol of path
-unsigned int OS_SETSYSDRV(void);				  // out: H: H!=0 -- ��⥬�� ��� �� �ਬ���஢��. L: -- ��饥 ������⢮ �ਬ���஢����� ��᪮�.
+unsigned int OS_SETSYSDRV(void);				  // out: H: H!=0 -- ????? ??? ?? ????????. L: -- ??? ??????? ??????????? ????.
 unsigned int OS_NEWAPP(unsigned int trgPathPtr);
 unsigned int OS_RUNAPP(unsigned char pId); // e=id ;ACTIVATE DISABLED APP
 unsigned int OS_WAITPID(unsigned char pId);
 unsigned int OS_HIDEFROMPARENT(void);
 unsigned long OS_STARTAPP(unsigned long appParamsPtr);					// out: b=id, a=error, dehl=newapp pages in 0000,4000,8000,c000 ;MAKE NEW DISABLED APP
-unsigned int OS_RENAME(unsigned char *oldName, unsigned char *newName); // DE - ��஥ ���, �������� � ����� ��� �⭮�⥫�� ���� (ASCIIZ). HL - ����� ���, ���� �� �ॡ���� ⠪�� �� ����, ��� � DE. // out HL - 㪠��⥫� �� ��᫥���� ������� ��� � �⮬ ���� (NOT MSXDOS compatible! with Drive/path!)
-unsigned int OS_DELETE(unsigned char *fileName);						// DE - ��� 䠩��, �������� � ����� ��� �⭮�⥫�� ���� (ASCIIZ).; � - �訡��. �᫨ 0x00, � �訡�� ���.
+unsigned int OS_RENAME(unsigned char *oldName, unsigned char *newName); // DE - ??? ???, ???????? ? ????? ??? ?????? ???? (ASCIIZ). HL - ????? ???, ???? ?? ?????? ??? ?? ????, ??? ? DE. // out HL - ????? ?? ??????? ??????? ??? ? ?? ???? (NOT MSXDOS compatible! with Drive/path!)
+unsigned int OS_DELETE(unsigned char *fileName);						// DE - ??? ???, ???????? ? ????? ??? ?????? ???? (ASCIIZ).; ? - ????. ?? 0x00, ? ???? ???.
 void OS_DIHALT(void);
 // End of Kulich area
 
