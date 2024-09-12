@@ -702,8 +702,25 @@ void navigationPlain(char keypress)
 	switch (keypress)
 	{
 	case 250: // Up
+		if (navi.page == 0)
+		{
+			break;
+		}
+		navi.page--;
+		navi.nextBufPos = pageOffsets[navi.page];
+		navi.lineSelect = screenHeight;
+		navi.nextBufPos = renderPlain(navi.nextBufPos);
 		break;
 	case 249: // down
+
+		if (navi.page == navi.maxPage)
+		{
+			break;
+		}
+		navi.page++;
+		pageOffsets[navi.page] = navi.nextBufPos;
+		navi.lineSelect = 1;
+		navi.nextBufPos = renderPlain(navi.nextBufPos);
 		break;
 	case 248: // Left
 		if (navi.page == 0)
@@ -712,8 +729,8 @@ void navigationPlain(char keypress)
 		}
 		navi.page--;
 		navi.nextBufPos = pageOffsets[navi.page];
-		navi.nextBufPos = renderPlain(navi.nextBufPos);
 		navi.lineSelect = screenHeight;
+		navi.nextBufPos = renderPlain(navi.nextBufPos);
 		break;
 	case 251: // Right
 		if (navi.page == navi.maxPage)
@@ -722,20 +739,11 @@ void navigationPlain(char keypress)
 		}
 		navi.page++;
 		pageOffsets[navi.page] = navi.nextBufPos;
-
-		navi.nextBufPos = renderPlain(navi.nextBufPos);
 		navi.lineSelect = 1;
+		navi.nextBufPos = renderPlain(navi.nextBufPos);
 		break;
 	}
-	/*
-		for (counter = 0; counter < 80; counter++)
-		{
-			OS_SETXY(counter, navi.prevLineSelect);
-			OS_PRATTR(7);
-			// OS_SETXY(mouse.cursXpos, mouse.cursYpos);
-			// mouse.oldAtr = OS_GETATTR();
-		}
-	*/
+
 	if (mouse.cursYpos == navi.prevLineSelect)
 	{
 		OS_SETXY(mouse.cursXpos, mouse.cursYpos);
