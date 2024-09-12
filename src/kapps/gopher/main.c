@@ -499,9 +499,72 @@ void renderType(unsigned char linkType)
 	}
 }
 
+unsigned int renderPlain(unsigned int bufPos)
+{
+	unsigned int counter = 0, colCount = 0;
+	unsigned int byte = 0, flag = true;
+	OS_CLS(0);
+	mainWinDraw();
+	OS_SETCOLOR(7);
+	OS_SETXY(0, 1);
+
+	do
+	{
+		byte = netbuf[bufPos];
+		if (byte == 0)
+		{
+			navi.maxPage = navi.page;
+			return bufPos;
+		}
+
+		if (colCount == 80)
+		{
+			counter++;
+			colCount = 0;
+		}
+
+		if (byte == 0xd)
+		{
+			if (colCount != 80)
+			{
+				putchar('\r');
+				flag = true;
+			}
+			else
+			{
+				flag = false;
+			}
+
+			bufPos++;
+			colCount = 0;
+			continue;
+		}
+
+		if (byte == 0xa)
+		{
+			if (flag)
+			{
+				putchar('\n');
+			}
+
+			bufPos++;
+			counter++;
+			flag = true;
+			continue;
+		}
+
+		putchar(byte);
+
+		colCount++;
+		bufPos++;
+
+	} while (counter < screenHeight);
+	return bufPos;
+}
+
 unsigned int renderPage(unsigned int bufPos)
 {
-	unsigned char counter = 0;
+	unsigned char counter = 0, colCount = 0;
 	unsigned char byte = 0;
 	OS_CLS(0);
 	mainWinDraw();
@@ -528,13 +591,18 @@ unsigned int renderPage(unsigned int bufPos)
 				navi.maxPage = navi.page;
 				return bufPos;
 			}
-			putchar(byte);
+			colCount++;
+			if (colCount < 78)
+			{
+				putchar(byte);
+			}
 		}
 		while (42)
 		{
 			bufPos++;
 			if (netbuf[bufPos] == 10)
 			{
+				colCount = 0;
 				counter++;
 				bufPos++;
 				renderType(netbuf[bufPos]);
@@ -544,7 +612,7 @@ unsigned int renderPage(unsigned int bufPos)
 	} while (counter < screenHeight);
 	return bufPos;
 }
-void navigation(char keypress)
+void navigationPage(char keypress)
 {
 	unsigned char counter;
 
@@ -595,8 +663,6 @@ void navigation(char keypress)
 		navi.lineSelect = screenHeight;
 		break;
 	case 251: // Right
-		clearStatus();
-		printf("MaxPage = %d", navi.maxPage);
 		if (navi.page == navi.maxPage)
 		{
 			break;
@@ -628,6 +694,60 @@ void navigation(char keypress)
 		OS_PRATTR(15);
 	}
 }
+
+void navigationPlain(char keypress)
+{
+	unsigned char counter;
+
+	switch (keypress)
+	{
+	case 250: // Up
+		break;
+	case 249: // down
+		break;
+	case 248: // Left
+		if (navi.page == 0)
+		{
+			break;
+		}
+		navi.page--;
+		navi.nextBufPos = pageOffsets[navi.page];
+		navi.nextBufPos = renderPlain(navi.nextBufPos);
+		navi.lineSelect = screenHeight;
+		break;
+	case 251: // Right
+		if (navi.page == navi.maxPage)
+		{
+			break;
+		}
+		navi.page++;
+		pageOffsets[navi.page] = navi.nextBufPos;
+
+		navi.nextBufPos = renderPlain(navi.nextBufPos);
+		navi.lineSelect = 1;
+		break;
+	}
+	/*
+		for (counter = 0; counter < 80; counter++)
+		{
+			OS_SETXY(counter, navi.prevLineSelect);
+			OS_PRATTR(7);
+			// OS_SETXY(mouse.cursXpos, mouse.cursYpos);
+			// mouse.oldAtr = OS_GETATTR();
+		}
+	*/
+	if (mouse.cursYpos == navi.prevLineSelect)
+	{
+		OS_SETXY(mouse.cursXpos, mouse.cursYpos);
+		mouse.oldAtr = OS_GETATTR();
+	}
+	for (counter = 0; counter < 80; counter++)
+	{
+		OS_SETXY(counter, navi.lineSelect);
+		OS_PRATTR(15);
+	}
+}
+
 C_task main(int argc, char *argv[])
 {
 	unsigned char keypress;
@@ -640,15 +760,15 @@ C_task main(int argc, char *argv[])
 	// getchar();
 	loadPageFromDisk("browser/index.gph");
 
-	navi.nextBufPos = renderPage(navi.nextBufPos);
-	navigation(250);
+	navi.nextBufPos = renderPlain(navi.nextBufPos);
+	navigationPlain(250);
 
 	do
 	{
 		getMouse();
 		if (mouse.lmb == 0)
 		{
-			navigation(255);
+			navigationPlain(255);
 			navi.prevLineSelect = navi.lineSelect;
 			navi.lineSelect = mouse.cursYpos;
 			OS_SETXY(mouse.cursXpos, mouse.cursYpos);
@@ -658,7 +778,7 @@ C_task main(int argc, char *argv[])
 		keypress = _low_level_get();
 		if (keypress != 0)
 		{
-			navigation(keypress);
+			navigationPlain(keypress);
 		}
 	} while (keypress != 27);
 }
