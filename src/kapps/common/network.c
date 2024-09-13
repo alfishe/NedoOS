@@ -319,7 +319,7 @@ unsigned char dnsResolve(unsigned char *domainName)
   targetadr.b3 = netbuf[queryPos - 4];
   targetadr.b4 = netbuf[queryPos - 3];
 
-  printf("\r\nAddress:%u.%u.%u.%u:%u\r\n", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4, targetadr.porth * 256 + targetadr.portl);
+  //printf("\r\nAddress:%u.%u.%u.%u:%u\r\n", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4, targetadr.porth * 256 + targetadr.portl);
   return 1;
 }
 

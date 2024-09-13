@@ -40,6 +40,7 @@ struct sockaddr_in dnsaddress;
 struct LinkStruct
 {
 	unsigned char type;
+	unsigned char nexType;
 	unsigned char path[512];
 	unsigned char host[64];
 	unsigned int port;
@@ -85,11 +86,21 @@ struct window
 
 unsigned char netbuf[32768];
 
+void spaces(unsigned char number)
+{
+	while (number > 0)
+	{
+		putchar(' ');
+		number--;
+	}
+}
+
 void clearStatus(void)
 {
 	OS_SETCOLOR(5);
 	OS_SETXY(0, 24);
-	printf("                                                                               \r");
+	spaces(79);
+	printf("\r");
 }
 
 void printTable(void)
@@ -307,15 +318,6 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 	return 0;
 }
 
-void spaces(unsigned char number)
-{
-	while (number > 0)
-	{
-		putchar(' ');
-		number--;
-	}
-}
-
 void drawClock(void)
 {
 	unsigned long dosTime;
@@ -338,7 +340,7 @@ void mainWinDraw(void)
 	printf("NedoGopher %s", uVer);
 
 	domainLng = strlen(curDomain);
-	OS_SETXY(35 - domainLng / 2, 0);
+	OS_SETXY(39 - domainLng / 2, 0);
 	printf("%s", curDomain);
 	drawClock();
 }
@@ -412,7 +414,6 @@ unsigned char OS_SHELL(unsigned char *command)
 	if (((int)fp3) & 0xff)
 	{
 		clearStatus();
-		OS_SETXY(1, 24);
 		printf("%s", fileName);
 		printf(" not found.");
 		do
@@ -442,9 +443,7 @@ unsigned char OS_SHELL(unsigned char *command)
 	OS_CLOSEHANDLE(fp3);
 	SETPG32KHIGH(pgbak);
 	clearStatus();
-	OS_SETXY(1, 24);
 	printf("Shell [pId:%u][%s][%s]", shell_pg.pgs.pId, curPath, appCmd);
-	OS_SETXY(1, 24);
 	delay(300);
 	OS_RUNAPP(shell_pg.pgs.pId);
 	OS_SETXY(1, 4);
@@ -530,8 +529,20 @@ void renderType(unsigned char linkType)
 		putchar(15); // error link
 		putchar(' ');
 		return;
+	case '5': // Dos zip
+		putchar('Z');
+		putchar(' ');
+		return;
+	case '6': // uuencoded file
+		putchar('Z');
+		putchar(' ');
+		return;
 	case '7': // search input
 		putchar(253);
+		putchar(' ');
+		return;
+	case '8': // Telnet session
+		putchar('T');
 		putchar(' ');
 		return;
 	case '9': // binary (pt3/scr)
@@ -628,7 +639,13 @@ unsigned int renderPage(unsigned int bufPos)
 	mainWinDraw();
 	OS_SETXY(0, 1);
 
-	renderType(netbuf[bufPos]);
+	byte = netbuf[bufPos];
+	renderType(byte);
+	if (byte == '.')
+	{
+		return bufPos;
+	}
+
 	OS_SETCOLOR(7);
 	do
 	{
@@ -665,11 +682,13 @@ unsigned int renderPage(unsigned int bufPos)
 				bufPos++;
 				if (netbuf[bufPos] == '.')
 				{
-
+					navi.maxPage = navi.page;
 					return bufPos;
 				}
-
-				renderType(netbuf[bufPos]);
+				if (counter < screenHeight)
+				{
+					renderType(netbuf[bufPos]);
+				}
 
 				OS_SETCOLOR(7);
 				break;
@@ -706,7 +725,7 @@ void getFile(void)
 	saveBuf("fileNamePtr", 00, 0);
 	do
 	{
-		todo = tcpRead(socket, 1);
+		todo = tcpRead(socket, 3);
 		if (todo < 1)
 		{
 			break;
@@ -727,6 +746,7 @@ void selectorProcessor(void)
 {
 	unsigned int startSearch = 0, lineSearch = 0, SelectedPos, counter1 = 0;
 	unsigned char byte;
+
 	startSearch = pageOffsets[navi.page];
 	do
 	{
@@ -738,8 +758,14 @@ void selectorProcessor(void)
 		}
 		counter1++;
 	} while (lineSearch < navi.lineSelect - 1);
+
+	if (counter1 == 1)
+	{
+		counter1 = 0;
+	}
 	SelectedPos = startSearch + counter1;
 
+	link.nexType = link.type;
 	link.type = netbuf[SelectedPos];
 
 	if (link.type == 'i')
@@ -747,7 +773,7 @@ void selectorProcessor(void)
 		return;
 	}
 
-	counter1 = 0; // Пропускаем  заголовок селектора
+	counter1 = 1; // Пропускаем  заголовок селектора
 	do
 	{
 		byte = netbuf[SelectedPos + counter1];
@@ -756,11 +782,12 @@ void selectorProcessor(void)
 
 	SelectedPos = SelectedPos + counter1;
 	counter1 = 0; // Извлекаем путь к селектору
-	do
+
+	while (netbuf[SelectedPos + counter1] != 9)
 	{
 		link.path[counter1] = netbuf[SelectedPos + counter1];
 		counter1++;
-	} while (netbuf[SelectedPos + counter1] != 9);
+	}
 	link.path[counter1] = 0;
 
 	SelectedPos = SelectedPos + counter1 + 1;
@@ -774,18 +801,23 @@ void selectorProcessor(void)
 
 	SelectedPos = SelectedPos + counter1 + 1;
 	link.port = atoi(netbuf + SelectedPos);
-	clearStatus();
 	strcpy(curDomain, link.host);
-	// printf("%c:%s:%d%s]", link.type, link.host, link.port, link.path);
 }
 
 void activate(void)
 {
+
+	if (link.type == '0') // Если текущая страница текстовая, нечего по ней тыкать
+	{
+		return;
+	}
+
 	selectorProcessor();
 
-	switch (link.type)
+	switch (link.type) // Тут уже новый элемент
 	{
 	case 'i':
+		link.type = link.nexType; // так-как мы остались на странице, восстановим тип, хотя можно просто ставить 1 (пока других нет)
 		return;
 	case '0': // plain texts
 		newPage();
@@ -800,21 +832,27 @@ void activate(void)
 		navi.nextBufPos = renderPage(navi.nextBufPos);
 		return;
 	case '7': // search input
+		link.type = link.nexType;
 		return;
 	case '9': // binary (pt3/scr)
 		getFile();
+		link.type = link.nexType;
 		return;
 	case 'g': // gif pic
 		getFile();
+		link.type = link.nexType;
 		return;
 	case 'I': // image
 		getFile();
+		link.type = link.nexType;
 		return;
 	case 's': // sound
 		getFile();
+		link.type = link.nexType;
 		return;
 	default:
 		getFile();
+		link.type = link.nexType;
 		return;
 	}
 }
