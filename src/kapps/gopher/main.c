@@ -15,6 +15,8 @@
 #define screenHeight 23
 #define screenWidth 80
 
+FILE *fp2;
+
 unsigned char netDriver = 0;
 
 unsigned char uVer[] = "00.01";
@@ -63,7 +65,6 @@ struct navigationStruct
 	unsigned int page;
 	unsigned int maxPage;
 	unsigned int linePage;
-	unsigned int lineDoc;
 	unsigned int lineSelect;
 	unsigned int prevLineSelect;
 	unsigned int bufPos;
@@ -266,6 +267,46 @@ void colorBars(void)
 #include <../common/network.c>
 //////////////////////////
 
+unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsigned int sizeOfBuf)
+{
+	if (operation == 00)
+	{
+		fp2 = OS_CREATEHANDLE(fileNamePtr, 0x80);
+		if (((int)fp2) & 0xff)
+		{
+			clearStatus();
+			printf("%s", fileNamePtr);
+			printf(" creating error.");
+			exit(0);
+		}
+		OS_CLOSEHANDLE(fp2);
+
+		fp2 = OS_OPENHANDLE(fileNamePtr, 0x80);
+		if (((int)fp2) & 0xff)
+		{
+			clearStatus();
+			printf("%s", fileNamePtr);
+			printf(" opening error. ");
+
+			exit(0);
+		}
+		return 0;
+	}
+
+	if (operation == 01)
+	{
+		OS_WRITEHANDLE(netbuf, fp2, sizeOfBuf);
+		return 0;
+	}
+
+	if (operation == 02)
+	{
+		OS_CLOSEHANDLE(fp2);
+		return 0;
+	}
+	return 0;
+}
+
 void spaces(unsigned char number)
 {
 	while (number > 0)
@@ -434,32 +475,37 @@ char loadPageFromDisk(unsigned char *filepath)
 	} while (todo != 0 && errno == 0);
 	OS_CLOSEHANDLE(fp1);
 	netbuf[loaded + 1] = 0;
-	clearStatus();
-	printf("file %s loaded (%lu bytes)", filepath, loaded);
 	return true;
 }
 
 void init(void)
 {
-	if (netDriver == 0)
-	{
 
-		targetadr.family = AF_INET;
-		targetadr.porth = 00;
-		targetadr.portl = 70;
-		targetadr.b1 = 0;
-		targetadr.b2 = 0;
-		targetadr.b3 = 0;
-		targetadr.b4 = 0;
-		get_dns();
-		dnsResolve(curDomain);
+	targetadr.family = AF_INET;
+	targetadr.porth = 00;
+	targetadr.portl = 70;
+	targetadr.b1 = 0;
+	targetadr.b2 = 0;
+	targetadr.b3 = 0;
+	targetadr.b4 = 0;
+	mouse.oldAtr = 79;
+	navi.lineSelect = 1;
+	navi.prevLineSelect = 2;
+	navi.nextBufPos = 0;
+	navi.page = 0;
+	navi.maxPage = 32768;
+	get_dns();
+}
 
-		mouse.oldAtr = 79;
-		navi.lineSelect = 1;
-		navi.nextBufPos = 0;
-		navi.page = 0;
-		navi.maxPage = 32768;
-	}
+void newPage(void)
+{
+	navi.page = 0;
+	navi.maxPage = 32767;
+	navi.linePage = 0;
+	navi.lineSelect = 1;
+	navi.prevLineSelect = 2;
+	navi.bufPos = 0;
+	navi.nextBufPos = 0;
 }
 
 void renderType(unsigned char linkType)
@@ -589,6 +635,7 @@ unsigned int renderPage(unsigned int bufPos)
 			bufPos++;
 
 			byte = netbuf[bufPos];
+
 			if (byte == 9)
 			{
 				putchar('\r');
@@ -614,7 +661,14 @@ unsigned int renderPage(unsigned int bufPos)
 				colCount = 0;
 				counter++;
 				bufPos++;
+				if (netbuf[bufPos] == '.')
+				{
+
+					return bufPos;
+				}
+
 				renderType(netbuf[bufPos]);
+
 				OS_SETCOLOR(7);
 				break;
 			}
@@ -623,15 +677,49 @@ unsigned int renderPage(unsigned int bufPos)
 	return bufPos;
 }
 
-/*
-struct LinkStruct
+void getFile(void)
 {
-	unsigned char Type;
-	unsigned char path[512];
-	unsigned char host[64];
-	unsigned int port;
-} link;
-*/
+	int todo;
+	char socket;
+	unsigned long downloaded = 0;
+	dnsResolve(curDomain);
+
+	targetadr.porth = 00;
+	targetadr.portl = link.port;
+	if ((strlen(link.path) == 1 && link.path[0] == '/') || strlen(link.path) == 0)
+	{
+		strcpy(link.path, crlf);
+	}
+	else
+	{
+		strcat(link.path, crlf);
+	}
+	clearStatus();
+	socket = OpenSock(AF_INET, SOCK_STREAM);
+	// testOperation("OS_NETSOCKET", socket);
+	todo = netConnect(socket, 1);
+	// testOperation("OS_NETCONNECT", todo);
+	todo = tcpSend(socket, (unsigned int)&link.path, strlen(link.path), 1);
+	// testOperation("OS_WIZNETWRITE", todo);
+	saveBuf("fileNamePtr", 00, 0);
+	do
+	{
+		todo = tcpRead(socket, 1);
+		if (todo < 1)
+		{
+			break;
+		}
+
+		downloaded = downloaded + todo;
+
+		clearStatus();
+		printf("%u kb downloaded", downloaded / 1024);
+		saveBuf("fileNamePtr", 01, todo);
+
+	} while (42);
+	netShutDown(socket, 0);
+	saveBuf("fileNamePtr", 02, 00);
+}
 
 void selectorProcessor(void)
 {
@@ -686,8 +774,23 @@ void selectorProcessor(void)
 	link.port = atoi(netbuf + SelectedPos);
 	clearStatus();
 	strcpy(curDomain, link.host);
-	printf("%c:%s:%d%s]", link.type, link.host, link.port, link.path);
+	// printf("%c:%s:%d%s]", link.type, link.host, link.port, link.path);
 }
+
+void activate(void)
+{
+
+	selectorProcessor();
+	if (link.type != 'i')
+	{
+		newPage();
+		getFile();
+		loadPageFromDisk("fileNamePtr");
+		navi.nextBufPos = renderPage(navi.nextBufPos);
+		//		navigationPage(249);
+	}
+}
+
 void navigationPage(char keypress)
 {
 	unsigned char counter;
@@ -750,7 +853,7 @@ void navigationPage(char keypress)
 		navi.lineSelect = 1;
 		break;
 	case 0xd:
-		selectorProcessor();
+		activate();
 		break;
 	}
 
@@ -861,7 +964,8 @@ C_task main(int argc, char *argv[])
 			OS_SETXY(mouse.cursXpos, mouse.cursYpos);
 			mouse.oldAtr = OS_GETATTR();
 			OS_PRATTR(215);
-			selectorProcessor();
+			activate();
+			navigationPage(249);
 		}
 		keypress = _low_level_get();
 		if (keypress != 0)
