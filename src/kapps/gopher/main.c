@@ -339,7 +339,7 @@ void mainWinDraw(void)
 
 	domainLng = strlen(curDomain);
 	OS_SETXY(35 - domainLng / 2, 0);
-	printf("gopher://%s", curDomain);
+	printf("%s", curDomain);
 	drawClock();
 }
 
@@ -494,6 +494,7 @@ void init(void)
 	navi.nextBufPos = 0;
 	navi.page = 0;
 	navi.maxPage = 32768;
+	link.type = '1';
 	get_dns();
 }
 
@@ -564,6 +565,7 @@ unsigned int renderPlain(unsigned int bufPos)
 	OS_SETCOLOR(7);
 	OS_SETXY(0, 1);
 
+	counter = 0;
 	do
 	{
 		byte = netbuf[bufPos];
@@ -779,15 +781,41 @@ void selectorProcessor(void)
 
 void activate(void)
 {
-
 	selectorProcessor();
-	if (link.type != 'i')
+
+	switch (link.type)
 	{
+	case 'i':
+		return;
+	case '0': // plain texts
+		newPage();
+		getFile();
+		loadPageFromDisk("fileNamePtr");
+		navi.nextBufPos = renderPlain(navi.nextBufPos);
+		return;
+	case '1': // gopher page
 		newPage();
 		getFile();
 		loadPageFromDisk("fileNamePtr");
 		navi.nextBufPos = renderPage(navi.nextBufPos);
-		//		navigationPage(249);
+		return;
+	case '7': // search input
+		return;
+	case '9': // binary (pt3/scr)
+		getFile();
+		return;
+	case 'g': // gif pic
+		getFile();
+		return;
+	case 'I': // image
+		getFile();
+		return;
+	case 's': // sound
+		getFile();
+		return;
+	default:
+		getFile();
+		return;
 	}
 }
 
@@ -857,30 +885,29 @@ void navigationPage(char keypress)
 		break;
 	}
 
-	for (counter = 1; counter < 79; counter++)
+	if (link.type == '1')
 	{
-		OS_SETXY(counter, navi.prevLineSelect);
-		OS_PRATTR(7);
-		// OS_SETXY(mouse.cursXpos, mouse.cursYpos);
-		// mouse.oldAtr = OS_GETATTR();
-	}
+		for (counter = 1; counter < 79; counter++)
+		{
+			OS_SETXY(counter, navi.prevLineSelect);
+			OS_PRATTR(7);
+		}
 
-	if (mouse.cursYpos == navi.prevLineSelect)
-	{
-		OS_SETXY(mouse.cursXpos, mouse.cursYpos);
-		mouse.oldAtr = OS_GETATTR();
-	}
-	for (counter = 1; counter < 79; counter++)
-	{
-		OS_SETXY(counter, navi.lineSelect);
-		OS_PRATTR(15);
+		if (mouse.cursYpos == navi.prevLineSelect)
+		{
+			OS_SETXY(mouse.cursXpos, mouse.cursYpos);
+			mouse.oldAtr = OS_GETATTR();
+		}
+		for (counter = 1; counter < 79; counter++)
+		{
+			OS_SETXY(counter, navi.lineSelect);
+			OS_PRATTR(15);
+		}
 	}
 }
 
 void navigationPlain(char keypress)
 {
-	unsigned char counter;
-
 	switch (keypress)
 	{
 	case 250: // Up
@@ -931,10 +958,18 @@ void navigationPlain(char keypress)
 		OS_SETXY(mouse.cursXpos, mouse.cursYpos);
 		mouse.oldAtr = OS_GETATTR();
 	}
-	for (counter = 0; counter < 80; counter++)
+}
+
+void navigation(unsigned char keypress)
+{
+	switch (link.type)
 	{
-		OS_SETXY(counter, navi.lineSelect);
-		OS_PRATTR(15);
+	case '0':
+		navigationPlain(keypress);
+		break;
+	case '1':
+		navigationPage(keypress);
+		break;
 	}
 }
 
@@ -951,26 +986,21 @@ C_task main(int argc, char *argv[])
 	loadPageFromDisk("browser/index.gph");
 
 	navi.nextBufPos = renderPage(navi.nextBufPos);
-	navigationPage(249);
-
 	do
 	{
 		getMouse();
 		if (mouse.lmb == 0)
 		{
-			navigationPage(255);
 			navi.prevLineSelect = navi.lineSelect;
 			navi.lineSelect = mouse.cursYpos;
-			OS_SETXY(mouse.cursXpos, mouse.cursYpos);
-			mouse.oldAtr = OS_GETATTR();
-			OS_PRATTR(215);
 			activate();
-			navigationPage(249);
+			OS_SETXY(mouse.cursXpos, mouse.cursYpos);
+			OS_PRATTR(215);
 		}
 		keypress = _low_level_get();
 		if (keypress != 0)
 		{
-			navigationPage(keypress);
+			navigation(keypress);
 		}
 	} while (keypress != 27);
 }

@@ -1,5 +1,5 @@
 #название запускаемого файла
-BIN		:= g.com
+BIN		:= gopher.com
 
 #поддиректория инсталляции в release
 INSTDIR := bin
