@@ -35,6 +35,14 @@ struct sockaddr_in targetadr;
 struct readstructure readStruct;
 struct sockaddr_in dnsaddress;
 
+struct LinkStruct
+{
+	unsigned char type;
+	unsigned char path[512];
+	unsigned char host[64];
+	unsigned int port;
+} link;
+
 struct mouseStruct
 {
 	char lmb;
@@ -456,10 +464,12 @@ void init(void)
 
 void renderType(unsigned char linkType)
 {
+	OS_SETCOLOR(70);
 
 	switch (linkType)
 	{
 	case 'i':
+		putchar(' ');
 		return;
 	case '0':
 		putchar(21); // plain text
@@ -568,11 +578,10 @@ unsigned int renderPage(unsigned int bufPos)
 	unsigned char byte = 0;
 	OS_CLS(0);
 	mainWinDraw();
-	OS_SETCOLOR(7);
 	OS_SETXY(0, 1);
 
 	renderType(netbuf[bufPos]);
-
+	OS_SETCOLOR(7);
 	do
 	{
 		while (42)
@@ -606,11 +615,78 @@ unsigned int renderPage(unsigned int bufPos)
 				counter++;
 				bufPos++;
 				renderType(netbuf[bufPos]);
+				OS_SETCOLOR(7);
 				break;
 			}
 		}
 	} while (counter < screenHeight);
 	return bufPos;
+}
+
+/*
+struct LinkStruct
+{
+	unsigned char Type;
+	unsigned char path[512];
+	unsigned char host[64];
+	unsigned int port;
+} link;
+*/
+
+void selectorProcessor(void)
+{
+	unsigned int startSearch = 0, lineSearch = 0, SelectedPos, counter1 = 0;
+	unsigned char byte;
+	startSearch = pageOffsets[navi.page];
+	do
+	{
+		byte = netbuf[startSearch + counter1];
+
+		if (byte == 10)
+		{
+			lineSearch++;
+		}
+		counter1++;
+	} while (lineSearch < navi.lineSelect - 1);
+	SelectedPos = startSearch + counter1;
+
+	link.type = netbuf[SelectedPos];
+
+	if (link.type == 'i')
+	{
+		return;
+	}
+
+	counter1 = 0; // Пропускаем  заголовок селектора
+	do
+	{
+		byte = netbuf[SelectedPos + counter1];
+		counter1++;
+	} while (byte != 9);
+
+	SelectedPos = SelectedPos + counter1;
+	counter1 = 0; // Извлекаем путь к селектору
+	do
+	{
+		link.path[counter1] = netbuf[SelectedPos + counter1];
+		counter1++;
+	} while (netbuf[SelectedPos + counter1] != 9);
+	link.path[counter1] = 0;
+
+	SelectedPos = SelectedPos + counter1 + 1;
+	counter1 = 0; // Извлекаем хост селектора
+	do
+	{
+		link.host[counter1] = netbuf[SelectedPos + counter1];
+		counter1++;
+	} while (netbuf[SelectedPos + counter1] != 9);
+	link.host[counter1] = 0;
+
+	SelectedPos = SelectedPos + counter1 + 1;
+	link.port = atoi(netbuf + SelectedPos);
+	clearStatus();
+	strcpy(curDomain, link.host);
+	printf("%c:%s:%d%s]", link.type, link.host, link.port, link.path);
 }
 void navigationPage(char keypress)
 {
@@ -673,9 +749,12 @@ void navigationPage(char keypress)
 		navi.nextBufPos = renderPage(navi.nextBufPos);
 		navi.lineSelect = 1;
 		break;
+	case 0xd:
+		selectorProcessor();
+		break;
 	}
 
-	for (counter = 0; counter < 80; counter++)
+	for (counter = 1; counter < 79; counter++)
 	{
 		OS_SETXY(counter, navi.prevLineSelect);
 		OS_PRATTR(7);
@@ -688,7 +767,7 @@ void navigationPage(char keypress)
 		OS_SETXY(mouse.cursXpos, mouse.cursYpos);
 		mouse.oldAtr = OS_GETATTR();
 	}
-	for (counter = 0; counter < 80; counter++)
+	for (counter = 1; counter < 79; counter++)
 	{
 		OS_SETXY(counter, navi.lineSelect);
 		OS_PRATTR(15);
@@ -768,25 +847,26 @@ C_task main(int argc, char *argv[])
 	// getchar();
 	loadPageFromDisk("browser/index.gph");
 
-	navi.nextBufPos = renderPlain(navi.nextBufPos);
-	navigationPlain(250);
+	navi.nextBufPos = renderPage(navi.nextBufPos);
+	navigationPage(249);
 
 	do
 	{
 		getMouse();
 		if (mouse.lmb == 0)
 		{
-			navigationPlain(255);
+			navigationPage(255);
 			navi.prevLineSelect = navi.lineSelect;
 			navi.lineSelect = mouse.cursYpos;
 			OS_SETXY(mouse.cursXpos, mouse.cursYpos);
 			mouse.oldAtr = OS_GETATTR();
 			OS_PRATTR(215);
+			selectorProcessor();
 		}
 		keypress = _low_level_get();
 		if (keypress != 0)
 		{
-			navigationPlain(keypress);
+			navigationPage(keypress);
 		}
 	} while (keypress != 27);
 }
