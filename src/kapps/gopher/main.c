@@ -19,8 +19,7 @@ FILE *fp2;
 
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "00.01";
-unsigned char curDomain[] = "kulich.tplinkdns.com";
+unsigned char uVer[] = "00.10";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
@@ -37,7 +36,7 @@ struct sockaddr_in targetadr;
 struct readstructure readStruct;
 struct sockaddr_in dnsaddress;
 
-struct LinkStruct
+struct linkStruct
 {
 	unsigned char type;
 	unsigned char nexType;
@@ -70,6 +69,7 @@ struct navigationStruct
 	unsigned int prevLineSelect;
 	unsigned int bufPos;
 	unsigned int nextBufPos;
+	unsigned int history;
 } navi;
 
 struct window
@@ -332,16 +332,14 @@ void drawClock(void)
 
 void mainWinDraw(void)
 {
-	unsigned char domainLng;
 	OS_SETCOLOR(207);
 	OS_SETXY(0, 0);
 	spaces(80);
 	OS_SETXY(0, 0);
 	printf("NedoGopher %s", uVer);
 
-	domainLng = strlen(curDomain);
-	OS_SETXY(39 - domainLng / 2, 0);
-	printf("%s", curDomain);
+	OS_SETXY(39 - strlen(link.host) / 2, 0);
+	printf("%s", link.host);
 	drawClock();
 }
 
@@ -494,6 +492,7 @@ void init(void)
 	navi.page = 0;
 	navi.maxPage = 32768;
 	link.type = '1';
+	strcpy(link.host, "HOMEPAGE");
 	get_dns();
 }
 
@@ -703,10 +702,13 @@ void getFile(void)
 	int todo;
 	char socket;
 	unsigned long downloaded = 0;
-	dnsResolve(curDomain);
-
+	dnsResolve(link.host);
 	targetadr.porth = 00;
 	targetadr.portl = link.port;
+
+	// clearStatus();
+	// printf("\r\nAddress:%u.%u.%u.%u:%u\r\n", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4, targetadr.porth * 256 + targetadr.portl);
+
 	if ((strlen(link.path) == 1 && link.path[0] == '/') || strlen(link.path) == 0)
 	{
 		strcpy(link.path, crlf);
@@ -801,19 +803,69 @@ void selectorProcessor(void)
 
 	SelectedPos = SelectedPos + counter1 + 1;
 	link.port = atoi(netbuf + SelectedPos);
-	strcpy(curDomain, link.host);
 }
 
-void activate(void)
+void pusHistory(void)
 {
+	FILE *hf;
+	unsigned char *historyBytes;
+	unsigned char buf[1];
+	unsigned int structSize, filePos, counter;
+	navi.history++;
+	structSize = sizeof(struct linkStruct);
+	filePos = structSize * navi.history;
 
-	if (link.type == '0') // Если текущая страница текстовая, нечего по ней тыкать
+	hf = OS_CREATEHANDLE("../ini/ng_hist.dat", 0x80);
+	if (((int)hf) & 0xff)
 	{
-		return;
+		clearStatus();
+		printf("../ini/ng_hist.dat creating error.");
+		exit(0);
 	}
+	OS_CLOSEHANDLE(hf);
 
-	selectorProcessor();
+	hf = OS_OPENHANDLE("../ini/ng_hist.dat", 0x80);
+	if (((int)hf) & 0xff)
+	{
+		clearStatus();
+		printf("../ini/ng_hist.dat opening error.");
+		exit(0);
+	}
+	OS_SEEKHANDLE(hf, filePos);
 
+	historyBytes = (unsigned char *)&link;
+
+	for (counter = 0; counter < structSize; counter++)
+	{
+		buf[0] = historyBytes[counter];
+		OS_WRITEHANDLE(buf, hf, 1);
+	}
+	OS_CLOSEHANDLE(hf);
+}
+
+void popHistory(void)
+{
+	FILE *hf;
+	unsigned int structSize, filePos;
+	navi.history--;
+	structSize = sizeof(struct linkStruct);
+	filePos = structSize * navi.history;
+
+	hf = OS_OPENHANDLE("../ini/ng_hist.dat", 0x80);
+	if (((int)hf) & 0xff)
+	{
+		clearStatus();
+		printf("../ini/ng_hist.dat opening error.");
+		exit(0);
+	}
+	OS_SEEKHANDLE(hf, filePos);
+	OS_READHANDLE(netbuf, hf, structSize);
+
+	memcpy(&link, netbuf, structSize);
+}
+
+void doLink(void)
+{
 	switch (link.type) // Тут уже новый элемент
 	{
 	case 'i':
@@ -855,6 +907,22 @@ void activate(void)
 		link.type = link.nexType;
 		return;
 	}
+}
+void activate(void)
+{
+
+	if (link.type == '0') // Если текущая страница текстовая, нечего по ней тыкать
+	{
+		return;
+	}
+
+	selectorProcessor();
+
+	if (link.type == '0' || link.type == '1')
+	{
+		pusHistory();
+	}
+	doLink();
 }
 
 void navigationPage(char keypress)
@@ -918,8 +986,16 @@ void navigationPage(char keypress)
 		navi.nextBufPos = renderPage(navi.nextBufPos);
 		navi.lineSelect = 1;
 		break;
-	case 0xd:
+	case 0x0d:
 		activate();
+		break;
+	case 0x08:
+		if (navi.history > 1) // позже  в 0 позицию добаить  file
+		{
+			popHistory();
+			doLink();
+		}
+
 		break;
 	}
 
