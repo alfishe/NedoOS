@@ -55,7 +55,7 @@ struct mouseStruct
 	char mouseYpos;
 	char cursXpos;
 	char cursYpos;
-	char prevMouseButtons;
+	unsigned int  prevMouseButtons;
 	char prevMouseMove;
 	char oldAtr;
 } mouse;
@@ -70,6 +70,7 @@ struct navigationStruct
 	unsigned int bufPos;
 	unsigned int nextBufPos;
 	unsigned int history;
+	unsigned char fileName[128];
 } navi;
 
 struct window
@@ -343,10 +344,12 @@ void mainWinDraw(void)
 	drawClock();
 }
 
-void getMouse(void)
+unsigned char getMouse(void)
 {
 	unsigned long mouseRaw;
-	unsigned char mouseButtons, mouseMove;
+	unsigned char mouseMove;
+	unsigned int mouseButtons;
+
 	mouseRaw = OS_GETMOUSE();
 	mouseMove = mouseRaw >> 16;
 	mouseButtons = mouseRaw;
@@ -386,11 +389,13 @@ void getMouse(void)
 		mouse.lmb = mouseButtons & 1;
 	}
 	/*
-		OS_SETCOLOR(71);
-		OS_SETXY(2, 23);
-		printf("lmb:[%d] rmb:[%d] mmb:[%d] wheel:[%03d] X:[%03d] Y:[%03d] cursX:[%02d] cursY:[%02d]", mouse.lmb, mouse.rmb, mouse.mmb, mouse.wheel, mouse.mouseXpos, mouse.mouseYpos, mouse.cursXpos, mouse.cursYpos);
+		clearStatus();
+		printf("lmb:[%d] rmb:[%d] mmb:[%d] wheel:[%02d] X:[%03d] Y:[%03d] cursX:[%02d] cursY:[%02d]", mouse.lmb, mouse.rmb, mouse.mmb, mouse.wheel, mouse.mouseXpos, mouse.mouseYpos, mouse.cursXpos, mouse.cursYpos);
 	*/
 	OS_SETXY(mouse.cursXpos, mouse.cursYpos);
+	
+	
+	return mouseButtons >> 8;
 }
 
 unsigned char OS_SHELL(unsigned char *command)
@@ -697,7 +702,7 @@ unsigned int renderPage(unsigned int bufPos)
 	return bufPos;
 }
 
-void getFile(void)
+void getFile(unsigned char *fileNamePtr)
 {
 	int todo;
 	char socket;
@@ -724,7 +729,7 @@ void getFile(void)
 	// testOperation("OS_NETCONNECT", todo);
 	todo = tcpSend(socket, (unsigned int)&link.path, strlen(link.path), 1);
 	// testOperation("OS_WIZNETWRITE", todo);
-	saveBuf("fileNamePtr", 00, 0);
+	saveBuf(fileNamePtr, 00, 0);
 	do
 	{
 		todo = tcpRead(socket, 3);
@@ -737,11 +742,11 @@ void getFile(void)
 
 		clearStatus();
 		printf("%u kb downloaded", downloaded / 1024);
-		saveBuf("fileNamePtr", 01, todo);
+		saveBuf(fileNamePtr, 01, todo);
 
 	} while (42);
 	netShutDown(socket, 0);
-	saveBuf("fileNamePtr", 02, 00);
+	saveBuf(fileNamePtr, 02, 00);
 }
 
 void selectorProcessor(void)
@@ -815,20 +820,20 @@ void pusHistory(void)
 	structSize = sizeof(struct linkStruct);
 	filePos = structSize * navi.history;
 
-	hf = OS_CREATEHANDLE("../ini/ng_hist.dat", 0x80);
+	hf = OS_CREATEHANDLE("browser/ng_hist.dat", 0x80);
 	if (((int)hf) & 0xff)
 	{
 		clearStatus();
-		printf("../ini/ng_hist.dat creating error.");
+		printf("browser/ng_hist.dat creating error.");
 		exit(0);
 	}
 	OS_CLOSEHANDLE(hf);
 
-	hf = OS_OPENHANDLE("../ini/ng_hist.dat", 0x80);
+	hf = OS_OPENHANDLE("browser/ng_hist.dat", 0x80);
 	if (((int)hf) & 0xff)
 	{
 		clearStatus();
-		printf("../ini/ng_hist.dat opening error.");
+		printf("browser/ng_hist.dat opening error.");
 		exit(0);
 	}
 	OS_SEEKHANDLE(hf, filePos);
@@ -851,17 +856,43 @@ void popHistory(void)
 	structSize = sizeof(struct linkStruct);
 	filePos = structSize * navi.history;
 
-	hf = OS_OPENHANDLE("../ini/ng_hist.dat", 0x80);
+	hf = OS_OPENHANDLE("browser/ng_hist.dat", 0x80);
 	if (((int)hf) & 0xff)
 	{
 		clearStatus();
-		printf("../ini/ng_hist.dat opening error.");
+		printf("browser/ng_hist.dat opening error.");
 		exit(0);
 	}
 	OS_SEEKHANDLE(hf, filePos);
 	OS_READHANDLE(netbuf, hf, structSize);
 
 	memcpy(&link, netbuf, structSize);
+}
+
+void extractName(void)
+{
+	unsigned int counter, counter2 = 0, lng, byte, source;
+
+	lng = strlen(link.path);
+
+	clearStatus();
+	for (counter = lng - 1; counter != 0; counter--)
+	{
+		byte = link.path[counter];
+		if (byte == '/')
+		{
+			break;
+		}
+
+		counter2++;
+	}
+	source = lng - counter2;
+	for (counter = 0; counter < counter2; counter++)
+	{
+		navi.fileName[counter] = link.path[source + counter];
+	}
+	navi.fileName[counter2] = 0;
+
 }
 
 void doLink(void)
@@ -873,41 +904,43 @@ void doLink(void)
 		return;
 	case '0': // plain texts
 		newPage();
-		getFile();
-		loadPageFromDisk("fileNamePtr");
+		getFile("browser/current.txt");
+		loadPageFromDisk("browser/current.txt");
 		navi.nextBufPos = renderPlain(navi.nextBufPos);
 		return;
 	case '1': // gopher page
 		newPage();
-		getFile();
-		loadPageFromDisk("fileNamePtr");
+		getFile("browser/current.gph");
+		loadPageFromDisk("browser/current.gph");
 		navi.nextBufPos = renderPage(navi.nextBufPos);
 		return;
 	case '7': // search input
 		link.type = link.nexType;
 		return;
 	case '9': // binary (pt3/scr)
-		getFile();
+		extractName();
+		getFile(navi.fileName);
 		link.type = link.nexType;
 		return;
 	case 'g': // gif pic
-		getFile();
+		getFile("../downloads/pic.gif");
 		link.type = link.nexType;
 		return;
 	case 'I': // image
-		getFile();
+		getFile("../downloads/pt3.img");
 		link.type = link.nexType;
 		return;
 	case 's': // sound
-		getFile();
+		getFile("../downloads/mus.mid");
 		link.type = link.nexType;
 		return;
 	default:
-		getFile();
+		getFile("../downloads/default.fil");
 		link.type = link.nexType;
 		return;
 	}
 }
+
 void activate(void)
 {
 
@@ -990,12 +1023,15 @@ void navigationPage(char keypress)
 		activate();
 		break;
 	case 0x08:
-		if (navi.history > 1) // позже  в 0 позицию добаить  file
+		if (navi.history > 1)
 		{
 			popHistory();
 			doLink();
 		}
+		break;
+	case 31:
 
+		renderPage(pageOffsets[navi.page]);
 		break;
 	}
 
@@ -1065,6 +1101,12 @@ void navigationPlain(char keypress)
 		navi.lineSelect = 1;
 		navi.nextBufPos = renderPlain(navi.nextBufPos);
 		break;
+	case 0x08:
+		if (navi.history > 1)
+		{
+			popHistory();
+			doLink();
+		}
 	}
 
 	if (mouse.cursYpos == navi.prevLineSelect)
@@ -1076,6 +1118,7 @@ void navigationPlain(char keypress)
 
 void navigation(unsigned char keypress)
 {
+
 	switch (link.type)
 	{
 	case '0':
@@ -1102,7 +1145,7 @@ C_task main(int argc, char *argv[])
 	navi.nextBufPos = renderPage(navi.nextBufPos);
 	do
 	{
-		getMouse();
+		keypress = getMouse();
 		if (mouse.lmb == 0)
 		{
 			navi.prevLineSelect = navi.lineSelect;
@@ -1111,10 +1154,23 @@ C_task main(int argc, char *argv[])
 			OS_SETXY(mouse.cursXpos, mouse.cursYpos);
 			OS_PRATTR(215);
 		}
-		keypress = _low_level_get();
+		if (mouse.rmb == 0)
+		{
+			if (navi.history > 1)
+			{
+				popHistory();
+				doLink();
+			}
+		}
+		//getKeys = OS_GETKEY();
+		//getKeys >> 8;
+		//keypress = getKeys;
 		if (keypress != 0)
 		{
 			navigation(keypress);
 		}
 	} while (keypress != 27);
+	OS_DELETE("browser/current.gph");
+	OS_DELETE("browser/current.txt");
+	OS_DELETE("browser/ng_hist.dat");
 }
