@@ -1033,14 +1033,28 @@ void doLink(void)
 		navi.nextBufPos = renderPage(navi.nextBufPos);
 		return;
 	case '7': // search input
-		link.type = link.nexType;
+		curWin.w = 40;
+		curWin.x = 80 / 2 - curWin.w / 2 - 1;
+		curWin.y = 4;
+		curWin.h = 1;
+		curWin.text = 207;
+		curWin.back = 71;
+		strcpy(curWin.tittle, "Введите поисковый запрос");
+		if (inputBox(curWin))
+		{
+			strcat(link.path, "\t");
+			strcat(link.path, cmd);
+			newPage();
+			getFile("browser/current.gph");
+			loadPageFromDisk("browser/current.gph");
+			navi.nextBufPos = renderPage(navi.nextBufPos);
+			link.type = '1';
+		}
 		return;
 	case '9': // binary (pt3/scr)
 		pusHistory();
-
 		extractName();
 		getFile(navi.fileName);
-
 		popHistory();
 
 		// viewScreen6912((unsigned int)&netbuf, 0);
@@ -1074,7 +1088,7 @@ void activate(void)
 		return;
 	}
 
-	if (link.type == '0' || link.type == '1')
+	if (link.type == '0' || link.type == '1' || link.type == '7')
 	{
 		pusHistory();
 	}
