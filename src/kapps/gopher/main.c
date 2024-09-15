@@ -85,7 +85,6 @@ struct window
 	unsigned char text;
 	unsigned char back;
 	unsigned char tittle[80];
-
 } curWin;
 
 unsigned char netbuf[32768];
@@ -345,10 +344,6 @@ void mainWinDraw(void)
 	OS_SETXY(39 - strlen(link.host) / 2, 0);
 	printf("%s", link.host);
 	drawClock();
-}
-
-void inputBox(void)
-{
 }
 
 unsigned char getMouse(void)
@@ -717,19 +712,112 @@ unsigned int renderPage(unsigned int bufPos)
 	return bufPos;
 }
 
+unsigned char inputBox(struct window w)
+{
+	unsigned char wcount, tempx, tittleStart;
+	unsigned char byte, counter;
+	w.h++;
+	OS_SETXY(w.x, w.y - 1);
+	BDBOX(w.x, w.y, w.w + 1, w.h, w.back, 32);
+	OS_SETXY(w.x, w.y);
+	OS_SETCOLOR(w.text);
+	putchar(201);
+	for (wcount = 0; wcount < w.w; wcount++)
+	{
+		putchar(205);
+	}
+	putchar(187);
+	OS_SETXY(w.x, w.y + w.h);
+	putchar(200);
+	for (wcount = 0; wcount < w.w; wcount++)
+	{
+		putchar(205);
+	}
+	putchar(188);
+
+	tempx = w.x + w.w + 1;
+	for (wcount = 1; wcount < w.h; wcount++)
+	{
+		OS_SETXY(w.x, w.y + wcount);
+		putchar(186);
+		OS_SETXY(tempx, w.y + wcount);
+		putchar(186);
+	}
+	tittleStart = w.x + (w.w / 2) - (strlen(w.tittle) / 2);
+	OS_SETXY(tittleStart, w.y);
+	printf("[%s]", w.tittle);
+	OS_SETXY(w.x + 1, w.y + 1);
+	OS_SETCOLOR(w.back);
+	putchar(219);
+	counter = 0;
+	do
+	{
+		byte = OS_GETKEY();
+		if (byte != 0)
+		{
+			switch (byte)
+			{
+			case 0x08:
+				if (counter > 0)
+				{
+					counter--;
+					cmd[counter] = 0;
+				}
+				break;
+			case 0x0d:
+				return true;
+			case 250:
+				break;
+			case 249:
+				break;
+			case 248:
+				break;
+			case 251:
+				break;
+			case 27:
+				cmd[0] = 0;
+				navi.nextBufPos = renderPage(pageOffsets[navi.page]);
+				return false;
+			default:
+				if (counter < w.w - 1)
+				{
+					cmd[counter] = byte;
+					cmd[counter + 1] = 0;
+					counter++;
+				}
+				break;
+			}
+			OS_SETXY(w.x + 1, w.y + 1);
+			printf("%s", cmd);
+			putchar(219);
+			if (byte == 0x08)
+			{
+				putchar(' ');
+			}
+		}
+	} while (42);
+	return false;
+}
+
 void getFile(unsigned char *fileNamePtr)
 {
 	int todo;
 	char socket;
 	unsigned long downloaded = 0;
-	dnsResolve(link.host);
+
+	if (!dnsResolve(link.host))
+	{
+		navi.nextBufPos = renderPage(pageOffsets[navi.page]);
+		return;
+	}
+
 	targetadr.porth = 00;
 	targetadr.portl = link.port;
 
 	// clearStatus();
 	// printf("File:%s", fileNamePtr);
+	// printf("\r\nAddress:%u.%u.%u.%u:%u\r\n", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4, targetadr.porth * 256 + targetadr.portl);
 	// getchar();
-	//  printf("\r\nAddress:%u.%u.%u.%u:%u\r\n", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4, targetadr.porth * 256 + targetadr.portl);
 
 	if ((strlen(link.path) == 1 && link.path[0] == '/') || strlen(link.path) == 0)
 	{
@@ -922,6 +1010,11 @@ void extractName(void)
 
 void doLink(void)
 {
+
+	// clearStatus();
+	// printf("[%c][%s][%d][%s]", link.type, link.host, link.port, link.path);
+	// getchar();
+
 	switch (link.type) // Тут уже новый элемент
 	{
 	case 'i':
@@ -944,10 +1037,10 @@ void doLink(void)
 		return;
 	case '9': // binary (pt3/scr)
 		pusHistory();
-		
+
 		extractName();
 		getFile(navi.fileName);
-		
+
 		popHistory();
 
 		// viewScreen6912((unsigned int)&netbuf, 0);
@@ -1067,6 +1160,24 @@ void navigationPage(char keypress)
 		loadPageFromDisk("browser/index.gph");
 		navi.nextBufPos = renderPage(navi.nextBufPos);
 		break;
+	case 'd':
+		curWin.w = 40;
+		curWin.x = 80 / 2 - curWin.w / 2 - 1;
+		curWin.y = 4;
+		curWin.h = 1;
+		curWin.text = 207;
+		curWin.back = 71;
+		strcpy(curWin.tittle, "Введите адрес Gopher сервера");
+
+		if (inputBox(curWin))
+		{
+			link.type = '1';
+			strcpy(link.host, cmd);
+			strcpy(link.path, "/");
+			link.port = 70;
+			doLink();
+		}
+		break;
 	}
 
 	if (link.type == '1')
@@ -1185,9 +1296,6 @@ C_task main(int argc, char *argv[])
 	// getchar();
 	loadPageFromDisk("browser/index.gph");
 	navi.nextBufPos = renderPage(navi.nextBufPos);
-
-	// infoBox("Hello Piter!");
-	// getchar();
 
 	do
 	{
