@@ -460,13 +460,6 @@ char loadPageFromDisk(unsigned char *filepath)
 	unsigned int todo = 0;
 	unsigned long clean = 0, loaded = 0;
 	FILE *fp1;
-	clearStatus();
-
-	if (link.size > sizeof(netbuf))
-	{
-		printf("file is to large (%lu)", link.size);
-		return false;
-	}
 
 	fp1 = OS_OPENHANDLE(filepath, 0x80);
 	if (((int)fp1) & 0xff)
@@ -477,7 +470,14 @@ char loadPageFromDisk(unsigned char *filepath)
 
 	do
 	{
-		todo = OS_READHANDLE(netbuf + loaded, fp1, sizeof(netbuf));
+		if ((sizeof(netbuf) - loaded) < 513)
+		{
+			clearStatus();
+			printf("file is to large (%lu)", link.size);
+			getchar();
+			break;
+		}
+		todo = OS_READHANDLE(netbuf + loaded, fp1, 512);
 		loaded = loaded + todo;
 	} while (todo != 0 && errno == 0);
 	OS_CLOSEHANDLE(fp1);
@@ -1048,6 +1048,7 @@ void doLink(void)
 			getFile("browser/current.gph");
 			loadPageFromDisk("browser/current.gph");
 			navi.nextBufPos = renderPage(navi.nextBufPos);
+			popHistory();
 			link.type = '1';
 		}
 		return;
