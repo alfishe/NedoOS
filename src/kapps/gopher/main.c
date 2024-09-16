@@ -1056,7 +1056,7 @@ void extractName(void)
 
 	curWin.w = 61;
 	curWin.x = 80 / 2 - curWin.w / 2 - 1;
-	curWin.y = 4;
+	curWin.y = 10;
 	curWin.h = 1;
 	curWin.text = 103;
 	curWin.back = 103;
@@ -1105,7 +1105,7 @@ void doLink(void)
 	case '7': // search input
 		curWin.w = 40;
 		curWin.x = 80 / 2 - curWin.w / 2 - 1;
-		curWin.y = 4;
+		curWin.y = 10;
 		curWin.h = 1;
 		curWin.text = 95;
 		curWin.back = 95;
@@ -1252,7 +1252,7 @@ void navigationPage(char keypress)
 	case 'd':
 		curWin.w = 40;
 		curWin.x = 80 / 2 - curWin.w / 2 - 1;
-		curWin.y = 4;
+		curWin.y = 10;
 		curWin.h = 1;
 		curWin.text = 207;
 		curWin.back = 207;
