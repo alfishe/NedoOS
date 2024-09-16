@@ -20,19 +20,12 @@ FILE *fp2;
 
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "00.10";
+unsigned char uVer[] = "00.20";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
 unsigned long volumeOffsets[16];
-unsigned char curLetter;
-unsigned char oldBinExt;
-unsigned int errn, headlng;
-unsigned long contLen;
-unsigned char saveFlag, saveBak;
 unsigned char crlf[2] = {13, 10};
-
-unsigned char status, curFormat;
 
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
@@ -76,6 +69,7 @@ struct navigationStruct
 	unsigned int bufPos;
 	unsigned int nextBufPos;
 	unsigned int history;
+	unsigned int saveAs;
 	unsigned long NextVolumePos;
 	unsigned char fileName[128];
 } navi;
@@ -146,141 +140,6 @@ void delay(unsigned long counter)
 	}
 }
 
-void drawWindow(struct window w)
-{
-	unsigned char wcount, tempx, tittleStart;
-
-	OS_SETXY(w.x, w.y - 1);
-	tittleStart = w.x + (w.w / 2) - (strlen(w.tittle) / 2) + 1;
-	BDBOX(w.x, w.y, w.w + 1, w.h, w.back, 32);
-	OS_SETXY(w.x, w.y);
-	OS_SETCOLOR(w.text);
-	putchar(201);
-	for (wcount = 0; wcount < w.w; wcount++)
-	{
-		putchar(205);
-	}
-	putchar(187);
-
-	OS_SETXY(w.x, w.y + w.h);
-	putchar(200);
-	for (wcount = 0; wcount < w.w; wcount++)
-	{
-		putchar(205);
-	}
-	putchar(188);
-
-	tempx = w.x + w.w + 1;
-	for (wcount = 1; wcount < w.h; wcount++)
-	{
-		OS_SETXY(w.x, w.y + wcount);
-		putchar(186);
-		OS_SETXY(tempx, w.y + wcount);
-		putchar(186);
-	}
-
-	OS_SETXY(w.x, w.y + 2);
-	putchar(199);
-	for (wcount = 0; wcount < w.w; wcount++)
-	{
-		putchar(196);
-	}
-	putchar(182);
-
-	OS_SETXY(tittleStart, w.y + 1);
-	printf("%s", w.tittle);
-}
-
-void fatalError(unsigned char *message)
-{
-	strcpy(curWin.tittle, "FATAL ERROR!");
-
-	if (strlen(message) > strlen(curWin.tittle))
-	{
-		curWin.w = strlen(message) + 2;
-	}
-	else
-		curWin.w = strlen(curWin.tittle) + 2;
-	curWin.x = 80 / 2 - curWin.w / 2;
-	curWin.y = 11;
-	curWin.h = 4;
-	curWin.text = 97;
-	curWin.back = 41;
-	drawWindow(curWin);
-	OS_SETXY(curWin.x + 2, curWin.y + 3);
-	printf("%s", message);
-	OS_SETXY(1, 1);
-	do
-	{
-		YIELD();
-	} while (_low_level_get() == 0);
-	exit(0);
-}
-
-void infoBox(unsigned char *message)
-{
-	strcpy(curWin.tittle, "nedoOS system updater ");
-	strcat(curWin.tittle, uVer);
-
-	if (strlen(message) > strlen(curWin.tittle))
-	{
-		curWin.w = strlen(message) + 2;
-	}
-	else
-		curWin.w = strlen(curWin.tittle) + 2;
-	curWin.x = 80 / 2 - curWin.w / 2;
-	curWin.y = 15;
-	curWin.h = 4;
-	curWin.text = 97;
-	curWin.back = 42;
-
-	drawWindow(curWin);
-	OS_SETXY(curWin.x + 2, curWin.y + 3);
-	printf("%s", message);
-	OS_SETXY(1, 1);
-}
-
-void colorBars(void)
-{
-	// 30-37 темный тон 90-97 светлый тон
-	// 40-47 темный фон
-	unsigned int count;
-	OS_CLS(0);
-	for (count = 0; count < 8; count++)
-	{
-		OS_SETCOLOR(79);
-		printf("[%03d]", count);
-		OS_SETCOLOR(count);
-		printf(" 01234567890     ");
-		OS_SETCOLOR(79);
-		printf("[%03d]", (count << 3) + 7);
-		OS_SETCOLOR((count << 3) + 7);
-		printf(" 01234567890     \r\n");
-	}
-	for (count = 0; count < 8; count++)
-	{
-		OS_SETCOLOR(79);
-		printf("[%03d]", count + 64);
-		OS_SETCOLOR(count + 64);
-		printf(" 01234567890     ");
-		OS_SETCOLOR(79);
-		printf("[%03d]", (count << 3) + 7 + 64);
-		OS_SETCOLOR((count << 3) + 7 + 64);
-		printf(" 01234567890     \r\n");
-	}
-	for (count = 0; count < 8; count++)
-	{
-		OS_SETCOLOR(79);
-		printf("[%03d]", count + 128 + 64);
-		OS_SETCOLOR(count + 64 + 128);
-		printf(" 01234567890     ");
-		OS_SETCOLOR(79);
-		printf("[%03d]", (count << 3) + 7 + 128 + 64);
-		OS_SETCOLOR((count << 3) + 7 + 64 + 128);
-		printf(" 01234567890     \r\n");
-	}
-}
-
 ///////////////////////////
 #include <../common/network.c>
 //////////////////////////
@@ -347,6 +206,18 @@ void mainWinDraw(void)
 
 	OS_SETXY(39 - strlen(link.host) / 2, 0);
 	printf("%s", link.host);
+
+	OS_SETXY(63, 0);
+
+	if (navi.saveAs)
+	{
+		printf("[Save As]");
+	}
+	else
+	{
+		printf("[Play It]");
+	}
+
 	drawClock();
 }
 
@@ -405,7 +276,7 @@ unsigned char getMouse(void)
 
 unsigned char OS_SHELL(unsigned char *command)
 {
-	unsigned char fileName[] = "bin/cmd.com";
+	unsigned char fileName[] = "cmd.com";
 	unsigned char appCmd[128] = "cmd.com ";
 	unsigned int shellSize, loaded, loop, adr;
 	unsigned char pgbak;
@@ -415,8 +286,7 @@ unsigned char OS_SHELL(unsigned char *command)
 	main_pg.l = OS_GETMAINPAGES();
 	pgbak = main_pg.pgs.window_3;
 	OS_GETPATH((unsigned int)&curPath);
-	OS_CHDIR("/");
-
+	OS_SETSYSDRV();
 	strcat(appCmd, command);
 	fp3 = OS_OPENHANDLE(fileName, 0x80);
 	if (((int)fp3) & 0xff)
@@ -443,19 +313,14 @@ unsigned char OS_SHELL(unsigned char *command)
 	loop = 0;
 	while (loop < shellSize)
 	{
-		loaded = OS_READHANDLE(netbuf, fp3, sizeof(netbuf));
+		loaded = OS_READHANDLE(cmd, fp3, sizeof(cmd) - 1);
 		adr = 0xC100 + loop;
-		memcpy((unsigned char *)(adr), &netbuf, loaded);
+		memcpy((unsigned char *)(adr), &cmd, loaded);
 		loop = loop + loaded;
 	}
 	OS_CLOSEHANDLE(fp3);
 	SETPG32KHIGH(pgbak);
-	clearStatus();
-	printf("Shell [pId:%u][%s][%s]", shell_pg.pgs.pId, curPath, appCmd);
-	delay(300);
 	OS_RUNAPP(shell_pg.pgs.pId);
-	OS_SETXY(1, 4);
-	OS_WAITPID(shell_pg.pgs.pId);
 	return shell_pg.pgs.pId;
 }
 
@@ -515,6 +380,7 @@ void init(void)
 	navi.maxPage = 32768;
 	navi.volume = 0;
 	navi.NextVolumePos = 0;
+	navi.saveAs = true;
 
 	link.type = '1';
 	strcpy(link.host, "HOMEPAGE");
@@ -899,8 +765,8 @@ unsigned char selectorProcessor(void)
 
 	if (link.type == '0' || navi.lineSelect > navi.lastLine) // Если текущая страница текстовая, нечего по ней тыкать или тыкнули ниже низа.
 	{
-		//clearStatus();
-		//printf("Если текущая страница текстовая, нечего по ней тыкать или тыкнули ниже низа.");
+		// clearStatus();
+		// printf("Если текущая страница текстовая, нечего по ней тыкать или тыкнули ниже низа.");
 		return false;
 	}
 
@@ -980,6 +846,8 @@ void pusHistory(void)
 	structSize = sizeof(struct linkStruct);
 	filePos = structSize * navi.history;
 
+	OS_SETSYSDRV();
+
 	hf = OS_CREATEHANDLE("browser/ng_hist.dat", 0x80);
 	if (((int)hf) & 0xff)
 	{
@@ -1015,7 +883,7 @@ void popHistory(void)
 	navi.history--;
 	structSize = sizeof(struct linkStruct);
 	filePos = structSize * navi.history;
-
+	OS_SETSYSDRV();
 	hf = OS_OPENHANDLE("browser/ng_hist.dat", 0x80);
 	if (((int)hf) & 0xff)
 	{
@@ -1032,6 +900,8 @@ void popHistory(void)
 void extractName(void)
 {
 	unsigned int counter, counter2 = 0, lng, byte, source;
+	unsigned char ext2[128];
+	unsigned char *count1;
 
 	lng = strlen(link.path);
 
@@ -1054,30 +924,103 @@ void extractName(void)
 	}
 	navi.fileName[counter2] = 0;
 
-	curWin.w = 61;
-	curWin.x = 80 / 2 - curWin.w / 2 - 1;
-	curWin.y = 10;
-	curWin.h = 1;
-	curWin.text = 103;
-	curWin.back = 103;
-	strcpy(curWin.tittle, "Введите имя файла");
-
-	lng = strlen(navi.fileName);
-	if (lng > 60)
+	if (navi.saveAs)
 	{
-		lng = lng - 64 - 1;
+		curWin.w = 61;
+		curWin.x = 80 / 2 - curWin.w / 2 - 1;
+		curWin.y = 10;
+		curWin.h = 1;
+		curWin.text = 103;
+		curWin.back = 103;
+		strcpy(curWin.tittle, "Введите имя файла");
+
+		lng = strlen(navi.fileName);
+		if (lng > 60)
+		{
+			lng = lng - 64 - 1;
+		}
+		else
+		{
+			lng = 0;
+		}
+
+		if (inputBox(curWin, navi.fileName + lng))
+		{
+			strcpy(navi.fileName, cmd);
+		}
 	}
 	else
 	{
-		lng = 0;
-	}
-
-	if (inputBox(curWin, navi.fileName + lng))
-	{
-		strcpy(navi.fileName, cmd);
+		count1 = strstr(navi.fileName, ".");
+		if (count1 == NULL)
+		{
+			clearStatus();
+			printf("Ошибка определения типа файла, не найдено расширение. [%s]", navi.fileName);
+			getchar();
+		}
+		strcpy(ext2, count1 + 1);
+		strcpy(navi.fileName, "current.");
+		strcat(navi.fileName, ext2);
 	}
 }
 
+unsigned char mediaProcessor(void)
+{
+	unsigned char ext[128];
+	unsigned char *count1;
+
+	count1 = strstr(navi.fileName, ".");
+	if (count1 == NULL)
+	{
+		clearStatus();
+		printf("Ошибка определения типа файла, не найдено расширение. [%s]", navi.fileName);
+		getchar();
+	}
+	strcpy(ext, count1 + 1);
+
+	if (!strcmp(ext, "SCR") || !strcmp(ext, "scr"))
+	{
+		strcpy(cmd, "view.com ");
+		strcat(cmd, "current.scr");
+		return true;
+	}
+
+	if (!strcmp(ext, "PT3") || !strcmp(ext, "pt3"))
+	{
+		strcpy(cmd, "gp.com ");
+		strcat(cmd, "current.pt3");
+		return true;
+	}
+
+	if (!strcmp(ext, "MOD") || !strcmp(ext, "mod"))
+	{
+		strcpy(cmd, "gp.com ");
+		strcat(cmd, "current.mod");
+		return true;
+	}
+
+	if (!strcmp(ext, "MID") || !strcmp(ext, "mid"))
+	{
+		strcpy(cmd, "gp.com ");
+		strcat(cmd, "current.mid");
+		return true;
+	}
+
+	if (!strcmp(ext, "VGZ") || !strcmp(ext, "vgz"))
+	{
+		strcpy(cmd, "gp.com ");
+		strcat(cmd, "current.vgz");
+		return true;
+	}
+
+	if (!strcmp(ext, "PNG") || !strcmp(ext, "png"))
+	{
+		strcpy(cmd, "browser.com ");
+		strcat(cmd, "current.png");
+		return true;
+	}
+	return false;
+}
 void doLink(void)
 {
 
@@ -1122,31 +1065,32 @@ void doLink(void)
 			pusHistory();
 		}
 		return;
+	case 'g': // gif pic
+	case 'I': // image
+	case 's': // sound
 	case '9': // binary (pt3/scr)
+	case '8':
+	case '6':
+	case '5':
+	case '4':
 		pusHistory();
 		extractName();
 		OS_CHDIR("/");
 		OS_CHDIR("downloads");
 		getFile(navi.fileName);
-		OS_SETSYSDRV();
 		popHistory();
-
-		// viewScreen6912((unsigned int)&netbuf, 0);
-
 		loadPageFromDisk("browser/current.gph", 0);
 		navi.nextBufPos = renderPage(pageOffsets[navi.page]);
-		return;
-	case 'g': // gif pic
-		getFile("../downloads/pic.gif");
-		link.type = link.nexType;
-		return;
-	case 'I': // image
-		getFile("../downloads/pt3.img");
-		link.type = link.nexType;
-		return;
-	case 's': // sound
-		getFile("../downloads/mus.mid");
-		link.type = link.nexType;
+		if (!navi.saveAs)
+		{
+			if (mediaProcessor())
+			{
+				OS_CHDIR("/");
+				OS_CHDIR("downloads");
+				OS_SHELL(cmd);
+				OS_SETSYSDRV();
+			}
+		}
 		return;
 	default:
 		clearStatus();
@@ -1268,6 +1212,10 @@ void navigationPage(char keypress)
 			doLink();
 		}
 		break;
+	case 's':
+		navi.saveAs = !navi.saveAs;
+		mainWinDraw();
+		break;
 	}
 
 	if (link.type == '1')
@@ -1377,6 +1325,7 @@ void navigation(unsigned char keypress)
 C_task main(int argc, char *argv[])
 {
 	unsigned char keypress;
+	unsigned long start, finish;
 	OS_HIDEFROMPARENT();
 	OS_SETGFX(86);
 	OS_CLS(0);
@@ -1386,7 +1335,7 @@ C_task main(int argc, char *argv[])
 	// getchar();
 	loadPageFromDisk("browser/index.gph", 0);
 	navi.nextBufPos = renderPage(navi.nextBufPos);
-
+	start = time();
 	do
 	{
 		keypress = getMouse();
@@ -1413,6 +1362,14 @@ C_task main(int argc, char *argv[])
 
 			//	printf("keypress [%d]", keypress);
 		}
+
+		finish = time();
+		if ((finish - start) > 1500)
+		{
+			mainWinDraw();
+			start = time();
+		}
+
 	} while (keypress != 27);
 	OS_DELETE("browser/current.gph");
 	OS_DELETE("browser/current.txt");
