@@ -24,6 +24,7 @@ unsigned char uVer[] = "00.10";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
+unsigned long volumeOffsets[16];
 unsigned char curLetter;
 unsigned char oldBinExt;
 unsigned int errn, headlng;
@@ -65,6 +66,7 @@ struct mouseStruct
 struct navigationStruct
 {
 	unsigned int page;
+	unsigned int volume;
 	unsigned int maxPage;
 	unsigned int linePage;
 	unsigned int lineSelect;
@@ -73,6 +75,7 @@ struct navigationStruct
 	unsigned int bufPos;
 	unsigned int nextBufPos;
 	unsigned int history;
+	unsigned long NextVolumePos;
 	unsigned char fileName[128];
 } navi;
 
@@ -455,7 +458,7 @@ unsigned char OS_SHELL(unsigned char *command)
 	return shell_pg.pgs.pId;
 }
 
-char loadPageFromDisk(unsigned char *filepath)
+char loadPageFromDisk(unsigned char *filepath, unsigned long volumeOffset)
 {
 	unsigned int todo = 0;
 	unsigned long clean = 0, loaded = 0;
@@ -468,6 +471,7 @@ char loadPageFromDisk(unsigned char *filepath)
 		return false;
 	}
 
+	OS_SEEKHANDLE(fp1, volumeOffset);
 	do
 	{
 		if ((sizeof(netbuf) - loaded) < 513)
@@ -508,6 +512,9 @@ void init(void)
 	navi.nextBufPos = 0;
 	navi.page = 0;
 	navi.maxPage = 32768;
+	navi.volume = 0;
+	navi.NextVolumePos = 0;
+
 	link.type = '1';
 	strcpy(link.host, "HOMEPAGE");
 	get_dns();
@@ -712,7 +719,7 @@ unsigned int renderPage(unsigned int bufPos)
 	return bufPos;
 }
 
-unsigned char inputBox(struct window w)
+unsigned char inputBox(struct window w, unsigned char *prefilled)
 {
 	unsigned char wcount, tempx, tittleStart;
 	unsigned char byte, counter;
@@ -749,7 +756,14 @@ unsigned char inputBox(struct window w)
 	OS_SETXY(w.x + 1, w.y + 1);
 	OS_SETCOLOR(w.back);
 	putchar(219);
-	counter = 0;
+
+	counter = strlen(prefilled);
+	if (counter != 0)
+	{
+		strcpy(cmd, prefilled);
+		goto skipKeys;
+	}
+
 	do
 	{
 		byte = OS_GETKEY();
@@ -765,14 +779,27 @@ unsigned char inputBox(struct window w)
 				}
 				break;
 			case 0x0d:
-				return true;
+				if (strlen(cmd) == 0)
+				{
+					return false;
+				}
+				else
+				{
+					return true;
+				}
 			case 250:
 				break;
 			case 249:
 				break;
 			case 248:
 				break;
-			case 251:
+			case 251: // Right
+				break;
+			case 252: // Del
+				OS_SETXY(w.x + 1, w.y + 1);
+				spaces(counter + 1);
+				cmd[0] = 0;
+				counter = 0;
 				break;
 			case 27:
 				cmd[0] = 0;
@@ -782,11 +809,12 @@ unsigned char inputBox(struct window w)
 				if (counter < w.w - 1)
 				{
 					cmd[counter] = byte;
-					cmd[counter + 1] = 0;
 					counter++;
+					cmd[counter] = 0;
 				}
 				break;
 			}
+		skipKeys:
 			OS_SETXY(w.x + 1, w.y + 1);
 			printf("%s", cmd);
 			putchar(219);
@@ -1006,6 +1034,29 @@ void extractName(void)
 		navi.fileName[counter] = link.path[source + counter];
 	}
 	navi.fileName[counter2] = 0;
+
+	curWin.w = 61;
+	curWin.x = 80 / 2 - curWin.w / 2 - 1;
+	curWin.y = 4;
+	curWin.h = 1;
+	curWin.text = 103;
+	curWin.back = 103;
+	strcpy(curWin.tittle, "Введите имя файла");
+
+	lng = strlen(navi.fileName);
+	if (lng > 60)
+	{
+		lng = lng - 64 - 1;
+	}
+	else
+	{
+		lng = 0;
+	}
+
+	if (inputBox(curWin, navi.fileName + lng))
+	{
+		strcpy(navi.fileName, cmd);
+	}
 }
 
 void doLink(void)
@@ -1023,13 +1074,13 @@ void doLink(void)
 	case '0': // plain texts
 		newPage();
 		getFile("browser/current.txt");
-		loadPageFromDisk("browser/current.txt");
+		loadPageFromDisk("browser/current.txt", 0);
 		navi.nextBufPos = renderPlain(navi.nextBufPos);
 		return;
 	case '1': // gopher page
 		newPage();
 		getFile("browser/current.gph");
-		loadPageFromDisk("browser/current.gph");
+		loadPageFromDisk("browser/current.gph", 0);
 		navi.nextBufPos = renderPage(navi.nextBufPos);
 		return;
 	case '7': // search input
@@ -1037,16 +1088,16 @@ void doLink(void)
 		curWin.x = 80 / 2 - curWin.w / 2 - 1;
 		curWin.y = 4;
 		curWin.h = 1;
-		curWin.text = 207;
-		curWin.back = 71;
+		curWin.text = 95;
+		curWin.back = 95;
 		strcpy(curWin.tittle, "Введите поисковый запрос");
-		if (inputBox(curWin))
+		if (inputBox(curWin, ""))
 		{
 			strcat(link.path, "\t");
 			strcat(link.path, cmd);
 			newPage();
 			getFile("browser/current.gph");
-			loadPageFromDisk("browser/current.gph");
+			loadPageFromDisk("browser/current.gph", 0);
 			navi.nextBufPos = renderPage(navi.nextBufPos);
 			popHistory();
 			link.type = '1';
@@ -1060,7 +1111,7 @@ void doLink(void)
 
 		// viewScreen6912((unsigned int)&netbuf, 0);
 
-		loadPageFromDisk("browser/current.gph");
+		loadPageFromDisk("browser/current.gph", 0);
 		navi.nextBufPos = renderPage(pageOffsets[navi.page]);
 		return;
 	case 'g': // gif pic
@@ -1172,7 +1223,7 @@ void navigationPage(char keypress)
 		break;
 	case 'h':
 		newPage();
-		loadPageFromDisk("browser/index.gph");
+		loadPageFromDisk("browser/index.gph", 0);
 		navi.nextBufPos = renderPage(navi.nextBufPos);
 		break;
 	case 'd':
@@ -1181,10 +1232,10 @@ void navigationPage(char keypress)
 		curWin.y = 4;
 		curWin.h = 1;
 		curWin.text = 207;
-		curWin.back = 71;
+		curWin.back = 207;
 		strcpy(curWin.tittle, "Введите адрес Gopher сервера");
 
-		if (inputBox(curWin))
+		if (inputBox(curWin, ""))
 		{
 			link.type = '1';
 			strcpy(link.host, cmd);
@@ -1273,7 +1324,7 @@ void navigationPlain(char keypress)
 		break;
 	case 'h':
 		newPage();
-		loadPageFromDisk("browser/index.gph");
+		loadPageFromDisk("browser/index.gph", 0);
 		navi.nextBufPos = renderPage(navi.nextBufPos);
 		break;
 	}
@@ -1309,7 +1360,7 @@ C_task main(int argc, char *argv[])
 	init();
 	// printTable();
 	// getchar();
-	loadPageFromDisk("browser/index.gph");
+	loadPageFromDisk("browser/index.gph", 0);
 	navi.nextBufPos = renderPage(navi.nextBufPos);
 
 	do
@@ -1334,7 +1385,9 @@ C_task main(int argc, char *argv[])
 
 		if (keypress != 0)
 		{
-			navigation(keypress);
+		//	navigation(keypress);
+		//	clearStatus();
+		//	printf("keypress [%d]", keypress);
 		}
 	} while (keypress != 27);
 	OS_DELETE("browser/current.gph");
