@@ -1385,7 +1385,7 @@ C_task main(int argc, char *argv[])
 
 		if (keypress != 0)
 		{
-		//	navigation(keypress);
+			navigation(keypress);
 		//	clearStatus();
 		//	printf("keypress [%d]", keypress);
 		}
