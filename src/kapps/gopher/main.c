@@ -32,7 +32,7 @@ FILE *fp2;
 
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "00.30";
+unsigned char uVer[] = "00.40";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
