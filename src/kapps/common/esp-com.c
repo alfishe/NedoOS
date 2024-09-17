@@ -1,15 +1,3 @@
-unsigned int RBR_THR = 0xf8ef;
-unsigned int IER = 0xf9ef;
-unsigned int IIR_FCR = 0xfaef;
-unsigned int LCR = 0xfbef;
-unsigned int MCR = 0xfcef;
-unsigned int LSR = 0xfdef;
-unsigned int MSR = 0xfeef;
-unsigned int SR = 0xffef;
-unsigned int divider = 1;
-unsigned char comType = 0;
-unsigned int espType = 32;
-
 ////////////////////////ESP32 PROCEDURES//////////////////////
 void uart_write(unsigned char data)
 {
@@ -213,8 +201,22 @@ void sendcommand(char *commandline)
 	}
 	uart_write('\r');
 	uart_write('\n');
-	// printf("Sended:[%s] \r\n", commandline);
+	//printf("Sended:[%s] \r\n", commandline);
 }
+
+void sendcommandNrn(char *commandline)
+{
+	unsigned int count, cmdLen;
+	cmdLen = strlen(commandline);
+	for (count = 0; count < cmdLen; count++)
+	{
+		uart_write(commandline[count]);
+	}
+	//printf("Sended:[%s] \r\n", commandline);
+}
+
+
+
 
 unsigned char getAnswer2(void)
 {
@@ -236,7 +238,7 @@ unsigned char getAnswer2(void)
 	} while (readbyte != 0x0d);
 	netbuf[curPos - 1] = 0;
 	uart_readBlock(); // 0xa
-	// printf("Answer:[%s]\r\n", netbuf);
+	//printf("Answer:[%s]\r\n", netbuf);
 	//    getchar();
 	return curPos;
 }
@@ -246,8 +248,10 @@ void espReBoot(void)
 	unsigned char byte, count;
 	uart_flush();
 	sendcommand("AT+RST");
+	clearStatus();
 	printf("Resetting ESP...");
 	count = 0;
+
 	do
 	{
 		byte = uart_readBlock();
@@ -262,6 +266,7 @@ void espReBoot(void)
 	} while (count < strlen(gotWiFi));
 	uart_readBlock(); // CR
 	uart_readBlock(); // LF
+	clearStatus();
 	printf("Reset complete.");
 
 	sendcommand("ATE0");
@@ -288,10 +293,24 @@ void espReBoot(void)
 unsigned int recvHead(void)
 {
 	unsigned char byte, dataRead = 0;
-	unsigned int loaded;
+	unsigned int loaded, count = 0;
+	unsigned char closed[] ="CLOSED" ;
 	do
 	{
 		byte = uart_readBlock();
+		if (byte == closed[count])
+		{
+			count++;
+		}
+		else
+		{
+			count = 0;
+		}
+	if (count == strlen(closed))
+	{
+		return 0;
+	}
+
 	} while (byte != ',');
 
 	dataRead = 0;
@@ -303,7 +322,7 @@ unsigned int recvHead(void)
 	} while (byte != ':');
 	netbuf[dataRead] = 0;
 	loaded = atoi(netbuf); // <actual_len>
-	// printf("\r\n loaded %u\r\n", loaded);
+	//printf("\r\n loaded %u\r\n", loaded);
 	return loaded;
 }
 

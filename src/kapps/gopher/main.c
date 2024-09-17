@@ -16,6 +16,18 @@
 #define screenHeight 23
 #define screenWidth 80
 
+unsigned int RBR_THR = 0xf8ef;
+unsigned int IER = 0xf9ef;
+unsigned int IIR_FCR = 0xfaef;
+unsigned int LCR = 0xfbef;
+unsigned int MCR = 0xfcef;
+unsigned int LSR = 0xfdef;
+unsigned int MSR = 0xfeef;
+unsigned int SR = 0xffef;
+unsigned int divider = 1;
+unsigned char comType = 0;
+unsigned int espType = 32;
+
 FILE *fp2;
 
 unsigned char netDriver = 0;
@@ -756,34 +768,34 @@ void getFileEsp(unsigned char *fileNamePtr)
 
 	if ((strlen(link.path) == 1 && link.path[0] == '/') || strlen(link.path) == 0)
 	{
-		strcpy(link.path, crlf);
+		strcpy(link.path, "\r\n");
 	}
 	else
 	{
-		strcat(link.path, crlf);
+		strcat(link.path, "\r\n");
 	}
 
+	sprintf(cmd, "AT+CIPSTART=\"TCP\",\"%s\",%u", link.host, link.port);
+
+	sendcommand(cmd);
 	do
 	{
-		sprintf(cmd, "AT+CIPSTART=\"TCP\",\"%s\",%u", link.host, link.port);
-		sendcommand(cmd);
 		getAnswer2(); // CONNECT or ERROR or link is not valid
 		count1 = strstr(netbuf, "CONNECT");
 	} while (count1 == NULL);
 
 	getAnswer2(); // OK
 
-	sprintf(netbuf, "AT+CIPSEND=%u", strlen(link.path) + 2); // second CRLF in send command
+	sprintf(cmd, "AT+CIPSEND=%u", strlen(link.path)); // second CRLF in send command
 	sendcommand(cmd);
 	getAnswer2();
 
 	do
 	{
 		byte = uart_readBlock();
-		// putchar(byte);
 	} while (byte != '>');
 
-	sendcommand(link.path);
+	sendcommandNrn(link.path);
 
 	count = 0;
 	do
@@ -792,6 +804,7 @@ void getFileEsp(unsigned char *fileNamePtr)
 		if (byte == sendOk[count])
 		{
 			count++;
+			//putchar(byte);
 		}
 		else
 		{
@@ -802,20 +815,20 @@ void getFileEsp(unsigned char *fileNamePtr)
 	uart_readBlock(); // CR
 	uart_readBlock(); // LF
 
+	saveBuf(fileNamePtr, 00, 0);
 	do
 	{
 		todo = recvHead();
+
 		getdataEsp(todo); // Requested size
 		downloaded = downloaded + todo;
 		clearStatus();
-		printf("%lu kb  ", downloaded / 1024);
+		printf("%lu kb ", downloaded /1024);
 		saveBuf(fileNamePtr, 01, todo);
 
 	} while (todo != 0);
 	saveBuf(fileNamePtr, 02, 00);
-	sendcommand("AT+CIPCLOSE");
-	getAnswer2(); // CLOSED
-	getAnswer2(); // OK
+	//getAnswer2(); // OK
 	link.size = downloaded;
 }
 
@@ -1478,6 +1491,12 @@ void navigationPage(char keypress)
 	case 'i':
 		netDriver = !netDriver;
 		mainWinDraw();
+		if (netDriver)
+		{
+			uart_init(divider);
+			espReBoot();
+		}
+
 		break;
 	}
 
