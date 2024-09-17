@@ -1486,7 +1486,7 @@ C_task main(int argc, char *argv[])
 	unsigned char keypress;
 	unsigned long start, finish;
 	OS_HIDEFROMPARENT();
-	OS_SETGFX(86);
+	OS_SETGFX(0x86);
 	OS_CLS(0);
 	OS_SETSYSDRV();
 	init();
