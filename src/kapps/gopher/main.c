@@ -20,7 +20,7 @@ FILE *fp2;
 
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "00.20";
+unsigned char uVer[] = "00.25";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
@@ -84,6 +84,8 @@ struct window
 	unsigned char back;
 	unsigned char tittle[80];
 } curWin;
+
+unsigned char nvext[1024];
 
 unsigned char netbuf[32768];
 
@@ -362,6 +364,31 @@ char loadPageFromDisk(unsigned char *filepath, unsigned long volumeOffset)
 	return true;
 }
 
+void loadNVext(void)
+{
+	FILE *nvf;
+	unsigned int nvextSize, loop, loaded;
+	OS_SETSYSDRV();
+	nvf = OS_OPENHANDLE("nv.ext", 0x80);
+	if (((int)nvf) & 0xff)
+	{
+		clearStatus();
+		printf("nv.ext not found.\r\n");
+		exit(0);
+	}
+	nvextSize = OS_GETFILESIZE(nvf);
+
+	loop = 0;
+	loaded = 0;
+	while (loop < nvextSize)
+	{
+		loaded = OS_READHANDLE(nvext + loaded, nvf, sizeof(nvext) - 1);
+		loop = loop + loaded;
+	}
+	OS_CLOSEHANDLE(nvf);
+	nvext[loop + 1] = 0;
+}
+
 void init(void)
 {
 
@@ -385,6 +412,7 @@ void init(void)
 	link.type = '1';
 	strcpy(link.host, "HOMEPAGE");
 	get_dns();
+	loadNVext();
 }
 
 void newPage(void)
@@ -1021,6 +1049,134 @@ unsigned char mediaProcessor(void)
 	}
 	return false;
 }
+
+int pos(unsigned char *s, unsigned char *c, unsigned int n, unsigned int startPos)
+{
+	unsigned int i, j;
+	unsigned int lenC, lenS;
+
+	for (lenC = 0; c[lenC]; lenC++)
+		;
+	for (lenS = 0; s[lenS]; lenS++)
+		;
+
+	for (i = startPos; i <= lenS - lenC; i++)
+	{
+		for (j = 0; s[i + j] == c[j]; j++)
+			;
+
+		if (j - lenC == 1 && i == lenS - lenC && !(n - 1))
+			return i;
+		if (j == lenC)
+			if (n - 1)
+				n--;
+			else
+				return i;
+	}
+	return -1;
+}
+
+unsigned char mediaProcessorExt(void)
+{
+	//unsigned char ext[65];
+	unsigned char extLow[4];
+	unsigned char extUp[4];
+	unsigned char byte;
+	unsigned char *count1;
+	unsigned int counter, counter2, next, curPosition;
+	int n;
+
+	count1 = strstr(navi.fileName, ".");
+	if (count1 == NULL)
+	{
+		clearStatus();
+		printf("Ошибка определения типа файла, не найдено расширение. [%s]", navi.fileName);
+		getchar();
+	}
+
+	counter = strlen(navi.fileName);
+	do
+	{
+		counter--;
+		if (navi.fileName[counter] == '.')
+		{
+
+			for (counter2 = 0; counter2 < 3; counter2++)
+			{
+				extLow[counter2] = tolower(navi.fileName[counter + counter2 + 1]);
+				extUp[counter2] = toupper(navi.fileName[counter + counter2 + 1]);
+			}
+			extUp[3] = 0;
+			extLow[3] = 0;
+			//printf("[%s]\r\n[%s]\r\n", extLow, extUp);
+			break;
+		}
+
+	} while (counter != 0);
+
+	next = 1;
+	curPosition = 0;
+	do
+	{
+		n = -1;
+		n = pos(nvext, extLow, next, curPosition);
+		curPosition = n;
+		if (n == -1)
+		{
+			curPosition = 0;
+			n = pos(nvext, extUp, next, curPosition);
+			curPosition = n;
+			if (n == -1)
+			{
+				clearStatus();
+				printf("[ext]не найдено соответствие к расширению [%s][%s]", extLow, extUp);
+				getchar();
+				return false;
+			}
+		}
+		else
+		{
+			counter = 0;
+			do
+			{
+				byte = nvext[n + counter];
+				if (byte == 0x0d)
+				{
+					next++;
+					break;
+				}
+
+				if (byte == ':')
+				{
+					counter++;
+					counter2 = 0;
+
+				while (nvext[n + counter] == ' ')
+				{
+					counter++;
+				}
+
+
+					do
+					{
+						byte = nvext[n + counter];
+						cmd[counter2] = byte;
+						counter++;
+						counter2++;
+					} while (byte != 0x0d);
+					cmd[counter2 - 1] = ' ';
+					cmd[counter2] = 0;
+					strcat(cmd, "current.");
+					strcat(cmd, extLow);
+					return true;
+				}
+				counter++;
+			} while (42);
+		}
+	} while (42);
+	return false;
+}
+
 void doLink(void)
 {
 
@@ -1083,10 +1239,12 @@ void doLink(void)
 		navi.nextBufPos = renderPage(pageOffsets[navi.page]);
 		if (!navi.saveAs)
 		{
-			if (mediaProcessor())
+			if (mediaProcessorExt())
 			{
 				OS_CHDIR("/");
 				OS_CHDIR("downloads");
+				clearStatus();
+				printf("cmd:[%s]", cmd);
 				OS_SHELL(cmd);
 				OS_SETSYSDRV();
 			}
@@ -1190,6 +1348,7 @@ void navigationPage(char keypress)
 		break;
 	case 'h':
 		newPage();
+		strcpy(link.host, "HOMEPAGE");
 		loadPageFromDisk("browser/index.gph", 0);
 		navi.nextBufPos = renderPage(navi.nextBufPos);
 		break;
@@ -1335,7 +1494,8 @@ C_task main(int argc, char *argv[])
 	// getchar();
 	loadPageFromDisk("browser/index.gph", 0);
 	navi.nextBufPos = renderPage(navi.nextBufPos);
-	start = time();
+	start = 0;
+
 	do
 	{
 		keypress = getMouse();
@@ -1363,11 +1523,11 @@ C_task main(int argc, char *argv[])
 			//	printf("keypress [%d]", keypress);
 		}
 
-		finish = time();
-		if ((finish - start) > 1500)
+		finish++;
+		if ((finish - start) > 50000)
 		{
 			mainWinDraw();
-			start = time();
+			finish = 0;
 		}
 
 	} while (keypress != 27);
