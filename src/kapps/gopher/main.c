@@ -20,12 +20,15 @@ FILE *fp2;
 
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "00.25";
+unsigned char uVer[] = "00.30";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
 unsigned long volumeOffsets[16];
+
 unsigned char crlf[2] = {13, 10};
+
+const unsigned char gotWiFi[] = "WIFI GOT IP";
 
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
@@ -143,6 +146,7 @@ void delay(unsigned long counter)
 }
 
 ///////////////////////////
+#include <../common/esp-com.c>
 #include <../common/network.c>
 //////////////////////////
 
@@ -209,8 +213,17 @@ void mainWinDraw(void)
 	OS_SETXY(39 - strlen(link.host) / 2, 0);
 	printf("%s", link.host);
 
-	OS_SETXY(63, 0);
+	OS_SETXY(54, 0);
 
+	if (netDriver)
+	{
+		printf("[ESP-COM]");
+	}
+	else
+	{
+		printf("[NEDONET]");
+	}
+	OS_SETXY(63, 0);
 	if (navi.saveAs)
 	{
 		printf("[Save As]");
@@ -413,6 +426,7 @@ void init(void)
 	strcpy(link.host, "HOMEPAGE");
 	get_dns();
 	loadNVext();
+	loadEspConfig();
 }
 
 void newPage(void)
@@ -425,12 +439,13 @@ void newPage(void)
 	navi.prevLineSelect = 2;
 	navi.bufPos = 0;
 	navi.nextBufPos = 0;
-
-	do
-	{
-		pageOffsets[counter] = 0;
-		counter++;
-	} while (counter < 127);
+	/*
+		do
+		{
+			pageOffsets[counter] = 0;
+			counter++;
+		} while (counter < 127);
+	*/
 }
 
 void renderType(unsigned char linkType)
@@ -725,8 +740,83 @@ unsigned char inputBox(struct window w, unsigned char *prefilled)
 				putchar(' ');
 			}
 		}
+		YIELD();
 	} while (42);
 	return false;
+}
+
+void getFileEsp(unsigned char *fileNamePtr)
+{
+	int todo;
+	unsigned char *count1;
+	unsigned char byte;
+	unsigned long downloaded = 0;
+	unsigned int count;
+	const unsigned char sendOk[] = "SEND OK";
+
+	if ((strlen(link.path) == 1 && link.path[0] == '/') || strlen(link.path) == 0)
+	{
+		strcpy(link.path, crlf);
+	}
+	else
+	{
+		strcat(link.path, crlf);
+	}
+
+	do
+	{
+		sprintf(cmd, "AT+CIPSTART=\"TCP\",\"%s\",%u", link.host, link.port);
+		sendcommand(cmd);
+		getAnswer2(); // CONNECT or ERROR or link is not valid
+		count1 = strstr(netbuf, "CONNECT");
+	} while (count1 == NULL);
+
+	getAnswer2(); // OK
+
+	sprintf(netbuf, "AT+CIPSEND=%u", strlen(link.path) + 2); // second CRLF in send command
+	sendcommand(cmd);
+	getAnswer2();
+
+	do
+	{
+		byte = uart_readBlock();
+		// putchar(byte);
+	} while (byte != '>');
+
+	sendcommand(link.path);
+
+	count = 0;
+	do
+	{
+		byte = uart_readBlock();
+		if (byte == sendOk[count])
+		{
+			count++;
+		}
+		else
+		{
+			count = 0;
+		}
+	} while (count < strlen(sendOk));
+
+	uart_readBlock(); // CR
+	uart_readBlock(); // LF
+
+	do
+	{
+		todo = recvHead();
+		getdataEsp(todo); // Requested size
+		downloaded = downloaded + todo;
+		clearStatus();
+		printf("%lu kb  ", downloaded / 1024);
+		saveBuf(fileNamePtr, 01, todo);
+
+	} while (todo != 0);
+	saveBuf(fileNamePtr, 02, 00);
+	sendcommand("AT+CIPCLOSE");
+	getAnswer2(); // CLOSED
+	getAnswer2(); // OK
+	link.size = downloaded;
 }
 
 void getFile(unsigned char *fileNamePtr)
@@ -734,6 +824,12 @@ void getFile(unsigned char *fileNamePtr)
 	int todo;
 	char socket;
 	unsigned long downloaded = 0;
+
+	if (netDriver == 1)
+	{
+		getFileEsp(fileNamePtr);
+		return;
+	}
 
 	if (!dnsResolve(link.host))
 	{
@@ -1078,7 +1174,7 @@ int pos(unsigned char *s, unsigned char *c, unsigned int n, unsigned int startPo
 
 unsigned char mediaProcessorExt(void)
 {
-	//unsigned char ext[65];
+	// unsigned char ext[65];
 	unsigned char extLow[4];
 	unsigned char extUp[4];
 	unsigned char byte;
@@ -1108,7 +1204,7 @@ unsigned char mediaProcessorExt(void)
 			}
 			extUp[3] = 0;
 			extLow[3] = 0;
-			//printf("[%s]\r\n[%s]\r\n", extLow, extUp);
+			// printf("[%s]\r\n[%s]\r\n", extLow, extUp);
 			break;
 		}
 
@@ -1151,11 +1247,10 @@ unsigned char mediaProcessorExt(void)
 					counter++;
 					counter2 = 0;
 
-				while (nvext[n + counter] == ' ')
-				{
-					counter++;
-				}
-
+					while (nvext[n + counter] == ' ')
+					{
+						counter++;
+					}
 
 					do
 					{
@@ -1192,12 +1287,14 @@ void doLink(void)
 	case '0': // plain texts
 		newPage();
 		getFile("browser/current.txt");
+		OS_SETSYSDRV();
 		loadPageFromDisk("browser/current.txt", 0);
 		navi.nextBufPos = renderPlain(navi.nextBufPos);
 		return;
 	case '1': // gopher page
 		getFile("browser/current.gph");
 		newPage();
+		OS_SETSYSDRV();
 		loadPageFromDisk("browser/current.gph", 0);
 		navi.nextBufPos = renderPage(navi.nextBufPos);
 		return;
@@ -1215,6 +1312,7 @@ void doLink(void)
 			strcat(link.path, cmd);
 			getFile("browser/current.gph");
 			newPage();
+			OS_SETSYSDRV();
 			loadPageFromDisk("browser/current.gph", 0);
 			navi.nextBufPos = renderPage(navi.nextBufPos);
 			link.type = '1';
@@ -1235,6 +1333,7 @@ void doLink(void)
 		OS_CHDIR("downloads");
 		getFile(navi.fileName);
 		popHistory();
+		OS_SETSYSDRV();
 		loadPageFromDisk("browser/current.gph", 0);
 		navi.nextBufPos = renderPage(pageOffsets[navi.page]);
 		if (!navi.saveAs)
@@ -1349,6 +1448,7 @@ void navigationPage(char keypress)
 	case 'h':
 		newPage();
 		strcpy(link.host, "HOMEPAGE");
+		OS_SETSYSDRV();
 		loadPageFromDisk("browser/index.gph", 0);
 		navi.nextBufPos = renderPage(navi.nextBufPos);
 		break;
@@ -1373,6 +1473,10 @@ void navigationPage(char keypress)
 		break;
 	case 's':
 		navi.saveAs = !navi.saveAs;
+		mainWinDraw();
+		break;
+	case 'i':
+		netDriver = !netDriver;
 		mainWinDraw();
 		break;
 	}
@@ -1455,8 +1559,17 @@ void navigationPlain(char keypress)
 		break;
 	case 'h':
 		newPage();
+		OS_SETSYSDRV();
 		loadPageFromDisk("browser/index.gph", 0);
 		navi.nextBufPos = renderPage(navi.nextBufPos);
+		break;
+	case 's':
+		navi.saveAs = !navi.saveAs;
+		mainWinDraw();
+		break;
+	case 'i':
+		netDriver = !netDriver;
+		mainWinDraw();
 		break;
 	}
 
@@ -1492,6 +1605,7 @@ C_task main(int argc, char *argv[])
 	init();
 	// printTable();
 	// getchar();
+	OS_SETSYSDRV();
 	loadPageFromDisk("browser/index.gph", 0);
 	navi.nextBufPos = renderPage(navi.nextBufPos);
 	start = 0;
@@ -1529,7 +1643,7 @@ C_task main(int argc, char *argv[])
 			mainWinDraw();
 			finish = 0;
 		}
-
+		YIELD();
 	} while (keypress != 27);
 	OS_DELETE("browser/current.gph");
 	OS_DELETE("browser/current.txt");
