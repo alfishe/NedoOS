@@ -32,7 +32,7 @@ FILE *fp2;
 
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "00.50";
+unsigned char uVer[] = "00.55";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
@@ -119,7 +119,7 @@ void clearStatus(void)
 	OS_SETCOLOR(5);
 	OS_SETXY(0, 24);
 	spaces(79);
-	printf("\r");
+	putchar('\r');
 }
 
 void printTable(void)
@@ -450,8 +450,6 @@ void init(void)
 	navi.saveAs = true;
 
 	mouse.prevMouseButtons = 0;
-	mouse.prevWheel = 0;
-	mouse.wheel = 0;
 
 	link.type = '1';
 	strcpy(link.host, "HOMEPAGE");
@@ -668,6 +666,47 @@ unsigned int renderPage(unsigned int bufPos)
 	return bufPos;
 }
 
+void errorBox(struct window w, unsigned char *message)
+{
+	unsigned char wcount, tempx, tittleStart;
+
+	w.h++;
+	OS_SETXY(w.x, w.y - 1);
+	BDBOX(w.x, w.y, w.w + 1, w.h, w.back, 32);
+	OS_SETXY(w.x, w.y);
+	OS_SETCOLOR(w.text);
+	putchar(201);
+	for (wcount = 0; wcount < w.w; wcount++)
+	{
+		putchar(205);
+	}
+	putchar(187);
+	OS_SETXY(w.x, w.y + w.h);
+	putchar(200);
+	for (wcount = 0; wcount < w.w; wcount++)
+	{
+		putchar(205);
+	}
+	putchar(188);
+
+	tempx = w.x + w.w + 1;
+	for (wcount = 1; wcount < w.h; wcount++)
+	{
+		OS_SETXY(w.x, w.y + wcount);
+		putchar(186);
+		OS_SETXY(tempx, w.y + wcount);
+		putchar(186);
+	}
+	tittleStart = w.x + (w.w / 2) - (strlen(w.tittle) / 2);
+	OS_SETXY(tittleStart, w.y);
+	printf("[%s]", w.tittle);
+	OS_SETXY(w.x + 1, w.y + 1);
+	OS_SETCOLOR(w.back);
+	tittleStart = w.x + (w.w / 2) - (strlen(message) / 2);
+	OS_SETXY(tittleStart, w.y + 1);
+	printf("%s", message);
+}
+
 unsigned char inputBox(struct window w, unsigned char *prefilled)
 {
 	unsigned char wcount, tempx, tittleStart;
@@ -777,7 +816,22 @@ unsigned char inputBox(struct window w, unsigned char *prefilled)
 	return false;
 }
 
-void getFileEsp(unsigned char *fileNamePtr)
+void errNoConnect(void)
+{
+	curWin.w = 50;
+	curWin.x = 80 / 2 - curWin.w / 2 - 1;
+	curWin.y = 10;
+	curWin.h = 1;
+	curWin.text = 215;
+	curWin.back = 215;
+	strcpy(curWin.tittle, "Ошибка открытия страницы");
+	strcpy(cmd, "Нет соединения с ");
+	strcat(cmd, link.host);
+	errorBox(curWin, cmd);
+	getchar();
+}
+
+char getFileEsp(unsigned char *fileNamePtr)
 {
 	int todo;
 	unsigned char *count1;
@@ -796,7 +850,6 @@ void getFileEsp(unsigned char *fileNamePtr)
 	}
 
 	sprintf(cmd, "AT+CIPSTART=\"TCP\",\"%s\",%u", link.host, link.port);
-
 	sendcommand(cmd);
 	do
 	{
@@ -840,8 +893,7 @@ void getFileEsp(unsigned char *fileNamePtr)
 	do
 	{
 		todo = recvHead();
-
-		getdataEsp(todo); // Requested size
+		getdataEsp(todo);
 		downloaded = downloaded + todo;
 		printf("%lu kb \r", downloaded / 1024);
 		saveBuf(fileNamePtr, 01, todo);
@@ -850,25 +902,27 @@ void getFileEsp(unsigned char *fileNamePtr)
 	// getAnswer2(); // OK
 	link.size = downloaded;
 	clearStatus();
+	if (downloaded == 0)
+	{
+		return false;
+	}
+	return true;
 }
 
-void getFile(unsigned char *fileNamePtr)
+char getFile(unsigned char *fileNamePtr)
 {
 	int todo;
-	char socket;
+	int socket;
 	unsigned long downloaded = 0;
 
 	if (netDriver == 1)
 	{
-		getFileEsp(fileNamePtr);
-		return;
+		return getFileEsp(fileNamePtr);
 	}
 
 	if (!dnsResolve(link.host))
 	{
-		strcpy(link.host, link.prevHost);
-		navi.nextBufPos = renderPage(pageOffsets[navi.page]);
-		return;
+		return false;
 	}
 
 	targetadr.porth = 00;
@@ -888,11 +942,20 @@ void getFile(unsigned char *fileNamePtr)
 		strcat(link.path, crlf);
 	}
 	socket = OpenSock(AF_INET, SOCK_STREAM);
-	// testOperation("OS_NETSOCKET", socket);
+	if (socket < 0)
+	{
+		return false;
+	}
 	todo = netConnect(socket, 1);
-	// testOperation("OS_NETCONNECT", todo);
+	if (socket < 0)
+	{
+		return false;
+	}
 	todo = tcpSend(socket, (unsigned int)&link.path, strlen(link.path), 1);
-	// testOperation("OS_WIZNETWRITE", todo);
+	if (socket < 0)
+	{
+		return false;
+	}
 	saveBuf(fileNamePtr, 00, 0);
 	clearStatus();
 	do
@@ -911,6 +974,11 @@ void getFile(unsigned char *fileNamePtr)
 	netShutDown(socket, 0);
 	saveBuf(fileNamePtr, 02, 00);
 	link.size = downloaded;
+	if (downloaded == 0)
+	{
+		return false;
+	}
+	return true;
 }
 
 unsigned char selectorProcessor(void)
@@ -945,6 +1013,7 @@ unsigned char selectorProcessor(void)
 	}
 	SelectedPos = startSearch + counter1;
 
+	strcpy(link.prevHost, link.host);
 	link.nexType = link.type;
 	link.type = netbuf[SelectedPos];
 
@@ -1302,6 +1371,17 @@ unsigned char mediaProcessorExt(void)
 	return false;
 }
 
+void goHome(void)
+{
+	pusHistory();
+	newPage();
+	link.type = '1';
+	strcpy(link.host, "HOMEPAGE");
+	OS_SETSYSDRV();
+	loadPageFromDisk("browser/index.gph", 0);
+	navi.nextBufPos = renderPage(navi.nextBufPos);
+}
+
 void doLink(void)
 {
 
@@ -1315,18 +1395,32 @@ void doLink(void)
 		link.type = link.nexType; // так-как мы остались на странице, восстановим тип, хотя можно просто ставить 1 (пока других нет)
 		return;
 	case '0': // plain texts
-		newPage();
-		getFile("browser/current.txt");
-		OS_SETSYSDRV();
-		loadPageFromDisk("browser/current.txt", 0);
-		navi.nextBufPos = renderPlain(navi.nextBufPos);
+		if (getFile("browser/current.txt"))
+		{
+			newPage();
+			OS_SETSYSDRV();
+			loadPageFromDisk("browser/current.txt", 0);
+			navi.nextBufPos = renderPlain(navi.nextBufPos);
+		}
+		else
+		{
+			errNoConnect();
+			goHome();
+		}
 		return;
 	case '1': // gopher page
-		getFile("browser/current.gph");
-		newPage();
-		OS_SETSYSDRV();
-		loadPageFromDisk("browser/current.gph", 0);
-		navi.nextBufPos = renderPage(navi.nextBufPos);
+		if (getFile("browser/current.gph"))
+		{
+			newPage();
+			OS_SETSYSDRV();
+			loadPageFromDisk("browser/current.gph", 0);
+			navi.nextBufPos = renderPage(navi.nextBufPos);
+		}
+		else
+		{
+			errNoConnect();
+			goHome();
+		}
 		return;
 	case '7': // search input
 		curWin.w = 40;
@@ -1340,13 +1434,20 @@ void doLink(void)
 		{
 			strcat(link.path, "\t");
 			strcat(link.path, cmd);
-			getFile("browser/current.gph");
-			newPage();
-			OS_SETSYSDRV();
-			loadPageFromDisk("browser/current.gph", 0);
-			navi.nextBufPos = renderPage(navi.nextBufPos);
-			link.type = '1';
-			pusHistory();
+			if (getFile("browser/current.gph"))
+			{
+				newPage();
+				OS_SETSYSDRV();
+				loadPageFromDisk("browser/current.gph", 0);
+				navi.nextBufPos = renderPage(navi.nextBufPos);
+				link.type = '1';
+				pusHistory();
+			}
+			else
+			{
+				errNoConnect();
+				goHome();
+			}
 		}
 		return;
 	case 'g': // gif pic
@@ -1361,22 +1462,29 @@ void doLink(void)
 		extractName();
 		OS_CHDIR("/");
 		OS_CHDIR("downloads");
-		getFile(navi.fileName);
-		popHistory();
-		OS_SETSYSDRV();
-		loadPageFromDisk("browser/current.gph", 0);
-		navi.nextBufPos = renderPage(pageOffsets[navi.page]);
-		if (!navi.saveAs)
+		if (getFile(navi.fileName))
 		{
-			if (mediaProcessorExt())
+			popHistory();
+			OS_SETSYSDRV();
+			loadPageFromDisk("browser/current.gph", 0);
+			navi.nextBufPos = renderPage(pageOffsets[navi.page]);
+			if (!navi.saveAs)
 			{
-				OS_CHDIR("/");
-				OS_CHDIR("downloads");
-				clearStatus();
-				printf("cmd:[%s]", cmd);
-				OS_SHELL(cmd);
-				OS_SETSYSDRV();
+				if (mediaProcessorExt())
+				{
+					OS_CHDIR("/");
+					OS_CHDIR("downloads");
+					clearStatus();
+					printf("cmd:[%s]", cmd);
+					OS_SHELL(cmd);
+					OS_SETSYSDRV();
+				}
 			}
+		}
+		else
+		{
+			errNoConnect();
+			goHome();
 		}
 		return;
 	default:
@@ -1476,11 +1584,7 @@ void navigationPage(char keypress)
 		renderPage(pageOffsets[navi.page]);
 		break;
 	case 'h':
-		newPage();
-		strcpy(link.host, "HOMEPAGE");
-		OS_SETSYSDRV();
-		loadPageFromDisk("browser/index.gph", 0);
-		navi.nextBufPos = renderPage(navi.nextBufPos);
+		goHome();
 		break;
 	case 'd':
 		curWin.w = 40;
@@ -1594,12 +1698,7 @@ void navigationPlain(char keypress)
 		renderPlain(pageOffsets[navi.page]);
 		break;
 	case 'h':
-		newPage();
-		strcpy(link.host, "HOMEPAGE");
-		link.type = '1';
-		OS_SETSYSDRV();
-		loadPageFromDisk("browser/index.gph", 0);
-		navi.nextBufPos = renderPage(navi.nextBufPos);
+		goHome();
 		break;
 	case 's':
 		navi.saveAs = !navi.saveAs;
@@ -1644,9 +1743,8 @@ C_task main(int argc, char *argv[])
 	init();
 	// printTable();
 	// getchar();
-	OS_SETSYSDRV();
-	loadPageFromDisk("browser/index.gph", 0);
-	navi.nextBufPos = renderPage(navi.nextBufPos);
+
+	goHome();
 
 	start = 0;
 	do
@@ -1656,6 +1754,7 @@ C_task main(int argc, char *argv[])
 		{
 			if (mouse.cursYpos > 0 && mouse.cursYpos < screenHeight + 1)
 			{
+				// strcpy(link.prevHost, link.host);
 				navi.prevLineSelect = navi.lineSelect;
 				navi.lineSelect = mouse.cursYpos;
 				activate();
@@ -1720,18 +1819,6 @@ C_task main(int argc, char *argv[])
 			navigation(251); // Right
 		}
 		mouse.prevWheel = mouse.wheel;
-
-		/*
-		инит:
-		1. а = текущее значение
-		опрос:
-		2. б = текущее значеие
-		3. с = а - б
-		4. а = б
-		5. если с > 0 то крутанули вверх
-		6. Если с< 0 то крутанули вниз
-		7. Если с==0 то ничего
-		*/
 
 		if (keypress != 0)
 		{

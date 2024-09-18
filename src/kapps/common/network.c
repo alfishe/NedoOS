@@ -245,8 +245,8 @@ unsigned char dnsResolve(unsigned char *domainName)
   todo = OS_WIZNETWRITE_UDP(&readStruct, &dnsaddress);
   if (todo > 32767)
   {
+    clearStatus();
     errorPrint(todo & 255);
-    printf(" Error quering DNS server[Query], using address: %u.%u.%u.%u:%u    ", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4, targetadr.porth * 256 + targetadr.portl);
     return 0;
   }
   else
@@ -267,7 +267,8 @@ unsigned char dnsResolve(unsigned char *domainName)
       // errorPrint(todo & 255);
       if (retry == 0)
       {
-        printf(" Error quering[Response] DNS server, using address: %u.%u.%u.%u:%u    ", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4, targetadr.porth * 256 + targetadr.portl);
+        //clearStatus();
+        //printf(" Error quering[Response] DNS server.");
         return 0;
       }
       retry--;
@@ -285,7 +286,8 @@ unsigned char dnsResolve(unsigned char *domainName)
 
   if (!(netbuf[2] && 0x0f))
   {
-    printf(" Error quering[Parsing] DNS server, using address: %u.%u.%u.%u:%u    ", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4, targetadr.porth * 256 + targetadr.portl);
+    //clearStatus();
+    //printf(" Error quering[Parsing] DNS server.");
     return 0;
   }
 
@@ -301,7 +303,8 @@ unsigned char dnsResolve(unsigned char *domainName)
   {
     if (queryPos > sizeof(netbuf) - 11)
     {
-      printf(" Error quering DNS server[Buffer overrun], using address: %u.%u.%u.%u:%u    ", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4, targetadr.porth * 256 + targetadr.portl);
+      //clearStatus();
+      //printf(" Error quering DNS server[Buffer overrun]. ");
       return 0;
     }
     queryType = netbuf[queryPos] * 256 + netbuf[queryPos + 1];
@@ -319,7 +322,7 @@ unsigned char dnsResolve(unsigned char *domainName)
   targetadr.b3 = netbuf[queryPos - 4];
   targetadr.b4 = netbuf[queryPos - 3];
 
-  //printf("\r\nAddress:%u.%u.%u.%u:%u\r\n", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4, targetadr.porth * 256 + targetadr.portl);
+  // printf("\r\nAddress:%u.%u.%u.%u:%u\r\n", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4, targetadr.porth * 256 + targetadr.portl);
   return 1;
 }
 
