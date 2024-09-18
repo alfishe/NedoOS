@@ -32,7 +32,7 @@ FILE *fp2;
 
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "00.40";
+unsigned char uVer[] = "00.50";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
@@ -63,6 +63,7 @@ struct mouseStruct
 	char rmb;
 	char mmb;
 	char wheel;
+	char prevWheel;
 	char mouseXpos;
 	char mouseYpos;
 	char cursXpos;
@@ -225,7 +226,7 @@ void mainWinDraw(void)
 	OS_SETXY(39 - strlen(link.host) / 2, 0);
 	printf("%s", link.host);
 
-	OS_SETXY(54, 0);
+	OS_SETXY(55, 0);
 
 	if (netDriver)
 	{
@@ -235,7 +236,7 @@ void mainWinDraw(void)
 	{
 		printf("[NEDONET]");
 	}
-	OS_SETXY(63, 0);
+	OS_SETXY(64, 0);
 	if (navi.saveAs)
 	{
 		printf("[Save As]");
@@ -246,6 +247,20 @@ void mainWinDraw(void)
 	}
 
 	drawClock();
+}
+
+void initMouse(void)
+{
+	unsigned long mouseRaw;
+	unsigned char mouseMove;
+	unsigned int mouseButtons;
+
+	mouseRaw = OS_GETMOUSE();
+	mouseMove = mouseRaw >> 16;
+	mouseButtons = mouseRaw;
+
+	mouse.wheel = (mouseButtons >> 4) & 15;
+	mouse.prevWheel = mouse.wheel;
 }
 
 unsigned char getMouse(void)
@@ -287,15 +302,16 @@ unsigned char getMouse(void)
 	if (mouseButtons != mouse.prevMouseButtons)
 	{
 
+		mouse.prevWheel = mouse.wheel;
 		mouse.wheel = (mouseButtons >> 4) & 15;
 		mouse.mmb = (mouseButtons >> 2) & 1;
 		mouse.rmb = (mouseButtons >> 1) & 1;
 		mouse.lmb = mouseButtons & 1;
 	}
-	/*
-		clearStatus();
-		printf("lmb:[%d] rmb:[%d] mmb:[%d] wheel:[%02d] X:[%03d] Y:[%03d] cursX:[%02d] cursY:[%02d]", mouse.lmb, mouse.rmb, mouse.mmb, mouse.wheel, mouse.mouseXpos, mouse.mouseYpos, mouse.cursXpos, mouse.cursYpos);
-	*/
+
+	// clearStatus();
+	// printf("lmb:[%d] rmb:[%d] mmb:[%d] wheel:[%02d] X:[%03d] Y:[%03d] cursX:[%02d] cursY:[%02d]", mouse.lmb, mouse.rmb, mouse.mmb, mouse.wheel, mouse.mouseXpos, mouse.mouseYpos, mouse.cursXpos, mouse.cursYpos);
+
 	OS_SETXY(mouse.cursXpos, mouse.cursYpos);
 
 	return mouseButtons >> 8;
@@ -371,7 +387,7 @@ char loadPageFromDisk(unsigned char *filepath, unsigned long volumeOffset)
 		{
 			clearStatus();
 			printf("file is to large (%lu)", link.size);
-			getchar();
+
 			break;
 		}
 		todo = OS_READHANDLE(netbuf + loaded, fp1, 512);
@@ -416,7 +432,6 @@ void loadNVext(void)
 
 void init(void)
 {
-
 	targetadr.family = AF_INET;
 	targetadr.porth = 00;
 	targetadr.portl = 70;
@@ -434,11 +449,16 @@ void init(void)
 	navi.NextVolumePos = 0;
 	navi.saveAs = true;
 
+	mouse.prevMouseButtons = 0;
+	mouse.prevWheel = 0;
+	mouse.wheel = 0;
+
 	link.type = '1';
 	strcpy(link.host, "HOMEPAGE");
 	get_dns();
 	loadNVext();
 	loadEspConfig();
+	initMouse();
 }
 
 void newPage(void)
@@ -804,7 +824,7 @@ void getFileEsp(unsigned char *fileNamePtr)
 		if (byte == sendOk[count])
 		{
 			count++;
-			//putchar(byte);
+			// putchar(byte);
 		}
 		else
 		{
@@ -816,20 +836,20 @@ void getFileEsp(unsigned char *fileNamePtr)
 	uart_readBlock(); // LF
 
 	saveBuf(fileNamePtr, 00, 0);
+	clearStatus();
 	do
 	{
 		todo = recvHead();
 
 		getdataEsp(todo); // Requested size
 		downloaded = downloaded + todo;
-		clearStatus();
-		printf("%lu kb ", downloaded /1024);
+		printf("%lu kb \r", downloaded / 1024);
 		saveBuf(fileNamePtr, 01, todo);
-
 	} while (todo != 0);
 	saveBuf(fileNamePtr, 02, 00);
-	//getAnswer2(); // OK
+	// getAnswer2(); // OK
 	link.size = downloaded;
+	clearStatus();
 }
 
 void getFile(unsigned char *fileNamePtr)
@@ -867,7 +887,6 @@ void getFile(unsigned char *fileNamePtr)
 	{
 		strcat(link.path, crlf);
 	}
-	clearStatus();
 	socket = OpenSock(AF_INET, SOCK_STREAM);
 	// testOperation("OS_NETSOCKET", socket);
 	todo = netConnect(socket, 1);
@@ -875,6 +894,7 @@ void getFile(unsigned char *fileNamePtr)
 	todo = tcpSend(socket, (unsigned int)&link.path, strlen(link.path), 1);
 	// testOperation("OS_WIZNETWRITE", todo);
 	saveBuf(fileNamePtr, 00, 0);
+	clearStatus();
 	do
 	{
 		todo = tcpRead(socket, 3);
@@ -884,9 +904,7 @@ void getFile(unsigned char *fileNamePtr)
 		}
 
 		downloaded = downloaded + todo;
-
-		clearStatus();
-		printf("%lu kb  ", downloaded / 1024);
+		printf("%lu kb   \r", downloaded / 1024);
 		saveBuf(fileNamePtr, 01, todo);
 	} while (42);
 	clearStatus();
@@ -1042,7 +1060,6 @@ void extractName(void)
 
 	lng = strlen(link.path);
 
-	clearStatus();
 	for (counter = lng - 1; counter != 0; counter--)
 	{
 		byte = link.path[counter];
@@ -1578,6 +1595,8 @@ void navigationPlain(char keypress)
 		break;
 	case 'h':
 		newPage();
+		strcpy(link.host, "HOMEPAGE");
+		link.type = '1';
 		OS_SETSYSDRV();
 		loadPageFromDisk("browser/index.gph", 0);
 		navi.nextBufPos = renderPage(navi.nextBufPos);
@@ -1616,6 +1635,7 @@ void navigation(unsigned char keypress)
 C_task main(int argc, char *argv[])
 {
 	unsigned char keypress;
+	int mouseScroll = 0;
 	unsigned long start, finish;
 	OS_HIDEFROMPARENT();
 	OS_SETGFX(0x86);
@@ -1627,18 +1647,44 @@ C_task main(int argc, char *argv[])
 	OS_SETSYSDRV();
 	loadPageFromDisk("browser/index.gph", 0);
 	navi.nextBufPos = renderPage(navi.nextBufPos);
-	start = 0;
 
+	start = 0;
 	do
 	{
 		keypress = getMouse();
 		if (mouse.lmb == 0)
 		{
-			navi.prevLineSelect = navi.lineSelect;
-			navi.lineSelect = mouse.cursYpos;
-			activate();
-			OS_SETXY(mouse.cursXpos, mouse.cursYpos);
-			OS_PRATTR(215);
+			if (mouse.cursYpos > 0 && mouse.cursYpos < screenHeight + 1)
+			{
+				navi.prevLineSelect = navi.lineSelect;
+				navi.lineSelect = mouse.cursYpos;
+				activate();
+				OS_SETXY(mouse.cursXpos, mouse.cursYpos);
+				OS_PRATTR(215);
+			}
+			else
+			{
+				if (mouse.cursYpos == 0)
+				{
+					curWin.w = 40;
+					curWin.x = 80 / 2 - curWin.w / 2 - 1;
+					curWin.y = 10;
+					curWin.h = 1;
+					curWin.text = 207;
+					curWin.back = 207;
+					strcpy(curWin.tittle, "Введите адрес Gopher сервера");
+
+					if (inputBox(curWin, ""))
+					{
+						strcpy(link.prevHost, link.host);
+						link.type = '1';
+						strcpy(link.host, cmd);
+						strcpy(link.path, "/");
+						link.port = 70;
+						doLink();
+					}
+				}
+			}
 		}
 		if (mouse.rmb == 0)
 		{
@@ -1648,6 +1694,44 @@ C_task main(int argc, char *argv[])
 				doLink();
 			}
 		}
+
+		mouseScroll = mouse.prevWheel - mouse.wheel;
+
+		if (mouseScroll < -12)
+		{
+			mouseScroll = 1;
+		}
+		if (mouseScroll > 12)
+		{
+			mouseScroll = -1;
+		}
+
+		if (mouseScroll > 0)
+		{
+			// clearStatus();
+			// printf("UP prevWheel:[%2d] wheel:[%2d] mouseScroll:[%2d]", mouse.prevWheel, mouse.wheel, mouseScroll);
+			navigation(248); // Left
+		}
+
+		if (mouseScroll < 0)
+		{
+			// clearStatus();
+			// printf("DOWN prevWheel:[%2d] wheel:[%2d] mouseScroll:[%2d]", mouse.prevWheel, mouse.wheel, mouseScroll);
+			navigation(251); // Right
+		}
+		mouse.prevWheel = mouse.wheel;
+
+		/*
+		инит:
+		1. а = текущее значение
+		опрос:
+		2. б = текущее значеие
+		3. с = а - б
+		4. а = б
+		5. если с > 0 то крутанули вверх
+		6. Если с< 0 то крутанули вниз
+		7. Если с==0 то ничего
+		*/
 
 		if (keypress != 0)
 		{
