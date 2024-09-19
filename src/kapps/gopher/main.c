@@ -32,7 +32,7 @@ FILE *fp2;
 
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "00.55";
+unsigned char uVer[] = "00.60";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
@@ -775,6 +775,8 @@ unsigned char inputBox(struct window w, unsigned char *prefilled)
 				{
 					return true;
 				}
+			case 31:
+				break;
 			case 250:
 				break;
 			case 249:
@@ -855,6 +857,10 @@ char getFileEsp(unsigned char *fileNamePtr)
 	{
 		getAnswer2(); // CONNECT or ERROR or link is not valid
 		count1 = strstr(netbuf, "CONNECT");
+		if (strstr(netbuf, "ERROR") != NULL)
+		{
+			return false;
+		}
 	} while (count1 == NULL);
 
 	getAnswer2(); // OK
@@ -914,7 +920,6 @@ char getFile(unsigned char *fileNamePtr)
 	int todo;
 	int socket;
 	unsigned long downloaded = 0;
-
 	if (netDriver == 1)
 	{
 		return getFileEsp(fileNamePtr);
@@ -1483,6 +1488,7 @@ void doLink(void)
 		}
 		else
 		{
+			popHistory();
 			errNoConnect();
 			goHome();
 		}
@@ -1507,6 +1513,27 @@ void activate(void)
 		pusHistory();
 	}
 	doLink();
+}
+
+void enterDomain(void)
+{
+	curWin.w = 40;
+	curWin.x = 80 / 2 - curWin.w / 2 - 1;
+	curWin.y = 10;
+	curWin.h = 1;
+	curWin.text = 207;
+	curWin.back = 207;
+	strcpy(curWin.tittle, "Введите адрес Gopher сервера");
+
+	if (inputBox(curWin, ""))
+	{
+		strcpy(link.prevHost, link.host);
+		link.type = '1';
+		strcpy(link.host, cmd);
+		strcpy(link.path, "/");
+		link.port = 70;
+		doLink();
+	}
 }
 
 void navigationPage(char keypress)
@@ -1580,30 +1607,14 @@ void navigationPage(char keypress)
 			doLink();
 		}
 		break;
-	case 31:
+	case 31: // screen redraw
 		renderPage(pageOffsets[navi.page]);
 		break;
 	case 'h':
 		goHome();
 		break;
 	case 'd':
-		curWin.w = 40;
-		curWin.x = 80 / 2 - curWin.w / 2 - 1;
-		curWin.y = 10;
-		curWin.h = 1;
-		curWin.text = 207;
-		curWin.back = 207;
-		strcpy(curWin.tittle, "Введите адрес Gopher сервера");
-
-		if (inputBox(curWin, ""))
-		{
-			strcpy(link.prevHost, link.host);
-			link.type = '1';
-			strcpy(link.host, cmd);
-			strcpy(link.path, "/");
-			link.port = 70;
-			doLink();
-		}
+		enterDomain();
 		break;
 	case 's':
 		navi.saveAs = !navi.saveAs;
@@ -1694,11 +1705,14 @@ void navigationPlain(char keypress)
 			doLink();
 		}
 		break;
-	case 31:
+	case 31: // screen redraw
 		renderPlain(pageOffsets[navi.page]);
 		break;
 	case 'h':
 		goHome();
+		break;
+	case 'd':
+		enterDomain();
 		break;
 	case 's':
 		navi.saveAs = !navi.saveAs;
