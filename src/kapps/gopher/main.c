@@ -32,7 +32,7 @@ FILE *fp2;
 
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "00.60";
+unsigned char uVer[] = "00.65";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
@@ -542,6 +542,9 @@ unsigned int renderPlain(unsigned int bufPos)
 {
 	unsigned int counter = 0, colCount = 0;
 	unsigned int byte = 0, flag = true;
+
+	link.type = '0';
+
 	OS_CLS(0);
 	mainWinDraw();
 	OS_SETCOLOR(7);
@@ -606,6 +609,9 @@ unsigned int renderPage(unsigned int bufPos)
 {
 	unsigned char counter = 0, colCount = 0;
 	unsigned char byte = 0;
+
+	link.type = '1';
+
 	OS_CLS(0);
 	mainWinDraw();
 	OS_SETXY(0, 1);
@@ -664,6 +670,21 @@ unsigned int renderPage(unsigned int bufPos)
 	} while (counter < screenHeight);
 	navi.lastLine = counter;
 	return bufPos;
+}
+
+void reDraw(void)
+{
+	if (link.type == '0')
+	{
+		navi.nextBufPos = renderPlain(pageOffsets[navi.page]);
+	}
+	else
+	{
+		if (link.type == '1')
+		{
+			navi.nextBufPos = renderPage(pageOffsets[navi.page]);
+		}
+	}
 }
 
 void errorBox(struct window w, unsigned char *message)
@@ -745,6 +766,8 @@ unsigned char inputBox(struct window w, unsigned char *prefilled)
 	OS_SETCOLOR(w.back);
 	putchar(219);
 
+	cmd[0] = 0;
+
 	counter = strlen(prefilled);
 	if (counter != 0)
 	{
@@ -767,7 +790,8 @@ unsigned char inputBox(struct window w, unsigned char *prefilled)
 				}
 				break;
 			case 0x0d:
-				if (strlen(cmd) == 0)
+
+				if (counter == 0)
 				{
 					return false;
 				}
@@ -775,6 +799,7 @@ unsigned char inputBox(struct window w, unsigned char *prefilled)
 				{
 					return true;
 				}
+
 			case 31:
 				break;
 			case 250:
@@ -793,7 +818,6 @@ unsigned char inputBox(struct window w, unsigned char *prefilled)
 				break;
 			case 27:
 				cmd[0] = 0;
-				navi.nextBufPos = renderPage(pageOffsets[navi.page]);
 				return false;
 			default:
 				if (counter < w.w - 1)
@@ -820,6 +844,10 @@ unsigned char inputBox(struct window w, unsigned char *prefilled)
 
 void errNoConnect(void)
 {
+	if (strcmp(link.host, "HOMEPAGE") == 0)
+	{
+		return;
+	}
 	curWin.w = 50;
 	curWin.x = 80 / 2 - curWin.w / 2 - 1;
 	curWin.y = 10;
@@ -1534,6 +1562,10 @@ void enterDomain(void)
 		link.port = 70;
 		doLink();
 	}
+	else
+	{
+		reDraw();
+	}
 }
 
 void navigationPage(char keypress)
@@ -1779,23 +1811,7 @@ C_task main(int argc, char *argv[])
 			{
 				if (mouse.cursYpos == 0)
 				{
-					curWin.w = 40;
-					curWin.x = 80 / 2 - curWin.w / 2 - 1;
-					curWin.y = 10;
-					curWin.h = 1;
-					curWin.text = 207;
-					curWin.back = 207;
-					strcpy(curWin.tittle, "Введите адрес Gopher сервера");
-
-					if (inputBox(curWin, ""))
-					{
-						strcpy(link.prevHost, link.host);
-						link.type = '1';
-						strcpy(link.host, cmd);
-						strcpy(link.path, "/");
-						link.port = 70;
-						doLink();
-					}
+					enterDomain();
 				}
 			}
 		}
