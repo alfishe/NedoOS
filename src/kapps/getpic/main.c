@@ -158,7 +158,6 @@ int cutHeader(unsigned int todo)
   return todo - headlng;
 }
 
-
 ////////////////////////ESP32 PROCEDURES//////////////////////
 void uart_write(unsigned char data)
 {
@@ -1183,7 +1182,6 @@ C_task main(void)
   targetadr.b3 = 69;  // 45
   targetadr.b4 = 13;  // 0D
 
-
   BOX(1, 1, 80, 25, 40, ' ');
   AT(1, 1);
   printHelp();
@@ -1191,7 +1189,7 @@ C_task main(void)
 
   if (netDriver == 0)
   {
-    
+
     get_dns();
     dnsResolve("zxart.ee");
     printf("\r\n");

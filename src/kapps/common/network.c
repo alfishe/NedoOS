@@ -245,7 +245,6 @@ unsigned char dnsResolve(unsigned char *domainName)
   todo = OS_WIZNETWRITE_UDP(&readStruct, &dnsaddress);
   if (todo > 32767)
   {
-    clearStatus();
     errorPrint(todo & 255);
     return 0;
   }
@@ -267,8 +266,8 @@ unsigned char dnsResolve(unsigned char *domainName)
       // errorPrint(todo & 255);
       if (retry == 0)
       {
-        //clearStatus();
-        //printf(" Error quering[Response] DNS server.");
+        // clearStatus();
+        // printf(" Error quering[Response] DNS server.");
         return 0;
       }
       retry--;
@@ -286,8 +285,8 @@ unsigned char dnsResolve(unsigned char *domainName)
 
   if (!(netbuf[2] && 0x0f))
   {
-    //clearStatus();
-    //printf(" Error quering[Parsing] DNS server.");
+    // clearStatus();
+    // printf(" Error quering[Parsing] DNS server.");
     return 0;
   }
 
@@ -303,8 +302,8 @@ unsigned char dnsResolve(unsigned char *domainName)
   {
     if (queryPos > sizeof(netbuf) - 11)
     {
-      //clearStatus();
-      //printf(" Error quering DNS server[Buffer overrun]. ");
+      // clearStatus();
+      // printf(" Error quering DNS server[Buffer overrun]. ");
       return 0;
     }
     queryType = netbuf[queryPos] * 256 + netbuf[queryPos + 1];
