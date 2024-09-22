@@ -32,7 +32,7 @@ FILE *fp2;
 
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "00.65";
+unsigned char uVer[] = "00.70";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
@@ -948,6 +948,14 @@ char getFile(unsigned char *fileNamePtr)
 	int todo;
 	int socket;
 	unsigned long downloaded = 0;
+
+
+	if (strcmp(link.host, "HOMEPAGE") == 0)
+	{
+		return false;
+	}
+
+
 	if (netDriver == 1)
 	{
 		return getFileEsp(fileNamePtr);
@@ -1154,7 +1162,7 @@ void popHistory(void)
 	memcpy(&link, netbuf, structSize);
 }
 
-void extractName(void)
+char extractName(void)
 {
 	unsigned int counter, counter2 = 0, lng, byte, source;
 	unsigned char ext2[128];
@@ -1204,8 +1212,12 @@ void extractName(void)
 		{
 			strcpy(navi.fileName, cmd);
 		}
+		else
+		{
+			return false;
+		}
 	}
-	else
+	else // Play It
 	{
 		count1 = strstr(navi.fileName, ".");
 		if (count1 == NULL)
@@ -1213,11 +1225,16 @@ void extractName(void)
 			clearStatus();
 			printf("Ошибка определения типа файла, не найдено расширение. [%s]", navi.fileName);
 			getchar();
+			return false;
 		}
-		strcpy(ext2, count1 + 1);
-		strcpy(navi.fileName, "current.");
-		strcat(navi.fileName, ext2);
+		else
+		{
+			strcpy(ext2, count1 + 1);
+			strcpy(navi.fileName, "current.");
+			strcat(navi.fileName, ext2);
+		}
 	}
+	return true;
 }
 
 unsigned char mediaProcessor(void)
@@ -1411,7 +1428,7 @@ void goHome(void)
 	link.type = '1';
 	strcpy(link.host, "HOMEPAGE");
 	OS_SETSYSDRV();
-	loadPageFromDisk("browser/index.gph", 0);
+	loadPageFromDisk("browser/nedogoph.gph", 0);
 	navi.nextBufPos = renderPage(navi.nextBufPos);
 }
 
@@ -1451,6 +1468,7 @@ void doLink(void)
 		}
 		else
 		{
+
 			errNoConnect();
 			goHome();
 		}
@@ -1478,9 +1496,16 @@ void doLink(void)
 			}
 			else
 			{
+				reDraw();
 				errNoConnect();
 				goHome();
 			}
+		}
+		else
+		{
+			link.type = '1';
+			reDraw();
+			return;
 		}
 		return;
 	case 'g': // gif pic
@@ -1491,8 +1516,13 @@ void doLink(void)
 	case '6':
 	case '5':
 	case '4':
+		if (!extractName())
+		{
+			link.type = '1';
+			reDraw();
+			return;
+		}
 		pusHistory();
-		extractName();
 		OS_CHDIR("/");
 		OS_CHDIR("downloads");
 		if (getFile(navi.fileName))
