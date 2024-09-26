@@ -23,7 +23,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "0.60";
+unsigned char uVer[] = "0.65";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -619,6 +619,7 @@ void loadEspConfig(void)
 	unsigned char curParam[256];
 	unsigned char res;
 	FILE *espcom;
+
 	OS_SETSYSDRV();
 	OS_CHDIR("../ini");
 	espcom = OS_OPENHANDLE("espcom.ini", 0x80);
@@ -657,6 +658,7 @@ void loadEspConfig(void)
 		puts("(Unknown type)");
 		break;
 	}
+	OS_CHDIR(curPath);
 }
 
 ////////////////////////ESP32 PROCEDURES//////////////////////
@@ -779,11 +781,11 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 
 		todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), 10);
 		testOperation("OS_WIZNETWRITE", todo);
+		clearStatus();
 		do
 		{
 			headlng = 0;
 			todo = tcpRead(socket, 10);
-			clearStatus();
 			testOperation("OS_WIZNETREAD", todo);
 			if (todo == 0)
 			{
@@ -797,9 +799,7 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 				saveBuf(fileNamePtr, 00, 0);
 			}
 			downloaded = downloaded + todo;
-			AT(32, 24);
-			printf("%lu of %u kb  ", downloaded / 1024, fileSize1);
-
+			printf(" %lu of %u kb   \r", downloaded / 1024, fileSize1);
 			saveBuf(fileNamePtr, 01, todo);
 			if (_low_level_get() == 27)
 			{
@@ -864,7 +864,7 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 		} while (count < strlen(sendOk));
 		uart_readBlock(); // CR
 		uart_readBlock(); // LF
-
+		clearStatus();
 		do
 		{
 			headlng = 0;
@@ -878,8 +878,7 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 				saveBuf(fileNamePtr, 00, 0);
 			}
 			downloaded = downloaded + todo;
-			AT(32, 24);
-			printf("%lu of %u kb   ", downloaded / 1024, fileSize1);
+			printf("%lu of %u kb   \r", downloaded / 1024, fileSize1);
 
 			saveBuf(fileNamePtr, 01, todo);
 
@@ -1071,11 +1070,9 @@ void fullUpdate(void)
 
 	strcpy(cw.tittle, "nedoOS FULL updater ");
 	strcat(cw.tittle, uVer);
-
+	YIELD();
 	getConfig();
 
-	OS_GETPATH((unsigned int)&curPath);
-	curLetter = curPath[0];
 	errn = OS_CHDIR("/");
 
 	strcat(cw.tittle, " (");
@@ -1204,13 +1201,13 @@ void binUpdate(void)
 	drawWindow(cw);
 
 	OS_CHDIR("/");
-	OS_GETPATH((unsigned int)&curPath);
-	curLetter = curPath[0];
 
 	clearStatus();
 
 	AT(cw.x + 2, cw.y + 10);
 	printf(">To full update start 'updater.com F'<");
+
+	YIELD();
 
 	AT(cw.x + 2, cw.y + 3);
 	ATRIB(cw.text);
@@ -1276,8 +1273,11 @@ C_task main(int argc, char *argv[])
 	targetadr.b2 = 31;
 	targetadr.b3 = 65;
 	targetadr.b4 = 35;
-	
+
 	clearStatus();
+
+	OS_GETPATH((unsigned int)&curPath);
+	curLetter = curPath[0];
 
 	if (argc > 1)
 	{
@@ -1348,6 +1348,7 @@ C_task main(int argc, char *argv[])
 	OS_DELETE("bin/bin.zip");
 	clearStatus();
 	infoBox("System Updated successfully!");
+	delay(2000);
 	// getchar();
 	// OS_DELETE("release.zip");
 	ATRIB(40);
