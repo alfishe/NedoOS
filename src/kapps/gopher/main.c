@@ -32,7 +32,7 @@ FILE *fp2;
 
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "00.70";
+unsigned char uVer[] = "00.75";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
@@ -77,6 +77,7 @@ struct navigationStruct
 {
 	unsigned int page;
 	unsigned int volume;
+	unsigned int maxVolume;
 	unsigned int maxPage;
 	unsigned int linePage;
 	unsigned int lineSelect;
@@ -86,7 +87,6 @@ struct navigationStruct
 	unsigned int nextBufPos;
 	unsigned int history;
 	unsigned int saveAs;
-	unsigned long NextVolumePos;
 	unsigned char fileName[128];
 } navi;
 
@@ -367,7 +367,7 @@ unsigned char OS_SHELL(unsigned char *command)
 	return shell_pg.pgs.pId;
 }
 
-char loadPageFromDisk(unsigned char *filepath, unsigned long volumeOffset)
+char loadPageFromDisk(unsigned char *filepath, unsigned int volume)
 {
 	unsigned int todo = 0;
 	unsigned long clean = 0, loaded = 0;
@@ -380,22 +380,30 @@ char loadPageFromDisk(unsigned char *filepath, unsigned long volumeOffset)
 		return false;
 	}
 
-	OS_SEEKHANDLE(fp1, volumeOffset);
+	OS_SEEKHANDLE(fp1, volumeOffsets[volume]);
 	do
 	{
 		if ((sizeof(netbuf) - loaded) < 513)
 		{
-			clearStatus();
-			printf("file is to large (%lu)", link.size);
-
+			//clearStatus();
+			//printf("Файл слишком большой, будет загружаться частями (%ld kb)...", link.size / 1024);
 			break;
 		}
+
 		todo = OS_READHANDLE(netbuf + loaded, fp1, 512);
 		loaded = loaded + todo;
+
 	} while (todo != 0 && errno == 0);
 	OS_CLOSEHANDLE(fp1);
 	netbuf[loaded + 1] = 0;
-	clean = loaded + 256;
+
+	if (todo == 0 && errno == 0)
+	{
+		navi.maxVolume = volume;
+	}
+	volumeOffsets[volume + 1] = volumeOffsets[volume] + loaded;
+
+	clean = loaded + 128;
 	do
 	{
 		netbuf[loaded] = 0;
@@ -444,9 +452,10 @@ void init(void)
 	navi.prevLineSelect = 2;
 	navi.nextBufPos = 0;
 	navi.page = 0;
-	navi.maxPage = 32768;
+	navi.maxPage = 32767;
+	navi.maxVolume = 32767;
 	navi.volume = 0;
-	navi.NextVolumePos = 0;
+	volumeOffsets[0] = 0;
 	navi.saveAs = true;
 
 	mouse.prevMouseButtons = 0;
@@ -464,11 +473,13 @@ void newPage(void)
 	unsigned int counter = 0;
 	navi.page = 0;
 	navi.maxPage = 32767;
+	navi.maxVolume = 32767;
 	navi.linePage = 0;
 	navi.lineSelect = 1;
 	navi.prevLineSelect = 2;
 	navi.bufPos = 0;
 	navi.nextBufPos = 0;
+	volumeOffsets[0] = 0;
 	/*
 		do
 		{
@@ -949,12 +960,10 @@ char getFile(unsigned char *fileNamePtr)
 	int socket;
 	unsigned long downloaded = 0;
 
-
 	if (strcmp(link.host, "HOMEPAGE") == 0)
 	{
 		return false;
 	}
-
 
 	if (netDriver == 1)
 	{
@@ -1235,64 +1244,6 @@ char extractName(void)
 		}
 	}
 	return true;
-}
-
-unsigned char mediaProcessor(void)
-{
-	unsigned char ext[128];
-	unsigned char *count1;
-
-	count1 = strstr(navi.fileName, ".");
-	if (count1 == NULL)
-	{
-		clearStatus();
-		printf("Ошибка определения типа файла, не найдено расширение. [%s]", navi.fileName);
-		getchar();
-	}
-	strcpy(ext, count1 + 1);
-
-	if (!strcmp(ext, "SCR") || !strcmp(ext, "scr"))
-	{
-		strcpy(cmd, "view.com ");
-		strcat(cmd, "current.scr");
-		return true;
-	}
-
-	if (!strcmp(ext, "PT3") || !strcmp(ext, "pt3"))
-	{
-		strcpy(cmd, "gp.com ");
-		strcat(cmd, "current.pt3");
-		return true;
-	}
-
-	if (!strcmp(ext, "MOD") || !strcmp(ext, "mod"))
-	{
-		strcpy(cmd, "gp.com ");
-		strcat(cmd, "current.mod");
-		return true;
-	}
-
-	if (!strcmp(ext, "MID") || !strcmp(ext, "mid"))
-	{
-		strcpy(cmd, "gp.com ");
-		strcat(cmd, "current.mid");
-		return true;
-	}
-
-	if (!strcmp(ext, "VGZ") || !strcmp(ext, "vgz"))
-	{
-		strcpy(cmd, "gp.com ");
-		strcat(cmd, "current.vgz");
-		return true;
-	}
-
-	if (!strcmp(ext, "PNG") || !strcmp(ext, "png"))
-	{
-		strcpy(cmd, "browser.com ");
-		strcat(cmd, "current.png");
-		return true;
-	}
-	return false;
 }
 
 int pos(unsigned char *s, unsigned char *c, unsigned int n, unsigned int startPos)
@@ -1719,30 +1670,20 @@ void navigationPlain(char keypress)
 {
 	switch (keypress)
 	{
-	case 250: // Up
-		if (navi.page == 0)
-		{
-			break;
-		}
-		navi.page--;
-		navi.nextBufPos = pageOffsets[navi.page];
-		navi.lineSelect = screenHeight;
-		navi.nextBufPos = renderPlain(navi.nextBufPos);
-		break;
-	case 249: // down
-
-		if (navi.page == navi.maxPage)
-		{
-			break;
-		}
-		navi.page++;
-		pageOffsets[navi.page] = navi.nextBufPos;
-		navi.lineSelect = 1;
-		navi.nextBufPos = renderPlain(navi.nextBufPos);
-		break;
 	case 248: // Left
+	case 250: // Up
+
 		if (navi.page == 0)
 		{
+			if (navi.volume == 0)
+			{
+				break;
+			}
+			navi.volume--;
+			newPage();
+			OS_SETSYSDRV();
+			loadPageFromDisk("browser/current.txt", navi.volume);
+			navi.nextBufPos = renderPlain(navi.nextBufPos);
 			break;
 		}
 		navi.page--;
@@ -1751,8 +1692,18 @@ void navigationPlain(char keypress)
 		navi.nextBufPos = renderPlain(navi.nextBufPos);
 		break;
 	case 251: // Right
+	case 249: // down
 		if (navi.page == navi.maxPage)
 		{
+			if (navi.volume == navi.maxVolume)
+			{
+				break;
+			}
+			navi.volume++;
+			newPage();
+			OS_SETSYSDRV();
+			loadPageFromDisk("browser/current.txt", navi.volume);
+			navi.nextBufPos = renderPlain(navi.nextBufPos);
 			break;
 		}
 		navi.page++;
@@ -1760,7 +1711,7 @@ void navigationPlain(char keypress)
 		navi.lineSelect = 1;
 		navi.nextBufPos = renderPlain(navi.nextBufPos);
 		break;
-	case 0x08:
+	case 0x08: // BS
 		if (navi.history > 1)
 		{
 			popHistory();
