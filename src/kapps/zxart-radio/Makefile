@@ -5,7 +5,7 @@ BIN		:=zxartrad.com
 INSTDIR := bin
 
 #тип вводавывода TTY или BDOS TTY_NE - TTY без обработки ESC
-CONSOLE := TTY_NE
+CONSOLE := BDOS
 
 #файлы .с
 SRCC	:= main.c

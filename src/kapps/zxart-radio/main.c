@@ -1,14 +1,18 @@
-#include <math.h>
-#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <oscalls.h>
-#include <osfs.h>
 #include <intrz80.h>
-#include <ctype.h>
-#include <tcp.h>
+#include <stdlib.h>
+#include <oscalls.h>
 #include <../common/terminal.c>
+#include <tcp.h>
+#include <osfs.h>
+#include <ctype.h>
+#include <math.h>
+
+#define true 1
+#define false 0
 #define COMMANDLINE 0x0080
+
 unsigned int RBR_THR = 0xf8ef;
 unsigned int IER = 0xf9ef;
 unsigned int IIR_FCR = 0xfaef;
@@ -31,14 +35,14 @@ unsigned char fileName[] = "radio/player.ovl";
 unsigned char appCmd[128] = "player.com ";
 unsigned char curPath[128];
 
-unsigned char ver[] = "2.6";
+unsigned char ver[] = "2.7";
 
 unsigned char queryType[64];
 unsigned char netbuf[4096];
 unsigned char dataBuffer[4096];
 unsigned char crlf[2] = {13, 10};
 unsigned char formats[4][4] = {"pt3", "pt2", "tfc", "ts"};
-unsigned char interfaces[2][8] = {"nedoNET\0", "ESP-COM\0"};
+unsigned char interfaces[2][8] = {"NedoNET\0", "ESP-COM\0"};
 unsigned char cmd[256];
 unsigned char link[512];
 unsigned char toLog[256];
@@ -79,6 +83,17 @@ struct fileStruct
   unsigned char fileName2[256];
 } curFileStruct;
 
+struct window
+{
+  unsigned char x;
+  unsigned char y;
+  unsigned char w;
+  unsigned char h;
+  unsigned char text;
+  unsigned char back;
+  unsigned char tittle[80];
+} curWin;
+
 void writeLog(char *logline)
 {
   FILE *LogFile;
@@ -115,10 +130,21 @@ void delay(unsigned long counter)
   }
 }
 
+void spaces(unsigned char number)
+{
+  while (number > 0)
+  {
+    putchar(' ');
+    number--;
+  }
+}
+
 void clearStatus(void)
 {
-  AT(1, 25);
-  printf("                                                                               \r");
+  OS_SETCOLOR(5);
+  OS_SETXY(0, 24);
+  spaces(79);
+  putchar('\r');
 }
 
 void printProgress(unsigned char type)
@@ -130,11 +156,11 @@ void printProgress(unsigned char type)
   switch (type)
   {
   case 0: // print empty bar
-    AT(6, 11);
-    ATRIB(93);
+    OS_SETXY(5, 10);
+    OS_SETCOLOR(70);
     printf("%02u:%02u", 0, 0);
-    AT(15, 11);
-    ATRIB(97);
+    OS_SETXY(14, 10);
+    OS_SETCOLOR(71);
     for (bar = 0; bar < 50; bar++)
     {
       putchar(176);
@@ -150,8 +176,8 @@ void printProgress(unsigned char type)
     break;
   case 1: // print progress bar
 
-    AT(6, 11);
-    ATRIB(93);
+    OS_SETXY(5, 10);
+    OS_SETCOLOR(70);
     timer = floor(curFileStruct.curPos / 60);
     printf("%02u:%02u", timer, (curFileStruct.curPos - (timer * 60)));
 
@@ -160,18 +186,18 @@ void printProgress(unsigned char type)
     {
       barLenght = 50;
     }
-    AT(15 + curFileStruct.startBar, 11);
-    ATRIB(97);
+    OS_SETXY(14 + curFileStruct.startBar, 10);
+    OS_SETCOLOR(71);
     for (bar = 0; bar < barLenght - curFileStruct.startBar; bar++)
     {
       putchar(178);
     }
-    AT(1, 1);
+    OS_SETXY(0, 0);
     curFileStruct.startBar = bar;
     break;
   case 2: // print full bar
-    AT(15, 11);
-    ATRIB(97);
+    OS_SETXY(14, 10);
+    OS_SETCOLOR(71);
     for (bar = 0; bar < 50; bar++)
     {
       putchar(178);
@@ -182,8 +208,8 @@ void printProgress(unsigned char type)
 
 void printHelp(void)
 {
-  AT(1, 15);
-  ATRIB(97);
+  OS_SETXY(0, 14);
+  OS_SETCOLOR(71);
   printf(" [<-] [B] Previous track          [->] [ ] Next track      \r\n");
   printf(" [S]  Stop player                 [R]  Repeat track mode   \r\n");
   printf(" [K]  Toggle saving tracks        [D]  Download track      \r\n");
@@ -642,8 +668,8 @@ void loadEspConfig(void)
   OS_READHANDLE(curParam, espcom, 256);
 
   res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u %u %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider, &comType, &espType);
-  BOX(1, 15, 80, 8, 40, ' ');
-  AT(1, 15);
+  BDBOX(1, 15, 80, 8, 71, ' ');
+  OS_SETXY(0, 14);
   puts("Config loaded:");
   if (comType == 1)
   {
@@ -671,6 +697,120 @@ void loadEspConfig(void)
   }
 }
 ////////////////////////ESP32 PROCEDURES//////////////////////
+
+unsigned char inputBox(struct window w, unsigned char *prefilled)
+{
+  unsigned char wcount, tempx, tittleStart;
+  unsigned char byte, counter;
+  w.h++;
+  OS_SETXY(w.x, w.y - 1);
+  BDBOX(w.x, w.y, w.w + 1, w.h, w.back, 32);
+  OS_SETXY(w.x, w.y);
+  OS_SETCOLOR(w.text);
+  putchar(201);
+  for (wcount = 0; wcount < w.w; wcount++)
+  {
+    putchar(205);
+  }
+  putchar(187);
+  OS_SETXY(w.x, w.y + w.h);
+  putchar(200);
+  for (wcount = 0; wcount < w.w; wcount++)
+  {
+    putchar(205);
+  }
+  putchar(188);
+
+  tempx = w.x + w.w + 1;
+  for (wcount = 1; wcount < w.h; wcount++)
+  {
+    OS_SETXY(w.x, w.y + wcount);
+    putchar(186);
+    OS_SETXY(tempx, w.y + wcount);
+    putchar(186);
+  }
+  tittleStart = w.x + (w.w / 2) - (strlen(w.tittle) / 2);
+  OS_SETXY(tittleStart, w.y);
+  printf("[%s]", w.tittle);
+  OS_SETXY(w.x + 1, w.y + 1);
+  OS_SETCOLOR(w.back);
+  putchar(219);
+
+  cmd[0] = 0;
+
+  counter = strlen(prefilled);
+  if (counter != 0)
+  {
+    strcpy(cmd, prefilled);
+    goto skipKeys;
+  }
+
+  do
+  {
+    byte = OS_GETKEY();
+    if (byte != 0)
+    {
+      switch (byte)
+      {
+      case 0x08:
+        if (counter > 0)
+        {
+          counter--;
+          cmd[counter] = 0;
+        }
+        break;
+      case 0x0d:
+
+        if (counter == 0)
+        {
+          return false;
+        }
+        else
+        {
+          return true;
+        }
+
+      case 31:
+        break;
+      case 250:
+        break;
+      case 249:
+        break;
+      case 248:
+        break;
+      case 251: // Right
+        break;
+      case 252: // Del
+        OS_SETXY(w.x + 1, w.y + 1);
+        spaces(counter + 1);
+        cmd[0] = 0;
+        counter = 0;
+        break;
+      case 27:
+        cmd[0] = 0;
+        return false;
+      default:
+        if (counter < w.w - 1)
+        {
+          cmd[counter] = byte;
+          counter++;
+          cmd[counter] = 0;
+        }
+        break;
+      }
+    skipKeys:
+      OS_SETXY(w.x + 1, w.y + 1);
+      printf("%s", cmd);
+      putchar(219);
+      if (byte == 0x08)
+      {
+        putchar(' ');
+      }
+    }
+    YIELD();
+  } while (42);
+  return false;
+}
 
 char *str_replace(char *dst, int num, const char *str,
                   const char *orig, const char *rep)
@@ -1345,81 +1485,79 @@ long trackSelector(unsigned char mode)
 
 void printStatus(void)
 {
-  AT(1, 9);
-  ATRIB(93);
+  OS_SETXY(0, 8);
+  OS_SETCOLOR(70);
   printf(" [Q]Query : ");
-  ATRIB(97);
+  OS_SETCOLOR(71);
   printf("%s", queryType);
   printf("  ");
-  AT(1, 24);
-  ATRIB(45);
+  OS_SETXY(0, 23);
+  OS_SETCOLOR(95);
   printf("                                                                                ");
-  AT(2, 24);
-  ATRIB(93);
+  OS_SETXY(1, 23);
   printf(" [F]Format: ");
-  ATRIB(97);
+  OS_SETCOLOR(94);
   printf("%s", formats[curFormat]);
-  ATRIB(93);
+  OS_SETCOLOR(95);
   printf(" [K]Keep files: ");
-  ATRIB(97);
+  OS_SETCOLOR(94);
   printf("%u", saveFlag);
-  ATRIB(93);
+  OS_SETCOLOR(95);
   printf(" [R]Repeat: ");
-  ATRIB(97);
+  OS_SETCOLOR(94);
   printf("%u", rptFlag);
-  ATRIB(93);
+  OS_SETCOLOR(95);
   printf(" [J]Jump to ");
   printf(" [E]Exit        [%s]", ver);
 
-  ATRIB(97);
-  ATRIB(40);
+  OS_SETCOLOR(71);
   YIELD();
 }
 
 void printInfo(void)
 {
-  BOX(30, 2, 50, 6, 40, ' ');
-  AT(1, 2);
-  ATRIB(93);
+  BDBOX(30, 2, 50, 6, 71, ' ');
+  OS_SETXY(0, 1);
+  OS_SETCOLOR(70);
   printf(" #: ");
-  ATRIB(97);
+  OS_SETCOLOR(71);
   printf("%lu", count);
-  ATRIB(93);
+  OS_SETCOLOR(70);
   printf(" ID: ");
-  ATRIB(97);
+  OS_SETCOLOR(71);
   printf("%lu", curFileStruct.picId);
-  ATRIB(93);
+  OS_SETCOLOR(70);
   printf(" Total Tracks: ");
-  ATRIB(97);
+  OS_SETCOLOR(71);
   printf("%lu", curFileStruct.totalAmount);
   printf(" \r\n");
-  ATRIB(93);
+  OS_SETCOLOR(70);
   printf(" RATING: ");
-  ATRIB(97);
+  OS_SETCOLOR(71);
   printf("%s", curFileStruct.picRating);
-  ATRIB(93);
+  OS_SETCOLOR(70);
   printf(" YEAR: ");
-  ATRIB(97);
+  OS_SETCOLOR(71);
   printf("%u", curFileStruct.picYear);
-  ATRIB(93);
+  OS_SETCOLOR(70);
   printf(" DURATION: ");
-  ATRIB(97);
+  OS_SETCOLOR(71);
   printf("%s", curFileStruct.time);
   printf(" \r\n\r\n");
-  ATRIB(93);
+  OS_SETCOLOR(70);
   printf(" AuthorsIDs ");
-  ATRIB(97);
+  OS_SETCOLOR(71);
   printf("%s", curFileStruct.authorIds);
-  ATRIB(93);
+  OS_SETCOLOR(70);
   printf(" Author: ");
-  ATRIB(97);
+  OS_SETCOLOR(71);
   printf("%s", curFileStruct.authorTitle);
-  ATRIB(93);
+  OS_SETCOLOR(70);
   printf(" Real name: ");
-  ATRIB(97);
+  OS_SETCOLOR(71);
   printf("%s", curFileStruct.authorRealName);
   printf(" \r\n\r\n");
-  ATRIB(96);
+  OS_SETCOLOR(69);
   printf("                                                                           \r");
   printf("   TITLE: %s\r\n", curFileStruct.trackName);
 }
@@ -1443,8 +1581,12 @@ C_task main(int argc, char *argv[])
   unsigned char errn, keypress, queryNum, pId, alive, changedFormat;
   long iddqd, idkfa;
   unsigned long curTimer, startTimer, oldTimer;
-  os_initstdio();
+  // os_initstdio();
   srand(time());
+
+  OS_HIDEFROMPARENT();
+  OS_SETGFX(0x86);
+  OS_CLS(0);
 
   count = 0;
   saveFlag = 0;
@@ -1477,13 +1619,11 @@ C_task main(int argc, char *argv[])
   }
 
   strcpy(queryType, "from newest to oldest");
-  BOX(1, 1, 80, 25, 40, ' ');
-  AT(1, 1);
-  ATRIB(97);
-  ATRIB(45);
+  OS_CLS(0);
+  OS_SETCOLOR(71);
+  OS_SETCOLOR(95);
   printf("                           ZXART.EE radio for %s                           ", interfaces[netDriver]);
-  ATRIB(33);
-  ATRIB(40);
+  OS_SETCOLOR(6);
   printStatus();
 
   if (netDriver == 0)
@@ -1529,17 +1669,16 @@ resume:
   printStatus();
   printInfo();
 rekey:
-  keypress = _low_level_get();
+  keypress = OS_GETKEY();
   if (keypress != 0)
   {
     if (keypress == 27 || keypress == 'e' || keypress == 'E')
     {
       OS_DROPAPP(pId);
-      BOX(1, 1, 80, 25, 40, ' ');
-      AT(1, 1);
+      OS_CLS(0);
+      OS_SETXY(0, 0);
       printf("Good bye...\r\n");
-      ATRIB(37);
-      ATRIB(40);
+      OS_SETCOLOR(7);
       exit(0);
     }
     if (keypress == 248 || keypress == 'b' || keypress == 'B')
@@ -1606,17 +1745,30 @@ rekey:
 
     if (keypress == 'j' || keypress == 'J')
     {
-      AT(1, 7);
-      printf("                                                                      \r");
-      printf("Jump to track:");
-      scanf("%lu", &count);
-      OS_DROPAPP(pId);
-      if (count > curFileStruct.totalAmount - 1)
+      // OS_SETXY(0, 6);
+      // printf("                                                                      \r");
+      // printf("Jump to track:");
+      // scanf("%lu", &count);
+
+      curWin.w = 22;
+      curWin.x = 80 / 2 - curWin.w / 2 - 1;
+      curWin.y = 14;
+      curWin.h = 1;
+      curWin.text = 103;
+      curWin.back = 103;
+      strcpy(curWin.tittle, "Введите номер трека:");
+      if (inputBox(curWin, ""))
       {
-        count = curFileStruct.totalAmount - 1;
+        sscanf(cmd, "%lu", &count);
+        OS_DROPAPP(pId);
+        if (count > curFileStruct.totalAmount - 1)
+        {
+          count = curFileStruct.totalAmount - 1;
+        }
+        changedFormat = 0;
+        goto start;
       }
-      changedFormat = 0;
-      goto start;
+      printHelp();
     }
 
     if (keypress == 'f' || keypress == 'F')
@@ -1643,7 +1795,7 @@ rekey:
 
       printStatus();
       printProgress(0);
-      BOX(1, 2, 80, 6, 40, ' ');
+      BDBOX(1, 2, 80, 6, 71, ' ');
       goto rekey;
     }
 
@@ -1694,12 +1846,11 @@ rekey:
         clearStatus();
         printf("    ZXNETUSB mode enabled...");
       }
-      AT(1, 1);
-      ATRIB(97);
-      ATRIB(45);
+      OS_SETXY(0, 0);
+      OS_SETCOLOR(71);
+      OS_SETCOLOR(95);
       printf("                           ZXART.EE radio for %s                    ", interfaces[netDriver]);
-      ATRIB(33);
-      ATRIB(40);
+      OS_SETCOLOR(6);
     }
   }
 
