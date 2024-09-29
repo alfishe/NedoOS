@@ -668,7 +668,7 @@ void loadEspConfig(void)
   OS_READHANDLE(curParam, espcom, 256);
 
   res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u %u %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider, &comType, &espType);
-  BDBOX(1, 15, 80, 8, 71, ' ');
+  BDBOX(1, 14, 80, 8, 71, ' ');
   OS_SETXY(0, 14);
   puts("Config loaded:");
   if (comType == 1)
@@ -1751,7 +1751,7 @@ rekey:
       // scanf("%lu", &count);
 
       curWin.w = 22;
-      curWin.x = 80 / 2 - curWin.w / 2 - 1;
+      curWin.x = 80 / 2 - curWin.w / 2 - 2;
       curWin.y = 14;
       curWin.h = 1;
       curWin.text = 103;
