@@ -1,1 +1,0 @@
-term.com getpic.com
