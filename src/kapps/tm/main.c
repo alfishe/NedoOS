@@ -4,7 +4,10 @@
 #include <oscalls.h>
 #include <intrz80.h>
 #include <../common/terminal.c>
+
 #define COMMANDLINE 0x0080
+#define true 1
+#define false 0
 
 struct process
 {
@@ -18,6 +21,17 @@ struct process
     unsigned char window_3;
 } table[17];
 
+struct window
+{
+    unsigned char x;
+    unsigned char y;
+    unsigned char w;
+    unsigned char h;
+    unsigned char text;
+    unsigned char back;
+    unsigned char tittle[80];
+} curWin;
+
 int procnum, prccount;
 unsigned char c1, c2, pgbak, freemem, sysmem, usedmem, curpos;
 unsigned char procname;
@@ -27,33 +41,40 @@ void redraw(void)
 {
     unsigned char c3;
 
-    BOX(14, 5, 41, prccount, 43, ' ');
+    BDBOX(13, 4, 41, prccount, 119, ' ');
+
+    OS_SETCOLOR(48);
 
     for (c3 = 0; c3 < prccount; c3++)
     {
-        AT(12, 5 + c3);
-        ATRIB(30);
+        OS_SETXY(11, 4 + c3);
         if (c3 == curpos - 1)
         {
-            ATRIB(31);
+            OS_SETCOLOR(6);
+            printf("%2X.%s", table[c3].nomer, table[c3].name);
+            OS_SETXY(49, 4 + c3);
+            printf("%u  ", table[c3].used);
+            OS_SETXY(54, 4 + c3);
+            printf("%2X.%2X.%2X.%2X ", table[c3].window_0, table[c3].window_1, table[c3].window_2, table[c3].window_3);
+            OS_SETXY(11, 4 + c3);
+            OS_SETCOLOR(48);
         }
-
-        printf("%2X.", table[c3].nomer);
-        puts(table[c3].name);
-        AT(50, 5 + c3);
-        printf("%u  ", table[c3].used);
-
-        AT(55, 5 + c3);
-        printf("%2X.", table[c3].window_0);
-        printf("%2X.", table[c3].window_1);
-        printf("%2X.", table[c3].window_2);
-        printf("%2X", table[c3].window_3);
+        else
+        {
+            printf("%2X.%s", table[c3].nomer, table[c3].name);
+            OS_SETXY(49, 4 + c3);
+            printf("%u  ", table[c3].used);
+            OS_SETXY(54, 4 + c3);
+            printf("%2X.%2X.%2X.%2X ", table[c3].window_0, table[c3].window_1, table[c3].window_2, table[c3].window_3);
+        }
     }
-    BOX(12, 5 + prccount, 54, 1, 41, ' ');
-    AT(12, 5 + prccount);
-    ATRIB(33);
+
+    BDBOX(11, 4 + prccount, 55, 1, 87, ' ');
+    OS_SETXY(11, 4 + prccount);
+    OS_SETCOLOR(22);
     printf("    Free:%u pages     Used:%u pages  Sys:%u pages", freemem, usedmem, sysmem);
-    BOX(12, 6 + prccount, 54, 2, 40, ' ');
+
+    BDBOX(11, 5 + prccount, 55, 3, 0, ' ');
 }
 void filltable(void)
 {
@@ -115,12 +136,14 @@ void filltable(void)
 
 C_task main(void)
 {
+    OS_HIDEFROMPARENT();
+    OS_SETGFX(0x86);
+    OS_CLS(0);
+    YIELD();
     curpos = 1;
-    os_initstdio();
-    BOX(1, 1, 80, 25, 40, ' ');
-    BOX(12, 4, 54, 1, 41, ' ');
-    AT(33, 4);
-    ATRIB(33);
+    BDBOX(11, 3, 55, 1, 87, ' ');
+    OS_SETXY(32, 3);
+    OS_SETCOLOR(87);
     puts("TASK MANAGER");
     while (42)
     {
@@ -128,7 +151,9 @@ C_task main(void)
         redraw();
         do
         {
-            procname = _low_level_get();
+            procname = OS_GETKEY();
+            if (procname == 0)
+                YIELD();
         } while (procname == 0);
 
         if (procname == 27)
@@ -168,8 +193,7 @@ C_task main(void)
             OS_DROPAPP(table[curpos - 1].nomer);
         }
     }
-    BOX(1, 1, 80, 25, 40, ' ');
-    AT(1, 1);
-    ATRIB(47);
+    OS_CLS(0);
+    OS_SETCOLOR(7);
     return 0;
 }
