@@ -24,6 +24,21 @@ void AT(int X, int Y)
   putchar('H');
 }
 
+void CLS(void)
+{
+  char count;
+  putchar('\r');
+  for (count = 0; count < 26; count++)
+  {
+    putchar(27);
+    putchar('[');
+    putchar('K');
+    putchar(0x0d);
+    putchar(0x0a);
+  }
+  AT(1, 1);
+}
+
 void ATRIB(int color)
 {
   putchar(27);
