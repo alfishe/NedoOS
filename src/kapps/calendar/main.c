@@ -6,6 +6,11 @@
 #include <stdlib.h>
 #include <../common/terminal.c>
 
+#define true 1
+#define false 0
+
+char cmd[128];
+
 struct window
 {
 	unsigned char x;
@@ -16,6 +21,38 @@ struct window
 	unsigned char back;
 	unsigned char tittle[80];
 } curWin;
+
+struct rtc
+{
+	unsigned char hours;
+	unsigned char minutes;
+	unsigned char seconds;
+	unsigned char day;
+	unsigned char month;
+	unsigned int year;
+} clock;
+
+void spaces(unsigned char number)
+{
+	while (number > 0)
+	{
+		putchar(' ');
+		number--;
+	}
+}
+
+void readClock(void)
+{
+	unsigned long dosTime;
+	dosTime = OS_GETTIME();
+
+	clock.hours = dosTime >> 11 & 31;	 // 0b00011111
+	clock.minutes = (dosTime >> 5) & 63; // 0b00111111
+	clock.seconds = (dosTime & 31) * 2;	 // 0b00011111
+	clock.day = dosTime >> 16 & 31;
+	clock.month = dosTime >> 21 & 15;
+	clock.year = (dosTime >> 25 & 63) + 1980;
+}
 
 void calendarBox(struct window w, unsigned char *message)
 {
@@ -60,7 +97,7 @@ void calendarBox(struct window w, unsigned char *message)
 
 void printMonth(int month, int year, char xPos, char yPos)
 {
-	int y, k, j, count;
+	int y, k, j, count, prevMonth;
 	char monthsList[12][10] = {"Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"};
 	int mDays[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 	static int t[] = {6, 2, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
@@ -125,18 +162,17 @@ void printMonth(int month, int year, char xPos, char yPos)
 
 	if (month != 1)
 	{
-		ATRIB(90);
-		for (k = 0; k < current; k++)
-		{
-			printf("%3d", k + 1 + mDays[month - 2] - current);
-		}
+		prevMonth = month - 2;
 	}
 	else
 	{
-		for (k = 0; k < current; k++)
-			printf("   ");
+		prevMonth = 11;
 	}
-
+	ATRIB(90);
+	for (k = 0; k < current; k++)
+	{
+		printf("%3d", k + 1 + mDays[prevMonth] - current);
+	}
 	ATRIB(97);
 	for (j = 1; j <= days; j++)
 	{
@@ -164,55 +200,203 @@ void printMonth(int month, int year, char xPos, char yPos)
 	}
 }
 
+unsigned char inputBox(struct window w, unsigned char *prefilled)
+{
+	unsigned char wcount, tempx, tittleStart;
+	unsigned char byte, counter;
+	w.h++;
+	AT(w.x, w.y - 1);
+	BOX(w.x, w.y, w.w + 1, w.h, w.back, 32);
+	AT(w.x, w.y);
+	ATRIB(w.text);
+	putchar(201);
+	for (wcount = 0; wcount < w.w; wcount++)
+	{
+		putchar(205);
+	}
+	putchar(187);
+	AT(w.x, w.y + w.h);
+	putchar(200);
+	for (wcount = 0; wcount < w.w; wcount++)
+	{
+		putchar(205);
+	}
+	putchar(188);
+
+	tempx = w.x + w.w + 1;
+	for (wcount = 1; wcount < w.h; wcount++)
+	{
+		AT(w.x, w.y + wcount);
+		putchar(186);
+		AT(tempx, w.y + wcount);
+		putchar(186);
+	}
+	tittleStart = w.x + (w.w / 2) - (strlen(w.tittle) / 2);
+	AT(tittleStart, w.y);
+	printf("[%s]", w.tittle);
+	AT(w.x + 1, w.y + 1);
+	ATRIB(w.back);
+	//putchar(219);
+
+	cmd[0] = 0;
+
+	counter = strlen(prefilled);
+	if (counter != 0)
+	{
+		strcpy(cmd, prefilled);
+		goto skipKeys;
+	}
+
+	do
+	{
+		byte = getchar();
+		if (byte != 0)
+		{
+			switch (byte)
+			{
+			case 0x08:
+				if (counter > 0)
+				{
+					counter--;
+					cmd[counter] = 0;
+				}
+				break;
+			case 0x0d:
+
+				if (counter == 0)
+				{
+					return false;
+				}
+				else
+				{
+					return true;
+				}
+
+			case 31:
+				break;
+			case 250:
+				break;
+			case 249:
+				break;
+			case 248:
+				break;
+			case 251: // Right
+				break;
+			case 252: // Del
+				AT(w.x + 1, w.y + 1);
+				spaces(counter + 1);
+				cmd[0] = 0;
+				counter = 0;
+				break;
+			case 27:
+				cmd[0] = 0;
+				return false;
+			default:
+				if (counter < w.w - 1)
+				{
+					cmd[counter] = byte;
+					counter++;
+					cmd[counter] = 0;
+				}
+				break;
+			}
+		skipKeys:
+			AT(w.x + 1, w.y + 1);
+			printf("%s", cmd);
+			//putchar(219);
+			if (byte == 0x08)
+			{
+				putchar(' ');
+			}
+		}
+		YIELD();
+	} while (42);
+	return false;
+}
+
 C_task main(int argc, char *argv[])
 {
-	int x, y, year;
+	int x, y, year, half;
+	char key;
 	os_initstdio();
 	CLS();
-
 	BOX(1, 1, 80, 25, 44, 32);
 	AT(1, 1);
 	ATRIB(97);
+
+	half = 0;
+
 	if (argc == 1)
 	{
-		AT(37, 2);
-		puts("[2024]");
-		year = 2024;
+		readClock();
+		year = clock.year;
+		AT(4, 2);
+		printf("Сегодня: %02u-%02u-%04u", clock.day, clock.month, clock.year);
+		if (clock.month > 5)
+			half = 6;
 	}
 	else if (argc == 2)
 	{
 		char *p = argv[1];
-		AT(37, 2);
 		sscanf(p, "%d", &year);
-		printf("[%d]", year);
 	}
 
 	x = 4;
 	y = 4;
 
-	printMonth(1, year, x + 00, y);
-	printMonth(2, year, x + 25, y);
-	printMonth(3, year, x + 50, y);
+loop:
+	AT(37, 2);
+	ATRIB(93);
+	ATRIB(44);
+	printf("[%d]", year);
 
-	printMonth(4, year, x + 00, y + 10);
-	printMonth(5, year, x + 25, y + 10);
-	printMonth(6, year, x + 50, y + 10);
-
+	printMonth(1 + half, year, x + 00, y + 00);
+	printMonth(2 + half, year, x + 25, y + 00);
+	printMonth(3 + half, year, x + 50, y + 00);
+	printMonth(4 + half, year, x + 00, y + 10);
+	printMonth(5 + half, year, x + 25, y + 10);
+	printMonth(6 + half, year, x + 50, y + 10);
 	ATRIB(40);
 	ATRIB(37);
-	getchar();
 
-	printMonth(7, year, x + 00, y);
-	printMonth(8, year, x + 25, y);
-	printMonth(9, year, x + 50, y);
+	key = getchar();
+	switch (key)
+	{
+	case 250: // Up
+		year++;
+		half = 0;
+		break;
+	case 249: // down
+		year--;
+		half = 0;
+		break;
+	case 'Y':
+	case 'y':
 
-	printMonth(10, year, x + 00, y + 10);
-	printMonth(11, year, x + 25, y + 10);
-	printMonth(12, year, x + 50, y + 10);
-	getchar();
-	ATRIB(40);
-	ATRIB(37);
-	putchar('\r');
-	putchar('\n');
-	return 0;
+		curWin.w = 14;
+		curWin.x = 80 / 2 - curWin.w / 2 ;
+		curWin.y = 9;
+		curWin.h = 1;
+		curWin.text = 97;
+		curWin.back = 42;
+		strcpy(curWin.tittle, "Введите год:");
+
+		if (inputBox(curWin, ""))
+		{
+			sscanf(cmd, "%d", &year);
+			half = 0;
+		}
+
+		break;
+	default:
+		if (half == 0)
+		{
+			half = 6;
+		}
+		else
+		{
+			half = 0;
+		}
+	}
+	goto loop;
 }
