@@ -6,7 +6,6 @@
 #include <../common/terminal.c>
 #include <tcp.h>
 #include <osfs.h>
-#include <intrz80.h>
 #include <graphic.h>
 #include <ctype.h>
 #include <math.h>
@@ -385,8 +384,8 @@ char loadPageFromDisk(unsigned char *filepath, unsigned int volume)
 	{
 		if ((sizeof(netbuf) - loaded) < 513)
 		{
-			//clearStatus();
-			//printf("Файл слишком большой, будет загружаться частями (%ld kb)...", link.size / 1024);
+			// clearStatus();
+			// printf("Файл слишком большой, будет загружаться частями (%ld kb)...", link.size / 1024);
 			break;
 		}
 
@@ -431,7 +430,7 @@ void loadNVext(void)
 	loaded = 0;
 	while (loop < nvextSize)
 	{
-		loaded = OS_READHANDLE(nvext + loaded, nvf, sizeof(nvext) - 1);
+		loaded = OS_READHANDLE(nvext + loop, nvf, sizeof(nvext) - 1);
 		loop = loop + loaded;
 	}
 	OS_CLOSEHANDLE(nvf);
@@ -480,13 +479,6 @@ void newPage(void)
 	navi.bufPos = 0;
 	navi.nextBufPos = 0;
 	volumeOffsets[0] = 0;
-	/*
-		do
-		{
-			pageOffsets[counter] = 0;
-			counter++;
-		} while (counter < 127);
-	*/
 }
 
 void renderType(unsigned char linkType)
@@ -1385,11 +1377,6 @@ void goHome(void)
 
 void doLink(void)
 {
-
-	// clearStatus();
-	// printf("[%c][%s][%d][%s]", link.type, link.host, link.port, link.path);
-	// getchar();
-
 	switch (link.type) // Тут уже новый элемент
 	{
 	case 'i':
@@ -1624,16 +1611,20 @@ void navigationPage(char keypress)
 		renderPage(pageOffsets[navi.page]);
 		break;
 	case 'h':
+	case 'H':
 		goHome();
 		break;
 	case 'd':
+	case 'D':
 		enterDomain();
 		break;
 	case 's':
+	case 'S':
 		navi.saveAs = !navi.saveAs;
 		mainWinDraw();
 		break;
 	case 'i':
+	case 'I':
 		netDriver = !netDriver;
 		mainWinDraw();
 		if (netDriver)
@@ -1722,12 +1713,15 @@ void navigationPlain(char keypress)
 		renderPlain(pageOffsets[navi.page]);
 		break;
 	case 'h':
+	case 'H':
 		goHome();
 		break;
 	case 'd':
+	case 'D':
 		enterDomain();
 		break;
 	case 's':
+	case 'S':
 		navi.saveAs = !navi.saveAs;
 		mainWinDraw();
 		break;
@@ -1781,7 +1775,6 @@ C_task main(int argc, char *argv[])
 		{
 			if (mouse.cursYpos > 0 && mouse.cursYpos < screenHeight + 1)
 			{
-				// strcpy(link.prevHost, link.host);
 				navi.prevLineSelect = navi.lineSelect;
 				navi.lineSelect = mouse.cursYpos;
 				activate();
@@ -1818,15 +1811,11 @@ C_task main(int argc, char *argv[])
 
 		if (mouseScroll > 0)
 		{
-			// clearStatus();
-			// printf("UP prevWheel:[%2d] wheel:[%2d] mouseScroll:[%2d]", mouse.prevWheel, mouse.wheel, mouseScroll);
 			navigation(248); // Left
 		}
 
 		if (mouseScroll < 0)
 		{
-			// clearStatus();
-			// printf("DOWN prevWheel:[%2d] wheel:[%2d] mouseScroll:[%2d]", mouse.prevWheel, mouse.wheel, mouseScroll);
 			navigation(251); // Right
 		}
 		mouse.prevWheel = mouse.wheel;
