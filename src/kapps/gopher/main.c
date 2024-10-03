@@ -31,7 +31,7 @@ FILE *fp2;
 
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "00.75";
+unsigned char uVer[] = "00.80";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
@@ -111,6 +111,14 @@ void spaces(unsigned char number)
 		putchar(' ');
 		number--;
 	}
+}
+
+void waitkey(void)
+{
+	do
+	{
+		YIELD();
+	} while (OS_GETKEY() == 0);
 }
 
 void clearStatus(void)
@@ -862,7 +870,7 @@ void errNoConnect(void)
 	strcpy(cmd, "Нет соединения с ");
 	strcat(cmd, link.host);
 	errorBox(curWin, cmd);
-	getchar();
+	waitkey();
 }
 
 char getFileEsp(unsigned char *fileNamePtr)
@@ -974,7 +982,7 @@ char getFile(unsigned char *fileNamePtr)
 	// clearStatus();
 	// printf("File:%s", fileNamePtr);
 	// printf("\r\nAddress:%u.%u.%u.%u:%u\r\n", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4, targetadr.porth * 256 + targetadr.portl);
-	// getchar();
+	// waitkey();
 
 	if ((strlen(link.path) == 1 && link.path[0] == '/') || strlen(link.path) == 0)
 	{
@@ -1226,7 +1234,7 @@ char extractName(void)
 		{
 			clearStatus();
 			printf("Ошибка определения типа файла, не найдено расширение. [%s]", navi.fileName);
-			getchar();
+			waitkey();
 			return false;
 		}
 		else
@@ -1280,7 +1288,7 @@ unsigned char mediaProcessorExt(void)
 	{
 		clearStatus();
 		printf("Ошибка определения типа файла, не найдено расширение. [%s]", navi.fileName);
-		getchar();
+		waitkey();
 	}
 
 	counter = strlen(navi.fileName);
@@ -1319,7 +1327,7 @@ unsigned char mediaProcessorExt(void)
 			{
 				clearStatus();
 				printf("[ext]не найдено соответствие к расширению [%s][%s]", extLow, extUp);
-				getchar();
+				waitkey();
 				return false;
 			}
 		}
@@ -1768,7 +1776,7 @@ C_task main(int argc, char *argv[])
 	OS_SETSYSDRV();
 	init();
 	// printTable();
-	// getchar();
+	// waitkey();
 
 	goHome();
 
