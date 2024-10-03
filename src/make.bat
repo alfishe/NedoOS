@@ -92,12 +92,17 @@ rem network
         nedotrd test.trd -a %releasedir%/bin/browser.com
         nedotrd test.trd -a %releasedir%/bin/browser/nos.htm
         nedotrd test.trd -a %releasedir%/bin/wget.com
-        nedotrd test.trd -a %releasedir%/bin/moon.com
+        nedotrd test.trd -a %releasedir%/bin/mrf.com
         nedotrd test.trd -a %releasedir%/bin/3ws.com
-        nedotrd test.trd -a %releasedir%/bin/time.com
+        nedotrd test.trd -a %releasedir%/bin/time2.com
         nedotrd test.trd -a %releasedir%/bin/dmirc.com
         nedotrd test.trd -a %releasedir%/bin/dmftp.com
         nedotrd test.trd -a %releasedir%/bin/telnet.com
+        nedotrd test.trd -a %releasedir%/bin/updater.com
+        nedotrd test.trd -a %releasedir%/bin/dns.com
+
+        nedotrd test.trd -a %releasedir%/bin/net.ini
+	nedotrd test.trd -a kapps/common/ATM2/espcom.ini
 
 rem archives
         nedotrd test.trd -a %releasedir%/bin/pkunzip.com
@@ -107,8 +112,8 @@ rem archives
 
 rem disk/tape images
         rem nedotrd test.trd -a %releasedir%/bin/nedodel.com
-        nedotrd test.trd -a %releasedir%/bin/rdtrd.com
-        nedotrd test.trd -a %releasedir%/bin/wrtrd.com
+        nedotrd test.trd -a %releasedir%/bin/rdtrd2.com
+        nedotrd test.trd -a %releasedir%/bin/wrtrd2.com
         nedotrd test.trd -a %releasedir%/bin/playtap.com
         nedotrd test.trd -a %releasedir%/bin/dmm.com
         nedotrd test.trd -a %releasedir%/bin/nmisvc.com

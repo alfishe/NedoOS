@@ -318,8 +318,8 @@ unsigned char getMouse(void)
 
 unsigned char OS_SHELL(unsigned char *command)
 {
-	unsigned char fileName[] = "cmd.com";
-	unsigned char appCmd[128] = "cmd.com ";
+	unsigned char fileName[] = "term.com";
+	unsigned char appCmd[128] = "term.com ";
 	unsigned int shellSize, loaded, loop, adr;
 	unsigned char pgbak;
 	union APP_PAGES shell_pg;
@@ -330,6 +330,7 @@ unsigned char OS_SHELL(unsigned char *command)
 	OS_GETPATH((unsigned int)&curPath);
 	OS_SETSYSDRV();
 	strcat(appCmd, command);
+
 	fp3 = OS_OPENHANDLE(fileName, 0x80);
 	if (((int)fp3) & 0xff)
 	{
@@ -1353,7 +1354,9 @@ unsigned char mediaProcessorExt(void)
 					} while (byte != 0x0d);
 					cmd[counter2 - 1] = ' ';
 					cmd[counter2] = 0;
-					strcat(cmd, "current.");
+					strcat(cmd, " ");
+					strcat(cmd, curPath);
+					strcat(cmd, "/current.");
 					strcat(cmd, extLow);
 					return true;
 				}
@@ -1463,6 +1466,8 @@ void doLink(void)
 		pusHistory();
 		OS_CHDIR("/");
 		OS_CHDIR("downloads");
+		OS_GETPATH((unsigned int)&curPath);
+
 		if (getFile(navi.fileName))
 		{
 			popHistory();
