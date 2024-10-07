@@ -700,7 +700,7 @@ loop2:
 	printf("Выходные:%s", cmd);
 
 	clearStatus();
-	AT(37, 2);
+	AT(38, 2);
 	ATRIB(93);
 	ATRIB(44);
 	printf("[%d]", year);
