@@ -541,8 +541,6 @@ char readParamFromIni(void)
 	else
 	{
 		sscanf(count1 + strlen(useProdCalendar) + 1, "%d", &ini.useProdCalendar);
-
-		printf("useProdCalendar = '%d'\r\n", ini.useProdCalendar);
 	}
 
 	OS_CHDIR(curPath);
@@ -631,7 +629,7 @@ C_task main(int argc, char *argv[])
 	os_initstdio();
 	CLS();
 
-	// readParamFromIni();
+	readParamFromIni();
 
 	BOX(1, 1, 80, 25, 44, 32);
 	AT(1, 1);
