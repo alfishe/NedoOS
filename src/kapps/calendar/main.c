@@ -682,14 +682,14 @@ int cutHeader(unsigned int todo)
 	err = httpError();
 	if (err != 200)
 	{
-
+/*
 		BOX(1, 1, 80, 25, 40, 32);
 		AT(1, 1);
 		printf("HTTP ERROR %u", err);
 		puts("^^^^^^^^^^^^^^^^^^^^^");
 		puts(netbuf);
 		getchar();
-
+*/
 		return -1;
 	}
 	count1 = strstr(netbuf, "Content-Length:");
@@ -737,8 +737,6 @@ char fillBuffer(signed char socket)
 
 			if (todo == -1)
 			{
-				printf("todo = -1 !!!!!!!");
-				getchar();
 				return false;
 			}
 		}
