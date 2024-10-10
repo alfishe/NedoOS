@@ -41,6 +41,7 @@ struct rtc
 struct params
 {
 	char useProdCalendar;
+	char currentCountry[3];
 } ini;
 
 struct sockaddr_in dnsaddress;
@@ -68,7 +69,7 @@ const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char userAgent[] = "Host: xmlcalendar.ru\r\nConnection: keep-alive\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n";
 char country2[5][2] = {"ru", "kz", "by", "uz", "ua"};
-char country10[5][10] = {"Россия", "Казахстан", "Беларусь", "Узбекистан", "Украина"};
+char country10[5][11] = {"Россия", "Казахстан", "Беларусь", "Узбекистан", "Украина"};
 
 void delay(unsigned long counter)
 {
@@ -561,6 +562,7 @@ char readParamFromIni(void)
 	unsigned char *count1;
 
 	char useProdCalendar[] = "useProdCalendar";
+	char currentCountry[] = "currentCountry";
 	FILE *fpini;
 	OS_GETPATH((unsigned int)&curPath);
 	OS_SETSYSDRV();
@@ -590,6 +592,17 @@ char readParamFromIni(void)
 		sscanf(count1 + strlen(useProdCalendar) + 1, "%d", &ini.useProdCalendar);
 	}
 
+	count1 = strstr(calbuf, currentCountry);
+	if (count1 == NULL)
+	{
+		strcpy(ini.currentCountry, "ru");
+	}
+	else
+	{
+		sscanf(count1 + strlen(currentCountry) + 1, "%c", &ini.currentCountry[0]);
+		sscanf(count1 + strlen(currentCountry) + 2, "%c", &ini.currentCountry[1]);
+	}
+	ini.currentCountry[2] = 0;
 	OS_CHDIR(curPath);
 	return true;
 }
@@ -682,14 +695,14 @@ int cutHeader(unsigned int todo)
 	err = httpError();
 	if (err != 200)
 	{
-/*
-		BOX(1, 1, 80, 25, 40, 32);
-		AT(1, 1);
-		printf("HTTP ERROR %u", err);
-		puts("^^^^^^^^^^^^^^^^^^^^^");
-		puts(netbuf);
-		getchar();
-*/
+		/*
+				BOX(1, 1, 80, 25, 40, 32);
+				AT(1, 1);
+				printf("HTTP ERROR %u", err);
+				puts("^^^^^^^^^^^^^^^^^^^^^");
+				puts(netbuf);
+				getchar();
+		*/
 		return -1;
 	}
 	count1 = strstr(netbuf, "Content-Length:");
@@ -701,7 +714,7 @@ int cutHeader(unsigned int todo)
 	else
 	{
 		contLen = atol(count1 + 15);
-		//printf("Content-Length: %lu \n\r", contLen);
+		// printf("Content-Length: %lu \n\r", contLen);
 	}
 
 	count1 = strstr(netbuf, "\r\n\r\n");
@@ -712,7 +725,7 @@ int cutHeader(unsigned int todo)
 	else
 	{
 		headlng = ((unsigned int)count1 - (unsigned int)netbuf + 4);
-		 //printf("header %u bytes\r\n", headlng);
+		// printf("header %u bytes\r\n", headlng);
 	}
 	return todo - headlng;
 }
@@ -789,6 +802,7 @@ C_task main(int argc, char *argv[])
 
 	targetadr.porth = 00;
 	targetadr.portl = 80;
+	strcpy(ini.currentCountry, country2[0]);
 
 	os_initstdio();
 	CLS();
@@ -853,7 +867,7 @@ loop:
 	case 2:
 		netDriver = 0;
 
-		if (loadProdCalNet(year, "ru") == false)
+		if (loadProdCalNet(year, ini.currentCountry) == false)
 		{
 			ini.useProdCalendar = false;
 		}
@@ -901,8 +915,31 @@ loop2:
 	ATRIB(93);
 	ATRIB(44);
 
+	switch (ini.currentCountry[0])
+	{
+	case 'r':
+		ci = 0;
+		break;
+	case 'k':
+		ci = 1;
+		break;
+	case 'b':
+		ci = 2;
+		break;
+	case 'u':
+		if (ini.currentCountry[1] == 'z')
+		{
+			ci = 3;
+		}
+		else if (ini.currentCountry[1] == 'a')
+		{
+			ci = 4;
+		}
+		break;
+	}
 	AT(40 - (strlen(country10[ci]) / 2) - 3, 2);
 	printf("[%s %d]", country10[ci], year);
+
 	if (ini.useProdCalendar == false)
 	{
 		printMonthNoProdCal(1 + half, year, x + 00, y + 00);
