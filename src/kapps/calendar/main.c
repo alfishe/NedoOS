@@ -42,6 +42,7 @@ struct params
 {
 	char useProdCalendar;
 	char currentCountry[3];
+	char machineType;
 } ini;
 
 struct sockaddr_in dnsaddress;
@@ -62,7 +63,7 @@ unsigned int espType = 32;
 unsigned char netDriver = 0;
 
 unsigned int odoa = 12;
-
+char foreColor;
 unsigned int errn, headlng;
 unsigned long contLen;
 const unsigned char sendOk[] = "SEND OK";
@@ -248,7 +249,7 @@ void printMonthNoProdCal(int month, int year, char xPos, char yPos)
 	{
 		printf("%3d", k + 1 + mDays[prevMonth] - current);
 	}
-	ATRIB(97);
+	ATRIB(foreColor);
 	for (j = 1; j <= days; j++)
 	{
 		k++;
@@ -265,7 +266,7 @@ void printMonthNoProdCal(int month, int year, char xPos, char yPos)
 			if (k > 5)
 			{
 				ATRIB(41);
-				ATRIB(97);
+				ATRIB(foreColor);
 			}
 			printf("%2d", j);
 		}
@@ -282,7 +283,7 @@ void printMonthNoProdCal(int month, int year, char xPos, char yPos)
 		if (k > 6)
 		{
 			k = 0;
-			ATRIB(97);
+			ATRIB(foreColor);
 			AT(curWin.x + 1, curWin.y++ + 3);
 		}
 	}
@@ -382,7 +383,7 @@ void printMonth(int month, int year, char xPos, char yPos)
 	{
 		printf("%3d", k + 1 + mDays[prevMonth] - current);
 	}
-	ATRIB(97);
+	ATRIB(foreColor);
 	for (j = 1; j <= days; j++)
 	{
 		k++;
@@ -392,7 +393,7 @@ void printMonth(int month, int year, char xPos, char yPos)
 		}
 		else
 		{
-			ATRIB(97);
+			ATRIB(foreColor);
 		}
 		if (toDay && (j == clock.day))
 		{
@@ -401,7 +402,7 @@ void printMonth(int month, int year, char xPos, char yPos)
 			if (holidays[month][j])
 			{
 				ATRIB(41);
-				ATRIB(97);
+				ATRIB(foreColor);
 			}
 			printf("%2d", j);
 		}
@@ -807,8 +808,17 @@ C_task main(int argc, char *argv[])
 	os_initstdio();
 	CLS();
 	get_dns();
-
 	readParamFromIni();
+	ini.machineType = (unsigned char)OS_GETCONFIG();
+	// L= 1-Evo 2-ATM2 3-ATM3 6-p2.666 ;E=pgsys(system page) D= TR-DOS page
+	if (ini.machineType == 1)
+	{
+		foreColor = 97;
+	}
+	else
+	{
+		foreColor = 30;
+	}
 
 	AT(3, 25);
 	ATRIB(40);
