@@ -10,10 +10,13 @@
 #define true 1
 #define false 0
 
+FILE *fp2;
+
 char cmd[128];
 char curPath[128];
 char holidays[13][32];
-char netbuf[20000];
+unsigned char netbuf[1024];
+char calbuf[20000];
 struct window
 {
 	unsigned char x;
@@ -39,6 +42,50 @@ struct params
 {
 	char useProdCalendar;
 } ini;
+
+struct sockaddr_in dnsaddress;
+struct sockaddr_in targetadr;
+struct readstructure readStruct;
+
+unsigned int RBR_THR = 0xf8ef;
+unsigned int IER = 0xf9ef;
+unsigned int IIR_FCR = 0xfaef;
+unsigned int LCR = 0xfbef;
+unsigned int MCR = 0xfcef;
+unsigned int LSR = 0xfdef;
+unsigned int MSR = 0xfeef;
+unsigned int SR = 0xffef;
+unsigned int divider = 1;
+unsigned char comType = 0;
+unsigned int espType = 32;
+unsigned char netDriver = 0;
+
+unsigned int odoa = 12;
+
+unsigned int errn, headlng;
+unsigned long contLen;
+const unsigned char sendOk[] = "SEND OK";
+const unsigned char gotWiFi[] = "WIFI GOT IP";
+unsigned char userAgent[] = "Host: xmlcalendar.ru\r\nConnection: keep-alive\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n";
+char country2[5][2] = {"ru", "kz", "by", "uz", "ua"};
+char country10[5][10] = {"Россия", "Казахстан", "Беларусь", "Узбекистан", "Украина"};
+
+void delay(unsigned long counter)
+{
+	unsigned long start, finish;
+	counter = counter / 20;
+	if (counter < 1)
+	{
+		counter = 1;
+	}
+	start = time();
+	finish = start + counter;
+
+	while (start < finish)
+	{
+		start = time();
+	}
+}
 
 void spaces(unsigned char number)
 {
@@ -529,11 +576,11 @@ char readParamFromIni(void)
 		return false;
 	}
 
-	loaded = OS_READHANDLE(netbuf, fpini, 256);
+	loaded = OS_READHANDLE(calbuf, fpini, 256);
 	OS_CLOSEHANDLE(fpini);
-	netbuf[loop + 1] = 0;
+	calbuf[loop + 1] = 0;
 
-	count1 = strstr(netbuf, useProdCalendar);
+	count1 = strstr(calbuf, useProdCalendar);
 	if (count1 == NULL)
 	{
 		ini.useProdCalendar = false;
@@ -549,20 +596,14 @@ char readParamFromIni(void)
 
 char loadProdCalDisk(int year)
 {
-	// 2025.01.01
 	FILE *fpdat;
-	unsigned long loaded, total;
+	unsigned long loaded, total = 0;
 	int lineYear = 0;
 	int lineMonth = 0;
 	int lineDay = 0;
-	char result;
-	unsigned int count;
-	char *yptr;
 
 	clearStatus();
-	printf("Загрузка производственного кадендаря на %d год", year);
-
-	clearHolidays();
+	printf("Загрузка производственного кадендаря с диска на %d год", year);
 
 	OS_GETPATH((unsigned int)&curPath);
 	OS_SETSYSDRV();
@@ -577,39 +618,46 @@ char loadProdCalDisk(int year)
 		return false;
 	}
 
-	result = false;
-	total = 0;
-	count = 0;
-
 	do
 	{
-		loaded = OS_READHANDLE(netbuf + total, fpdat, sizeof(netbuf));
+		loaded = OS_READHANDLE(calbuf + total, fpdat, sizeof(calbuf));
 		total = total + loaded;
 	} while (loaded != 0);
 	OS_CLOSEHANDLE(fpdat);
 	OS_CHDIR(curPath);
+	return true;
+}
+
+char fillProdCal(int year)
+{
+	int lineYear = 0;
+	int lineMonth = 0;
+	int lineDay = 0;
+	char result = false;
+	unsigned int count;
+	char *yptr;
 
 	sprintf(cmd, "%d", year);
-	yptr = strstr(netbuf, cmd);
+	yptr = strstr(calbuf, cmd);
 
 	if (yptr == NULL)
 	{
 		return result;
 	}
 
+	count = 0;
+	clearStatus();
 	while (42)
 	{
+
 		// 2024.01.01CL
 		sscanf(yptr + 0 + count, "%d", &lineYear);
 		sscanf(yptr + 5 + count, "%d", &lineMonth);
 		sscanf(yptr + 8 + count, "%d", &lineDay);
-		count = count + 12;
-		// clearStatus();
-		// printf("lineDay=[%d] lineMonth=[%d] lineYear=[%d] year = [%d] \r", lineDay, lineMonth, lineYear, year);
+		count = count + odoa;
 
 		if (lineYear != year)
 		{
-			clearStatus();
 			return result;
 		}
 
@@ -617,23 +665,151 @@ char loadProdCalDisk(int year)
 		{
 			holidays[lineMonth][lineDay] = true;
 			result = true;
+			//	printf("lineDay=[%02d] lineMonth=[%02d] lineYear=[%04d]\r\n", lineDay, lineMonth, lineYear);
 		}
 	}
 	return result;
+}
+
+#include <../common/network.c>
+#include <../common/esp-com.c>
+
+int cutHeader(unsigned int todo)
+{
+	unsigned int err;
+	unsigned char *count1;
+
+	err = httpError();
+	if (err != 200)
+	{
+
+		BOX(1, 1, 80, 25, 40, 32);
+		AT(1, 1);
+		printf("HTTP ERROR %u", err);
+		puts("^^^^^^^^^^^^^^^^^^^^^");
+		puts(netbuf);
+		getchar();
+
+		return -1;
+	}
+	count1 = strstr(netbuf, "Content-Length:");
+	if (count1 == NULL)
+	{
+		printf("contLen  not found \r\n");
+		contLen = 0;
+	}
+	else
+	{
+		contLen = atol(count1 + 15);
+		//printf("Content-Length: %lu \n\r", contLen);
+	}
+
+	count1 = strstr(netbuf, "\r\n\r\n");
+	if (count1 == NULL)
+	{
+		printf("header not found\r\n");
+	}
+	else
+	{
+		headlng = ((unsigned int)count1 - (unsigned int)netbuf + 4);
+		 //printf("header %u bytes\r\n", headlng);
+	}
+	return todo - headlng;
+}
+
+char fillBuffer(signed char socket)
+{
+	int todo;
+	unsigned int w, pPos, headskip;
+
+	headskip = 0;
+	pPos = 0;
+	while (42)
+	{
+		headlng = 0;
+		todo = tcpRead(socket, 20);
+		testOperation("OS_WIZNETREAD", todo);
+
+		if (headskip == 0)
+		{
+			headskip = 1;
+			todo = cutHeader(todo);
+
+			if (todo == -1)
+			{
+				printf("todo = -1 !!!!!!!");
+				getchar();
+				return false;
+			}
+		}
+		for (w = 0; w < todo; w++)
+		{
+			calbuf[w + pPos] = netbuf[w + headlng];
+		}
+		pPos = pPos + todo;
+		if (pPos == contLen)
+		{
+			break;
+		}
+	}
+
+	calbuf[pPos + 0] = 0;
+	strcat(calbuf, "\n9999.12.31\n");
+	netShutDown(socket, 0);
+	return true;
+}
+
+unsigned char loadProdCalNet(int year, char *country)
+{
+	int todo;
+	char socket;
+	odoa = 11;
+
+	clearStatus();
+	printf("Загрузка производственного кадендаря через NedoNet на %d год", year);
+
+	dnsResolve("xmlcalendar.ru");
+	socket = OpenSock(AF_INET, SOCK_STREAM);
+	testOperation("OS_NETSOCKET", socket);
+
+	todo = netConnect(socket, 10);
+	testOperation("OS_NETCONNECT", todo);
+
+	sprintf(netbuf, "GET /data/%s/%d/calendar.txt HTTP/1.1\r\n%s", country, year, userAgent);
+
+	todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), 10);
+	testOperation("OS_WIZNETWRITE", todo);
+
+	return fillBuffer(socket);
 }
 
 C_task main(int argc, char *argv[])
 {
 	int x, y, year, half;
 	char key;
+	char ci = 0;
+
+	targetadr.porth = 00;
+	targetadr.portl = 80;
+
 	os_initstdio();
 	CLS();
+	get_dns();
 
 	readParamFromIni();
 
-	BOX(1, 1, 80, 25, 44, 32);
+	AT(3, 25);
+	ATRIB(40);
+	ATRIB(90);
+	printf("Онлайн производственный календарь предоставлен сайтом http://xmlcalendar.ru/");
+	ATRIB(97);
+	YIELD();
+
+	BOX(1, 1, 80, 24, 44, 32);
+
 	AT(1, 1);
 	ATRIB(97);
+	ATRIB(44);
 
 	half = 0;
 
@@ -658,18 +834,44 @@ C_task main(int argc, char *argv[])
 	x = 4;
 	y = 4;
 
+	AT(1, 25);
+	ATRIB(40);
+	spaces(79);
+
 loop:
 	clearStatus();
-
-	if (ini.useProdCalendar)
+	clearHolidays();
+	switch (ini.useProdCalendar)
 	{
-
+	case 0:
+		break;
+	case 1:
+		odoa = 12;
 		if (loadProdCalDisk(year) == false)
 		{
 			ini.useProdCalendar = false;
-			clearStatus();
-			printf("Не найден и выключен производственный календарь на %d год. ", year);
 		}
+		break;
+	case 2:
+		netDriver = 0;
+
+		if (loadProdCalNet(year, "ru") == false)
+		{
+			ini.useProdCalendar = false;
+		}
+
+	case 3:
+		netDriver = 1;
+		break;
+	default:
+		break;
+	}
+
+	if (fillProdCal(year) == false)
+	{
+		ini.useProdCalendar = false;
+		clearStatus();
+		printf("Не найден и выключен производственный календарь на %d год. ", year);
 	}
 
 loop2:
@@ -696,12 +898,13 @@ loop2:
 	ATRIB(97);
 	ATRIB(44);
 	printf("Выходные:%s", cmd);
-
 	clearStatus();
-	AT(38, 2);
+
 	ATRIB(93);
 	ATRIB(44);
-	printf("[%d]", year);
+
+	AT(40 - (strlen(country10[ci]) / 2) - 3, 2);
+	printf("[%s %d]", country10[ci], year);
 	if (ini.useProdCalendar == false)
 	{
 		printMonthNoProdCal(1 + half, year, x + 00, y + 00);
@@ -757,7 +960,10 @@ loop2:
 
 	case 'h': // Up
 	case 'H': // Up
-		ini.useProdCalendar = !ini.useProdCalendar;
+		if (ini.useProdCalendar != 0)
+			ini.useProdCalendar = 0;
+		else
+			ini.useProdCalendar = 1;
 		break;
 
 	default:
@@ -769,7 +975,6 @@ loop2:
 		{
 			half = 0;
 		}
-
 		goto loop2;
 	}
 	goto loop;
