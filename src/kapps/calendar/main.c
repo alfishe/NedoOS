@@ -602,8 +602,8 @@ char readParamFromIni(void)
 	{
 		sscanf(count1 + strlen(currentCountry) + 1, "%c", &ini.currentCountry[0]);
 		sscanf(count1 + strlen(currentCountry) + 2, "%c", &ini.currentCountry[1]);
+		ini.currentCountry[2] = 0;
 	}
-	ini.currentCountry[2] = 0;
 	OS_CHDIR(curPath);
 	return true;
 }
@@ -764,10 +764,9 @@ char fillBuffer(signed char socket)
 			break;
 		}
 	}
-
+	netShutDown(socket, 0);
 	calbuf[pPos + 0] = 0;
 	strcat(calbuf, "\n9999.12.31\n");
-	netShutDown(socket, 0);
 	return true;
 }
 
@@ -950,7 +949,7 @@ loop2:
 	AT(40 - (strlen(country10[ci]) / 2) - 3, 2);
 	printf("[%s %d]", country10[ci], year);
 
-	if (ini.useProdCalendar == false)
+	if (ini.useProdCalendar == 0)
 	{
 		printMonthNoProdCal(1 + half, year, x + 00, y + 00);
 		printMonthNoProdCal(2 + half, year, x + 25, y + 00);
@@ -1009,6 +1008,11 @@ loop2:
 			ini.useProdCalendar = 0;
 		else
 			ini.useProdCalendar = 1;
+		break;
+
+	case 'n': // Up
+	case 'N': // Up
+		ini.useProdCalendar = 2;
 		break;
 
 	default:
