@@ -435,7 +435,7 @@ void loadEspConfig(void)
 	espcom = OS_OPENHANDLE("espcom.ini", 0x80);
 	if (((int)espcom) & 0xff)
 	{
-		printf("mrfesp.ini opening error\r\n");
+		printf("espcom.ini opening error\r\n");
 		return;
 	}
 
