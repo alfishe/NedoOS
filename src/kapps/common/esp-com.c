@@ -340,8 +340,8 @@ void loadEspConfig(void)
 		printf("espcom.ini opening error");
 		return;
 	}
-
-	OS_READHANDLE(curParam, espcom, 256);
+	OS_READHANDLE(curParam, espcom, 250);
+	OS_CLOSEHANDLE(espcom);
 
 	res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u %u %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider, &comType, &espType);
 	puts("Config loaded:");
