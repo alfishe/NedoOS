@@ -186,7 +186,7 @@ int tcpRead(signed char socket, unsigned char retry)
 
     if (todo > 32767)
     {
-      if ((todo & 255) != ERR_EAGAIN)
+      if ((todo & 255) != ERR_EAGAIN) // nodata
       {
         retry--;
         delayLong(500);
@@ -195,10 +195,10 @@ int tcpRead(signed char socket, unsigned char retry)
     else
     {
       // printf("OS_WIZNETREAD: %u bytes read. \n\r", todo);
-      return todo;
+      return todo;  // succes
     }
   }
-  return 0 - (todo & 255);
+  return 0 - (todo & 255);  // timeout
 }
 
 unsigned char dnsResolve(unsigned char *domainName)
