@@ -142,7 +142,7 @@ C_task main(void)
   uart_init(divider);
   ATRIB(93);
   puts("    <ext+U> AT+CIUPDATE <End> Direct mode <PgUp> AT+GMR  <Home> testQueue()    ");
-  puts("            <PgDn> '+++' <ext + 1...0> baudrate <ext+S> save buffer");
+  puts("             <PgDn> '+++' <ext+1...0> baudrate <ext+S> save buffer             ");
   ATRIB(92);
   puts("===============================================================================");
 
