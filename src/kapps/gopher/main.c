@@ -1734,7 +1734,7 @@ unsigned char getMouse(void)
 	int mouseScroll = 0;
 	int mouseXpos = 0;
 	int mouseYpos = 0;
-
+	int dx, dy;
 	mouseRaw = OS_GETMOUSE();
 
 	mouseMove = mouseRaw >> 16;
@@ -1762,6 +1762,12 @@ unsigned char getMouse(void)
 			mouseXpos = mouse.prevMouseXpos - mouse.mouseXpos;
 			mouseYpos = mouse.prevMouseYpos - mouse.mouseYpos;
 
+			dx = abs(mouseXpos / 3);
+			dy = abs(mouseYpos / 2);
+
+			if (dx == 0) dx = 1;
+			if (dy == 0) dy = 1;
+
 			if (mouseXpos < -200)
 			{
 				mouseXpos = 1;
@@ -1773,11 +1779,11 @@ unsigned char getMouse(void)
 
 			if (mouseXpos < 0)
 			{
-				mouse.cursXpos = mouse.cursXpos + abs(mouseXpos / 3);
+				mouse.cursXpos = mouse.cursXpos + dx;
 			}
 			else if (mouseXpos > 0)
 			{
-				mouse.cursXpos = mouse.cursXpos - abs(mouseXpos / 3);
+				mouse.cursXpos = mouse.cursXpos - dx;
 			}
 
 			if (mouseYpos < -200)
@@ -1791,11 +1797,11 @@ unsigned char getMouse(void)
 
 			if (mouseYpos > 0)
 			{
-				mouse.cursYpos = mouse.cursYpos + abs(mouseYpos / 2);
+				mouse.cursYpos = mouse.cursYpos + dy;
 			}
 			else if (mouseYpos < 0)
 			{
-				mouse.cursYpos = mouse.cursYpos - abs(mouseYpos / 2);
+				mouse.cursYpos = mouse.cursYpos - dy;
 			}
 
 			// clearStatus();
