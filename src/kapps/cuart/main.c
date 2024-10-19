@@ -5,6 +5,9 @@
 #include <osfs.h>
 #include <intrz80.h>
 #include <../common/terminal.c>
+
+const unsigned char gotWiFi[] = "WIFI GOT IP";
+
 unsigned int RBR_THR = 0xf8ef;
 unsigned int IER = 0xf9ef;
 unsigned int IIR_FCR = 0xfaef;
@@ -24,7 +27,11 @@ int endPos = 0;
 int curpos = 0;
 int oldpos = 0;
 
-unsigned char buffer[8500];
+unsigned char netbuf[8500];
+
+void clearStatus(void)
+{
+}
 
 void delay(unsigned long counter)
 {
@@ -43,228 +50,16 @@ void delay(unsigned long counter)
   }
 }
 
-void loadEspConfig(void)
-{
-  unsigned char curParam[256];
-  unsigned char res;
-  FILE *espcom;
-	OS_SETSYSDRV();
-	OS_CHDIR("../ini");
-  espcom = OS_OPENHANDLE("espcom.ini", 0x80);
-  if (((int)espcom) & 0xff)
-  {
-    printf("espcom.ini opening error\r\n");
-    return;
-  }
-
-  OS_READHANDLE(curParam, espcom, 256);
-  
-  res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u %u %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider, &comType, &espType);
-
-  if (comType == 1)
-  {
-    puts("     Controller base port: 0x55fe");
-  }
-  else
-  {
-    printf("     RBR_THR:0x%4x\r\n     IER    :0x%4x\r\n     IIR_FCR:0x%4x\r\n     LCR    :0x%4x\r\n", RBR_THR, IER, IIR_FCR, LCR);
-    printf("     MCR    :0x%4x\r\n     LSR    :0x%4x\r\n     MSR    :0x%4x\r\n     SR     :0x%4x\r\n", MCR, LSR, MSR, SR);
-  }
-  printf("     DIVIDER:%u  ESP:%u  TYPE:%u", divider, espType, comType);
-
-  switch (comType)
-  {
-  case 0:
-    puts("(16550 like w/o AFC)");
-    break;
-  case 1:
-    puts("(ATM Turbo 2+)");
-    break;
-  case 2:
-    puts("(16550 like with AFC)");
-  default:
-    puts("(Unknown type)");
-    break;
-  }
-}
-
-void uart_init(unsigned char divisor)
-{
-  switch (comType)
-  {
-  case 0:
-  case 2:
-    output(MCR, 0x00);        // Disable input
-    output(IIR_FCR, 0x87);    // Enable fifo 8 level, and clear it
-    output(LCR, 0x83);        // 8n1, DLAB=1
-    output(RBR_THR, divisor); // 115200 (divider 1-115200, 3 - 38400)
-    output(IER, 0x00);        // (divider 0). Divider is 16 bit, so we get (#0002 divider)
-    output(LCR, 0x03);        // 8n1, DLAB=0
-    output(IER, 0x00);        // Disable int
-    output(MCR, 0x2f);        // Enable AFE
-    break;
-  case 1:
-    disable_interrupt();
-    input(0x55fe);
-    input(0xc3fe);
-    input((divisor << 8) | 0x00fe);
-    enable_interrupt();
-    break;
-  }
-}
-
-void uart_write(unsigned char data)
-{
-  unsigned char status;
-  switch (comType)
-  {
-  case 0:
-  case 2:
-    while ((input(LSR) & 64) == 0)
-    {
-    }
-    output(RBR_THR, data);
-    break;
-  case 1:
-    disable_interrupt();
-    do
-    {
-      input(0x55fe);          // Переход в режим команд
-      status = input(0x42fe); // Команда прочесть статус
-    } while ((status & 64) == 0); // Проверяем 6 бит
-
-    input(0x55fe);               // Переход в режим команд
-    input(0x03fe);               // Команда записать в порт
-    input((data << 8) | 0x00fe); // Записываем data в порт
-    enable_interrupt();
-    break;
-  }
-}
-
-void uart_setrts(unsigned char mode)
-{
-  switch (comType)
-  {
-  case 0:
-    switch (mode)
-    {
-    case 1:
-      output(MCR, 2);
-      break;
-    case 0:
-      output(MCR, 0);
-      break;
-    default:
-      disable_interrupt();
-      output(MCR, 2);
-      output(MCR, 0);
-      enable_interrupt();
-      break;
-    }
-  case 1:
-    switch (mode)
-    {
-    case 1:
-      disable_interrupt();
-      input(0x55fe); // Переход в режим команд
-      input(0x43fe); // Команда установить статус
-      input(0x03fe); // Устанавливаем готовность DTR и RTS
-      enable_interrupt();
-      break;
-    case 0:
-      disable_interrupt();
-      input(0x55fe); // Переход в режим команд
-      input(0x43fe); // Команда установить статус
-      input(0x00fe); // Снимаем готовность DTR и RTS
-      enable_interrupt();
-      break;
-    default:
-      disable_interrupt();
-      input(0x55fe); // Переход в режим команд
-      input(0x43fe); // Команда установить статус
-      input(0x03fe); // Устанавливаем готовность DTR и RTS
-      input(0x55fe); // Переход в режим команд
-      input(0x43fe); // Команда установить статус
-      input(0x00fe); // Снимаем готовность DTR и RTS
-      enable_interrupt();
-      break;
-    }
-  case 2:
-    break;
-  }
-}
-unsigned char uart_hasByte(void)
-{
-  unsigned char queue;
-  switch (comType)
-  {
-  case 0:
-  case 2:
-    return (1 & input(LSR));
-  case 1:
-    disable_interrupt();
-    input(0x55fe);         // Переход в режим команд
-    queue = input(0xc2fe); // Получаем количество байт в приемном буфере
-    enable_interrupt();
-    return queue;
-  }
-  return 255;
-}
-
-unsigned char uart_readBlock(void)
-{
-  unsigned char data;
-  switch (comType)
-  {
-  case 0:
-    while (uart_hasByte() == 0)
-    {
-      uart_setrts(2);
-    }
-    return input(RBR_THR);
-  case 1:
-    while (uart_hasByte == 0)
-    {
-      uart_setrts(2);
-    }
-    disable_interrupt();
-    input(0x55fe);        // Переход в режим команд
-    data = input(0x02fe); // Команда прочесть из порта
-    enable_interrupt();
-    return data;
-  case 2:
-    while (uart_hasByte() == 0)
-    {
-    }
-    return input(RBR_THR);
-  }
-  return 255;
-}
-
-unsigned char uart_read(void)
-{
-  unsigned char data;
-  switch (comType)
-  {
-  case 0:
-  case 2:
-    return input(RBR_THR);
-  case 1:
-    disable_interrupt();
-    input(0x55fe);        // Переход в режим команд
-    data = input(0x02fe); // Команда прочесть из порта
-    enable_interrupt();
-    return data;
-  }
-  return 255;
-}
+///////////////////////////
+#include <../common/esp-com.c>
+//////////////////////////
 
 void getdata(void)
 {
   uart_setrts(2);
   while (uart_hasByte() != 0)
   {
-    buffer[bufferPos] = uart_read();
+    netbuf[bufferPos] = uart_read();
     bufferPos++;
     uart_setrts(2);
   }
@@ -279,23 +74,9 @@ void renderWin(void)
 {
   for (curpos = oldpos; curpos < bufferPos; curpos++)
   {
-    putchar(buffer[curpos]);
+    putchar(netbuf[curpos]);
   }
   oldpos = curpos;
-}
-
-void sendcommand(char *commandline)
-{
-  unsigned int count, cmdLen;
-  cmdLen = strlen(commandline);
-  for (count = 0; count < cmdLen; count++)
-  {
-    uart_write(commandline[count]);
-  }
-  uart_write('\r');
-  uart_write('\n');
-  // printf("Sended:[%s] \r\n", commandline);
-  YIELD();
 }
 
 void saveBuff(void)
@@ -329,24 +110,24 @@ void saveBuff(void)
   OS_WRITEHANDLE(crlf, fp1, 2);
   OS_WRITEHANDLE("********************************************************************************", fp1, 80);
   OS_WRITEHANDLE(crlf, fp1, 2);
-  OS_WRITEHANDLE(buffer, fp1, len);
+  OS_WRITEHANDLE(netbuf, fp1, len);
   OS_CLOSEHANDLE(fp1);
   puts("buffer.log saved.");
 }
 
 void testQueue(void)
 {
-  sendcommand("AT+CIPMUX=0");
-
-  sendcommand("AT+CIPSERVER=0");
-  sendcommand("AT+CIPDINFO=0");
-  sendcommand("AT+CIPRECVMODE=1");
-  sendcommand("AT+CIPSTART=\"TCP\",\"ti6.nedopc.com\",80");
-  delay(1000);
-  sendcommand("AT+CIPSEND=132");
-  sendcommand("GET /attachments/pages/your_game6_160.png HTTP/1.1\r\nHost: ti6.nedopc.com\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n");
-  delay(1000);
-  sendcommand("AT+CIPRECVDATA=5000");
+  sendcommand("AT+CIPSNTPTIME?");
+  getdata();
+  renderWin();
+  delay(500);
+  sendcommand("AT+CIPSNTPCFG=1,300,\"0.pool.ntp.org\",\"time.google.com\"");
+  getdata();
+  renderWin();
+  delay(500);
+  sendcommand("AT+CIPSNTPTIME?");
+  getdata();
+  renderWin();
 }
 C_task main(void)
 {
@@ -358,10 +139,13 @@ C_task main(void)
   ATRIB(92);
   puts("[UART COMMUNICATION PROGRAMM]");
   loadEspConfig();
-
   uart_init(divider);
-  printf("\r\nUart inited. Divider (%u)\r\n", divider);
+  ATRIB(93);
+  puts("    <ext+U> AT+CIUPDATE <End> Direct mode <PgUp> AT+GMR  <Home> testQueue()    ");
+  puts("            <PgDn> '+++' <ext + 1...0> baudrate <ext+S> save buffer");
+  ATRIB(92);
   puts("===============================================================================");
+
   delay(250);
   cmd[0] = 0;
   cmdpos = 0;
@@ -393,7 +177,7 @@ C_task main(void)
     }
     if (key != 0 && directMode == 0)
     {
-      // printf("key = %u   ", key);
+      //printf("key = %u   ", key);
       switch (key)
       {
       case 177:
@@ -500,6 +284,11 @@ C_task main(void)
         key = 0;
         break;
 
+        case 247: // PgDn
+        sendcommand("+++");
+        key = 0;
+        break;  
+
       case 30: // End
         directMode = 1;
         puts("\r\nDirect mode enabled.");
@@ -513,12 +302,7 @@ C_task main(void)
         break;
 
       case 21: // <ext> + <U>
-        // sendcommand("AT+CIUPDATE");
-        sendcommand("AT+CIPSNTPTIME?");
-        delay(1000);
-        sendcommand("AT+CIPSNTPCFG=1,300,\"0.pool.ntp.org\",\"time.google.com\"");
-        delay(1000);
-        sendcommand("AT+CIPSNTPTIME?");
+        sendcommand("AT+CIUPDATE");
         key = 0;
         break;
       }
