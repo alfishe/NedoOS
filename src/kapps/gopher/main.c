@@ -31,7 +31,7 @@ FILE *fp2;
 
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "00.80";
+unsigned char uVer[] = "00.90";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
@@ -65,11 +65,14 @@ struct mouseStruct
 	char prevWheel;
 	char mouseXpos;
 	char mouseYpos;
-	char cursXpos;
-	char cursYpos;
+	char prevMouseXpos;
+	char prevMouseYpos;
+	int cursXpos;
+	int cursYpos;
 	unsigned int prevMouseButtons;
 	char prevMouseMove;
 	char oldAtr;
+	char classic;
 } mouse;
 
 struct navigationStruct
@@ -113,7 +116,7 @@ void spaces(unsigned char number)
 	}
 }
 
-void waitkey(void)
+void waitKey(void)
 {
 	do
 	{
@@ -261,67 +264,12 @@ void initMouse(void)
 	unsigned long mouseRaw;
 	unsigned char mouseMove;
 	unsigned int mouseButtons;
-
 	mouseRaw = OS_GETMOUSE();
 	mouseMove = mouseRaw >> 16;
 	mouseButtons = mouseRaw;
-
 	mouse.wheel = (mouseButtons >> 4) & 15;
 	mouse.prevWheel = mouse.wheel;
-}
-
-unsigned char getMouse(void)
-{
-	unsigned long mouseRaw;
-	unsigned char mouseMove;
-	unsigned int mouseButtons;
-
-	mouseRaw = OS_GETMOUSE();
-	mouseMove = mouseRaw >> 16;
-	mouseButtons = mouseRaw;
-
-	if (mouseMove != mouse.prevMouseMove)
-	{
-		OS_SETXY(mouse.cursXpos, mouse.cursYpos);
-		OS_PRATTR(mouse.oldAtr);
-		mouse.prevMouseMove = mouseMove;
-
-		mouse.mouseXpos = mouseRaw >> 16;
-		mouse.mouseYpos = mouseRaw >> 24;
-
-		mouse.cursXpos = mouse.mouseXpos / 3;
-		mouse.cursYpos = 25 - mouse.mouseYpos / 10;
-
-		if (mouse.cursXpos > 79)
-		{
-			mouse.cursXpos = 79;
-		}
-		if (mouse.cursYpos > 25)
-		{
-			mouse.cursYpos = 25;
-		}
-
-		OS_SETXY(mouse.cursXpos, mouse.cursYpos);
-		mouse.oldAtr = OS_GETATTR();
-		OS_PRATTR(215);
-	}
-
-	if (mouseButtons != mouse.prevMouseButtons)
-	{
-
-		mouse.prevWheel = mouse.wheel;
-		mouse.wheel = (mouseButtons >> 4) & 15;
-		mouse.mmb = (mouseButtons >> 2) & 1;
-		mouse.rmb = (mouseButtons >> 1) & 1;
-		mouse.lmb = mouseButtons & 1;
-	}
-
-	// clearStatus();
-	// printf("lmb:[%d] rmb:[%d] mmb:[%d] wheel:[%02d] X:[%03d] Y:[%03d] cursX:[%02d] cursY:[%02d]", mouse.lmb, mouse.rmb, mouse.mmb, mouse.wheel, mouse.mouseXpos, mouse.mouseYpos, mouse.cursXpos, mouse.cursYpos);
-
-	OS_SETXY(mouse.cursXpos, mouse.cursYpos);
-
-	return mouseButtons >> 8;
+	mouse.classic = 0;
 }
 
 unsigned char OS_SHELL(unsigned char *command)
@@ -870,7 +818,7 @@ void errNoConnect(void)
 	strcpy(cmd, "Нет соединения с ");
 	strcat(cmd, link.host);
 	errorBox(curWin, cmd);
-	waitkey();
+	waitKey();
 }
 
 char getFileEsp(unsigned char *fileNamePtr)
@@ -982,7 +930,7 @@ char getFile(unsigned char *fileNamePtr)
 	// clearStatus();
 	// printf("File:%s", fileNamePtr);
 	// printf("\r\nAddress:%u.%u.%u.%u:%u\r\n", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4, targetadr.porth * 256 + targetadr.portl);
-	// waitkey();
+	// waitKey();
 
 	if ((strlen(link.path) == 1 && link.path[0] == '/') || strlen(link.path) == 0)
 	{
@@ -1234,7 +1182,7 @@ char extractName(void)
 		{
 			clearStatus();
 			printf("Ошибка определения типа файла, не найдено расширение. [%s]", navi.fileName);
-			waitkey();
+			waitKey();
 			return false;
 		}
 		else
@@ -1288,7 +1236,7 @@ unsigned char mediaProcessorExt(void)
 	{
 		clearStatus();
 		printf("Ошибка определения типа файла, не найдено расширение. [%s]", navi.fileName);
-		waitkey();
+		waitKey();
 	}
 
 	counter = strlen(navi.fileName);
@@ -1327,7 +1275,7 @@ unsigned char mediaProcessorExt(void)
 			{
 				clearStatus();
 				printf("[ext]не найдено соответствие к расширению [%s][%s]", extLow, extUp);
-				waitkey();
+				waitKey();
 				return false;
 			}
 		}
@@ -1645,7 +1593,10 @@ void navigationPage(char keypress)
 			uart_init(divider);
 			espReBoot();
 		}
-
+		break;
+	case 'm':
+	case 'M':
+		mouse.classic = !mouse.classic;
 		break;
 	}
 
@@ -1739,8 +1690,18 @@ void navigationPlain(char keypress)
 		mainWinDraw();
 		break;
 	case 'i':
+	case 'I':
 		netDriver = !netDriver;
 		mainWinDraw();
+		if (netDriver)
+		{
+			uart_init(divider);
+			espReBoot();
+		}
+		break;
+	case 'm':
+	case 'M':
+		mouse.classic = !mouse.classic;
 		break;
 	}
 
@@ -1765,6 +1726,142 @@ void navigation(unsigned char keypress)
 	}
 }
 
+unsigned char getMouse(void)
+{
+	unsigned long mouseRaw;
+	unsigned int mouseMove;
+	unsigned int mouseButtons;
+	int mouseScroll = 0;
+	int mouseXpos = 0;
+	int mouseYpos = 0;
+
+	mouseRaw = OS_GETMOUSE();
+
+	mouseMove = mouseRaw >> 16;
+	mouseButtons = mouseRaw;
+
+	if (mouseMove != mouse.prevMouseMove)
+	{
+		OS_SETXY(mouse.cursXpos, mouse.cursYpos);
+		OS_PRATTR(mouse.oldAtr);
+		mouse.prevMouseMove = mouseMove;
+
+		mouse.prevMouseXpos = mouse.mouseXpos;
+		mouse.prevMouseYpos = mouse.mouseYpos;
+
+		mouse.mouseXpos = mouseRaw >> 16;
+		mouse.mouseYpos = mouseRaw >> 24;
+
+		if (mouse.classic)
+		{
+			mouse.cursXpos = mouse.mouseXpos / 3;
+			mouse.cursYpos = 25 - mouse.mouseYpos / 10;
+		}
+		else
+		{
+			mouseXpos = mouse.prevMouseXpos - mouse.mouseXpos;
+			mouseYpos = mouse.prevMouseYpos - mouse.mouseYpos;
+
+			if (mouseXpos < -200)
+			{
+				mouseXpos = 1;
+			}
+			else if (mouseXpos > 200)
+			{
+				mouseXpos = -1;
+			}
+
+			if (mouseXpos < 0)
+			{
+				mouse.cursXpos = mouse.cursXpos + abs(mouseXpos / 3);
+			}
+			else if (mouseXpos > 0)
+			{
+				mouse.cursXpos = mouse.cursXpos - abs(mouseXpos / 3);
+			}
+
+			if (mouseYpos < -200)
+			{
+				mouseYpos = 1;
+			}
+			else if (mouseYpos > 200)
+			{
+				mouseYpos = -1;
+			}
+
+			if (mouseYpos > 0)
+			{
+				mouse.cursYpos = mouse.cursYpos + abs(mouseYpos / 2);
+			}
+			else if (mouseYpos < 0)
+			{
+				mouse.cursYpos = mouse.cursYpos - abs(mouseYpos / 2);
+			}
+
+			// clearStatus();
+			// printf("dx=%d dy=%d", mouseXpos, mouseYpos);
+
+			if (mouse.cursXpos > 79)
+			{
+				mouse.cursXpos = 79;
+			}
+			if (mouse.cursYpos > 24)
+			{
+				mouse.cursYpos = 24;
+			}
+
+			if (mouse.cursXpos < 0)
+			{
+				mouse.cursXpos = 0;
+			}
+			if (mouse.cursYpos < 0)
+			{
+				mouse.cursYpos = 0;
+			}
+		}
+		OS_SETXY(mouse.cursXpos, mouse.cursYpos);
+		mouse.oldAtr = OS_GETATTR();
+		OS_PRATTR(215);
+	}
+
+	if (mouseButtons != mouse.prevMouseButtons)
+	{
+
+		mouse.prevWheel = mouse.wheel;
+		mouse.wheel = (mouseButtons >> 4) & 15;
+		mouse.mmb = (mouseButtons >> 2) & 1;
+		mouse.rmb = (mouseButtons >> 1) & 1;
+		mouse.lmb = mouseButtons & 1;
+	}
+
+	// clearStatus();
+	// printf("lmb:[%d] rmb:[%d] mmb:[%d] wheel:[%02d] X:[%03d] Y:[%03d] cursX:[%02d] cursY:[%02d]", mouse.lmb, mouse.rmb, mouse.mmb, mouse.wheel, mouse.mouseXpos, mouse.mouseYpos, mouse.cursXpos, mouse.cursYpos);
+
+	OS_SETXY(mouse.cursXpos, mouse.cursYpos);
+
+	mouseScroll = mouse.prevWheel - mouse.wheel;
+
+	if (mouseScroll < -12)
+	{
+		mouseScroll = 1;
+	}
+	else if (mouseScroll > 12)
+	{
+		mouseScroll = -1;
+	}
+	else if (mouseScroll > 0)
+	{
+		navigation(248); // Left
+	}
+	else if (mouseScroll < 0)
+	{
+		navigation(251); // Right
+	}
+	mouse.prevWheel = mouse.wheel;
+
+	return mouseButtons >> 8;
+}
+
 C_task main(int argc, char *argv[])
 {
 	unsigned char keypress;
@@ -1776,7 +1873,7 @@ C_task main(int argc, char *argv[])
 	OS_SETSYSDRV();
 	init();
 	// printTable();
-	// waitkey();
+	// waitKey();
 
 	goHome();
 
@@ -1811,28 +1908,6 @@ C_task main(int argc, char *argv[])
 			}
 		}
 
-		mouseScroll = mouse.prevWheel - mouse.wheel;
-
-		if (mouseScroll < -12)
-		{
-			mouseScroll = 1;
-		}
-		if (mouseScroll > 12)
-		{
-			mouseScroll = -1;
-		}
-
-		if (mouseScroll > 0)
-		{
-			navigation(248); // Left
-		}
-
-		if (mouseScroll < 0)
-		{
-			navigation(251); // Right
-		}
-		mouse.prevWheel = mouse.wheel;
-
 		if (keypress != 0)
 		{
 			navigation(keypress);
@@ -1841,9 +1916,11 @@ C_task main(int argc, char *argv[])
 		}
 
 		finish++;
-		if ((finish - start) > 50000)
+		if ((finish - start) > 5000)
 		{
-			mainWinDraw();
+			// mainWinDraw();
+			OS_SETCOLOR(207);
+			drawClock();
 			finish = 0;
 		}
 		YIELD();
