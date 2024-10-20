@@ -27,7 +27,7 @@ unsigned int espType = 32;
 
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
-unsigned char buffer[] = "0000000000";
+unsigned char minRating[] = "0000000000";
 const unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; Radio)\r\n\r\n\0";
 const unsigned char cmdlist1[] = "GET /file/id:";
 unsigned char userQuery[256] = "/api/export:zxMusic/limit:10/filter:zxMusicId=44816";
@@ -35,7 +35,7 @@ unsigned char fileName[] = "radio/player.ovl";
 unsigned char appCmd[128] = "player.com ";
 unsigned char curPath[128];
 
-unsigned char ver[] = "2.8";
+unsigned char ver[] = "2.9";
 
 unsigned char queryType[64];
 unsigned char netbuf[4096];
@@ -46,6 +46,7 @@ unsigned char interfaces[2][8] = {"NedoNET\0", "ESP-COM\0"};
 unsigned char cmd[256];
 unsigned char link[512];
 unsigned char toLog[256];
+unsigned char queryNum;
 
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
@@ -215,7 +216,7 @@ void printHelp(void)
   printf(" [K]  Toggle saving tracks        [D]  Download track      \r\n");
   printf(" [Q]  Select Query type           [F]  Select tracks format\r\n");
   printf(" [I]  Interface ZXNETUSB/ESP32    [J]  Jump to NNNN file   \r\n");
-  printf(" [ESC] Exit to OS                                          \r\n");
+  printf(" [ESC] Exit to OS                 [M]  Minimal Rating(Q:2,3) \r\n");
   printf("                                                           \r\n");
 }
 
@@ -288,7 +289,6 @@ int cutHeader(unsigned int todo)
   return todo - headlng;
 }
 
-// in netbuf data to send
 unsigned int fillDataBufferEsp(void)
 {
   unsigned char sizeLink;
@@ -780,11 +780,11 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
     break;
   case 1: // GET /api/types:zxMusic/export:zxMusic/language:eng/limit:1/start:0/order:votes,rand/filter:zxMusicMinRating=4;
     startPos = 0;
-    sprintf(netbuf, "GET /api/types:zxMusic/export:zxMusic/language:eng/limit:%u/start:%lu/order:votes,rand/filter:zxMusicMinRating=4;zxMusicFormat=%s%s", limit, startPos, formats[curFormat], userAgent);
+    sprintf(netbuf, "GET /api/types:zxMusic/export:zxMusic/language:eng/limit:%u/start:%lu/order:votes,rand/filter:zxMusicMinRating=%s;zxMusicFormat=%s%s", limit, startPos, minRating, formats[curFormat], userAgent);
     break;
   case 2: // GET /api/types:zxMusic/export:zxMusic/language:eng/limit:1/start:0/order:rand/filter:zxMusicFormat=PT3 HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)
     startPos = 0;
-    sprintf(netbuf, "GET /api/types:zxMusic/export:zxMusic/language:eng/limit:%u/start:%lu/order:rand/filter:zxMusicFormat=%s%s", limit, startPos, formats[curFormat], userAgent);
+    sprintf(netbuf, "GET /api/types:zxMusic/export:zxMusic/language:eng/limit:%u/start:%lu/order:rand/filter:zxMusicMinRating=%s;zxMusicFormat=%s%s", limit, startPos, minRating, formats[curFormat], userAgent);
     break;
 
   case 3: // GET /api/export:zxMusic/limit:1/start:1/filter:zxMusicFormat=pt3;authorId=7744/order:date,desc HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)
@@ -995,6 +995,7 @@ unsigned char getTrack2(unsigned long fileId)
   }
   return 0;
 }
+
 unsigned char runPlayer(void)
 {
   FILE *fp2;
@@ -1102,8 +1103,7 @@ void printInfo(void)
   OS_SETCOLOR(70);
   printf(" Total Tracks: ");
   OS_SETCOLOR(71);
-  printf("%lu", curFileStruct.totalAmount);
-  printf(" \r\n");
+  printf("%lu     \r\n", curFileStruct.totalAmount);
   OS_SETCOLOR(70);
   printf(" RATING: ");
   OS_SETCOLOR(71);
@@ -1149,9 +1149,84 @@ unsigned char testPlayer(void)
   }
 }
 
+void infoBox(struct window w, unsigned char *message)
+{
+  unsigned char wcount, tempx, tittleStart;
+
+  w.h++;
+  OS_SETXY(w.x, w.y - 1);
+  BDBOX(w.x, w.y, w.w + 1, w.h, w.back, 32);
+  OS_SETXY(w.x, w.y);
+  OS_SETCOLOR(w.text);
+  putchar(201);
+  for (wcount = 0; wcount < w.w; wcount++)
+  {
+    putchar(205);
+  }
+  putchar(187);
+  OS_SETXY(w.x, w.y + w.h);
+  putchar(200);
+  for (wcount = 0; wcount < w.w; wcount++)
+  {
+    putchar(205);
+  }
+  putchar(188);
+
+  tempx = w.x + w.w + 1;
+  for (wcount = 1; wcount < w.h; wcount++)
+  {
+    OS_SETXY(w.x, w.y + wcount);
+    putchar(186);
+    OS_SETXY(tempx, w.y + wcount);
+    putchar(186);
+  }
+  tittleStart = w.x + (w.w / 2) - (strlen(w.tittle) / 2);
+  OS_SETXY(tittleStart, w.y);
+  printf("[%s]", w.tittle);
+
+  OS_SETXY(w.x + 1, w.y + 1);
+  OS_SETCOLOR(w.back);
+  tittleStart = w.x + (w.w / 2) - (strlen(message) / 2);
+  OS_SETXY(tittleStart, w.y + 1);
+  printf("%s", message);
+}
+
+char optionsMenu(void)
+{
+  unsigned char options[7][16] = {"Music format", "Plaing queue", "Net interface", "Keep files", "Minimal rating", "", ""};
+  char line = 0;
+
+  //  curFormat++;
+  //  queryNum++; //  скопировать строки
+  //  netDriver++;
+  //  saveFlag++;
+  //  minRating++;
+
+  strcpy(curWin.tittle, "Radio options");
+  curWin.w = 22;
+  curWin.x = 39 - curWin.w / 2;
+  curWin.y = 7;
+  curWin.h = 7;
+  curWin.text = 95;
+  curWin.back = 95;
+  infoBox(curWin, "");
+  curWin.x++;
+  curWin.y++;
+  OS_SETCOLOR(95);
+  while (strlen(options[line]) != 0)
+  {
+    OS_SETXY(curWin.x, curWin.y + line);
+    printf("%s", options[line]);
+    line++;
+  }
+
+  getchar();
+  return true;
+}
+
 C_task main(int argc, char *argv[])
 {
-  unsigned char errn, keypress, queryNum, pId, alive, changedFormat;
+  unsigned char errn, keypress, pId, alive, changedFormat;
   long iddqd, idkfa;
   unsigned long curTimer, startTimer, oldTimer;
   // os_initstdio();
@@ -1168,6 +1243,7 @@ C_task main(int argc, char *argv[])
   changedFormat = 0;
   rptFlag = 0;
   netDriver = 0;
+  strcpy(minRating, "4.0");
 
   targetadr.family = AF_INET;
   targetadr.porth = 00;
@@ -1218,8 +1294,15 @@ start:
     {
       clearStatus();
       printf("Error getting track info, next please(%ld)...", iddqd);
-      count = trackSelector(0);
-      goto start;
+      /*
+        count = trackSelector(0);
+        goto start;
+   */
+
+      OS_DROPAPP(pId);
+      printProgress(0);
+      changedFormat = 1;
+      goto rekey;
     }
   }
 
@@ -1232,6 +1315,9 @@ start:
     strcpy(curFileStruct.authorTitle, "-");
     strcpy(curFileStruct.authorRealName, "-");
   }
+
+  /////////////////////////////////////////////////
+  // optionsMenu();
 
 replay:
 
@@ -1302,10 +1388,10 @@ rekey:
         strcpy(queryType, "from newest to oldest                   ");
         break;
       case 1:
-        strcpy(queryType, "Random best and most voted tracks       ");
+        sprintf(queryType, "Random most voted tracks with rating %s+    ", minRating);
         break;
       case 2:
-        strcpy(queryType, "Random play                             ");
+        sprintf(queryType, "Random play with rating %s+                  ", minRating);
         break;
       case 3:
         strcpy(queryType, "User defined query from \"user.que\"     ");
@@ -1319,11 +1405,6 @@ rekey:
 
     if (keypress == 'j' || keypress == 'J')
     {
-      // OS_SETXY(0, 6);
-      // printf("                                                                      \r");
-      // printf("Jump to track:");
-      // scanf("%lu", &count);
-
       curWin.w = 22;
       curWin.x = 80 / 2 - curWin.w / 2 - 2;
       curWin.y = 14;
@@ -1343,6 +1424,43 @@ rekey:
         goto start;
       }
       printHelp();
+    }
+
+    if (keypress == 'm' || keypress == 'M')
+    {
+      curWin.w = 22;
+      curWin.x = 80 / 2 - curWin.w / 2 - 2;
+      curWin.y = 14;
+      curWin.h = 1;
+      curWin.text = 103;
+      curWin.back = 103;
+      strcpy(curWin.tittle, "Минимальная оценка:");
+
+      if (inputBox(curWin, ""))
+      {
+        char counter;
+        for (counter = 0; counter < strlen(cmd); counter++)
+        {
+          if ((((cmd[counter] < '0') || (cmd[counter] > '9'))) && cmd[counter] != '.')
+          {
+            clearStatus();
+            printf("Wrong input.[%s]", cmd);
+            counter = 0;
+            break;
+          }
+        }
+
+        if (counter != 0)
+        {
+          strncpy(minRating, cmd, 5);
+
+          sprintf(queryType, "Random most voted tracks with rating %s+    ", minRating);
+          sprintf(queryType, "Random play with rating %s+                  ", minRating);
+          count = 0;
+        }
+        printInfo();
+        printHelp();
+      }
     }
 
     if (keypress == 'f' || keypress == 'F')
