@@ -8,6 +8,9 @@
 #include <../common/terminal.c>
 #include <tcp.h>
 
+#define true 1
+#define false 0
+
 unsigned int RBR_THR = 0xf8ef;
 unsigned int IER = 0xf9ef;
 unsigned int IIR_FCR = 0xfaef;
@@ -21,7 +24,8 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 
 unsigned char picture[16384];
-unsigned char netbuf[8000];
+unsigned char netbuf[2048];
+unsigned char minRating[] = "0000000000";
 
 struct fileStruct
 {
@@ -39,11 +43,22 @@ struct fileStruct
   unsigned char fileName[128];
 } curFileStruct;
 
+struct window
+{
+  unsigned char x;
+  unsigned char y;
+  unsigned char w;
+  unsigned char h;
+  unsigned char text;
+  unsigned char back;
+  unsigned char tittle[80];
+} curWin;
+
 struct sockaddr_in dnsaddress;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 
-unsigned char ver[] = "3.2";
+unsigned char ver[] = "3.3";
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
@@ -64,6 +79,15 @@ unsigned char fileIdChar[10];
 
 void clearStatus(void)
 {
+}
+
+void spaces(unsigned char number)
+{
+  while (number > 0)
+  {
+    putchar(' ');
+    number--;
+  }
 }
 
 void emptyKeys(void)
@@ -99,10 +123,12 @@ void printHelp(void)
   printf(" 'A' переход в режим  слайд-шоу\n\r");
   printf(" 'D' Переключение режима ZXNETUSB/ESP-AT\n\r");
   printf(" 'H' Данная справочная информация\n\r");
+  printf(" 'M' Установить минимальный рейтинг для случайного выбора\n\r");
   printf("-----------------Нажмите любую кнопку------------------\n\r");
   ATRIB(93);
   keypress = getchar();
 }
+
 void delay(unsigned long counter)
 {
   unsigned long start, finish;
@@ -163,7 +189,6 @@ int cutHeader(unsigned int todo)
   return todo - headlng;
 }
 
-// in netbuf data to send
 unsigned int fillPictureEsp(void)
 {
   unsigned char sizeLink = 0;
@@ -191,9 +216,7 @@ unsigned int fillPictureEsp(void)
     // putchar(byte);
   } while (byte != '>');
   sendcommand(link);
-
   count = 0;
-
   do
   {
     byte = uart_readBlock();
@@ -226,6 +249,7 @@ unsigned int fillPictureEsp(void)
   getAnswer2(); // OK
   return 0;
 }
+
 unsigned char getPicEsp(unsigned long fileId)
 {
   sprintf(netbuf, "GET /file/id:%lu%s", fileId, userAgent);
@@ -233,8 +257,7 @@ unsigned char getPicEsp(unsigned long fileId)
   return 0;
 }
 
-char *str_replace(char *dst, int num, const char *str,
-                  const char *orig, const char *rep)
+char *str_replace(char *dst, int num, const char *str, const char *orig, const char *rep)
 {
   const char *ptr;
   size_t len1 = strlen(orig);
@@ -288,6 +311,7 @@ void fillPicture(signed char socket)
   } while (downloaded != contLen);
   netShutDown(socket, 0);
 }
+
 void nameRepair(unsigned char *pfn, unsigned int tfnSize)
 {
 
@@ -427,7 +451,6 @@ const char *parseJson(unsigned char *property)
   unsigned char terminator;
   int n;
   n = -1;
-  // netbuf[0] = '\0';
   n = pos(picture, property, 1, 0);
   if (n == -1)
   {
@@ -478,6 +501,7 @@ const char *parseJson(unsigned char *property)
   netbuf[listPos] = '\0';
   return netbuf;
 }
+
 void convert866(void)
 {
   unsigned int lng, targetPos, w, q = 0;
@@ -546,7 +570,7 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     sprintf(netbuf, "GET /api/export:zxPicture/filter:zxPictureType=standard/limit:%u/start:%lu/order:date,desc%s", limit, startPos, userAgent);
     break;
   case 1:
-    sprintf(netbuf, "GET /api/types:zxPicture/export:zxPicture/language:eng/start:0/limit:1/order:rand/filter:zxPictureMinRating=4;zxPictureType=standard%s", userAgent);
+    sprintf(netbuf, "GET /api/types:zxPicture/export:zxPicture/language:eng/start:0/limit:1/order:rand/filter:zxPictureMinRating=%s;zxPictureType=standard%s", minRating, userAgent);
     break;
   case 3: // /api/export:author/filter:authorId=2202
     sprintf(netbuf, "GET /api/export:author/filter:authorId=%lu%s", startPos, userAgent);
@@ -679,8 +703,9 @@ void printData(void)
   printf("%s\r\n", curFileStruct.authorRealName);
   ATRIB(96);
   printf("\r\n");
-  // YIELD();
+  YIELD();
 }
+
 void safeKeys(unsigned char keypress)
 {
   if (keypress == 27)
@@ -726,10 +751,12 @@ void safeKeys(unsigned char keypress)
       if (randomPic == 1)
       {
         printf("    Random mode enabled...\r\n");
+        count = 0;
       }
       else
       {
         printf("    Sequental mode enabled...\r\n");
+        count = 0;
       }
     }
   }
@@ -770,6 +797,120 @@ void safeKeys(unsigned char keypress)
   }
 }
 
+unsigned char inputBox(struct window w, unsigned char *prefilled)
+{
+  unsigned char wcount, tempx, tittleStart;
+  unsigned char byte, counter;
+  w.h++;
+  AT(w.x, w.y - 1);
+  BOX(w.x, w.y, w.w + 1, w.h, w.back, 32);
+  AT(w.x, w.y);
+  ATRIB(w.text);
+  putchar(201);
+  for (wcount = 0; wcount < w.w; wcount++)
+  {
+    putchar(205);
+  }
+  putchar(187);
+  AT(w.x, w.y + w.h);
+  putchar(200);
+  for (wcount = 0; wcount < w.w; wcount++)
+  {
+    putchar(205);
+  }
+  putchar(188);
+
+  tempx = w.x + w.w + 1;
+  for (wcount = 1; wcount < w.h; wcount++)
+  {
+    AT(w.x, w.y + wcount);
+    putchar(186);
+    AT(tempx, w.y + wcount);
+    putchar(186);
+  }
+  tittleStart = w.x + (w.w / 2) - (strlen(w.tittle) / 2);
+  AT(tittleStart, w.y);
+  printf("[%s]", w.tittle);
+  AT(w.x + 1, w.y + 1);
+  ATRIB(w.back);
+  // putchar(219);
+
+  cmd[0] = 0;
+
+  counter = strlen(prefilled);
+  if (counter != 0)
+  {
+    strcpy(cmd, prefilled);
+    goto skipKeys;
+  }
+
+  do
+  {
+    byte = getchar();
+    if (byte != 0)
+    {
+      switch (byte)
+      {
+      case 0x08:
+        if (counter > 0)
+        {
+          counter--;
+          cmd[counter] = 0;
+        }
+        break;
+      case 0x0d:
+
+        if (counter == 0)
+        {
+          return false;
+        }
+        else
+        {
+          return true;
+        }
+
+      case 31:
+        break;
+      case 250:
+        break;
+      case 249:
+        break;
+      case 248:
+        break;
+      case 251: // Right
+        break;
+      case 252: // Del
+        AT(w.x + 1, w.y + 1);
+        spaces(counter + 1);
+        cmd[0] = 0;
+        counter = 0;
+        break;
+      case 27:
+        cmd[0] = 0;
+        return false;
+      default:
+        if (counter < w.w - 1)
+        {
+          cmd[counter] = byte;
+          counter++;
+          cmd[counter] = 0;
+        }
+        break;
+      }
+    skipKeys:
+      AT(w.x + 1, w.y + 1);
+      printf("%s", cmd);
+      // putchar(219);
+      if (byte == 0x08)
+      {
+        putchar(' ');
+      }
+    }
+    YIELD();
+  } while (42);
+  return false;
+}
+
 C_task main(void)
 {
   unsigned char errno;
@@ -782,6 +923,7 @@ C_task main(void)
   randomPic = 0;
   slideShow = 0;
   netDriver = 0;
+  strcpy(minRating, "4.0");
 
   targetadr.family = AF_INET;
   targetadr.porth = 00;
@@ -819,8 +961,7 @@ start:
 
   if (iddqd < 0)
   {
-    count++;
-    goto start;
+    goto review;
   }
 
   if (verbose == 1)
@@ -869,24 +1010,59 @@ review:
       printf("        ID:%lu    TITLE:%s  SAVED\r\n\r\n", curFileStruct.picId, curFileStruct.picName);
     count++;
   }
-
-  if (keypress == 248 || keypress == 'b' || keypress == 'B')
+  else if (keypress == 248 || keypress == 'b' || keypress == 'B')
   {
     if (count > 0)
     {
       count--;
     }
   }
-  if (keypress == 251 || keypress == 32)
+  else if (keypress == 251 || keypress == 32)
   {
     count++;
     goto start;
   }
-  if (keypress == 'i' || keypress == 'I')
+  else if (keypress == 'i' || keypress == 'I')
   {
     delay(100);
     getchar();
     goto review;
+  }
+  else if (keypress == 'm' || keypress == 'M')
+  {
+    curWin.w = 22;
+    curWin.x = 80 / 2 - curWin.w / 2 - 2;
+    curWin.y = 1;
+    curWin.h = 1;
+    curWin.text = 97;
+    curWin.back = 42;
+    strcpy(curWin.tittle, "Минимальная оценка:");
+
+    if (inputBox(curWin, ""))
+    {
+      char counter;
+      for (counter = 0; counter < strlen(cmd); counter++)
+      {
+        if ((((cmd[counter] < '0') || (cmd[counter] > '9'))) && cmd[counter] != '.')
+        {
+          AT(1, 25);
+          ATRIB(96);
+          ATRIB(40);
+          printf("    Wrong input.[%s]", cmd);
+          counter = 0;
+          break;
+        }
+      }
+      if (counter != 0)
+      {
+        strncpy(minRating, cmd, 5);
+        AT(1, 25);
+        ATRIB(96);
+        ATRIB(40);
+        printf("    Minimal rating for random play is set to %s+\r\n\r\n", minRating);
+        count = 0;
+      }
+    }
   }
   safeKeys(keypress);
   goto start;
