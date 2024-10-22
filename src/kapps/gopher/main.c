@@ -73,6 +73,7 @@ struct mouseStruct
 	char prevMouseMove;
 	char oldAtr;
 	char classic;
+	char divider;
 } mouse;
 
 struct navigationStruct
@@ -413,7 +414,7 @@ void init(void)
 	navi.volume = 0;
 	volumeOffsets[0] = 0;
 	navi.saveAs = true;
-
+	mouse.divider = 0;
 	mouse.prevMouseButtons = 0;
 
 	link.type = '1';
@@ -1759,53 +1760,63 @@ unsigned char getMouse(void)
 		}
 		else
 		{
-			mouseXpos = mouse.prevMouseXpos - mouse.mouseXpos;
-			mouseYpos = mouse.prevMouseYpos - mouse.mouseYpos;
+			mouseXpos = mouse.mouseXpos - mouse.prevMouseXpos;
+			mouseYpos = mouse.mouseYpos - mouse.prevMouseYpos;
 
-			dx = abs(mouseXpos / 3);
+			dx = abs(mouseXpos / 2);
 			dy = abs(mouseYpos / 2);
 
-			if (dx == 0) dx = 1;
-			if (dy == 0) dy = 1;
+			if (dx == 0)
+				dx = 1;
+			if (dy == 0)
+				dy = 1;
+			if (dx > 3)
+				dx = 3;
+			if (dy > 1)
+				dy = 1;
 
-			if (mouseXpos < -200)
+			if (mouseXpos < -250)
 			{
 				mouseXpos = 1;
 			}
-			else if (mouseXpos > 200)
+			else if (mouseXpos > 250)
 			{
 				mouseXpos = -1;
 			}
 
-			if (mouseXpos < 0)
-			{
-				mouse.cursXpos = mouse.cursXpos + dx;
-			}
-			else if (mouseXpos > 0)
-			{
-				mouse.cursXpos = mouse.cursXpos - dx;
-			}
-
-			if (mouseYpos < -200)
+			if (mouseYpos < -254)
 			{
 				mouseYpos = 1;
 			}
-			else if (mouseYpos > 200)
+			else if (mouseYpos > 254)
 			{
 				mouseYpos = -1;
 			}
 
-			if (mouseYpos > 0)
+			if (mouseXpos < 0)
 			{
-				mouse.cursYpos = mouse.cursYpos + dy;
+				mouse.cursXpos = mouse.cursXpos - dx;
 			}
-			else if (mouseYpos < 0)
+			else if (mouseXpos > 0)
 			{
-				mouse.cursYpos = mouse.cursYpos - dy;
+				mouse.cursXpos = mouse.cursXpos + dx;
 			}
 
+			if (mouse.divider == 0)
+			{
+				if (mouseYpos > 0)
+				{
+					mouse.cursYpos = mouse.cursYpos - dy;
+				}
+				else if (mouseYpos < 0)
+				{
+					mouse.cursYpos = mouse.cursYpos + dy;
+				}
+				mouse.divider = 2;
+			}
+			mouse.divider--;
 			// clearStatus();
-			// printf("dx=%d dy=%d", mouseXpos, mouseYpos);
+			// printf("dx=%d dy=%d X=%d Y=%d", dx, dy, mouse.mouseXpos, mouse.mouseYpos);
 
 			if (mouse.cursXpos > 79)
 			{
@@ -1845,7 +1856,7 @@ unsigned char getMouse(void)
 
 	OS_SETXY(mouse.cursXpos, mouse.cursYpos);
 
-	mouseScroll = mouse.prevWheel - mouse.wheel;
+	mouseScroll = mouse.wheel - mouse.prevWheel;
 
 	if (mouseScroll < -12)
 	{
@@ -1855,11 +1866,11 @@ unsigned char getMouse(void)
 	{
 		mouseScroll = -1;
 	}
-	else if (mouseScroll > 0)
+	else if (mouseScroll < 0)
 	{
 		navigation(248); // Left
 	}
-	else if (mouseScroll < 0)
+	else if (mouseScroll > 0)
 	{
 		navigation(251); // Right
 	}
