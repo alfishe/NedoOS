@@ -1003,11 +1003,11 @@ unsigned char runPlayer(void)
   unsigned char pgbak;
   clearStatus();
   printf("Running player...");
-  strcpy(appCmd, "player.com ");
-  strcat(appCmd, curFileStruct.fileName);
+  sprintf(appCmd,"player.com %s", curFileStruct.fileName);
   player_pg.l = OS_GETMAINPAGES();
   pgbak = main_pg.pgs.window_3;
   loaded = 0;
+  loop = 0;
   OS_GETPATH((unsigned int)&curPath);
   OS_SETSYSDRV();
   fp2 = OS_OPENHANDLE(fileName, 0x80);
@@ -1023,11 +1023,14 @@ unsigned char runPlayer(void)
   OS_NEWAPP((unsigned int)&player_pg);
   SETPG32KHIGH(player_pg.pgs.window_3);
   memcpy((char *)(0xC080), &appCmd, sizeof(appCmd));
-  for (loop = 0; loop < playerSize; loop = loop + loaded)
-  {
+
+do
+{
     loaded = OS_READHANDLE(dataBuffer, fp2, sizeof(dataBuffer));
     memcpy((char *)(0xC100 + loop), &dataBuffer, loaded);
-  }
+    loop = loop + loaded;
+  } while (loop < playerSize);
+
   OS_CLOSEHANDLE(fp2);
   SETPG32KHIGH(pgbak);
   OS_RUNAPP(player_pg.pgs.pId);
@@ -1190,7 +1193,7 @@ void infoBox(struct window w, unsigned char *message)
   OS_SETXY(tittleStart, w.y + 1);
   printf("%s", message);
 }
-
+/*
 char optionsMenu(void)
 {
   unsigned char options[7][16] = {"Music format", "Plaing queue", "Net interface", "Keep files", "Minimal rating", "", ""};
@@ -1223,7 +1226,7 @@ char optionsMenu(void)
   getchar();
   return true;
 }
-
+*/
 C_task main(int argc, char *argv[])
 {
   unsigned char errn, keypress, pId, alive, changedFormat;
@@ -1341,7 +1344,7 @@ rekey:
       OS_SETCOLOR(7);
       exit(0);
     }
-    if (keypress == 248 || keypress == 'b' || keypress == 'B')
+    else if (keypress == 248 || keypress == 'b' || keypress == 'B')
     {
       changedFormat = 0;
       OS_DROPAPP(pId);
@@ -1351,7 +1354,7 @@ rekey:
       goto start;
     }
 
-    if (keypress == 251 || keypress == 32 || keypress == 'n' || keypress == 'N')
+    else if (keypress == 251 || keypress == 32 || keypress == 'n' || keypress == 'N')
     {
       changedFormat = 0;
       OS_DROPAPP(pId);
@@ -1361,7 +1364,7 @@ rekey:
       goto start;
     }
 
-    if (keypress == 'k' || keypress == 'K')
+    else if (keypress == 'k' || keypress == 'K')
     {
       OS_DROPAPP(pId);
       clearStatus();
@@ -1372,7 +1375,7 @@ rekey:
       goto replay;
     }
 
-    if (keypress == 'q' || keypress == 'Q')
+    else if (keypress == 'q' || keypress == 'Q')
     {
       OS_DROPAPP(pId);
       clearStatus();
@@ -1426,7 +1429,7 @@ rekey:
       printHelp();
     }
 
-    if (keypress == 'm' || keypress == 'M')
+    else if (keypress == 'm' || keypress == 'M')
     {
       curWin.w = 22;
       curWin.x = 80 / 2 - curWin.w / 2 - 2;
@@ -1463,7 +1466,7 @@ rekey:
       }
     }
 
-    if (keypress == 'f' || keypress == 'F')
+    else if (keypress == 'f' || keypress == 'F')
     {
       OS_DROPAPP(pId);
       clearStatus();
@@ -1478,7 +1481,7 @@ rekey:
       curFileStruct.totalAmount = 1;
       if (strstr(formats[curFormat], "tfc") != NULL)
       {
-        cutOff = 5;
+        cutOff = 1;
       }
       else
       {
@@ -1491,7 +1494,7 @@ rekey:
       goto rekey;
     }
 
-    if (keypress == 's' || keypress == 'S')
+    else if (keypress == 's' || keypress == 'S')
     {
       OS_DROPAPP(pId);
       clearStatus();
@@ -1508,7 +1511,7 @@ rekey:
       printStatus();
       goto rekey;
     }
-    if (keypress == 'd' || keypress == 'D')
+    else if (keypress == 'd' || keypress == 'D')
     {
       saveBak = saveFlag;
       saveFlag = 1;
@@ -1521,7 +1524,7 @@ rekey:
       goto rekey;
     }
 
-    if (keypress == 'i' || keypress == 'I')
+    else if (keypress == 'i' || keypress == 'I')
     {
       netDriver = !netDriver;
       if (netDriver == 1)
