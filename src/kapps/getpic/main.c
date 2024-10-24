@@ -767,7 +767,7 @@ void safeKeys(unsigned char keypress)
     {
       if (verbose == 1)
         printf("    SlideShow mode enabled...\r\n\r\n");
-      slideShowTime = 250;
+      slideShowTime = 150;
     }
     else
     {
@@ -1065,5 +1065,6 @@ review:
     }
   }
   safeKeys(keypress);
+  YIELD();
   goto start;
 }

@@ -3,6 +3,18 @@ PUBLIC viewScreen6912
 #include "sysdefs.asm"
 RSEG CODE
 
+	macro YIELD
+	push bc
+	ld c, CMD_YIELD
+	push ix
+	push iy
+	call  BDOS
+	pop iy
+	pop ix
+	pop bc
+	endm
+
+
 viewScreen6912:	
 ; unsigned int viewScreen6912(unsigned char pause, unsigned int bufAdr);
 ; DE = buffer adress BC = time in ints out A = key
@@ -50,12 +62,8 @@ display:
     jp nz, slideshow
 	
 inkey
-	ld c, CMD_YIELD
-	push ix
-	push iy
-	call  BDOS
-	pop iy
-	pop ix
+	
+	YIELD
 	
 	push ix
 	push iy
@@ -91,6 +99,7 @@ exit3
 	ret
 
 slideshow ;BC ints
+	YIELD
 	dec bc
 	ld (waiting),bc
 
