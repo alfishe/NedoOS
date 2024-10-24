@@ -708,26 +708,26 @@ void printData(void)
 
 void safeKeys(unsigned char keypress)
 {
-  if (keypress == 27)
+
+  switch (keypress)
   {
+  case 27:
     printf("Good bye...\r\n");
     ATRIB(37);
     ATRIB(40);
     exit(0);
-  }
-
-  if (keypress == 'j' || keypress == 'J')
-  {
+    break;
+  case 'j':
+  case 'J':
     printf("Jump to picture:");
     scanf("%lu", &count);
     if (count > curFileStruct.totalAmount - 1)
     {
       count = curFileStruct.totalAmount - 1;
     }
-  }
-
-  if (keypress == 'v' || keypress == 'V')
-  {
+    break;
+  case 'v':
+  case 'V':
     verbose = !verbose;
 
     if (verbose == 0)
@@ -735,17 +735,14 @@ void safeKeys(unsigned char keypress)
       BOX(1, 1, 80, 25, 40, ' ');
       AT(1, 1);
     }
-  }
-
-  if (keypress == 'h' || keypress == 'H')
-  {
+    break;
+  case 'h':
+  case 'H':
     printHelp();
-  }
-
-  if (keypress == 'r' || keypress == 'R')
-  {
+    break;
+  case 'r':
+  case 'R':
     randomPic = !randomPic;
-
     if (verbose == 1)
     {
       if (randomPic == 1)
@@ -759,9 +756,9 @@ void safeKeys(unsigned char keypress)
         count = 0;
       }
     }
-  }
-  if (keypress == 'a' || keypress == 'A')
-  {
+    break;
+  case 'a':
+  case 'A':
     slideShow = !slideShow;
     if (slideShow == 1)
     {
@@ -775,14 +772,13 @@ void safeKeys(unsigned char keypress)
         printf("    Manual mode enabled...\r\n\r\n");
       slideShowTime = 0;
     }
-  }
-
-  if (keypress == 'd' || keypress == 'D')
-  {
+    break;
+  case 'd':
+  case 'D':
     netDriver = !netDriver;
     if (netDriver == 1)
     {
-      printf("    ESP-AT mode enabled...\r\n");
+      printf("    ESP-COM mode enabled...\r\n");
       loadEspConfig();
       uart_init(divider);
       espReBoot();
@@ -792,8 +788,11 @@ void safeKeys(unsigned char keypress)
     else
     {
       if (verbose == 1)
-        printf("    ZXNETUSB mode enabled...\r\n\r\n");
+        printf("    NedoNET mode enabled...\r\n\r\n");
     }
+    break;
+  default:
+    break;
   }
 }
 
@@ -899,12 +898,10 @@ unsigned char inputBox(struct window w, unsigned char *prefilled)
       }
     skipKeys:
       AT(w.x + 1, w.y + 1);
+      spaces(w.w - 1);
+      AT(w.x + 1, w.y + 1);
       printf("%s", cmd);
       // putchar(219);
-      if (byte == 0x08)
-      {
-        putchar(' ');
-      }
     }
     YIELD();
   } while (42);
