@@ -916,7 +916,7 @@ void safeKeys(unsigned char keypress)
     {
       if (verbose == 1)
         printf("    SlideShow mode enabled...\r\n\r\n");
-      slideShowTime = 50;
+      slideShowTime = 150;
       delayLong(500);
     }
     else

@@ -35,14 +35,14 @@ unsigned char fileName[] = "radio/player.ovl";
 unsigned char appCmd[128] = "player.com ";
 unsigned char curPath[128];
 
-unsigned char ver[] = "2.9";
+unsigned char ver[] = "3.0";
 
 unsigned char queryType[64];
 unsigned char netbuf[4096];
-unsigned char dataBuffer[4096];
+unsigned char dataBuffer[8192];
 unsigned char crlf[2] = {13, 10};
 unsigned char formats[4][4] = {"pt3", "pt2", "tfc", "ts"};
-unsigned char interfaces[2][8] = {"NedoNET\0", "ESP-COM\0"};
+unsigned char interfaces[2][8] = {"NedoNET", "ESP-COM"};
 unsigned char cmd[256];
 unsigned char link[512];
 unsigned char toLog[256];
@@ -216,7 +216,7 @@ void printHelp(void)
   printf(" [K]  Toggle saving tracks        [D]  Download track      \r\n");
   printf(" [Q]  Select Query type           [F]  Select tracks format\r\n");
   printf(" [I]  Interface ZXNETUSB/ESP32    [J]  Jump to NNNN file   \r\n");
-  printf(" [ESC] Exit to OS                 [M]  Minimal Rating(Q:2,3) \r\n");
+  printf(" [ESC] Exit to OS                 [M]  Minimal Rating(Q:2,3)\r\n");
   printf("                                                           \r\n");
 }
 
@@ -259,9 +259,10 @@ int cutHeader(unsigned int todo)
   err = httpError();
   if (err != 200)
   {
-    printf("\r\nHTTP response:[%u]\r\n", err);
-    printf("^^^^^^^^^^^^^^^^^^^^^\r\n");
+
     puts(netbuf);
+    puts("^^^^^^^^^^^^^^^^^^^^^");
+    printf("HTTP response:[%u]\r\n", err);
     getchar();
   }
   count1 = strstr(netbuf, "Content-Length:");
@@ -287,67 +288,6 @@ int cutHeader(unsigned int todo)
     // printf("header %u bytes\r\n", headlng);
   }
   return todo - headlng;
-}
-
-unsigned int fillDataBufferEsp(void)
-{
-  unsigned char sizeLink;
-  unsigned long downloaded;
-  unsigned char byte, count = 0;
-  unsigned int todo;
-  unsigned char *count1;
-
-  strcpy(link, netbuf);
-  sizeLink = strlen(link);
-  do
-  {
-    sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
-    getAnswer2(); // CONNECT or ERROR or link is not valid
-    count1 = strstr(netbuf, "CONNECT");
-  } while (count1 == NULL);
-
-  getAnswer2();                                   // OK
-  sprintf(netbuf, "AT+CIPSEND=%u", sizeLink + 2); // second CRLF in send command
-  sendcommand(netbuf);
-  getAnswer2();
-  do
-  {
-    byte = uart_readBlock();
-    // putchar(byte);
-  } while (byte != '>');
-  sendcommand(link);
-  count = 0;
-  do
-  {
-    byte = uart_readBlock();
-    if (byte == sendOk[count])
-    {
-      count++;
-    }
-    else
-    {
-      count = 0;
-    }
-  } while (count < strlen(sendOk));
-  uart_readBlock(); // CR
-  uart_readBlock(); // LF
-  downloaded = 0;
-  do
-  {
-    headlng = 0;
-    todo = recvHead();
-    getdataEsp(todo); // Requested size
-    if (downloaded == 0)
-    {
-      todo = cutHeader(todo);
-    }
-    memcpy(dataBuffer + downloaded, netbuf + headlng, todo);
-    downloaded = downloaded + todo;
-  } while (downloaded < contLen);
-  sendcommand("AT+CIPCLOSE");
-  getAnswer2(); // CLOSED
-  getAnswer2(); // OK
-  return 0;
 }
 
 unsigned char inputBox(struct window w, unsigned char *prefilled)
@@ -500,11 +440,11 @@ const char *parseJson(unsigned char *property)
   unsigned char terminator;
   int n;
   n = -1;
-  netbuf[0] = '\0';
+  netbuf[0] = 0;
   n = pos(dataBuffer, property, 1, 0);
   if (n == -1)
   {
-    strcpy(netbuf, "0\0");
+    strcpy(netbuf, "-");
     return netbuf;
   }
   lng = n - 1 + strlen(property);
@@ -550,6 +490,7 @@ const char *parseJson(unsigned char *property)
   netbuf[listPos] = 0;
   return netbuf;
 }
+
 void convert866(void)
 {
   unsigned int lng, targetPos, w, q = 0;
@@ -731,15 +672,25 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
   return 0;
 }
 
-void getData(unsigned char socket)
+char getDataNet(void)
 {
   unsigned int todo, downloaded;
+  unsigned char socket;
+  clearStatus();
+  socket = OpenSock(AF_INET, SOCK_STREAM);
+  testOperation("OS_NETSOCKET", socket);
+
+  todo = netConnect(socket, 1);
+  testOperation("OS_NETCONNECT", todo);
+
+  todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), 1);
+  testOperation("OS_WIZNETWRITE", todo);
 
   downloaded = 0;
   do
   {
     headlng = 0;
-    todo = tcpRead(socket, 10);
+    todo = tcpRead(socket, 1);
     clearStatus();
     testOperation("OS_WIZNETREAD", todo);
     if (todo == 0)
@@ -761,15 +712,75 @@ void getData(unsigned char socket)
     downloaded = downloaded + todo;
   } while (downloaded < contLen);
   netShutDown(socket, 1);
+  return true;
+}
+
+unsigned int getDataEsp(void)
+{
+  unsigned char sizeLink;
+  unsigned long downloaded;
+  unsigned char byte, count = 0;
+  unsigned int todo;
+  unsigned char *count1;
+
+  strcpy(link, netbuf);
+  sizeLink = strlen(link);
+  do
+  {
+    sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
+    getAnswer2(); // CONNECT or ERROR or link is not valid
+    count1 = strstr(netbuf, "CONNECT");
+  } while (count1 == NULL);
+
+  getAnswer2();                                   // OK
+  sprintf(netbuf, "AT+CIPSEND=%u", sizeLink + 2); // second CRLF in send command
+  sendcommand(netbuf);
+  getAnswer2();
+  do
+  {
+    byte = uart_readBlock();
+    // putchar(byte);
+  } while (byte != '>');
+  sendcommand(link);
+  count = 0;
+  do
+  {
+    byte = uart_readBlock();
+    if (byte == sendOk[count])
+    {
+      count++;
+    }
+    else
+    {
+      count = 0;
+    }
+  } while (count < strlen(sendOk));
+  uart_readBlock(); // CR
+  uart_readBlock(); // LF
+  downloaded = 0;
+  do
+  {
+    headlng = 0;
+    todo = recvHead();
+    getdataEsp(todo); // Requested size
+    if (downloaded == 0)
+    {
+      todo = cutHeader(todo);
+    }
+    memcpy(dataBuffer + downloaded, netbuf + headlng, todo);
+    downloaded = downloaded + todo;
+  } while (downloaded < contLen);
+  sendcommand("AT+CIPCLOSE");
+  getAnswer2(); // CLOSED
+  getAnswer2(); // OK
+  return 0;
 }
 
 unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned char queryNum)
 {
   FILE *fp3;
-  unsigned int retry, tSize;
-  int todo;
-  unsigned char *count;
-  char socket;
+  unsigned int tSize;
+  unsigned char *count, result;
   clearStatus();
   printf("Getting data(%u)...", queryNum);
 
@@ -806,53 +817,43 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
     break;
   }
 
-  retry = 10;
-
-  while (42)
+  switch (netDriver)
   {
-    if (netDriver == 0)
-    {
-      clearStatus();
-      socket = OpenSock(AF_INET, SOCK_STREAM);
-      testOperation("OS_NETSOCKET", socket);
+  case 0:
+    result = getDataNet();
+    break;
+  case 1:
+    result = getDataEsp();
+    break;
+  }
+  clearStatus();
+  printf("Processing data (%u)...", queryNum);
 
-      todo = netConnect(socket, 10);
-      testOperation("OS_NETCONNECT", todo);
-
-      todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), 10);
-      testOperation("OS_WIZNETWRITE", todo);
-      getData(socket);
-      clearStatus();
-      printf("Processing data (%u)...", queryNum);
-    }
-    else
-    {
-      fillDataBufferEsp();
-    }
-
-    count = strstr(dataBuffer, "responseStatus\":\"success");
-    if (count == NULL)
-    {
-      retry--;
-      clearStatus();
-      printf("PROCESS JSON: [ERROR: Bad responseStatus.] [Query:%u][Retry:%u] [Track:%lu]\r\n", queryNum, retry, startPos);
-      YIELD();
-      if (retry < 1)
-      {
-        return -1;
-      }
-    }
-    else
-    {
-      break;
-    }
+  count = strstr(dataBuffer, "responseStatus\":\"success");
+  if (count == NULL)
+  {
+    OS_CLS(0);
+    OS_SETCOLOR(66);
+    puts("dataBuffer[]:");
+    puts(dataBuffer);
+    puts("---------------");
+    printf("PROCESS JSON: [ERROR: Bad responseStatus.] [Query:%u] [Track:%lu]\r\n", queryNum, startPos);
+    YIELD();
+    getchar();
+    return -1;
   }
 
   count = strstr(dataBuffer, "\"id\":");
   if (count == NULL)
   {
-    clearStatus();
-    printf("BAD JSON: not ID query = %u startPos = %lu", queryNum, startPos);
+    OS_CLS(0);
+    OS_SETCOLOR(66);
+    puts("dataBuffer[]:");
+    puts(dataBuffer);
+    puts("---------------");
+    printf("PROCESS JSON: [ERROR: ID not found] [Query:%u] [Track:%lu]", queryNum, startPos);
+    YIELD();
+    getchar();
     return -2;
   }
   if (queryNum < 4)
@@ -1003,7 +1004,7 @@ unsigned char runPlayer(void)
   unsigned char pgbak;
   clearStatus();
   printf("Running player...");
-  sprintf(appCmd,"player.com %s", curFileStruct.fileName);
+  sprintf(appCmd, "player.com %s", curFileStruct.fileName);
   player_pg.l = OS_GETMAINPAGES();
   pgbak = main_pg.pgs.window_3;
   loaded = 0;
@@ -1024,8 +1025,8 @@ unsigned char runPlayer(void)
   SETPG32KHIGH(player_pg.pgs.window_3);
   memcpy((char *)(0xC080), &appCmd, sizeof(appCmd));
 
-do
-{
+  do
+  {
     loaded = OS_READHANDLE(dataBuffer, fp2, sizeof(dataBuffer));
     memcpy((char *)(0xC100 + loop), &dataBuffer, loaded);
     loop = loop + loaded;
@@ -1193,6 +1194,7 @@ void infoBox(struct window w, unsigned char *message)
   OS_SETXY(tittleStart, w.y + 1);
   printf("%s", message);
 }
+
 /*
 char optionsMenu(void)
 {
@@ -1227,6 +1229,16 @@ char optionsMenu(void)
   return true;
 }
 */
+
+void refreshScreen(void)
+{
+  OS_CLS(0);
+  printInfo();
+  printProgress(0);
+  printHelp();
+  printStatus();
+}
+
 C_task main(int argc, char *argv[])
 {
   unsigned char errn, keypress, pId, alive, changedFormat;
@@ -1303,8 +1315,8 @@ start:
    */
 
       OS_DROPAPP(pId);
-      printProgress(0);
       changedFormat = 1;
+      refreshScreen();
       goto rekey;
     }
   }
@@ -1414,7 +1426,7 @@ rekey:
       curWin.h = 1;
       curWin.text = 103;
       curWin.back = 103;
-      strcpy(curWin.tittle, "Введите номер трека:");
+      strcpy(curWin.tittle, "Track number:");
       if (inputBox(curWin, ""))
       {
         sscanf(cmd, "%lu", &count);
@@ -1437,7 +1449,7 @@ rekey:
       curWin.h = 1;
       curWin.text = 103;
       curWin.back = 103;
-      strcpy(curWin.tittle, "Минимальная оценка:");
+      strcpy(curWin.tittle, "Minimal rating:");
 
       if (inputBox(curWin, ""))
       {
@@ -1461,8 +1473,7 @@ rekey:
           sprintf(queryType, "Random play with rating %s+                  ", minRating);
           count = 0;
         }
-        printInfo();
-        printHelp();
+        refreshScreen();
       }
     }
 
@@ -1481,7 +1492,7 @@ rekey:
       curFileStruct.totalAmount = 1;
       if (strstr(formats[curFormat], "tfc") != NULL)
       {
-        cutOff = 1;
+        cutOff = 0;
       }
       else
       {
