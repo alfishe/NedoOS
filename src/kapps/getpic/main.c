@@ -25,8 +25,8 @@ unsigned int espType = 32;
 
 unsigned char picture[16384];
 unsigned char netbuf[2048];
-unsigned char minRating[] = "0000000000";
 
+unsigned char minRating[] = "0000000000";
 struct fileStruct
 {
   long picId;
@@ -58,7 +58,7 @@ struct sockaddr_in dnsaddress;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 
-unsigned char ver[] = "3.3";
+unsigned char ver[] = "3.4";
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
@@ -81,6 +81,20 @@ void clearStatus(void)
 {
 }
 
+void emptyKeys(void)
+{
+  unsigned char loop, key;
+  do
+  {
+    key = OS_GETKEY();
+    if (loop > 64)
+    {
+      break;
+    }
+    loop++;
+  } while (key != 0);
+}
+
 void spaces(unsigned char number)
 {
   while (number > 0)
@@ -90,26 +104,53 @@ void spaces(unsigned char number)
   }
 }
 
-void emptyKeys(void)
+void infoBox(struct window w, unsigned char *message)
 {
-  unsigned char loop, key;
-  do
+  unsigned char wcount, tempx, tittleStart;
+
+  w.h++;
+  OS_SETXY(w.x, w.y - 1);
+  BDBOX(w.x, w.y, w.w + 1, w.h, w.back, 32);
+  OS_SETXY(w.x, w.y);
+  OS_SETCOLOR(w.text);
+  putchar(201);
+  for (wcount = 0; wcount < w.w; wcount++)
   {
-    key = _low_level_get();
-    if (loop > 64)
-    {
-      break;
-    }
-    loop++;
-  } while (key != 0);
+    putchar(205);
+  }
+  putchar(187);
+  OS_SETXY(w.x, w.y + w.h);
+  putchar(200);
+  for (wcount = 0; wcount < w.w; wcount++)
+  {
+    putchar(205);
+  }
+  putchar(188);
+
+  tempx = w.x + w.w + 1;
+  for (wcount = 1; wcount < w.h; wcount++)
+  {
+    OS_SETXY(w.x, w.y + wcount);
+    putchar(186);
+    OS_SETXY(tempx, w.y + wcount);
+    putchar(186);
+  }
+  tittleStart = w.x + (w.w / 2) - (strlen(w.tittle) / 2);
+  OS_SETXY(tittleStart, w.y);
+  printf("[%s]", w.tittle);
+
+  OS_SETXY(w.x + 1, w.y + 1);
+  OS_SETCOLOR(w.back);
+  tittleStart = w.x + (w.w / 2) - (strlen(message) / 2);
+  OS_SETXY(tittleStart, w.y + 1);
+  printf("%s", message);
 }
 
 void printHelp(void)
 {
-  ATRIB(95);
+  OS_SETCOLOR(67);
   printf("   GETPIC [%s] zxart.ee picture viewer for nedoNET\n\r", ver);
-  ATRIB(33);
-  ATRIB(40);
+  OS_SETCOLOR(6);
   printf("-------------------------------------------------------\n\r");
   printf(" Управление:\n\r");
   printf(" 'ESC' - выход из программы;\n\r");
@@ -123,10 +164,10 @@ void printHelp(void)
   printf(" 'A' переход в режим  слайд-шоу\n\r");
   printf(" 'D' Переключение режима ZXNETUSB/ESP-AT\n\r");
   printf(" 'H' Данная справочная информация\n\r");
-  printf(" 'M' Установить минимальный рейтинг для случайного выбора\n\r");
   printf("-----------------Нажмите любую кнопку------------------\n\r");
-  ATRIB(93);
+  OS_SETCOLOR(70);
   keypress = getchar();
+  OS_CLS(0);
 }
 
 void delay(unsigned long counter)
@@ -179,7 +220,7 @@ int cutHeader(unsigned int todo)
   count1 = strstr(netbuf, "\r\n\r\n");
   if (count1 == NULL)
   {
-    printf("end of header not found\r\n");
+    printf("header not found\r\n");
   }
   else
   {
@@ -189,7 +230,37 @@ int cutHeader(unsigned int todo)
   return todo - headlng;
 }
 
-unsigned int fillPictureEsp(void)
+char *str_replace(char *dst, int num, const char *str,
+                  const char *orig, const char *rep)
+{
+  const char *ptr;
+  size_t len1 = strlen(orig);
+  size_t len2 = strlen(rep);
+  char *tmp = dst;
+
+  num -= 1;
+  while ((ptr = strstr(str, orig)) != NULL)
+  {
+    num -= (ptr - str) + len2;
+    if (num < 1)
+      break;
+
+    strncpy(dst, str, (size_t)(ptr - str));
+    dst += ptr - str;
+    strncpy(dst, rep, len2);
+    dst += len2;
+    str = ptr + len1;
+  }
+
+  for (; (*dst = *str) && (num > 0); --num)
+  {
+    ++dst;
+    ++str;
+  }
+  return tmp;
+}
+
+char fillPictureEsp(void)
 {
   unsigned char sizeLink = 0;
   unsigned long downloaded = 0;
@@ -241,59 +312,40 @@ unsigned int fillPictureEsp(void)
     {
       todo = cutHeader(todo);
     }
+
+    if (downloaded + todo > sizeof(picture))
+    {
+      printf("dataBuffer overrun... %u reached \n\r", downloaded + todo);
+      return false;
+    }
+
     memcpy(picture + downloaded, netbuf + headlng, todo);
     downloaded = downloaded + todo;
   } while (downloaded < contLen);
   sendcommand("AT+CIPCLOSE");
   getAnswer2(); // CLOSED
   getAnswer2(); // OK
-  return 0;
+  return true;
 }
 
-unsigned char getPicEsp(unsigned long fileId)
-{
-  sprintf(netbuf, "GET /file/id:%lu%s", fileId, userAgent);
-  fillPictureEsp();
-  return 0;
-}
-
-char *str_replace(char *dst, int num, const char *str, const char *orig, const char *rep)
-{
-  const char *ptr;
-  size_t len1 = strlen(orig);
-  size_t len2 = strlen(rep);
-  char *tmp = dst;
-
-  num -= 1;
-  while ((ptr = strstr(str, orig)) != NULL)
-  {
-    num -= (ptr - str) + len2;
-    if (num < 1)
-      break;
-
-    strncpy(dst, str, (size_t)(ptr - str));
-    dst += ptr - str;
-    strncpy(dst, rep, len2);
-    dst += len2;
-    str = ptr + len1;
-  }
-
-  for (; (*dst = *str) && (num > 0); --num)
-  {
-    ++dst;
-    ++str;
-  }
-  return tmp;
-}
-
-void fillPicture(signed char socket)
+char fillPictureNet(void)
 {
   int todo;
   unsigned int downloaded = 0;
+  char socket, retry;
+  picture[0] = 0;
+  retry = 3;
+  socket = OpenSock(AF_INET, SOCK_STREAM);
+  testOperation("OS_NETSOCKET", socket);
+  todo = netConnect(socket, retry);
+  testOperation("OS_NETCONNECT", todo);
+  todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), retry);
+  testOperation("OS_WIZNETWRITE", todo);
+
   do
   {
     headlng = 0;
-    todo = tcpRead(socket, 10);
+    todo = tcpRead(socket, retry);
     testOperation("OS_WIZNETREAD", todo); // Quit if too many retries
 
     if (downloaded == 0)
@@ -304,12 +356,15 @@ void fillPicture(signed char socket)
     if (downloaded + todo > sizeof(picture))
     {
       printf("dataBuffer overrun... %u reached \n\r", downloaded + todo);
-      break;
+      return false;
     }
     memcpy(picture + downloaded, netbuf + headlng, todo);
     downloaded = downloaded + todo;
   } while (downloaded != contLen);
+
   netShutDown(socket, 0);
+  picture[downloaded + 1] = 0;
+  return true;
 }
 
 void nameRepair(unsigned char *pfn, unsigned int tfnSize)
@@ -340,23 +395,6 @@ void stringRepair(unsigned char *pfn, unsigned int tSize)
   str_replace(pfn, tSize, pfn, "&lt;", "<");
   str_replace(pfn, tSize, pfn, "&quot;", "\"");
   str_replace(pfn, tSize, pfn, "\\/", "/");
-}
-
-unsigned char getPic(unsigned long fileId)
-{
-  int todo;
-  char socket;
-  socket = OpenSock(AF_INET, SOCK_STREAM);
-  testOperation("OS_NETSOCKET", socket);
-
-  todo = netConnect(socket, 10);
-  testOperation("OS_NETCONNECT", todo);
-
-  sprintf(netbuf, "GET /file/id:%lu%s", fileId, userAgent);
-  todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), 10);
-  testOperation("OS_WIZNETWRITE", todo);
-  fillPicture(socket);
-  return 0;
 }
 
 void ncReplace(void)
@@ -451,6 +489,7 @@ const char *parseJson(unsigned char *property)
   unsigned char terminator;
   int n;
   n = -1;
+  // netbuf[0] = '\0';
   n = pos(picture, property, 1, 0);
   if (n == -1)
   {
@@ -561,9 +600,8 @@ void convert866(void)
 
 long processJson(unsigned long startPos, unsigned char limit, unsigned char queryNum)
 {
-  unsigned int retry, tSize;
-  int todo;
-  unsigned char *count1, socket;
+  unsigned int tSize;
+  unsigned char *count1, result;
   switch (queryNum)
   {
   case 0:
@@ -579,50 +617,38 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     sprintf(netbuf, "GET /jsonElementData/elementId:%lu%s", startPos, userAgent);
     break;
   }
-  retry = 10;
-  while (42)
+
+  switch (netDriver)
   {
-    if (netDriver == 0)
-    {
-      socket = OpenSock(AF_INET, SOCK_STREAM);
-      testOperation("OS_NETSOCKET", socket);
-
-      todo = netConnect(socket, 10);
-      testOperation("OS_NETCONNECT", todo);
-
-      todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), 10);
-      testOperation("OS_WIZNETWRITE", todo);
-
-      fillPicture(socket);
-    }
-    else
-    {
-      fillPictureEsp();
-    }
-    count1 = strstr(picture, "responseStatus\":\"success");
-    if (count1 == NULL)
-    {
-      retry--;
-      ATRIB(91);
-      printf("PROCESS JSON: [ERROR: Bad responseStatus.] [Query:%u][Retry:%u] [Pic:%lu]\r\n", queryNum, retry, startPos);
-      YIELD();
-      puts(netbuf);
-      getchar();
-      if (retry < 1)
-      {
-        return -1;
-      }
-    }
-    else
-    {
-      break;
-    }
+  case 0:
+    result = fillPictureNet();
+    break;
+  case 1:
+    result = fillPictureEsp();
+    break;
+  }
+  count1 = strstr(picture, "responseStatus\":\"success");
+  if (count1 == NULL)
+  {
+    OS_CLS(0);
+    OS_SETCOLOR(66);
+    puts("Picture[]:");
+    puts(picture);
+    puts("---------------");
+    printf("PROCESS JSON: [ERROR: Bad responseStatus.] [Query:%u][Pic:%lu]\r\n", queryNum, startPos);
+    YIELD();
+    getchar();
+    return -1;
   }
 
   count1 = strstr(picture, "\"id\":");
   if (count1 == NULL)
   {
-    ATRIB(91);
+    OS_CLS(0);
+    OS_SETCOLOR(66);
+    puts("Picture[]:");
+    puts(picture);
+    puts("---------------");
     printf("PROCESS JSON: [ERROR: ID not found.] [Query:%u][Pic:%lu]\r\n", queryNum, startPos);
     YIELD();
     return -2;
@@ -665,135 +691,45 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
 
 void printData(void)
 {
-  ATRIB(93);
+  OS_SETCOLOR(70);
   printf(" #: ");
-  ATRIB(97);
+  OS_SETCOLOR(71);
   printf("%lu", count);
-  ATRIB(93);
+  OS_SETCOLOR(70);
   printf(" ID: ");
-  ATRIB(97);
+  OS_SETCOLOR(71);
   printf("%lu ", curFileStruct.picId);
-  ATRIB(93);
+  OS_SETCOLOR(70);
   printf(" Total Pics: ");
-  ATRIB(97);
+  OS_SETCOLOR(71);
   printf("%lu\r\n", curFileStruct.totalAmount);
-  ATRIB(93);
+  OS_SETCOLOR(70);
   printf(" Author: ");
-  ATRIB(96);
+  OS_SETCOLOR(69);
   printf("%s\r\n", curFileStruct.authorTitle);
-  ATRIB(93);
+  OS_SETCOLOR(70);
   printf(" TITLE: ");
-  ATRIB(95);
+  OS_SETCOLOR(67);
   printf("%s\r\n", curFileStruct.picName);
-  ATRIB(93);
+  OS_SETCOLOR(70);
   printf(" RATING: ");
-  ATRIB(97);
+  OS_SETCOLOR(71);
   printf("%s", curFileStruct.picRating);
-  ATRIB(93);
+  OS_SETCOLOR(70);
   printf(" YEAR: ");
-  ATRIB(97);
+  OS_SETCOLOR(71);
   printf("%u\r\n", curFileStruct.picYear);
-  ATRIB(93);
+  OS_SETCOLOR(70);
   printf(" AuthorsIDs ");
-  ATRIB(97);
+  OS_SETCOLOR(71);
   printf("%s", curFileStruct.authorIds);
-  ATRIB(93);
+  OS_SETCOLOR(70);
   printf(" Real name: ");
-  ATRIB(97);
+  OS_SETCOLOR(71);
   printf("%s\r\n", curFileStruct.authorRealName);
-  ATRIB(96);
+  OS_SETCOLOR(69);
   printf("\r\n");
-  YIELD();
-}
-
-void safeKeys(unsigned char keypress)
-{
-
-  switch (keypress)
-  {
-  case 27:
-    printf("Good bye...\r\n");
-    ATRIB(37);
-    ATRIB(40);
-    exit(0);
-    break;
-  case 'j':
-  case 'J':
-    printf("Jump to picture:");
-    scanf("%lu", &count);
-    if (count > curFileStruct.totalAmount - 1)
-    {
-      count = curFileStruct.totalAmount - 1;
-    }
-    break;
-  case 'v':
-  case 'V':
-    verbose = !verbose;
-
-    if (verbose == 0)
-    {
-      BOX(1, 1, 80, 25, 40, ' ');
-      AT(1, 1);
-    }
-    break;
-  case 'h':
-  case 'H':
-    printHelp();
-    break;
-  case 'r':
-  case 'R':
-    randomPic = !randomPic;
-    if (verbose == 1)
-    {
-      if (randomPic == 1)
-      {
-        printf("    Random mode enabled...\r\n");
-        count = 0;
-      }
-      else
-      {
-        printf("    Sequental mode enabled...\r\n");
-        count = 0;
-      }
-    }
-    break;
-  case 'a':
-  case 'A':
-    slideShow = !slideShow;
-    if (slideShow == 1)
-    {
-      if (verbose == 1)
-        printf("    SlideShow mode enabled...\r\n\r\n");
-      slideShowTime = 150;
-    }
-    else
-    {
-      if (verbose == 1)
-        printf("    Manual mode enabled...\r\n\r\n");
-      slideShowTime = 0;
-    }
-    break;
-  case 'd':
-  case 'D':
-    netDriver = !netDriver;
-    if (netDriver == 1)
-    {
-      printf("    ESP-COM mode enabled...\r\n");
-      loadEspConfig();
-      uart_init(divider);
-      espReBoot();
-      printf("    ESP-AT inited...\r\n");
-    }
-
-    else
-    {
-      if (verbose == 1)
-        printf("    NedoNET mode enabled...\r\n\r\n");
-    }
-    break;
-  default:
-    break;
-  }
+  // YIELD();
 }
 
 unsigned char inputBox(struct window w, unsigned char *prefilled)
@@ -801,17 +737,17 @@ unsigned char inputBox(struct window w, unsigned char *prefilled)
   unsigned char wcount, tempx, tittleStart;
   unsigned char byte, counter;
   w.h++;
-  AT(w.x, w.y - 1);
-  BOX(w.x, w.y, w.w + 1, w.h, w.back, 32);
-  AT(w.x, w.y);
-  ATRIB(w.text);
+  OS_SETXY(w.x, w.y - 1);
+  BDBOX(w.x, w.y, w.w + 1, w.h, w.back, 32);
+  OS_SETXY(w.x, w.y);
+  OS_SETCOLOR(w.text);
   putchar(201);
   for (wcount = 0; wcount < w.w; wcount++)
   {
     putchar(205);
   }
   putchar(187);
-  AT(w.x, w.y + w.h);
+  OS_SETXY(w.x, w.y + w.h);
   putchar(200);
   for (wcount = 0; wcount < w.w; wcount++)
   {
@@ -822,17 +758,17 @@ unsigned char inputBox(struct window w, unsigned char *prefilled)
   tempx = w.x + w.w + 1;
   for (wcount = 1; wcount < w.h; wcount++)
   {
-    AT(w.x, w.y + wcount);
+    OS_SETXY(w.x, w.y + wcount);
     putchar(186);
-    AT(tempx, w.y + wcount);
+    OS_SETXY(tempx, w.y + wcount);
     putchar(186);
   }
   tittleStart = w.x + (w.w / 2) - (strlen(w.tittle) / 2);
-  AT(tittleStart, w.y);
+  OS_SETXY(tittleStart, w.y);
   printf("[%s]", w.tittle);
-  AT(w.x + 1, w.y + 1);
-  ATRIB(w.back);
-  // putchar(219);
+  OS_SETXY(w.x + 1, w.y + 1);
+  OS_SETCOLOR(w.back);
+  putchar(219);
 
   cmd[0] = 0;
 
@@ -845,7 +781,7 @@ unsigned char inputBox(struct window w, unsigned char *prefilled)
 
   do
   {
-    byte = getchar();
+    byte = OS_GETKEY();
     if (byte != 0)
     {
       switch (byte)
@@ -879,7 +815,7 @@ unsigned char inputBox(struct window w, unsigned char *prefilled)
       case 251: // Right
         break;
       case 252: // Del
-        AT(w.x + 1, w.y + 1);
+        OS_SETXY(w.x + 1, w.y + 1);
         spaces(counter + 1);
         cmd[0] = 0;
         counter = 0;
@@ -897,23 +833,158 @@ unsigned char inputBox(struct window w, unsigned char *prefilled)
         break;
       }
     skipKeys:
-      AT(w.x + 1, w.y + 1);
-      spaces(w.w - 1);
-      AT(w.x + 1, w.y + 1);
+      OS_SETXY(w.x + 1, w.y + 1);
       printf("%s", cmd);
-      // putchar(219);
+      putchar(219);
+      if (byte == 0x08)
+      {
+        putchar(' ');
+      }
     }
     YIELD();
   } while (42);
   return false;
 }
 
-C_task main(void)
+void safeKeys(unsigned char keypress)
 {
-  unsigned char errno;
-  long iddqd, idkfa;
+  switch (keypress)
+  {
+  case 27:
+    OS_SETCOLOR(70);
+    printf("Good bye...\r\n");
+    delayLong(500);
+    exit(0);
+    break;
+  case 'j':
+  case 'J':
+    curWin.w = 13;
+    curWin.x = 80 / 2 - curWin.w / 2 - 2;
+    curWin.y = 11;
+    curWin.h = 1;
+    curWin.text = 103;
+    curWin.back = 103;
+    strcpy(curWin.tittle, "№ картинки:");
+    if (inputBox(curWin, ""))
+    {
+      sscanf(cmd, "%lu", &count);
+      if (count > curFileStruct.totalAmount - 1)
+      {
+        count = curFileStruct.totalAmount - 1;
+      }
+    }
+    break;
+  case 'v':
+  case 'V':
+    verbose = !verbose;
 
-  os_initstdio();
+    if (verbose == 0)
+    {
+      BOX(1, 1, 80, 25, 40, ' ');
+      AT(1, 1);
+    }
+    break;
+  case 'h':
+  case 'H':
+    printHelp();
+    break;
+  case 'r':
+  case 'R':
+    randomPic = !randomPic;
+    OS_SETCOLOR(70);
+    if (verbose == 1)
+    {
+      if (randomPic == 1)
+      {
+        printf("    Random mode enabled...\r\n");
+        count = 0;
+        delayLong(500);
+      }
+      else
+      {
+        printf("    Sequental mode enabled...\r\n");
+        count = 0;
+        delayLong(500);
+      }
+    }
+    break;
+  case 'a':
+  case 'A':
+    slideShow = !slideShow;
+    OS_SETCOLOR(70);
+    if (slideShow == 1)
+    {
+      if (verbose == 1)
+        printf("    SlideShow mode enabled...\r\n\r\n");
+      slideShowTime = 50;
+      delayLong(500);
+    }
+    else
+    {
+      if (verbose == 1)
+        printf("    Manual mode enabled...\r\n\r\n");
+      slideShowTime = 0;
+      delayLong(500);
+    }
+    break;
+  case 'd':
+  case 'D':
+    netDriver = !netDriver;
+    OS_SETCOLOR(70);
+    if (netDriver == 1)
+    {
+      printf("    ESP-COM mode enabled...\r\n");
+      loadEspConfig();
+      uart_init(divider);
+      espReBoot();
+      printf("    ESP-COM inited...\r\n");
+      delayLong(500);
+    }
+    else
+    {
+      if (verbose == 1)
+        printf("    NedoNET mode enabled...");
+      delayLong(500);
+    }
+    break;
+  case 'm':
+  case 'M':
+    curWin.w = 22;
+    curWin.x = 80 / 2 - curWin.w / 2 - 2;
+    curWin.y = 1;
+    curWin.h = 1;
+    curWin.text = 103;
+    curWin.back = 103;
+    strcpy(curWin.tittle, "Минимальная оценка:");
+
+    if (inputBox(curWin, ""))
+    {
+      char counter;
+      for (counter = 0; counter < strlen(cmd); counter++)
+      {
+        if ((((cmd[counter] < '0') || (cmd[counter] > '9'))) && cmd[counter] != '.')
+        {
+          counter = 0;
+          break;
+        }
+      }
+      if (counter != 0)
+      {
+        strncpy(minRating, cmd, 5);
+        count = 0;
+      }
+    }
+  default:
+    break;
+  }
+}
+
+void init(void)
+{
+  OS_SETSYSDRV();
+  OS_MKDIR("../downloads");        // Create if not exist
+  OS_MKDIR("../downloads/getpic"); // Create if not exist
+  OS_CHDIR("../downloads/getpic");
 
   count = 0;
   verbose = 1;
@@ -929,9 +1000,19 @@ C_task main(void)
   targetadr.b2 = 146; // 92
   targetadr.b3 = 69;  // 45
   targetadr.b4 = 13;  // 0D
+}
 
-  BOX(1, 1, 80, 25, 40, ' ');
-  AT(1, 1);
+C_task main(void)
+{
+  long iddqd, idkfa;
+  char result;
+
+  OS_HIDEFROMPARENT();
+  OS_SETGFX(0x86);
+  OS_CLS(0);
+
+  init();
+
   printHelp();
   safeKeys(keypress);
 
@@ -958,7 +1039,10 @@ start:
 
   if (iddqd < 0)
   {
-    goto review;
+    count++;
+    keypress = getchar();
+    safeKeys(keypress);
+    goto start;
   }
 
   if (verbose == 1)
@@ -968,15 +1052,9 @@ start:
     {
       printf(" Cant parse curFileStruct.authorIds = %s \r\n\r\n", curFileStruct.authorIds);
       count++;
+      getchar();
       goto start;
     }
-
-    printData();
-  }
-  else
-  {
-    // ATRIB(97);
-    // printf(" Getting picture...\r\n");
   }
 
   if (strcmp(curFileStruct.picType, "standard") != 0)
@@ -986,16 +1064,21 @@ start:
     goto start;
   }
 
-  if (netDriver == 0)
+  sprintf(netbuf, "GET /file/id:%lu%s", iddqd, userAgent);
+
+  switch (netDriver)
   {
-    errno = getPic(iddqd);
-  }
-  else
-  {
-    errno = getPicEsp(iddqd);
+  case 0:
+    result = fillPictureNet();
+    break;
+  case 1:
+    result = fillPictureEsp();
+    break;
   }
 
 review:
+  OS_CLS(0);
+  YIELD();
   keypress = viewScreen6912((unsigned int)&picture, slideShowTime);
   emptyKeys();
 
@@ -1003,65 +1086,29 @@ review:
   if (keypress == 's' || keypress == 'S')
   {
     savePic(iddqd);
-    if (verbose == 1)
-      printf("        ID:%lu    TITLE:%s  SAVED\r\n\r\n", curFileStruct.picId, curFileStruct.picName);
+    printf("%s saved.", curFileStruct.fileName);
+    delayLong(500);
     count++;
   }
-  else if (keypress == 248 || keypress == 'b' || keypress == 'B')
+
+  if (keypress == 248 || keypress == 'b' || keypress == 'B')
   {
     if (count > 0)
     {
       count--;
     }
   }
-  else if (keypress == 251 || keypress == 32)
+  if (keypress == 251 || keypress == 32)
   {
     count++;
     goto start;
   }
-  else if (keypress == 'i' || keypress == 'I')
+  if (keypress == 'i' || keypress == 'I')
   {
-    delay(100);
+    printData();
     getchar();
     goto review;
   }
-  else if (keypress == 'm' || keypress == 'M')
-  {
-    curWin.w = 22;
-    curWin.x = 80 / 2 - curWin.w / 2 - 2;
-    curWin.y = 1;
-    curWin.h = 1;
-    curWin.text = 97;
-    curWin.back = 42;
-    strcpy(curWin.tittle, "Минимальная оценка:");
-
-    if (inputBox(curWin, ""))
-    {
-      char counter;
-      for (counter = 0; counter < strlen(cmd); counter++)
-      {
-        if ((((cmd[counter] < '0') || (cmd[counter] > '9'))) && cmd[counter] != '.')
-        {
-          AT(1, 25);
-          ATRIB(96);
-          ATRIB(40);
-          printf("    Wrong input.[%s]", cmd);
-          counter = 0;
-          break;
-        }
-      }
-      if (counter != 0)
-      {
-        strncpy(minRating, cmd, 5);
-        AT(1, 25);
-        ATRIB(96);
-        ATRIB(40);
-        printf("    Minimal rating for random play is set to %s+\r\n\r\n", minRating);
-        count = 0;
-      }
-    }
-  }
   safeKeys(keypress);
-  YIELD();
   goto start;
 }

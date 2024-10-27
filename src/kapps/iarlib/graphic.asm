@@ -19,16 +19,18 @@ viewScreen6912:
 ; unsigned int viewScreen6912(unsigned char pause, unsigned int bufAdr);
 ; DE = buffer adress BC = time in ints out A = key
 	xor a
-	ld (pg0), a
+	ld (key), a
 	push hl
 	push bc ; not for exit 
 	push de ; not for exit 
-	ld c, CMD_GETMAINPAGES
+
+	ld c, CMD_GETMAINPAGES	;d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
 	push ix
 	push iy
 	call BDOS
 	pop iy
 	pop ix	
+
 	ld (pg4),de
 	ld (pgC),hl
 display:
@@ -45,7 +47,7 @@ display:
 	
 	push ix
 	push iy
-	rst 0x28
+	rst 0x28		;SETPGC000
 	pop iy
 	pop ix
 	
@@ -53,13 +55,14 @@ display:
 	ld de, 0xC000
 	ld bc, 6912
 	ldir
-    xor a
-	out (0xfe), a
+    
+	xor a
+	out (0xfe), a	;border 0
 
 	pop bc			; tics
 	ld a, b
     or c
-    jp nz, slideshow
+    jp nz, slideshow	;	tics != 0
 	
 inkey
 	
@@ -67,7 +70,7 @@ inkey
 	
 	push ix
 	push iy
-	rst 0x08
+	rst 0x08		;OS_GETKEY
 	pop iy
 	pop ix
 	halt
@@ -78,24 +81,23 @@ inkey
 	jp z, inkey
 
 exit3
-	ld (pg0), a
-	ld e, -1
+	ld (key), a
+	ld e, 0x86
 	ld c, CMD_SETGFX
 	push ix
 	push iy
-	halt
+	;halt
 	call BDOS
 	pop iy
 	pop ix
 	ld a, (pgC)
 	push ix
 	push iy
-	rst 0x28
+	rst 0x28	;SETPGC000
 	pop iy
 	pop ix
 	pop hl
-	ld a, (pg0)
-	halt
+	ld a, (key)
 	ret
 
 slideshow ;BC ints
@@ -123,6 +125,7 @@ pg0		defb 0
 pgC		defb 0
 pg8		defb 0
 waiting defw 0
+key		defb 0
 ENDMOD
 
 MODULE rst0x08

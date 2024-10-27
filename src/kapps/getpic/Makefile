@@ -5,7 +5,7 @@ BIN		:=getpic.com
 INSTDIR := bin
 
 #тип вводавывода TTY или BDOS
-CONSOLE := TTY
+CONSOLE := BDOS
 
 #файлы .с
 SRCC	:= main.c
