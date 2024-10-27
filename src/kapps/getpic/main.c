@@ -162,7 +162,8 @@ void printHelp(void)
   printf(" 'V' не выводить информацию об авторах\n\r");
   printf(" 'R' переход в режим  случайная картинка с рейтингом 4+\n\r");
   printf(" 'A' переход в режим  слайд-шоу\n\r");
-  printf(" 'D' Переключение режима ZXNETUSB/ESP-AT\n\r");
+  printf(" 'D' Переключение режима ZXNETUSB/ESP-COM\n\r");
+  printf(" 'T' Продолжительность одного слайда в int-ах \n\r");
   printf(" 'H' Данная справочная информация\n\r");
   printf("-----------------Нажмите любую кнопку------------------\n\r");
   OS_SETCOLOR(70);
@@ -864,7 +865,7 @@ void safeKeys(unsigned char keypress)
     curWin.h = 1;
     curWin.text = 103;
     curWin.back = 103;
-    strcpy(curWin.tittle, "№ картинки:");
+    strcpy(curWin.tittle, "# of pic:");
     if (inputBox(curWin, ""))
     {
       sscanf(cmd, "%lu", &count);
@@ -874,6 +875,24 @@ void safeKeys(unsigned char keypress)
       }
     }
     break;
+  case 't':
+  case 'T':
+    curWin.w = 20;
+    curWin.x = 80 / 2 - curWin.w / 2 - 2;
+    curWin.y = 11;
+    curWin.h = 1;
+    curWin.text = 103;
+    curWin.back = 103;
+    strcpy(curWin.tittle, "Slide time(ints)");
+    if (inputBox(curWin, ""))
+    {
+      sscanf(cmd, "%u", &slideShowTime);
+      OS_CLS(0);
+      OS_SETCOLOR(70);
+      printf("Slide duration set to %u ints.", slideShowTime);
+      delayLong(500);
+    }
+    break;    
   case 'v':
   case 'V':
     verbose = !verbose;
