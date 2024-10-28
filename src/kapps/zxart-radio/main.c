@@ -220,6 +220,94 @@ void printHelp(void)
   printf("                                                           \r\n");
 }
 
+void printStatus(void)
+{
+  OS_SETXY(0, 8);
+  OS_SETCOLOR(70);
+  printf(" [Q]Query : ");
+  OS_SETCOLOR(71);
+  printf("%s", queryType);
+  printf("  ");
+  OS_SETXY(0, 23);
+  OS_SETCOLOR(95);
+  printf("                                                                                ");
+  OS_SETXY(1, 23);
+  printf(" [F]Format: ");
+  OS_SETCOLOR(94);
+  printf("%s", formats[curFormat]);
+  OS_SETCOLOR(95);
+  printf(" [K]Keep files: ");
+  OS_SETCOLOR(94);
+  printf("%u", saveFlag);
+  OS_SETCOLOR(95);
+  printf(" [R]Repeat: ");
+  OS_SETCOLOR(94);
+  printf("%u", rptFlag);
+  OS_SETCOLOR(95);
+  printf(" [J]Jump to ");
+  printf(" [E]Exit        [%s]", ver);
+
+  OS_SETCOLOR(71);
+  YIELD();
+}
+
+void printInfo(void)
+{
+  BDBOX(30, 2, 50, 6, 71, ' ');
+  OS_SETXY(0, 1);
+  OS_SETCOLOR(70);
+  printf(" #: ");
+  OS_SETCOLOR(71);
+  printf("%lu", count);
+  OS_SETCOLOR(70);
+  printf(" ID: ");
+  OS_SETCOLOR(71);
+  printf("%lu", curFileStruct.picId);
+  OS_SETCOLOR(70);
+  printf(" Total Tracks: ");
+  OS_SETCOLOR(71);
+  printf("%lu     \r\n", curFileStruct.totalAmount);
+  OS_SETCOLOR(70);
+  printf(" RATING: ");
+  OS_SETCOLOR(71);
+  printf("%s", curFileStruct.picRating);
+  OS_SETCOLOR(70);
+  printf(" YEAR: ");
+  OS_SETCOLOR(71);
+  printf("%u", curFileStruct.picYear);
+  OS_SETCOLOR(70);
+  printf(" DURATION: ");
+  OS_SETCOLOR(71);
+  printf("%s", curFileStruct.time);
+  printf(" \r\n\r\n");
+  OS_SETCOLOR(70);
+  printf(" AuthorsIDs ");
+  OS_SETCOLOR(71);
+  printf("%s", curFileStruct.authorIds);
+  OS_SETCOLOR(70);
+  printf(" Author: ");
+  OS_SETCOLOR(71);
+  printf("%s", curFileStruct.authorTitle);
+  OS_SETCOLOR(70);
+  printf(" Real name: ");
+  OS_SETCOLOR(71);
+  printf("%s", curFileStruct.authorRealName);
+  printf(" \r\n\r\n");
+  OS_SETCOLOR(69);
+  printf("                                                                           \r");
+  printf("   TITLE: %s\r\n", curFileStruct.trackName);
+}
+
+void refreshScreen(void)
+{
+  OS_CLS(0);
+  printInfo();
+  printProgress(0);
+  printProgress(1);
+  printHelp();
+  printStatus();
+}
+
 int pos(unsigned char *s, unsigned char *c, unsigned int n, unsigned int startPos)
 {
   unsigned int i, j;
@@ -260,16 +348,23 @@ int cutHeader(unsigned int todo)
   if (err != 200)
   {
 
+    OS_CLS(0);
     puts(netbuf);
     puts("^^^^^^^^^^^^^^^^^^^^^");
     printf("HTTP response:[%u]\r\n", err);
     getchar();
+    refreshScreen();
   }
   count1 = strstr(netbuf, "Content-Length:");
   if (count1 == NULL)
   {
+    OS_CLS(0);
+    puts(netbuf);
+    puts("^^^^^^^^^^^^^^^^^^^^^");
     printf("contLen  not found \r\n");
     contLen = 0;
+    getchar();
+    refreshScreen();
   }
   else
   {
@@ -280,6 +375,7 @@ int cutHeader(unsigned int todo)
   count1 = strstr(netbuf, "\r\n\r\n");
   if (count1 == NULL)
   {
+    clearStatus();
     printf("end of header not found\r\n");
   }
   else
@@ -786,20 +882,19 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
 
   switch (queryNum)
   {
-  case 0: // GET /api/export:zxMusic/limit:1/start:1/filter:zxMusicFormat=pt3/order:date,desc HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)
+  case 0:
     sprintf(netbuf, "GET /api/export:zxMusic/limit:%u/start:%lu/filter:zxMusicFormat=%s/order:date,desc%s", limit, startPos, formats[curFormat], userAgent);
     break;
-  case 1: // GET /api/types:zxMusic/export:zxMusic/language:eng/limit:1/start:0/order:votes,rand/filter:zxMusicMinRating=4;
+  case 1:
     startPos = 0;
     sprintf(netbuf, "GET /api/types:zxMusic/export:zxMusic/language:eng/limit:%u/start:%lu/order:votes,rand/filter:zxMusicMinRating=%s;zxMusicFormat=%s%s", limit, startPos, minRating, formats[curFormat], userAgent);
     break;
-  case 2: // GET /api/types:zxMusic/export:zxMusic/language:eng/limit:1/start:0/order:rand/filter:zxMusicFormat=PT3 HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)
+  case 2:
     startPos = 0;
     sprintf(netbuf, "GET /api/types:zxMusic/export:zxMusic/language:eng/limit:%u/start:%lu/order:rand/filter:zxMusicMinRating=%s;zxMusicFormat=%s%s", limit, startPos, minRating, formats[curFormat], userAgent);
     break;
 
-  case 3: // GET /api/export:zxMusic/limit:1/start:1/filter:zxMusicFormat=pt3;authorId=7744/order:date,desc HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)
-
+  case 3:
     fp3 = OS_OPENHANDLE("../ini/user.que", 0x80);
     if (((int)fp3) & 0xff)
     {
@@ -812,7 +907,7 @@ unsigned long processJson(unsigned long startPos, unsigned char limit, unsigned 
     OS_CLOSEHANDLE(fp3);
     sprintf(netbuf, "GET /api/limit:%u/start:%lu%s%s", limit, startPos, userQuery, userAgent);
     break;
-  case 99: // GET /jsonElementData/elementId:182798
+  case 99:
     sprintf(netbuf, "GET /jsonElementData/elementId:%lu%s", startPos, userAgent);
     break;
   }
@@ -1061,84 +1156,6 @@ long trackSelector(unsigned char mode)
   return count;
 }
 
-void printStatus(void)
-{
-  OS_SETXY(0, 8);
-  OS_SETCOLOR(70);
-  printf(" [Q]Query : ");
-  OS_SETCOLOR(71);
-  printf("%s", queryType);
-  printf("  ");
-  OS_SETXY(0, 23);
-  OS_SETCOLOR(95);
-  printf("                                                                                ");
-  OS_SETXY(1, 23);
-  printf(" [F]Format: ");
-  OS_SETCOLOR(94);
-  printf("%s", formats[curFormat]);
-  OS_SETCOLOR(95);
-  printf(" [K]Keep files: ");
-  OS_SETCOLOR(94);
-  printf("%u", saveFlag);
-  OS_SETCOLOR(95);
-  printf(" [R]Repeat: ");
-  OS_SETCOLOR(94);
-  printf("%u", rptFlag);
-  OS_SETCOLOR(95);
-  printf(" [J]Jump to ");
-  printf(" [E]Exit        [%s]", ver);
-
-  OS_SETCOLOR(71);
-  YIELD();
-}
-
-void printInfo(void)
-{
-  BDBOX(30, 2, 50, 6, 71, ' ');
-  OS_SETXY(0, 1);
-  OS_SETCOLOR(70);
-  printf(" #: ");
-  OS_SETCOLOR(71);
-  printf("%lu", count);
-  OS_SETCOLOR(70);
-  printf(" ID: ");
-  OS_SETCOLOR(71);
-  printf("%lu", curFileStruct.picId);
-  OS_SETCOLOR(70);
-  printf(" Total Tracks: ");
-  OS_SETCOLOR(71);
-  printf("%lu     \r\n", curFileStruct.totalAmount);
-  OS_SETCOLOR(70);
-  printf(" RATING: ");
-  OS_SETCOLOR(71);
-  printf("%s", curFileStruct.picRating);
-  OS_SETCOLOR(70);
-  printf(" YEAR: ");
-  OS_SETCOLOR(71);
-  printf("%u", curFileStruct.picYear);
-  OS_SETCOLOR(70);
-  printf(" DURATION: ");
-  OS_SETCOLOR(71);
-  printf("%s", curFileStruct.time);
-  printf(" \r\n\r\n");
-  OS_SETCOLOR(70);
-  printf(" AuthorsIDs ");
-  OS_SETCOLOR(71);
-  printf("%s", curFileStruct.authorIds);
-  OS_SETCOLOR(70);
-  printf(" Author: ");
-  OS_SETCOLOR(71);
-  printf("%s", curFileStruct.authorTitle);
-  OS_SETCOLOR(70);
-  printf(" Real name: ");
-  OS_SETCOLOR(71);
-  printf("%s", curFileStruct.authorRealName);
-  printf(" \r\n\r\n");
-  OS_SETCOLOR(69);
-  printf("                                                                           \r");
-  printf("   TITLE: %s\r\n", curFileStruct.trackName);
-}
-
 unsigned char testPlayer(void)
 {
   union APP_PAGES player2_pg;
@@ -1229,15 +1246,6 @@ char optionsMenu(void)
   return true;
 }
 */
-
-void refreshScreen(void)
-{
-  OS_CLS(0);
-  printInfo();
-  printProgress(0);
-  printHelp();
-  printStatus();
-}
 
 C_task main(int argc, char *argv[])
 {
@@ -1515,7 +1523,11 @@ rekey:
       getchar();
       goto resume;
     }
-    if (keypress == 'r' || keypress == 'R')
+    else if (keypress == 31)
+    {
+      refreshScreen();
+    }
+    else if (keypress == 'r' || keypress == 'R')
     {
       rptFlag = !rptFlag;
       clearStatus();
@@ -1534,7 +1546,6 @@ rekey:
       printf("File saved: [%s]...", curFileStruct.fileName);
       goto rekey;
     }
-
     else if (keypress == 'i' || keypress == 'I')
     {
       netDriver = !netDriver;
