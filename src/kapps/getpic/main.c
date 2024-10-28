@@ -58,7 +58,7 @@ struct sockaddr_in dnsaddress;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 
-unsigned char ver[] = "3.4";
+unsigned char ver[] = "3.5";
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
@@ -102,6 +102,12 @@ void spaces(unsigned char number)
     putchar(' ');
     number--;
   }
+}
+void quit(void)
+{
+  OS_CLS(0);
+  OS_SETGFX(-1);
+  exit(0);
 }
 
 void infoBox(struct window w, unsigned char *message)
@@ -451,7 +457,7 @@ unsigned char savePic(unsigned long fileId)
   {
     printf("%s creating error\r\n", curFileStruct.fileName);
     getchar();
-    exit(0);
+    quit();
   }
   OS_WRITEHANDLE(picture, fp2, 6912);
   OS_CLOSEHANDLE(fp2);
@@ -730,6 +736,34 @@ void printData(void)
   printf("%s\r\n", curFileStruct.authorRealName);
   OS_SETCOLOR(69);
   printf("\r\n");
+  printf("\r\n");
+
+  OS_SETCOLOR(70);
+
+  OS_SETCOLOR(70);
+  printf(" Query: ");
+  OS_SETCOLOR(71);
+  if (randomPic)
+  {
+    printf("Random pic with %s+ rating\r\n", minRating);
+  }
+  else
+  {
+    puts("Sequental from newest");
+  }
+  OS_SETCOLOR(70);
+  printf(" Mode : ");
+  OS_SETCOLOR(71);
+
+  if (slideShow)
+  {
+    printf("Slide-show, %u ints \r\n", slideShowTime);
+  }
+  else
+  {
+    puts("Manual show");
+  }
+
   // YIELD();
 }
 
@@ -855,7 +889,7 @@ void safeKeys(unsigned char keypress)
     OS_SETCOLOR(70);
     printf("Good bye...\r\n");
     delayLong(500);
-    exit(0);
+    quit();
     break;
   case 'j':
   case 'J':
@@ -892,7 +926,7 @@ void safeKeys(unsigned char keypress)
       printf("Slide duration set to %u ints.", slideShowTime);
       delayLong(500);
     }
-    break;    
+    break;
   case 'v':
   case 'V':
     verbose = !verbose;
