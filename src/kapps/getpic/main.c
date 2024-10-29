@@ -506,7 +506,7 @@ const char *parseJson(unsigned char *property)
   lng = n - 1 + strlen(property);
   if (picture[lng] == ':')
   {
-    terminator = '\0';
+    terminator = 0;
   }
   if (picture[lng] == '\"')
   {
@@ -525,7 +525,7 @@ const char *parseJson(unsigned char *property)
 
     if ((picture[lngp1 + findEnd] == ','))
     {
-      if (terminator == '\0')
+      if (terminator == 0)
       {
         break;
       }
@@ -616,9 +616,6 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   case 1:
     sprintf(netbuf, "GET /api/types:zxPicture/export:zxPicture/language:eng/start:0/limit:1/order:rand/filter:zxPictureMinRating=%s;zxPictureType=standard%s", minRating, userAgent);
     break;
-  case 3: // /api/export:author/filter:authorId=2202
-    sprintf(netbuf, "GET /api/export:author/filter:authorId=%lu%s", startPos, userAgent);
-    break;
   case 99: // GET /jsonElementData/elementId:182798
     sprintf(netbuf, "GET /jsonElementData/elementId:%lu%s", startPos, userAgent);
     break;
@@ -672,10 +669,12 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     YIELD();
     return -2;
   }
-
   netbuf[0] = 0;
-  if (queryNum < 3)
+
+  switch (queryNum)
   {
+  case 0:
+  case 1:
     parseJson("\"id\":");
     curFileStruct.picId = atol(netbuf);
     parseJson(",\"title\":\"");
@@ -695,15 +694,15 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     curFileStruct.totalAmount = atol(netbuf);
     parseJson("\"authorIds\":[");
     strcpy(curFileStruct.authorIds, netbuf);
-  }
-  if (queryNum == 99)
-  {
+    break;
+  case 99:
     parseJson(",\"title\":\"");
     convert866();
     strcpy(curFileStruct.authorTitle, netbuf);
     parseJson(",\"realName\":\"");
     convert866();
     strcpy(curFileStruct.authorRealName, netbuf);
+    break;
   }
   return curFileStruct.picId;
 }
