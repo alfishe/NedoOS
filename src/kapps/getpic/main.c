@@ -237,8 +237,7 @@ int cutHeader(unsigned int todo)
   return todo - headlng;
 }
 
-char *str_replace(char *dst, int num, const char *str,
-                  const char *orig, const char *rep)
+char *str_replace(char *dst, int num, const char *str, const char *orig, const char *rep)
 {
   const char *ptr;
   size_t len1 = strlen(orig);
@@ -544,7 +543,7 @@ const char *parseJson(unsigned char *property)
     netbuf[listPos] = picture[w];
     listPos++;
   }
-  netbuf[listPos] = '\0';
+  netbuf[listPos] = 0;
   return netbuf;
 }
 
@@ -634,6 +633,7 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     result = fillPictureEsp();
     break;
   }
+
   count1 = strstr(picture, "responseStatus\":\"success");
   if (count1 == NULL)
   {
@@ -651,6 +651,18 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   count1 = strstr(picture, "\"id\":");
   if (count1 == NULL)
   {
+
+    parseJson("\"totalAmount\":");
+
+    if (atol(netbuf) == 0)
+    {
+      return -3;
+    }
+
+    if (netbuf[0] != '-')
+    {
+      return -4;
+    }
     OS_CLS(0);
     OS_SETCOLOR(66);
     puts("Picture[]:");
@@ -1088,6 +1100,21 @@ start:
   case 1:
     iddqd = processJson(0, 1, 1);
     break;
+  }
+
+  OS_SETCOLOR(70);
+  switch (iddqd)
+  {
+  case -3: // return 0 pictures
+    strcpy(minRating, "1.0");
+    printf("\r\n No picture is returned in query. Minimal rating is set to %s\r\n", minRating);
+    delayLong(500);
+    goto start;
+  case -4: // return xxxx picture, but empty body.
+    puts("Empty body is returned. Next picture, please.");
+    delayLong(500);
+    count++;
+    goto start;
   }
 
   if (iddqd < 0)
