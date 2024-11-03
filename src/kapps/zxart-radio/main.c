@@ -266,7 +266,7 @@ void printInfo(void)
   OS_SETCOLOR(70);
   printf(" Total Tracks: ");
   OS_SETCOLOR(71);
-  printf("%lu     \r\n", curFileStruct.totalAmount);
+  printf("%lu               \r\n", curFileStruct.totalAmount);
   OS_SETCOLOR(70);
   printf(" RATING: ");
   OS_SETCOLOR(71);
@@ -500,8 +500,7 @@ unsigned char inputBox(struct window w, unsigned char *prefilled)
   return false;
 }
 
-char *str_replace(char *dst, int num, const char *str,
-                  const char *orig, const char *rep)
+char *str_replace(char *dst, int num, const char *str, const char *orig, const char *rep)
 {
   const char *ptr;
   size_t len1 = strlen(orig);
@@ -776,17 +775,17 @@ char getDataNet(void)
   socket = OpenSock(AF_INET, SOCK_STREAM);
   testOperation("OS_NETSOCKET", socket);
 
-  todo = netConnect(socket, 1);
+  todo = netConnect(socket, 2);
   testOperation("OS_NETCONNECT", todo);
 
-  todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), 1);
+  todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), 2);
   testOperation("OS_WIZNETWRITE", todo);
 
   downloaded = 0;
   do
   {
     headlng = 0;
-    todo = tcpRead(socket, 1);
+    todo = tcpRead(socket, 2);
     clearStatus();
     testOperation("OS_WIZNETREAD", todo);
     if (todo == 0)
@@ -1249,10 +1248,9 @@ char optionsMenu(void)
 
 C_task main(int argc, char *argv[])
 {
-  unsigned char errn, keypress, pId, alive, changedFormat;
+  unsigned char errn, keypress, pId, changedFormat;
   long iddqd, idkfa;
   unsigned long curTimer, startTimer, oldTimer;
-  // os_initstdio();
   srand(time());
 
   OS_HIDEFROMPARENT();
@@ -1354,228 +1352,436 @@ resume:
   printInfo();
 rekey:
   keypress = OS_GETKEY();
-  if (keypress != 0)
+
+  switch (keypress)
   {
-    if (keypress == 27 || keypress == 'e' || keypress == 'E')
+  case 27:
+  case 'e':
+  case 'E':
+    OS_DROPAPP(pId);
+    OS_CLS(0);
+    printf("Good bye...\r\n");
+    OS_SETCOLOR(7);
+    exit(0);
+  case 248:
+  case 'b':
+  case 'B':
+    changedFormat = 0;
+    OS_DROPAPP(pId);
+    clearStatus();
+    printf("Player stopped...");
+    count = trackSelector(1);
+    goto start;
+  case 251:
+  case 32:
+  case 'n':
+  case 'N':
+    changedFormat = 0;
+    OS_DROPAPP(pId);
+    clearStatus();
+    printf("Player stopped...");
+    count = trackSelector(0);
+    goto start;
+  case 'k':
+  case 'K':
+    OS_DROPAPP(pId);
+    clearStatus();
+    printf("Player stopped...");
+    saveFlag = !saveFlag;
+    printStatus();
+    changedFormat = 0;
+    goto replay;
+  case 'q':
+  case 'Q':
+    OS_DROPAPP(pId);
+    clearStatus();
+    printf("Player stopped...");
+    queryNum++;
+    if (queryNum > 3)
     {
-      OS_DROPAPP(pId);
-      OS_CLS(0);
-      printf("Good bye...\r\n");
-      OS_SETCOLOR(7);
-      exit(0);
+      queryNum = 0;
     }
-    else if (keypress == 248 || keypress == 'b' || keypress == 'B')
+    switch (queryNum)
     {
-      changedFormat = 0;
-      OS_DROPAPP(pId);
-      clearStatus();
-      printf("Player stopped...");
-      count = trackSelector(1);
-      goto start;
+    case 0:
+      strcpy(queryType, "from newest to oldest                   ");
+      break;
+    case 1:
+      sprintf(queryType, "Random most voted tracks with rating %s+    ", minRating);
+      break;
+    case 2:
+      sprintf(queryType, "Random play with rating %s+                  ", minRating);
+      break;
+    case 3:
+      strcpy(queryType, "User defined query from \"user.que\"     ");
+      break;
     }
-
-    else if (keypress == 251 || keypress == 32 || keypress == 'n' || keypress == 'N')
+    count = 0;
+    changedFormat = 0;
+    printStatus();
+    goto start;
+  case 'j':
+  case 'J':
+    curWin.w = 22;
+    curWin.x = 80 / 2 - curWin.w / 2 - 2;
+    curWin.y = 14;
+    curWin.h = 1;
+    curWin.text = 103;
+    curWin.back = 103;
+    strcpy(curWin.tittle, "Track number:");
+    if (inputBox(curWin, ""))
     {
-      changedFormat = 0;
+      sscanf(cmd, "%lu", &count);
       OS_DROPAPP(pId);
-      clearStatus();
-      printf("Player stopped...");
-      count = trackSelector(0);
-      goto start;
-    }
-
-    else if (keypress == 'k' || keypress == 'K')
-    {
-      OS_DROPAPP(pId);
-      clearStatus();
-      printf("Player stopped...");
-      saveFlag = !saveFlag;
-      printStatus();
-      changedFormat = 0;
-      goto replay;
-    }
-
-    else if (keypress == 'q' || keypress == 'Q')
-    {
-      OS_DROPAPP(pId);
-      clearStatus();
-      printf("Player stopped...");
-      queryNum++;
-      if (queryNum > 3)
+      if (count > curFileStruct.totalAmount - 1)
       {
-        queryNum = 0;
+        count = curFileStruct.totalAmount - 1;
       }
-      switch (queryNum)
+      changedFormat = 0;
+      goto start;
+    }
+    printHelp();
+    break;
+  case 'm':
+  case 'M':
+    curWin.w = 22;
+    curWin.x = 80 / 2 - curWin.w / 2 - 2;
+    curWin.y = 14;
+    curWin.h = 1;
+    curWin.text = 103;
+    curWin.back = 103;
+    strcpy(curWin.tittle, "Minimal rating:");
+
+    if (inputBox(curWin, ""))
+    {
+      char counter;
+      for (counter = 0; counter < strlen(cmd); counter++)
       {
-      case 0:
-        strcpy(queryType, "from newest to oldest                   ");
-        break;
-      case 1:
+        if ((((cmd[counter] < '0') || (cmd[counter] > '9'))) && cmd[counter] != '.')
+        {
+          clearStatus();
+          printf("Wrong input.[%s]", cmd);
+          counter = 0;
+          break;
+        }
+      }
+
+      if (counter != 0)
+      {
+        strncpy(minRating, cmd, 5);
+
         sprintf(queryType, "Random most voted tracks with rating %s+    ", minRating);
-        break;
-      case 2:
         sprintf(queryType, "Random play with rating %s+                  ", minRating);
-        break;
-      case 3:
-        strcpy(queryType, "User defined query from \"user.que\"     ");
-        break;
+        count = 0;
       }
-      count = 0;
-      changedFormat = 0;
-      printStatus();
-      goto start;
-    }
-
-    if (keypress == 'j' || keypress == 'J')
-    {
-      curWin.w = 22;
-      curWin.x = 80 / 2 - curWin.w / 2 - 2;
-      curWin.y = 14;
-      curWin.h = 1;
-      curWin.text = 103;
-      curWin.back = 103;
-      strcpy(curWin.tittle, "Track number:");
-      if (inputBox(curWin, ""))
-      {
-        sscanf(cmd, "%lu", &count);
-        OS_DROPAPP(pId);
-        if (count > curFileStruct.totalAmount - 1)
-        {
-          count = curFileStruct.totalAmount - 1;
-        }
-        changedFormat = 0;
-        goto start;
-      }
-      printHelp();
-    }
-
-    else if (keypress == 'm' || keypress == 'M')
-    {
-      curWin.w = 22;
-      curWin.x = 80 / 2 - curWin.w / 2 - 2;
-      curWin.y = 14;
-      curWin.h = 1;
-      curWin.text = 103;
-      curWin.back = 103;
-      strcpy(curWin.tittle, "Minimal rating:");
-
-      if (inputBox(curWin, ""))
-      {
-        char counter;
-        for (counter = 0; counter < strlen(cmd); counter++)
-        {
-          if ((((cmd[counter] < '0') || (cmd[counter] > '9'))) && cmd[counter] != '.')
-          {
-            clearStatus();
-            printf("Wrong input.[%s]", cmd);
-            counter = 0;
-            break;
-          }
-        }
-
-        if (counter != 0)
-        {
-          strncpy(minRating, cmd, 5);
-
-          sprintf(queryType, "Random most voted tracks with rating %s+    ", minRating);
-          sprintf(queryType, "Random play with rating %s+                  ", minRating);
-          count = 0;
-        }
-        refreshScreen();
-      }
-    }
-
-    else if (keypress == 'f' || keypress == 'F')
-    {
-      OS_DROPAPP(pId);
-      clearStatus();
-      printf("Player stopped...");
-      curFormat++;
-      count = -1;
-      if (curFormat > 3)
-      {
-        curFormat = 0;
-      }
-      changedFormat = 1;
-      curFileStruct.totalAmount = 1;
-      if (strstr(formats[curFormat], "tfc") != NULL)
-      {
-        cutOff = 0;
-      }
-      else
-      {
-        cutOff = 0;
-      }
-
-      printStatus();
-      printProgress(0);
-      BDBOX(1, 2, 80, 6, 71, ' ');
-      goto rekey;
-    }
-
-    else if (keypress == 's' || keypress == 'S')
-    {
-      OS_DROPAPP(pId);
-      clearStatus();
-      printf("Player stopped...");
-      printProgress(0);
-      changedFormat = 0;
-      getchar();
-      goto resume;
-    }
-    else if (keypress == 31)
-    {
       refreshScreen();
     }
-    else if (keypress == 'r' || keypress == 'R')
+    break;
+  case 'f':
+  case 'F':
+    OS_DROPAPP(pId);
+    clearStatus();
+    printf("Player stopped...");
+    curFormat++;
+    count = -1;
+    if (curFormat > 3)
     {
-      rptFlag = !rptFlag;
-      clearStatus();
-      printStatus();
-      goto rekey;
+      curFormat = 0;
     }
-    else if (keypress == 'd' || keypress == 'D')
+    changedFormat = 1;
+    curFileStruct.totalAmount = 1;
+    if (strstr(formats[curFormat], "tfc") != NULL)
     {
-      saveBak = saveFlag;
-      saveFlag = 1;
-
-      errn = getTrack2(iddqd); // Downloading the track
-
-      saveFlag = saveBak;
-      clearStatus();
-      printf("File saved: [%s]...", curFileStruct.fileName);
-      goto rekey;
+      cutOff = 0;
     }
-    else if (keypress == 'i' || keypress == 'I')
+    else
     {
-      netDriver = !netDriver;
-      if (netDriver == 1)
+      cutOff = 0;
+    }
+
+    printStatus();
+    printProgress(0);
+    BDBOX(1, 2, 80, 6, 71, ' ');
+    goto rekey;
+  case 's':
+  case 'S':
+    OS_DROPAPP(pId);
+    clearStatus();
+    printf("Player stopped...");
+    printProgress(0);
+    changedFormat = 0;
+    getchar();
+    goto resume;
+  case 'r':
+  case 'R':
+    rptFlag = !rptFlag;
+    clearStatus();
+    printStatus();
+    goto rekey;
+  case 'd':
+  case 'D':
+    saveBak = saveFlag;
+    saveFlag = 1;
+
+    errn = getTrack2(iddqd); // Downloading the track
+
+    saveFlag = saveBak;
+    clearStatus();
+    printf("File saved: [%s]...", curFileStruct.fileName);
+    goto rekey;
+  case 'i':
+  case 'I':
+    netDriver = !netDriver;
+    if (netDriver == 1)
+    {
+      clearStatus();
+      printf("    ESP-COM mode enabled...");
+      BDBOX(1, 14, 80, 8, 71, ' ');
+      OS_SETXY(0, 14);
+      loadEspConfig();
+      uart_init(divider);
+      espReBoot();
+      printHelp();
+    }
+    else
+    {
+      clearStatus();
+      printf("    ZXNETUSB mode enabled...");
+    }
+    OS_SETXY(0, 0);
+    OS_SETCOLOR(71);
+    OS_SETCOLOR(95);
+    printf("                           ZXART.EE radio for %s                    ", interfaces[netDriver]);
+    OS_SETCOLOR(6);
+    break;
+  case 31:
+    refreshScreen();
+    break;
+  default:
+    break;
+  }
+  /*
+    if (keypress != 0)
+    {
+      if (keypress == 27 || keypress == 'e' || keypress == 'E')
       {
+        OS_DROPAPP(pId);
+        OS_CLS(0);
+        printf("Good bye...\r\n");
+        OS_SETCOLOR(7);
+        exit(0);
+      }
+      else if (keypress == 248 || keypress == 'b' || keypress == 'B')
+      {
+        changedFormat = 0;
+        OS_DROPAPP(pId);
         clearStatus();
-        printf("    ESP-COM mode enabled...");
-        BDBOX(1, 14, 80, 8, 71, ' ');
-        OS_SETXY(0, 14);
-        loadEspConfig();
-        uart_init(divider);
-        espReBoot();
+        printf("Player stopped...");
+        count = trackSelector(1);
+        goto start;
+      }
+
+      else if (keypress == 251 || keypress == 32 || keypress == 'n' || keypress == 'N')
+      {
+        changedFormat = 0;
+        OS_DROPAPP(pId);
+        clearStatus();
+        printf("Player stopped...");
+        count = trackSelector(0);
+        goto start;
+      }
+
+      else if (keypress == 'k' || keypress == 'K')
+      {
+        OS_DROPAPP(pId);
+        clearStatus();
+        printf("Player stopped...");
+        saveFlag = !saveFlag;
+        printStatus();
+        changedFormat = 0;
+        goto replay;
+      }
+
+      else if (keypress == 'q' || keypress == 'Q')
+      {
+        OS_DROPAPP(pId);
+        clearStatus();
+        printf("Player stopped...");
+        queryNum++;
+        if (queryNum > 3)
+        {
+          queryNum = 0;
+        }
+        switch (queryNum)
+        {
+        case 0:
+          strcpy(queryType, "from newest to oldest                   ");
+          break;
+        case 1:
+          sprintf(queryType, "Random most voted tracks with rating %s+    ", minRating);
+          break;
+        case 2:
+          sprintf(queryType, "Random play with rating %s+                  ", minRating);
+          break;
+        case 3:
+          strcpy(queryType, "User defined query from \"user.que\"     ");
+          break;
+        }
+        count = 0;
+        changedFormat = 0;
+        printStatus();
+        goto start;
+      }
+
+      if (keypress == 'j' || keypress == 'J')
+      {
+        curWin.w = 22;
+        curWin.x = 80 / 2 - curWin.w / 2 - 2;
+        curWin.y = 14;
+        curWin.h = 1;
+        curWin.text = 103;
+        curWin.back = 103;
+        strcpy(curWin.tittle, "Track number:");
+        if (inputBox(curWin, ""))
+        {
+          sscanf(cmd, "%lu", &count);
+          OS_DROPAPP(pId);
+          if (count > curFileStruct.totalAmount - 1)
+          {
+            count = curFileStruct.totalAmount - 1;
+          }
+          changedFormat = 0;
+          goto start;
+        }
         printHelp();
       }
-      else
-      {
-        clearStatus();
-        printf("    ZXNETUSB mode enabled...");
-      }
-      OS_SETXY(0, 0);
-      OS_SETCOLOR(71);
-      OS_SETCOLOR(95);
-      printf("                           ZXART.EE radio for %s                    ", interfaces[netDriver]);
-      OS_SETCOLOR(6);
-    }
-  }
 
+      else if (keypress == 'm' || keypress == 'M')
+      {
+        curWin.w = 22;
+        curWin.x = 80 / 2 - curWin.w / 2 - 2;
+        curWin.y = 14;
+        curWin.h = 1;
+        curWin.text = 103;
+        curWin.back = 103;
+        strcpy(curWin.tittle, "Minimal rating:");
+
+        if (inputBox(curWin, ""))
+        {
+          char counter;
+          for (counter = 0; counter < strlen(cmd); counter++)
+          {
+            if ((((cmd[counter] < '0') || (cmd[counter] > '9'))) && cmd[counter] != '.')
+            {
+              clearStatus();
+              printf("Wrong input.[%s]", cmd);
+              counter = 0;
+              break;
+            }
+          }
+
+          if (counter != 0)
+          {
+            strncpy(minRating, cmd, 5);
+
+            sprintf(queryType, "Random most voted tracks with rating %s+    ", minRating);
+            sprintf(queryType, "Random play with rating %s+                  ", minRating);
+            count = 0;
+          }
+          refreshScreen();
+        }
+      }
+
+      else if (keypress == 'f' || keypress == 'F')
+      {
+        OS_DROPAPP(pId);
+        clearStatus();
+        printf("Player stopped...");
+        curFormat++;
+        count = -1;
+        if (curFormat > 3)
+        {
+          curFormat = 0;
+        }
+        changedFormat = 1;
+        curFileStruct.totalAmount = 1;
+        if (strstr(formats[curFormat], "tfc") != NULL)
+        {
+          cutOff = 0;
+        }
+        else
+        {
+          cutOff = 0;
+        }
+
+        printStatus();
+        printProgress(0);
+        BDBOX(1, 2, 80, 6, 71, ' ');
+        goto rekey;
+      }
+
+      else if (keypress == 's' || keypress == 'S')
+      {
+        OS_DROPAPP(pId);
+        clearStatus();
+        printf("Player stopped...");
+        printProgress(0);
+        changedFormat = 0;
+        getchar();
+        goto resume;
+      }
+      else if (keypress == 31)
+      {
+        refreshScreen();
+      }
+      else if (keypress == 'r' || keypress == 'R')
+      {
+        rptFlag = !rptFlag;
+        clearStatus();
+        printStatus();
+        goto rekey;
+      }
+      else if (keypress == 'd' || keypress == 'D')
+      {
+        saveBak = saveFlag;
+        saveFlag = 1;
+
+        errn = getTrack2(iddqd); // Downloading the track
+
+        saveFlag = saveBak;
+        clearStatus();
+        printf("File saved: [%s]...", curFileStruct.fileName);
+        goto rekey;
+      }
+      else if (keypress == 'i' || keypress == 'I')
+      {
+        netDriver = !netDriver;
+        if (netDriver == 1)
+        {
+          clearStatus();
+          printf("    ESP-COM mode enabled...");
+          BDBOX(1, 14, 80, 8, 71, ' ');
+          OS_SETXY(0, 14);
+          loadEspConfig();
+          uart_init(divider);
+          espReBoot();
+          printHelp();
+        }
+        else
+        {
+          clearStatus();
+          printf("    ZXNETUSB mode enabled...");
+        }
+        OS_SETXY(0, 0);
+        OS_SETCOLOR(71);
+        OS_SETCOLOR(95);
+        printf("                           ZXART.EE radio for %s                    ", interfaces[netDriver]);
+        OS_SETCOLOR(6);
+      }
+    }
+  */
   curTimer = time();
   curFileStruct.curPos = (curTimer - startTimer) / 50;
-  alive++; // debug
   /*
     if ((curTimer - oldTimer) > 49)
     {
@@ -1626,7 +1832,6 @@ rekey:
     printProgress(1);
     oldTimer = curTimer;
   }
-
   YIELD();
   goto rekey;
 }
