@@ -246,7 +246,7 @@ readstream_http_headretry
         pop de
         cp key_esc
         jp z,readstream_err
-
+	display "readstream_http_head0 ", readstream_http_head0
 readstream_http_headlines0
          ld (readstream_http_headlineaddr),de
 readstream_http_head0
@@ -417,8 +417,42 @@ tGETend
 ;httpgetstr
 	;defb 'GET /cspr/index.htm HTTP/1.1',13,10
 	;defb 'Host: dimkam.ru',13,10
-	;defb 13,10
+	;defb 13,10	
+	display "dns_resolver ", $
 dns_resolver:		;DE-domain name
+	ld de,httphostname-1
+	ld hl,dnsbuf-1
+dns_ip_loop1
+	inc hl
+	ld (hl),0
+dns_ip_loop
+	inc de
+	ld a,(de)
+	or 0
+	jr nz,dns_ip_not_zero
+	ld hl,dnsbuf
+	ret
+	
+dns_ip_not_zero
+	cp '.'
+	jr z,dns_ip_loop1
+	
+	sub '0'
+	jr c,dns_not_ip
+	cp 9+1
+	jr nc,dns_not_ip
+	ld c,a
+	ld a,(hl)
+	add a
+	ld b,a
+	add a
+	add a
+	add b
+	add c
+	ld (hl),a
+	jr dns_ip_loop
+	
+dns_not_ip
     ld a,25;3
     ld (dns_err_count),a
 dns_err_loop
@@ -471,7 +505,7 @@ is_dot:
 	jp nz, skipgetdns
 	ld de, dns_ia2;DE= ptr to DNS buffer(4 bytes)
 	OS_GETDNS
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 skipgetdns:
 	ld de,0x0203
 	OS_NETSOCKET
