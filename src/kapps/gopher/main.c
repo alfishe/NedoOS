@@ -906,7 +906,7 @@ char getFileEsp(unsigned char *fileNamePtr)
 
 char getFile(unsigned char *fileNamePtr)
 {
-	int todo;
+	int todo, result;
 	int socket;
 	unsigned long downloaded = 0;
 
@@ -917,7 +917,12 @@ char getFile(unsigned char *fileNamePtr)
 
 	if (netDriver == 1)
 	{
-		return getFileEsp(fileNamePtr);
+		do
+		{
+			result = getFileEsp(fileNamePtr);
+		} while (result == 0);
+
+		return result;
 	}
 
 	if (!dnsResolve(link.host))
@@ -1883,7 +1888,7 @@ C_task main(int argc, char *argv[])
 {
 	unsigned char keypress;
 	int mouseScroll = 0;
-	unsigned long start, finish;
+	unsigned int start, finish;
 	OS_HIDEFROMPARENT();
 	OS_SETGFX(0x86);
 	OS_CLS(0);
@@ -1916,7 +1921,7 @@ C_task main(int argc, char *argv[])
 				}
 			}
 		}
-		if (mouse.rmb == 0)
+		else if (mouse.rmb == 0)
 		{
 			if (navi.history > 1)
 			{
@@ -1933,7 +1938,7 @@ C_task main(int argc, char *argv[])
 		}
 
 		finish++;
-		if ((finish - start) > 5000)
+		if ((finish - start) > 10000)
 		{
 			// mainWinDraw();
 			OS_SETCOLOR(207);
