@@ -86,7 +86,7 @@ void uart_init(unsigned char divisor)
 	{
 	case 0:
 	case 2:
-		output(MCR, 0x00);		  // Disable input
+		//output(MCR, 0x00);		  // Disable input
 		output(IIR_FCR, 0x87);	  // Enable fifo 8 level, and clear it
 		output(LCR, 0x83);		  // 8n1, DLAB=1
 		output(RBR_THR, divisor); // 115200 (divider 1-115200, 3 - 38400)
@@ -101,6 +101,7 @@ void uart_init(unsigned char divisor)
 		input(0xc3fe);
 		input((divisor << 8) | 0x00fe);
 		enable_interrupt();
+		uart_setrts(1);
 		break;
 	}
 }
@@ -188,7 +189,7 @@ void getdataEsp(unsigned int counted)
 	{
 		netbuf[counter] = uart_readBlock();
 	}
-	netbuf[counter] = 0;
+	//netbuf[counter] = 0;
 }
 
 void sendcommand(char *commandline)
@@ -214,9 +215,6 @@ void sendcommandNrn(char *commandline)
 	}
 	//printf("Sended:[%s] \r\n", commandline);
 }
-
-
-
 
 unsigned char getAnswer2(void)
 {
