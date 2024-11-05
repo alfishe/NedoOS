@@ -65,6 +65,27 @@ const unsigned char help[] = "\
 extern void
 dns_resolve(void);
 
+void clearStatus(void)
+{
+}
+
+void delay(unsigned long counter)
+{
+	unsigned long start, finish;
+	counter = counter / 20;
+	if (counter < 1)
+	{
+		counter = 1;
+	}
+	start = time();
+	finish = start + counter;
+
+	while (start < finish)
+	{
+		start = time();
+	}
+}
+
 void exit(int e)
 {
 	if (s)
@@ -224,321 +245,9 @@ inetloop:
 	Unix_to_GMT();
 }
 
-///////////////////////////////////ESP-COM/////////////////////////////////////////
-void delay(unsigned long counter)
-{
-	unsigned long start, finish;
-	counter = counter / 20;
-	if (counter < 1)
-	{
-		counter = 1;
-	}
-	start = time();
-	finish = start + counter;
-
-	while (start < finish)
-	{
-		start = time();
-	}
-}
-
-void uart_setrts(unsigned char mode)
-{
-	switch (comType)
-	{
-	case 0:
-		switch (mode)
-		{
-		case 1:
-			output(MCR, 2);
-			break;
-		case 0:
-			output(MCR, 0);
-			break;
-		default:
-			disable_interrupt();
-			output(MCR, 2);
-			output(MCR, 0);
-			enable_interrupt();
-			break;
-		}
-	case 1:
-		switch (mode)
-		{
-		case 1:
-			disable_interrupt();
-			input(0x55fe); // Переход в режим команд
-			input(0x43fe); // Команда установить статус
-			input(0x03fe); // Устанавливаем готовность DTR и RTS
-			enable_interrupt();
-			break;
-		case 0:
-			disable_interrupt();
-			input(0x55fe); // Переход в режим команд
-			input(0x43fe); // Команда установить статус
-			input(0x00fe); // Снимаем готовность DTR и RTS
-			enable_interrupt();
-			break;
-		default:
-			disable_interrupt();
-			input(0x55fe); // Переход в режим команд
-			input(0x43fe); // Команда установить статус
-			input(0x03fe); // Устанавливаем готовность DTR и RTS
-
-			input(0x55fe); // Переход в режим команд
-			input(0x43fe); // Команда установить статус
-			input(0x00fe); // Снимаем готовность DTR и RTS
-			enable_interrupt();
-			break;
-		}
-	case 2:
-		break;
-	}
-}
-
-unsigned char uart_hasByte(void)
-{
-	unsigned char queue;
-	switch (comType)
-	{
-	case 0:
-	case 2:
-		return (1 & input(LSR));
-	case 1:
-		disable_interrupt();
-		input(0x55fe);		   // Переход в режим команд
-		queue = input(0xc2fe); // Получаем количество байт в приемном буфере
-		enable_interrupt();
-		return queue;
-	}
-	return 255;
-}
-
-unsigned char uart_read(void)
-{
-	unsigned char data;
-	switch (comType)
-	{
-	case 0:
-	case 2:
-		return input(RBR_THR);
-	case 1:
-		disable_interrupt();
-		input(0x55fe);		  // Переход в режим команд
-		data = input(0x02fe); // Команда прочесть из порта
-		enable_interrupt();
-		return data;
-	}
-	return 255;
-}
-
-unsigned char uart_readBlock(void)
-{
-	unsigned char data;
-	switch (comType)
-	{
-	case 0:
-		while (uart_hasByte() == 0)
-		{
-			uart_setrts(2);
-		}
-		return input(RBR_THR);
-	case 1:
-		while (uart_hasByte() == 0)
-		{
-			uart_setrts(2);
-		}
-		disable_interrupt();
-		input(0x55fe);		  // Переход в режим команд
-		data = input(0x02fe); // Команда прочесть из порта
-		enable_interrupt();
-		return data;
-	case 2:
-		while (uart_hasByte() == 0)
-		{
-		}
-		return input(RBR_THR);
-	}
-	return 255;
-}
-
-void uart_write(unsigned char data)
-{
-	unsigned char status;
-	switch (comType)
-	{
-	case 0:
-	case 2:
-		while ((input(LSR) & 64) == 0)
-		{
-		}
-		output(RBR_THR, data);
-		break;
-	case 1:
-		disable_interrupt();
-		do
-		{
-			input(0x55fe);			// Переход в режим команд
-			status = input(0x42fe); // Команда прочесть статус
-		} while ((status & 64) == 0); // Проверяем 6 бит
-
-		input(0x55fe);				 // Переход в режим команд
-		input(0x03fe);				 // Команда записать в порт
-		input((data << 8) | 0x00fe); // Записываем data в порт
-		enable_interrupt();
-		break;
-	}
-}
-
-void uart_flush(void)
-{
-	unsigned int count;
-	for (count = 0; count < 5000; count++)
-	{
-		uart_setrts(1);
-		uart_read();
-	}
-}
-
-void uart_init(unsigned char divisor)
-{
-	switch (comType)
-	{
-	case 0:
-	case 2:
-		output(MCR, 0x00);		  // Disable input
-		output(IIR_FCR, 0x87);	  // Enable fifo 8 level, and clear it
-		output(LCR, 0x83);		  // 8n1, DLAB=1
-		output(RBR_THR, divisor); // 115200 (divider 1-115200, 3 - 38400)
-		output(IER, 0x00);		  // (divider 0). Divider is 16 bit, so we get (#0002 divider)
-		output(LCR, 0x03);		  // 8n1, DLAB=0
-		output(IER, 0x00);		  // Disable int
-		output(MCR, 0x2f);		  // Enable AFE
-		break;
-	case 1:
-		disable_interrupt();
-		input(0x55fe);
-		input(0xc3fe);
-		input((divisor << 8) | 0x00fe);
-		enable_interrupt();
-		break;
-	}
-}
-
-void loadEspConfig(void)
-{
-	unsigned char curParam[256];
-	unsigned char res;
-	FILE *espcom;
-	OS_SETSYSDRV();
-	OS_CHDIR("../ini");
-	espcom = OS_OPENHANDLE("espcom.ini", 0x80);
-	if (((int)espcom) & 0xff)
-	{
-		printf("espcom.ini opening error\r\n");
-		exit(0);
-		return;
-	}
-
-	OS_READHANDLE(curParam, espcom, 256);
-
-	res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u %u %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider, &comType, &espType);
-	puts("Config loaded:");
-	if (comType == 1)
-	{
-		puts("ATM Turbo 2+ Controller base port: 0x55fe");
-	}
-	else
-	{
-		printf("     RBR_THR:0x%4x\r\n     IER    :0x%4x\r\n     IIR_FCR:0x%4x\r\n     LCR    :0x%4x\r\n", RBR_THR, IER, IIR_FCR, LCR);
-		printf("     MCR    :0x%4x\r\n     LSR    :0x%4x\r\n     MSR    :0x%4x\r\n     SR     :0x%4x\r\n", MCR, LSR, MSR, SR);
-	}
-	printf("    DIVIDER:%u TYPE:%u ESP:%u\r\n", divider, comType, espType);
-}
-
-void sendcommand(char *commandline)
-{
-	unsigned int count, cmdLen;
-	cmdLen = strlen(commandline);
-	for (count = 0; count < cmdLen; count++)
-	{
-		uart_write(commandline[count]);
-	}
-	uart_write('\r');
-	uart_write('\n');
-	// printf("Sended:[%s] \r\n", commandline);
-	YIELD();
-}
-
-unsigned char getAnswer2(void)
-{
-	unsigned char readbyte;
-	unsigned int curPos = 0;
-	do
-	{
-		readbyte = uart_readBlock();
-
-	} while (((readbyte == 0x0a) || (readbyte == 0x0d)));
-
-	netbuf[curPos] = readbyte;
-
-	do
-	{
-		curPos++;
-		readbyte = uart_readBlock();
-		netbuf[curPos] = readbyte;
-	} while (readbyte != 0x0d);
-	netbuf[curPos] = 0;
-	uart_readBlock(); // 0x0a
-	// printf("Answer:[%s]\r\n", netbuf);
-	//       getchar();
-	return curPos;
-}
-
-void espReBoot(void)
-{
-	unsigned char byte, count;
-	// uart_flush();
-	sendcommand("AT+RST");
-	printf("Resetting ESP...");
-	count = 0;
-	do
-	{
-		byte = uart_readBlock();
-		if (byte == gotWiFi[count])
-		{
-			count++;
-		}
-		else
-		{
-			count = 0;
-		}
-	} while (count < strlen(gotWiFi));
-	uart_readBlock(); // CR
-	uart_readBlock(); // LF
-	puts("Reset complete.");
-
-	sendcommand("ATE0");
-	do
-	{
-		byte = uart_readBlock();
-	} while (byte != 'K'); // OK
-	// puts("Answer:[OK]");
-	uart_readBlock(); // CR
-	uart_readBlock(); // LN
-
-	sendcommand("AT+CIPCLOSE");
-	getAnswer2();
-	sendcommand("AT+CIPDINFO=0");
-	getAnswer2();
-	sendcommand("AT+CIPMUX=0");
-	getAnswer2();
-	sendcommand("AT+CIPSERVER=0");
-	getAnswer2();
-	sendcommand("AT+CIPRECVMODE=0");
-	getAnswer2();
-}
-
+///////////////////////////
+#include <../common/esp-com.c>
+//////////////////////////
 void espntp_resolver(void)
 {
 	unsigned char retry = 10;
@@ -690,7 +399,7 @@ retryTime:
 		{
 			retry--;
 			printf("Retry [%u]\r\n", retry);
-			delay(250);
+			delay(500);
 			goto retryTime;
 		}
 		puts("error getting time...");
