@@ -24,7 +24,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 
 unsigned char picture[16384];
-unsigned char netbuf[2048];
+unsigned char netbuf[6000];
 
 unsigned char minRating[] = "0000000000";
 struct fileStruct
@@ -58,7 +58,7 @@ struct sockaddr_in dnsaddress;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 
-unsigned char ver[] = "3.5";
+unsigned char ver[] = "3.7";
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
@@ -170,6 +170,7 @@ void printHelp(void)
   printf(" 'A' переход в режим  слайд-шоу\n\r");
   printf(" 'D' Переключение режима ZXNETUSB/ESP-COM\n\r");
   printf(" 'T' Продолжительность одного слайда в int-ах \n\r");
+  printf(" 'M' Минимальный рейтинг для случайного воспроизведения. \n\r");
   printf(" 'H' Данная справочная информация\n\r");
   printf("-----------------Нажмите любую кнопку------------------\n\r");
   OS_SETCOLOR(70);
@@ -198,6 +199,19 @@ void delay(unsigned long counter)
 #include <../common/esp-com.c>
 #include <../common/network.c>
 //////////////////////////
+
+int testOperation2(unsigned char *process, int socket)
+{
+  if (socket < 0)
+  {
+    printf("%s: [ERROR:", process);
+    errorPrint(-socket);
+    printf("]\r\n");
+    YIELD();
+    return -socket;
+  }
+  return 1;
+}
 
 int cutHeader(unsigned int todo)
 {
@@ -342,11 +356,23 @@ char fillPictureNet(void)
   picture[0] = 0;
   retry = 3;
   socket = OpenSock(AF_INET, SOCK_STREAM);
-  testOperation("OS_NETSOCKET", socket);
+  if (testOperation2("OS_NETSOCKET", socket) != 1)
+  {
+    getchar();
+    quit();
+  }
   todo = netConnect(socket, retry);
-  testOperation("OS_NETCONNECT", todo);
+  if (testOperation2("OS_NETCONNECT", todo) != 1)
+  {
+    getchar();
+    quit();
+  }
   todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), retry);
-  testOperation("OS_WIZNETWRITE", todo);
+  if (testOperation2("OS_WIZNETWRITE", todo) != 1)
+  {
+    getchar();
+    quit();
+  }
 
   do
   {
@@ -648,7 +674,6 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   count1 = strstr(picture, "\"id\":");
   if (count1 == NULL)
   {
-
     parseJson("\"totalAmount\":");
 
     if (atol(netbuf) == 0)
@@ -680,7 +705,6 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     parseJson(",\"title\":\"");
     convert866();
     strcpy(curFileStruct.picName, netbuf);
-
     tSize = sizeof(curFileStruct.picName);
     stringRepair(curFileStruct.picName, tSize);
 
@@ -1135,16 +1159,13 @@ start:
       goto start;
     }
   }
-
   if (strcmp(curFileStruct.picType, "standard") != 0)
   {
     printf("  >>Format '%s' not supported, skipped \n\r", curFileStruct.picType);
     count++;
     goto start;
   }
-
   sprintf(netbuf, "GET /file/id:%lu%s", iddqd, userAgent);
-
   switch (netDriver)
   {
   case 0:

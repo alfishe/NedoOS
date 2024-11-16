@@ -203,7 +203,7 @@ int tcpRead(signed char socket, unsigned char retry)
 
 unsigned char dnsResolve(unsigned char *domainName)
 {
-  unsigned char socket, retry, retryInv;
+  unsigned char socket, retry;
   unsigned int todo, queryPos, queryType, queryLng, domainLng, comaCount, reqSize;
   unsigned int loop;
 
@@ -256,7 +256,6 @@ unsigned char dnsResolve(unsigned char *domainName)
   readStruct.BufAdr = (unsigned int)&netbuf;
   readStruct.bufsize = (unsigned int)sizeof(netbuf);
   retry = 20;
-  retryInv = retry;
 
   do
   {
