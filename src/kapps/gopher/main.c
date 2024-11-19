@@ -26,12 +26,9 @@ unsigned int SR = 0xffef;
 unsigned int divider = 1;
 unsigned char comType = 0;
 unsigned int espType = 32;
-
-FILE *fp2;
-
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "00.90";
+unsigned char uVer[] = "0.99";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
@@ -176,33 +173,38 @@ void delay(unsigned long counter)
 
 unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsigned int sizeOfBuf)
 {
+
+	FILE *fp2;
 	if (operation == 00)
 	{
 		fp2 = OS_CREATEHANDLE(fileNamePtr, 0x80);
 		if (((int)fp2) & 0xff)
 		{
 			clearStatus();
-			printf("%s", fileNamePtr);
-			printf(" creating error.");
+			printf("%s  creating error.", fileNamePtr);
+			waitKey();
 			exit(0);
 		}
 		OS_CLOSEHANDLE(fp2);
+		return 0;
+	}
 
+	if (operation == 01)
+	{
+		long fileSize;
 		fp2 = OS_OPENHANDLE(fileNamePtr, 0x80);
 		if (((int)fp2) & 0xff)
 		{
 			clearStatus();
 			printf("%s", fileNamePtr);
 			printf(" opening error. ");
-
+			waitKey();
 			exit(0);
 		}
-		return 0;
-	}
-
-	if (operation == 01)
-	{
+		fileSize = OS_GETFILESIZE(fp2);
+		OS_SEEKHANDLE(fp2, fileSize);
 		OS_WRITEHANDLE(netbuf, fp2, sizeOfBuf);
+		OS_CLOSEHANDLE(fp2);
 		return 0;
 	}
 
@@ -277,7 +279,7 @@ unsigned char OS_SHELL(unsigned char *command)
 {
 	unsigned char fileName[] = "term.com";
 	unsigned char appCmd[128] = "term.com ";
-	unsigned int shellSize, loaded, loop, adr;
+	unsigned int shellSize, loop;
 	unsigned char pgbak;
 	union APP_PAGES shell_pg;
 	union APP_PAGES main_pg;
@@ -313,6 +315,7 @@ unsigned char OS_SHELL(unsigned char *command)
 	loop = 0;
 	while (loop < shellSize)
 	{
+		unsigned int loaded, adr;
 		loaded = OS_READHANDLE(cmd, fp3, sizeof(cmd) - 1);
 		adr = 0xC100 + loop;
 		memcpy((unsigned char *)(adr), &cmd, loaded);
@@ -416,9 +419,10 @@ void init(void)
 	navi.saveAs = true;
 	mouse.divider = 0;
 	mouse.prevMouseButtons = 0;
-
+	navi.history = 0;
 	link.type = '1';
 	strcpy(link.host, "HOMEPAGE");
+	link.port = 70;
 	get_dns();
 	loadNVext();
 	loadEspConfig();
@@ -502,7 +506,7 @@ void renderType(unsigned char linkType)
 unsigned int renderPlain(unsigned int bufPos)
 {
 	unsigned int counter = 0, colCount = 0;
-	unsigned int byte = 0, flag = true;
+	unsigned int flag = true;
 
 	link.type = '0';
 
@@ -514,6 +518,7 @@ unsigned int renderPlain(unsigned int bufPos)
 	counter = 0;
 	do
 	{
+		unsigned int byte;
 		byte = netbuf[bufPos];
 		if (byte == 0)
 		{
@@ -648,7 +653,7 @@ void reDraw(void)
 	}
 }
 
-void errorBox(struct window w, unsigned char *message)
+void errorBox(struct window w, const char *message)
 {
 	unsigned char wcount, tempx, tittleStart;
 
@@ -689,7 +694,7 @@ void errorBox(struct window w, unsigned char *message)
 	printf("%s", message);
 }
 
-unsigned char inputBox(struct window w, unsigned char *prefilled)
+unsigned char inputBox(struct window w, const char *prefilled)
 {
 	unsigned char wcount, tempx, tittleStart;
 	unsigned char byte, counter;
@@ -883,6 +888,7 @@ char getFileEsp(unsigned char *fileNamePtr)
 	uart_readBlock(); // CR
 	uart_readBlock(); // LF
 
+	OS_DELETE(fileNamePtr);
 	saveBuf(fileNamePtr, 00, 0);
 	clearStatus();
 	do
@@ -893,8 +899,8 @@ char getFileEsp(unsigned char *fileNamePtr)
 		printf("%lu kb \r", downloaded / 1024);
 		saveBuf(fileNamePtr, 01, todo);
 	} while (todo != 0);
-	saveBuf(fileNamePtr, 02, 00);
-	// getAnswer2(); // OK
+	// saveBuf(fileNamePtr, 02, 00);
+	//  getAnswer2(); // OK
 	link.size = downloaded;
 	clearStatus();
 	if (downloaded == 0)
@@ -906,7 +912,7 @@ char getFileEsp(unsigned char *fileNamePtr)
 
 char getFile(unsigned char *fileNamePtr)
 {
-	int todo, result;
+	int todo;
 	int socket;
 	unsigned long downloaded = 0;
 
@@ -917,6 +923,7 @@ char getFile(unsigned char *fileNamePtr)
 
 	if (netDriver == 1)
 	{
+		int result;
 		do
 		{
 			result = getFileEsp(fileNamePtr);
@@ -929,14 +936,13 @@ char getFile(unsigned char *fileNamePtr)
 	{
 		return false;
 	}
-
 	targetadr.porth = 00;
 	targetadr.portl = link.port;
 
 	// clearStatus();
 	// printf("File:%s", fileNamePtr);
 	// printf("\r\nAddress:%u.%u.%u.%u:%u\r\n", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4, targetadr.porth * 256 + targetadr.portl);
-	// waitKey();
+	//  waitKey();
 
 	if ((strlen(link.path) == 1 && link.path[0] == '/') || strlen(link.path) == 0)
 	{
@@ -951,7 +957,7 @@ char getFile(unsigned char *fileNamePtr)
 	{
 		return false;
 	}
-	todo = netConnect(socket, 1);
+	netConnect(socket, 1);
 	if (socket < 0)
 	{
 		return false;
@@ -961,6 +967,7 @@ char getFile(unsigned char *fileNamePtr)
 	{
 		return false;
 	}
+	OS_DELETE(fileNamePtr);
 	saveBuf(fileNamePtr, 00, 0);
 	clearStatus();
 	do
@@ -977,7 +984,7 @@ char getFile(unsigned char *fileNamePtr)
 	} while (42);
 	clearStatus();
 	netShutDown(socket, 0);
-	saveBuf(fileNamePtr, 02, 00);
+	// saveBuf(fileNamePtr, 02, 00);
 	link.size = downloaded;
 	if (downloaded == 0)
 	{
@@ -1064,35 +1071,34 @@ void pusHistory(void)
 	FILE *hf;
 	unsigned char *historyBytes;
 	unsigned char buf[1];
-	unsigned int structSize, filePos, counter;
+	long filePos, counter;
+	unsigned int structSize;
+
+	navi.history++;
 
 	if (link.type == '7')
 	{
 		return;
 	}
-
-	navi.history++;
 	structSize = sizeof(struct linkStruct);
 	filePos = structSize * navi.history;
 
 	OS_SETSYSDRV();
 
-	hf = OS_CREATEHANDLE("browser/ng_hist.dat", 0x80);
-	if (((int)hf) & 0xff)
-	{
-		clearStatus();
-		printf("browser/ng_hist.dat creating error.");
-		exit(0);
-	}
-	OS_CLOSEHANDLE(hf);
-
 	hf = OS_OPENHANDLE("browser/ng_hist.dat", 0x80);
 	if (((int)hf) & 0xff)
 	{
-		clearStatus();
-		printf("browser/ng_hist.dat opening error.");
-		exit(0);
+		hf = OS_CREATEHANDLE("browser/ng_hist.dat", 0x80);
+		if (((int)hf) & 0xff)
+		{
+			clearStatus();
+			printf("browser/ng_hist.dat creating error.");
+			exit(0);
+		}
+		OS_CLOSEHANDLE(hf);
+		hf = OS_OPENHANDLE("browser/ng_hist.dat", 0x80);
 	}
+
 	OS_SEEKHANDLE(hf, filePos);
 
 	historyBytes = (unsigned char *)&link;
@@ -1108,10 +1114,20 @@ void pusHistory(void)
 void popHistory(void)
 {
 	FILE *hf;
-	unsigned int structSize, filePos;
-	navi.history--;
+	unsigned int structSize;
+	long filePos, fileSize;
+
+	if (navi.history == 0)
+	{
+		clearStatus();
+		printf("History is empty");
+		return;
+	}
+
 	structSize = sizeof(struct linkStruct);
+	navi.history--;
 	filePos = structSize * navi.history;
+
 	OS_SETSYSDRV();
 	hf = OS_OPENHANDLE("browser/ng_hist.dat", 0x80);
 	if (((int)hf) & 0xff)
@@ -1120,15 +1136,34 @@ void popHistory(void)
 		printf("browser/ng_hist.dat opening error.");
 		exit(0);
 	}
+	fileSize = OS_GETFILESIZE(hf);
+
+	if (filePos > fileSize)
+	{
+		OS_CLOSEHANDLE(hf);
+		clearStatus();
+		printf("Read beyond end FilePos = %ld fileSize = %ld", filePos, fileSize);
+		waitKey();
+		return;
+	}
+
 	OS_SEEKHANDLE(hf, filePos);
 	OS_READHANDLE(netbuf, hf, structSize);
+	/*
+		cmd[0] = '+';
+		for (counter = 0; counter < structSize; counter++)
+		{
+			OS_WRITEHANDLE(cmd, hf, 1);
+		}
 
-	memcpy(&link, netbuf, structSize);
+		OS_CLOSEHANDLE(hf);
+	*/
+	memcpy(&link, &netbuf, structSize);
 }
 
 char extractName(void)
 {
-	unsigned int counter, counter2 = 0, lng, byte, source;
+	unsigned int counter, counter2 = 0, lng, source;
 	unsigned char ext2[128];
 	unsigned char *count1;
 
@@ -1136,6 +1171,7 @@ char extractName(void)
 
 	for (counter = lng - 1; counter != 0; counter--)
 	{
+		unsigned int byte;
 		byte = link.path[counter];
 		if (byte == '/' || byte == ':')
 		{
@@ -1331,17 +1367,26 @@ unsigned char mediaProcessorExt(void)
 
 void goHome(void)
 {
-	pusHistory();
 	newPage();
 	link.type = '1';
 	strcpy(link.host, "HOMEPAGE");
+	pusHistory();
 	OS_SETSYSDRV();
 	loadPageFromDisk("browser/nedogoph.gph", 0);
 	navi.nextBufPos = renderPage(navi.nextBufPos);
 }
 
+void goBack(void)
+{
+	popHistory();
+	OS_SETSYSDRV();
+	loadPageFromDisk("browser/current.gph", 0);
+	navi.nextBufPos = renderPage(pageOffsets[navi.page]);
+}
+
 void doLink(void)
 {
+
 	switch (link.type) // Тут уже новый элемент
 	{
 	case 'i':
@@ -1358,7 +1403,9 @@ void doLink(void)
 		else
 		{
 			errNoConnect();
-			goHome();
+			// goHome();
+			goBack();
+			doLink();
 		}
 		return;
 	case '1': // gopher page
@@ -1373,7 +1420,9 @@ void doLink(void)
 		{
 
 			errNoConnect();
-			goHome();
+			// goHome();
+			goBack();
+			doLink();
 		}
 		return;
 	case '7': // search input
@@ -1401,7 +1450,9 @@ void doLink(void)
 			{
 				reDraw();
 				errNoConnect();
-				goHome();
+				//goHome();
+				goBack();
+				doLink();
 			}
 		}
 		else
@@ -1453,7 +1504,9 @@ void doLink(void)
 		{
 			popHistory();
 			errNoConnect();
-			goHome();
+			// goHome();
+			goBack();
+			doLink();
 		}
 		return;
 	default:
@@ -1568,11 +1621,8 @@ void navigationPage(char keypress)
 		activate();
 		break;
 	case 0x08: // BS
-		if (navi.history > 1)
-		{
-			popHistory();
-			doLink();
-		}
+		popHistory();
+		doLink();
 		break;
 	case 31: // screen redraw
 		renderPage(pageOffsets[navi.page]);
@@ -1673,11 +1723,8 @@ void navigationPlain(char keypress)
 		navi.nextBufPos = renderPlain(navi.nextBufPos);
 		break;
 	case 0x08: // BS
-		if (navi.history > 1)
-		{
-			popHistory();
-			doLink();
-		}
+		popHistory();
+		doLink();
 		break;
 	case 31: // screen redraw
 		renderPlain(pageOffsets[navi.page]);
@@ -1728,6 +1775,11 @@ void navigation(unsigned char keypress)
 		break;
 	case '1':
 		navigationPage(keypress);
+		break;
+	default:
+		clearStatus();
+		printf("Unknown link.type, [%d]", link.type);
+		waitKey();
 		break;
 	}
 }
@@ -1888,7 +1940,7 @@ C_task main(int argc, char *argv[])
 {
 	unsigned char keypress;
 	int mouseScroll = 0;
-	unsigned int start, finish;
+	unsigned int start, finish = 0;
 	OS_HIDEFROMPARENT();
 	OS_SETGFX(0x86);
 	OS_CLS(0);
@@ -1923,17 +1975,14 @@ C_task main(int argc, char *argv[])
 		}
 		else if (mouse.rmb == 0)
 		{
-			if (navi.history > 1)
-			{
-				popHistory();
-				doLink();
-			}
+			popHistory();
+			doLink();
 		}
 
 		if (keypress != 0)
 		{
 			navigation(keypress);
-
+			// clearStatus();
 			//	printf("keypress [%d]", keypress);
 		}
 
