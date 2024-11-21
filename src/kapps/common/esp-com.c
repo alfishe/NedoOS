@@ -86,7 +86,7 @@ void uart_init(unsigned char divisor)
 	{
 	case 0:
 	case 2:
-		//output(MCR, 0x00);		  // Disable input
+		// output(MCR, 0x00);		  // Disable input
 		output(IIR_FCR, 0x87);	  // Enable fifo 8 level, and clear it
 		output(LCR, 0x83);		  // 8n1, DLAB=1
 		output(RBR_THR, divisor); // 115200 (divider 1-115200, 3 - 38400)
@@ -187,12 +187,17 @@ void getdataEsp(unsigned int counted)
 	unsigned int counter;
 	for (counter = 0; counter < counted; counter++)
 	{
+		if (counter == sizeof(netbuf) - 1)
+		{
+			printf("netbuf overflow [%u] of [%u]\r\n", counter, sizeof(netbuf));
+			getchar();
+			break;
+		}
 		netbuf[counter] = uart_readBlock();
 	}
-	//netbuf[counter] = 0;
 }
 
-void sendcommand(char *commandline)
+void sendcommand(const char *commandline)
 {
 	unsigned int count, cmdLen;
 	cmdLen = strlen(commandline);
@@ -202,10 +207,10 @@ void sendcommand(char *commandline)
 	}
 	uart_write('\r');
 	uart_write('\n');
-	//printf("Sended:[%s] \r\n", commandline);
+	// printf("Sended:[%s] \r\n", commandline);
 }
 
-void sendcommandNrn(char *commandline)
+void sendcommandNrn(const char *commandline)
 {
 	unsigned int count, cmdLen;
 	cmdLen = strlen(commandline);
@@ -213,7 +218,7 @@ void sendcommandNrn(char *commandline)
 	{
 		uart_write(commandline[count]);
 	}
-	//printf("Sended:[%s] \r\n", commandline);
+	// printf("Sended:[%s] \r\n", commandline);
 }
 
 unsigned char getAnswer2(void)
@@ -236,8 +241,8 @@ unsigned char getAnswer2(void)
 	} while (readbyte != 0x0d);
 	netbuf[curPos - 1] = 0;
 	uart_readBlock(); // 0xa
-	//printf("Answer:[%s]\r\n", netbuf);
-	//    getchar();
+	// printf("Answer:[%s]\r\n", netbuf);
+	// getchar();
 	return curPos;
 }
 
@@ -290,9 +295,9 @@ void espReBoot(void)
 
 unsigned int recvHead(void)
 {
-	unsigned char byte, dataRead = 0;
+	unsigned char byte, dataRead;
 	unsigned int loaded, count = 0;
-	unsigned char closed[] ="CLOSED" ;
+	const char closed[] = "CLOSED";
 	do
 	{
 		byte = uart_readBlock();
@@ -304,13 +309,11 @@ unsigned int recvHead(void)
 		{
 			count = 0;
 		}
-	if (count == strlen(closed))
-	{
-		return 0;
-	}
-
+		if (count == strlen(closed))
+		{
+			return 0;
+		}
 	} while (byte != ',');
-
 	dataRead = 0;
 	do
 	{
@@ -318,9 +321,9 @@ unsigned int recvHead(void)
 		netbuf[dataRead] = byte;
 		dataRead++;
 	} while (byte != ':');
-	netbuf[dataRead] = 0;
+	// netbuf[dataRead] = 0;
 	loaded = atoi(netbuf); // <actual_len>
-	//printf("\r\n loaded %u\r\n", loaded);
+	// printf("\r\n loaded %u\r\n", loaded);
 	return loaded;
 }
 

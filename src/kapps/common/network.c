@@ -80,16 +80,18 @@ void errorPrint(unsigned int error)
     break;
   }
 }
-void testOperation(unsigned char *process, int socket)
+void testOperation(const char *process, int socket)
 {
   if (socket < 0)
   {
     printf("%s: [ERROR:", process);
     errorPrint(-socket);
     printf("]\r\n");
+    YIELD();
     exit(0);
   }
 }
+
 char OpenSock(unsigned char family, unsigned char protocol)
 {
   signed char socket;
@@ -124,7 +126,7 @@ char netShutDown(signed char socket, unsigned char type)
 
 char netConnect(signed char socket, unsigned char retry)
 {
-  unsigned int todo;
+  unsigned int todo = 0;
 
   while (retry != 0)
   {
@@ -149,12 +151,12 @@ char netConnect(signed char socket, unsigned char retry)
 
 int tcpSend(signed char socket, unsigned int messageadr, unsigned int size, unsigned char retry)
 {
-  unsigned int todo;
+  unsigned int todo = 0;
   readStruct.socket = socket;
   readStruct.BufAdr = messageadr;
   readStruct.bufsize = size;
   readStruct.protocol = SOCK_STREAM;
-  while (retry > 0)
+  while (retry != 0)
   {
     todo = OS_WIZNETWRITE(&readStruct);
     if (todo > 32767)
@@ -173,14 +175,14 @@ int tcpSend(signed char socket, unsigned int messageadr, unsigned int size, unsi
 
 int tcpRead(signed char socket, unsigned char retry)
 {
-  unsigned int todo;
+  unsigned int todo = 0;
 
   readStruct.socket = socket;
   readStruct.BufAdr = (unsigned int)&netbuf;
   readStruct.bufsize = sizeof(netbuf);
   readStruct.protocol = SOCK_STREAM;
 
-  while (retry > 0)
+  while (retry != 0)
   {
     todo = OS_WIZNETREAD(&readStruct);
 
@@ -195,16 +197,16 @@ int tcpRead(signed char socket, unsigned char retry)
     else
     {
       // printf("OS_WIZNETREAD: %u bytes read. \n\r", todo);
-      return todo;  // succes
+      return todo; // succes
     }
   }
-  return 0 - (todo & 255);  // timeout
+  return 0 - (todo & 255); // timeout
 }
 
-unsigned char dnsResolve(unsigned char *domainName)
+unsigned char dnsResolve(const char *domainName)
 {
   unsigned char socket, retry;
-  unsigned int todo, queryPos, queryType, queryLng, domainLng, comaCount, reqSize;
+  unsigned int todo, queryPos, queryType, domainLng, comaCount, reqSize;
   unsigned int loop;
 
   unsigned char dnsQuery1[] = {0x11, 0x22, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -255,8 +257,7 @@ unsigned char dnsResolve(unsigned char *domainName)
 
   readStruct.BufAdr = (unsigned int)&netbuf;
   readStruct.bufsize = (unsigned int)sizeof(netbuf);
-  retry = 20;
-
+  retry = 10;
   do
   {
     todo = OS_WIZNETREAD_UDP(&readStruct, &dnsaddress);
@@ -267,16 +268,12 @@ unsigned char dnsResolve(unsigned char *domainName)
       {
         // clearStatus();
         // printf(" Error quering[Response] DNS server.");
+        netShutDown(socket, 0);
         return 0;
       }
       retry--;
       delayLong(200);
       // printf(" Retry [%d]\r\n", retryInv - retry);
-    }
-    else
-    {
-      // printf("OS_WIZNETREAD_UDP: %u bytes read. \n\r", todo);
-      break;
     }
   } while (todo > 32767);
 
@@ -290,7 +287,6 @@ unsigned char dnsResolve(unsigned char *domainName)
   }
 
   queryPos = 11;
-  queryLng = 0;
   do
   {
     queryPos++;
@@ -299,6 +295,7 @@ unsigned char dnsResolve(unsigned char *domainName)
   queryPos = queryPos + 7; // Skip to answer data
   do
   {
+  unsigned int queryLng;
     if (queryPos > sizeof(netbuf) - 11)
     {
       // clearStatus();
