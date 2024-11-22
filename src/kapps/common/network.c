@@ -17,7 +17,7 @@ void delayLong(unsigned long counter)
 }
 int httpError(void)
 {
-  unsigned char *httpRes;
+  const char *httpRes;
   unsigned int httpErr;
   httpRes = strstr(netbuf, "HTTP/1.1 ");
 

@@ -28,7 +28,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "00.91";
+unsigned char uVer[] = "00.95";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
@@ -171,6 +171,15 @@ void delay(unsigned long counter)
 #include <../common/network.c>
 //////////////////////////
 
+void clearNetbuf(void)
+{
+	unsigned int counter;
+	for (counter = 0; counter < sizeof(netbuf); counter++)
+	{
+		netbuf[counter] = 0;
+	}
+}
+
 unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsigned int sizeOfBuf)
 {
 
@@ -265,17 +274,15 @@ void mainWinDraw(void)
 void initMouse(void)
 {
 	unsigned long mouseRaw;
-	unsigned char mouseMove;
 	unsigned int mouseButtons;
 	mouseRaw = OS_GETMOUSE();
-	mouseMove = mouseRaw >> 16;
 	mouseButtons = mouseRaw;
 	mouse.wheel = (mouseButtons >> 4) & 15;
 	mouse.prevWheel = mouse.wheel;
 	mouse.classic = 0;
 }
 
-unsigned char OS_SHELL(unsigned char *command)
+unsigned char OS_SHELL(const char *command)
 {
 	unsigned char fileName[] = "term.com";
 	unsigned char appCmd[128] = "term.com ";
@@ -336,6 +343,7 @@ char loadPageFromDisk(unsigned char *filepath, unsigned int volume)
 	fp1 = OS_OPENHANDLE(filepath, 0x80);
 	if (((int)fp1) & 0xff)
 	{
+		clearStatus();
 		printf("%s opening error. ", filepath);
 		return false;
 	}
@@ -376,7 +384,7 @@ char loadPageFromDisk(unsigned char *filepath, unsigned int volume)
 void loadNVext(void)
 {
 	FILE *nvf;
-	unsigned int nvextSize, loop, loaded;
+	unsigned int nvextSize, loop = 0, loaded;
 	OS_SETSYSDRV();
 	nvf = OS_OPENHANDLE("nv.ext", 0x80);
 	if (((int)nvf) & 0xff)
@@ -386,14 +394,12 @@ void loadNVext(void)
 		exit(0);
 	}
 	nvextSize = OS_GETFILESIZE(nvf);
-
-	loop = 0;
-	loaded = 0;
-	while (loop < nvextSize)
+	do
 	{
 		loaded = OS_READHANDLE(nvext + loop, nvf, sizeof(nvext) - 1);
 		loop = loop + loaded;
-	}
+	} while (loop < nvextSize);
+
 	OS_CLOSEHANDLE(nvf);
 	nvext[loop + 1] = 0;
 }
@@ -431,7 +437,6 @@ void init(void)
 
 void newPage(void)
 {
-	unsigned int counter = 0;
 	navi.page = 0;
 	navi.maxPage = 32767;
 	navi.maxVolume = 32767;
@@ -441,6 +446,7 @@ void newPage(void)
 	navi.bufPos = 0;
 	navi.nextBufPos = 0;
 	volumeOffsets[0] = 0;
+	navi.lastLine = 0;
 }
 
 void renderType(unsigned char linkType)
@@ -604,6 +610,7 @@ unsigned int renderPage(unsigned int bufPos)
 			if (byte == 0)
 			{
 				navi.maxPage = navi.page;
+				navi.lastLine = counter;
 				return bufPos;
 			}
 			colCount++;
@@ -1001,7 +1008,7 @@ unsigned char selectorProcessor(void)
 	if (link.type == '0' || navi.lineSelect > navi.lastLine) // Если текущая страница текстовая, нечего по ней тыкать или тыкнули ниже низа.
 	{
 		// clearStatus();
-		// printf("Если текущая страница текстовая, нечего по ней тыкать или тыкнули ниже низа.");
+		// printf("[%c]Cтраница текстовая или [%u>%u]тыкнули ниже низа.", link.type, navi.lineSelect, navi.lastLine);
 		return false;
 	}
 
@@ -1338,16 +1345,25 @@ unsigned char mediaProcessorExt(void)
 
 void goHome(void)
 {
-	pusHistory();
-	newPage();
-	link.type = '1';
-	strcpy(link.host, "HOMEPAGE");
 	OS_SETSYSDRV();
-	loadPageFromDisk("browser/nedogoph.gph", 0);
-	navi.nextBufPos = renderPage(navi.nextBufPos);
+	if (loadPageFromDisk("browser/nedogoph.gph", 0))
+	{
+		newPage();
+		link.type = '1';
+		strcpy(link.host, "HOMEPAGE");
+		pusHistory();
+		navi.nextBufPos = renderPage(navi.nextBufPos);
+	}
+	else
+	{
+		newPage();
+		clearNetbuf();
+		OS_CLS(0);
+		mainWinDraw();
+	}
 }
 
-void doLink(void)
+void doLink(char backSpace)
 {
 	switch (link.type) // Тут уже новый элемент
 	{
@@ -1360,6 +1376,10 @@ void doLink(void)
 			newPage();
 			OS_SETSYSDRV();
 			loadPageFromDisk("browser/current.txt", 0);
+			if (!backSpace)
+			{
+				pusHistory();
+			}
 			navi.nextBufPos = renderPlain(navi.nextBufPos);
 		}
 		else
@@ -1374,6 +1394,10 @@ void doLink(void)
 			newPage();
 			OS_SETSYSDRV();
 			loadPageFromDisk("browser/current.gph", 0);
+			if (!backSpace)
+			{
+				pusHistory();
+			}
 			navi.nextBufPos = renderPage(navi.nextBufPos);
 		}
 		else
@@ -1402,7 +1426,7 @@ void doLink(void)
 				loadPageFromDisk("browser/current.gph", 0);
 				navi.nextBufPos = renderPage(navi.nextBufPos);
 				link.type = '1';
-				pusHistory();
+				/// pusHistory();
 			}
 			else
 			{
@@ -1432,14 +1456,14 @@ void doLink(void)
 			reDraw();
 			return;
 		}
-		pusHistory();
+		/// pusHistory();
 		OS_CHDIR("/");
 		OS_CHDIR("downloads");
 		OS_GETPATH((unsigned int)&curPath);
 
 		if (getFile(navi.fileName))
 		{
-			popHistory();
+			/// popHistory();
 			OS_SETSYSDRV();
 			loadPageFromDisk("browser/current.gph", 0);
 			navi.nextBufPos = renderPage(pageOffsets[navi.page]);
@@ -1458,14 +1482,14 @@ void doLink(void)
 		}
 		else
 		{
-			popHistory();
+			/// popHistory();
 			errNoConnect();
 			goHome();
 		}
 		return;
 	default:
 		clearStatus();
-		printf("Неизвестный селектор:[%d]lineselect[%d]linelast[%d]", link.type, navi.lineSelect, navi.lastLine);
+		printf("Неизвестный селектор:[%u]lineselect[%u]linelast[%u]", link.type, navi.lineSelect, navi.lastLine);
 		link.type = link.nexType;
 		return;
 	}
@@ -1480,9 +1504,9 @@ void activate(void)
 
 	if (link.type == '0' || link.type == '1') //|| link.type == '7')
 	{
-		pusHistory();
+		/// pusHistory();
 	}
-	doLink();
+	doLink(false);
 }
 
 void enterDomain(void)
@@ -1502,7 +1526,7 @@ void enterDomain(void)
 		strcpy(link.host, cmd);
 		strcpy(link.path, "/");
 		link.port = 70;
-		doLink();
+		doLink(false);
 	}
 	else
 	{
@@ -1577,8 +1601,9 @@ void navigationPage(char keypress)
 	case 0x08: // BS
 		if (navi.history > 1)
 		{
+			/// popHistory();
 			popHistory();
-			doLink();
+			doLink(true);
 		}
 		break;
 	case 31: // screen redraw
@@ -1682,8 +1707,9 @@ void navigationPlain(char keypress)
 	case 0x08: // BS
 		if (navi.history > 1)
 		{
+			/// popHistory();
 			popHistory();
-			doLink();
+			doLink(true);
 		}
 		break;
 	case 31: // screen redraw
@@ -1750,8 +1776,8 @@ unsigned char getMouse(void)
 	unsigned int mouseMove;
 	unsigned int mouseButtons;
 	int mouseScroll = 0;
-	int mouseXpos = 0;
-	int mouseYpos = 0;
+	int mouseXpos;
+	int mouseYpos;
 	int dx, dy;
 	mouseRaw = OS_GETMOUSE();
 
@@ -1789,8 +1815,8 @@ unsigned char getMouse(void)
 				dy = 1;
 			if (dx > 3)
 				dx = 3;
-			if (dy > 1)
-				dy = 1;
+			if (dy > 2)
+				dy = 2;
 
 			if (mouseXpos < -250)
 			{
@@ -1883,7 +1909,8 @@ unsigned char getMouse(void)
 	{
 		mouseScroll = -1;
 	}
-	else if (mouseScroll < 0)
+
+	if (mouseScroll < 0)
 	{
 		navigation(248); // Left
 	}
@@ -1899,8 +1926,7 @@ unsigned char getMouse(void)
 C_task main(int argc, char *argv[])
 {
 	unsigned char keypress;
-	int mouseScroll = 0;
-	unsigned int start, finish;
+	unsigned int start, finish = 0;
 	OS_HIDEFROMPARENT();
 	OS_SETGFX(0x86);
 	OS_CLS(0);
@@ -1935,11 +1961,8 @@ C_task main(int argc, char *argv[])
 		}
 		else if (mouse.rmb == 0)
 		{
-			if (navi.history > 1)
-			{
-				popHistory();
-				doLink();
-			}
+			popHistory();
+			doLink(true);
 		}
 
 		if (keypress != 0)
