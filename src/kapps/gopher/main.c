@@ -28,13 +28,13 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "00.96";
+unsigned char uVer[] = "00.97";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
 unsigned long volumeOffsets[16];
-
 unsigned char crlf[2] = {13, 10};
+unsigned char heap[1500];
 
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 
@@ -427,14 +427,19 @@ void init(void)
 	mouse.prevMouseButtons = 0;
 	navi.history = 0;
 	link.type = '1';
+	link.size = 0;
+	link.nexType = '1';
+	strcpy(link.path, "HOMEPAGE");
 	strcpy(link.host, "HOMEPAGE");
+	strcpy(link.prevHost, "HOMEPAGE");
 	link.port = 70;
+	OS_SETSYSDRV();
+	OS_DELETE("browser/ng_hist.dat");
 	get_dns();
 	loadNVext();
 	loadEspConfig();
 	initMouse();
 }
-
 void newPage(void)
 {
 	navi.page = 0;
@@ -818,10 +823,7 @@ unsigned char inputBox(struct window w, const char *prefilled)
 void pusHistory(void)
 {
 	FILE *hf;
-	unsigned char *historyBytes;
-	unsigned char buf[1];
-	unsigned int structSize, filePos, counter;
-
+	unsigned int structSize, filePos;
 	if (link.type == '7')
 	{
 		return;
@@ -829,7 +831,7 @@ void pusHistory(void)
 
 	navi.history++;
 	structSize = sizeof(struct linkStruct);
-	filePos = structSize * navi.history;
+	filePos = structSize * (navi.history - 1);
 
 	OS_SETSYSDRV();
 
@@ -850,14 +852,8 @@ void pusHistory(void)
 		exit(0);
 	}
 	OS_SEEKHANDLE(hf, filePos);
-
-	historyBytes = (unsigned char *)&link;
-
-	for (counter = 0; counter < structSize; counter++)
-	{
-		buf[0] = historyBytes[counter];
-		OS_WRITEHANDLE(buf, hf, 1);
-	}
+	memcpy(&heap, &link, structSize);
+	OS_WRITEHANDLE(heap, hf, structSize);
 	OS_CLOSEHANDLE(hf);
 }
 
@@ -867,7 +863,7 @@ void popHistory(void)
 	unsigned int structSize, filePos;
 	navi.history--;
 	structSize = sizeof(struct linkStruct);
-	filePos = structSize * navi.history;
+	filePos = structSize * (navi.history - 1);
 	OS_SETSYSDRV();
 	hf = OS_OPENHANDLE("browser/ng_hist.dat", 0x80);
 	if (((int)hf) & 0xff)
@@ -1019,7 +1015,7 @@ char getFileEsp(unsigned char *fileNamePtr)
 		todo = recvHead();
 		getdataEsp(todo);
 		downloaded = downloaded + todo;
-		printf("%lu kb \r", downloaded / 1024);
+		printf("%lu kb  \r", downloaded / 1024);
 		saveBuf(fileNamePtr, 01, todo);
 	} while (todo != 0);
 	//  getAnswer2(); // OK
@@ -1459,13 +1455,11 @@ void doLink(char backSpace)
 				loadPageFromDisk("browser/current.gph", 0);
 				navi.nextBufPos = renderPage(navi.nextBufPos);
 				link.type = '1';
-				/// pusHistory();
 			}
 			else
 			{
 				reDraw();
 				errNoConnect();
-				// goHome();
 			}
 		}
 		else
