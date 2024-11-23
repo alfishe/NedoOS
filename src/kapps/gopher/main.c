@@ -48,8 +48,8 @@ struct linkStruct
 	unsigned long size;
 	unsigned char nexType;
 	unsigned char path[512];
-	unsigned char host[64];
-	unsigned char prevHost[64];
+	unsigned char host[256];
+	unsigned char prevHost[256];
 	unsigned int port;
 } link;
 
@@ -921,14 +921,15 @@ void errNoConnect(void)
 	strcpy(cmd, "Нет соединения с ");
 	strcat(cmd, link.host);
 	errorBox(curWin, cmd);
+	strcpy(link.host, link.prevHost);
 	waitKey();
-/*
-	if (strcmp(link.prevHost, "HOMEPAGE") == 0)
-	{
-		goHome();
-		return;
-	}
-*/
+	/*
+		if (strcmp(link.prevHost, "HOMEPAGE") == 0)
+		{
+			goHome();
+			return;
+		}
+	*/
 	switch (link.type)
 	{
 	case '0':
@@ -1031,33 +1032,18 @@ char getFileEsp(unsigned char *fileNamePtr)
 	return true;
 }
 
-char getFile(unsigned char *fileNamePtr)
+char getFileNet(unsigned char *fileNamePtr)
 {
 	int todo;
 	int socket;
 	unsigned long downloaded = 0;
 
-	if (strcmp(link.host, "HOMEPAGE") == 0)
-	{
-		return false;
-	}
-
-	if (netDriver == 1)
-	{
-		int result;
-		do
-		{
-			result = getFileEsp(fileNamePtr);
-		} while (result == 0);
-
-		return result;
-	}
-
 	if (!dnsResolve(link.host))
 	{
+		clearStatus();
+		printf("Ошибка определения адреса '%s'", link.host);
 		return false;
 	}
-
 	targetadr.porth = 00;
 	targetadr.portl = link.port;
 
@@ -1108,9 +1094,32 @@ char getFile(unsigned char *fileNamePtr)
 	link.size = downloaded;
 	if (downloaded == 0)
 	{
+		clearStatus();
+		printf("Ошибка получения данных от '%s' (%u.%u.%u.%u:%u)", link.host, targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4, targetadr.porth * 256 + targetadr.portl);
 		return false;
 	}
 	return true;
+}
+
+char getFile(unsigned char *fileNamePtr)
+{
+	int result;
+	switch (netDriver)
+	{
+	case 0:
+		result = getFileNet(fileNamePtr);
+		break;
+	case 1:
+		do
+		{
+			result = getFileEsp(fileNamePtr);
+		} while (result == 0);
+		break;
+
+	default:
+		break;
+	}
+	return result;
 }
 
 unsigned char selectorProcessor(void)
@@ -1222,17 +1231,9 @@ char extractName(void)
 		curWin.back = 103;
 		strcpy(curWin.tittle, "Введите имя файла");
 
-		lng = strlen(navi.fileName);
-		if (lng > 60)
-		{
-			lng = lng - 64 - 1;
-		}
-		else
-		{
-			lng = 0;
-		}
+		// navi.fileName[64] = 0;
 
-		if (inputBox(curWin, navi.fileName + lng))
+		if (inputBox(curWin, navi.fileName))
 		{
 			strcpy(navi.fileName, cmd);
 		}
@@ -1391,6 +1392,12 @@ unsigned char mediaProcessorExt(void)
 
 void doLink(char backSpace)
 {
+	if (strcmp(link.host, "HOMEPAGE") == 0)
+	{
+		goHome();
+		return;
+	}
+
 	switch (link.type) // Тут уже новый элемент
 	{
 	case 'i':
@@ -1482,14 +1489,12 @@ void doLink(char backSpace)
 			reDraw();
 			return;
 		}
-		/// pusHistory();
 		OS_CHDIR("/");
 		OS_CHDIR("downloads");
 		OS_GETPATH((unsigned int)&curPath);
 
 		if (getFile(navi.fileName))
 		{
-			/// popHistory();
 			OS_SETSYSDRV();
 			loadPageFromDisk("browser/current.gph", 0);
 			navi.nextBufPos = renderPage(pageOffsets[navi.page]);
@@ -1508,9 +1513,7 @@ void doLink(char backSpace)
 		}
 		else
 		{
-			/// popHistory();
 			errNoConnect();
-			// goHome();
 		}
 		return;
 	default:
@@ -1526,11 +1529,6 @@ void activate(void)
 	if (!selectorProcessor())
 	{
 		return;
-	}
-
-	if (link.type == '0' || link.type == '1') //|| link.type == '7')
-	{
-		/// pusHistory();
 	}
 	doLink(false);
 }
@@ -1627,7 +1625,6 @@ void navigationPage(char keypress)
 	case 0x08: // BS
 		if (navi.history > 1)
 		{
-			/// popHistory();
 			popHistory();
 			doLink(true);
 		}
@@ -1733,7 +1730,6 @@ void navigationPlain(char keypress)
 	case 0x08: // BS
 		if (navi.history > 1)
 		{
-			/// popHistory();
 			popHistory();
 			doLink(true);
 		}
