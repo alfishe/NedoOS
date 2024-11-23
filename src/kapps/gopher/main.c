@@ -28,7 +28,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "00.95";
+unsigned char uVer[] = "00.96";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
@@ -815,12 +815,102 @@ unsigned char inputBox(struct window w, const char *prefilled)
 	return false;
 }
 
-void errNoConnect(void)
+void pusHistory(void)
 {
-	if (strcmp(link.host, "HOMEPAGE") == 0)
+	FILE *hf;
+	unsigned char *historyBytes;
+	unsigned char buf[1];
+	unsigned int structSize, filePos, counter;
+
+	if (link.type == '7')
 	{
 		return;
 	}
+
+	navi.history++;
+	structSize = sizeof(struct linkStruct);
+	filePos = structSize * navi.history;
+
+	OS_SETSYSDRV();
+
+	hf = OS_CREATEHANDLE("browser/ng_hist.dat", 0x80);
+	if (((int)hf) & 0xff)
+	{
+		clearStatus();
+		printf("browser/ng_hist.dat creating error.");
+		exit(0);
+	}
+	OS_CLOSEHANDLE(hf);
+
+	hf = OS_OPENHANDLE("browser/ng_hist.dat", 0x80);
+	if (((int)hf) & 0xff)
+	{
+		clearStatus();
+		printf("browser/ng_hist.dat opening error.");
+		exit(0);
+	}
+	OS_SEEKHANDLE(hf, filePos);
+
+	historyBytes = (unsigned char *)&link;
+
+	for (counter = 0; counter < structSize; counter++)
+	{
+		buf[0] = historyBytes[counter];
+		OS_WRITEHANDLE(buf, hf, 1);
+	}
+	OS_CLOSEHANDLE(hf);
+}
+
+void popHistory(void)
+{
+	FILE *hf;
+	unsigned int structSize, filePos;
+	navi.history--;
+	structSize = sizeof(struct linkStruct);
+	filePos = structSize * navi.history;
+	OS_SETSYSDRV();
+	hf = OS_OPENHANDLE("browser/ng_hist.dat", 0x80);
+	if (((int)hf) & 0xff)
+	{
+		clearStatus();
+		printf("browser/ng_hist.dat opening error.");
+		exit(0);
+	}
+	OS_SEEKHANDLE(hf, filePos);
+	OS_READHANDLE(netbuf, hf, structSize);
+
+	memcpy(&link, netbuf, structSize);
+}
+
+void goHome(void)
+{
+	OS_SETSYSDRV();
+	if (loadPageFromDisk("browser/nedogoph.gph", 0))
+	{
+		newPage();
+		link.type = '1';
+		strcpy(link.host, "HOMEPAGE");
+		pusHistory();
+		navi.nextBufPos = renderPage(navi.nextBufPos);
+	}
+	else
+	{
+		newPage();
+		clearNetbuf();
+		OS_CLS(0);
+		mainWinDraw();
+	}
+}
+
+void errNoConnect(void)
+{
+
+	if (strcmp(link.host, "HOMEPAGE") == 0)
+	{
+		goHome();
+		return;
+	}
+
 	curWin.w = 50;
 	curWin.x = 80 / 2 - curWin.w / 2 - 1;
 	curWin.y = 10;
@@ -832,6 +922,31 @@ void errNoConnect(void)
 	strcat(cmd, link.host);
 	errorBox(curWin, cmd);
 	waitKey();
+/*
+	if (strcmp(link.prevHost, "HOMEPAGE") == 0)
+	{
+		goHome();
+		return;
+	}
+*/
+	switch (link.type)
+	{
+	case '0':
+		OS_SETSYSDRV();
+		loadPageFromDisk("browser/current.txt", 0);
+		navi.nextBufPos = renderPlain(pageOffsets[navi.page]);
+		break;
+	case '1':
+		OS_SETSYSDRV();
+		loadPageFromDisk("browser/current.gph", 0);
+		navi.nextBufPos = renderPage(pageOffsets[navi.page]);
+		break;
+	default:
+		OS_SETSYSDRV();
+		loadPageFromDisk("browser/current.gph", 0);
+		navi.nextBufPos = renderPage(pageOffsets[navi.page]);
+		break;
+	}
 }
 
 char getFileEsp(unsigned char *fileNamePtr)
@@ -906,7 +1021,6 @@ char getFileEsp(unsigned char *fileNamePtr)
 		printf("%lu kb \r", downloaded / 1024);
 		saveBuf(fileNamePtr, 01, todo);
 	} while (todo != 0);
-	// saveBuf(fileNamePtr, 02, 00);
 	//  getAnswer2(); // OK
 	link.size = downloaded;
 	clearStatus();
@@ -991,7 +1105,6 @@ char getFile(unsigned char *fileNamePtr)
 	} while (42);
 	clearStatus();
 	netShutDown(socket, 0);
-	saveBuf(fileNamePtr, 02, 00);
 	link.size = downloaded;
 	if (downloaded == 0)
 	{
@@ -1071,73 +1184,6 @@ unsigned char selectorProcessor(void)
 	SelectedPos = SelectedPos + counter1 + 1;
 	link.port = atoi(netbuf + SelectedPos);
 	return true;
-}
-
-void pusHistory(void)
-{
-	FILE *hf;
-	unsigned char *historyBytes;
-	unsigned char buf[1];
-	unsigned int structSize, filePos, counter;
-
-	if (link.type == '7')
-	{
-		return;
-	}
-
-	navi.history++;
-	structSize = sizeof(struct linkStruct);
-	filePos = structSize * navi.history;
-
-	OS_SETSYSDRV();
-
-	hf = OS_CREATEHANDLE("browser/ng_hist.dat", 0x80);
-	if (((int)hf) & 0xff)
-	{
-		clearStatus();
-		printf("browser/ng_hist.dat creating error.");
-		exit(0);
-	}
-	OS_CLOSEHANDLE(hf);
-
-	hf = OS_OPENHANDLE("browser/ng_hist.dat", 0x80);
-	if (((int)hf) & 0xff)
-	{
-		clearStatus();
-		printf("browser/ng_hist.dat opening error.");
-		exit(0);
-	}
-	OS_SEEKHANDLE(hf, filePos);
-
-	historyBytes = (unsigned char *)&link;
-
-	for (counter = 0; counter < structSize; counter++)
-	{
-		buf[0] = historyBytes[counter];
-		OS_WRITEHANDLE(buf, hf, 1);
-	}
-	OS_CLOSEHANDLE(hf);
-}
-
-void popHistory(void)
-{
-	FILE *hf;
-	unsigned int structSize, filePos;
-	navi.history--;
-	structSize = sizeof(struct linkStruct);
-	filePos = structSize * navi.history;
-	OS_SETSYSDRV();
-	hf = OS_OPENHANDLE("browser/ng_hist.dat", 0x80);
-	if (((int)hf) & 0xff)
-	{
-		clearStatus();
-		printf("browser/ng_hist.dat opening error.");
-		exit(0);
-	}
-	OS_SEEKHANDLE(hf, filePos);
-	OS_READHANDLE(netbuf, hf, structSize);
-
-	memcpy(&link, netbuf, structSize);
 }
 
 char extractName(void)
@@ -1343,26 +1389,6 @@ unsigned char mediaProcessorExt(void)
 	return false;
 }
 
-void goHome(void)
-{
-	OS_SETSYSDRV();
-	if (loadPageFromDisk("browser/nedogoph.gph", 0))
-	{
-		newPage();
-		link.type = '1';
-		strcpy(link.host, "HOMEPAGE");
-		pusHistory();
-		navi.nextBufPos = renderPage(navi.nextBufPos);
-	}
-	else
-	{
-		newPage();
-		clearNetbuf();
-		OS_CLS(0);
-		mainWinDraw();
-	}
-}
-
 void doLink(char backSpace)
 {
 	switch (link.type) // Тут уже новый элемент
@@ -1385,7 +1411,7 @@ void doLink(char backSpace)
 		else
 		{
 			errNoConnect();
-			goHome();
+			// goHome();
 		}
 		return;
 	case '1': // gopher page
@@ -1404,7 +1430,7 @@ void doLink(char backSpace)
 		{
 
 			errNoConnect();
-			goHome();
+			// goHome();
 		}
 		return;
 	case '7': // search input
@@ -1432,7 +1458,7 @@ void doLink(char backSpace)
 			{
 				reDraw();
 				errNoConnect();
-				goHome();
+				// goHome();
 			}
 		}
 		else
@@ -1484,7 +1510,7 @@ void doLink(char backSpace)
 		{
 			/// popHistory();
 			errNoConnect();
-			goHome();
+			// goHome();
 		}
 		return;
 	default:
