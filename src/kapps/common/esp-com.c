@@ -293,11 +293,12 @@ void espReBoot(void)
 	getAnswer2();
 }
 
-unsigned int recvHead(void)
+int recvHead(void)
 {
 	unsigned char byte, dataRead;
-	unsigned int loaded, count = 0;
+	int todo = 0, count = 0;
 	const char closed[] = "CLOSED";
+
 	do
 	{
 		byte = uart_readBlock();
@@ -311,7 +312,7 @@ unsigned int recvHead(void)
 		}
 		if (count == strlen(closed))
 		{
-			return 0;
+			return todo;
 		}
 	} while (byte != ',');
 	dataRead = 0;
@@ -322,9 +323,14 @@ unsigned int recvHead(void)
 		dataRead++;
 	} while (byte != ':');
 	// netbuf[dataRead] = 0;
-	loaded = atoi(netbuf); // <actual_len>
-	// printf("\r\n loaded %u\r\n", loaded);
-	return loaded;
+	todo = atoi(netbuf); // <actual_len>
+	
+	// Спорное решение. Если  не поняли сколько получать, ждать пока все закроется. 
+	if(todo == 0)
+	{
+		getAnswer2();
+	}
+	return todo;
 }
 
 void loadEspConfig(void)

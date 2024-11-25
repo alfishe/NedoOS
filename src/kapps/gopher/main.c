@@ -28,7 +28,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "00.97";
+unsigned char uVer[] = "01.00";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
@@ -823,7 +823,8 @@ unsigned char inputBox(struct window w, const char *prefilled)
 void pusHistory(void)
 {
 	FILE *hf;
-	unsigned int structSize, filePos;
+	unsigned int structSize;
+	unsigned long filePos;
 	if (link.type == '7')
 	{
 		return;
@@ -860,7 +861,8 @@ void pusHistory(void)
 void popHistory(void)
 {
 	FILE *hf;
-	unsigned int structSize, filePos;
+	unsigned int structSize;
+	unsigned long filePos;
 	navi.history--;
 	structSize = sizeof(struct linkStruct);
 	filePos = structSize * (navi.history - 1);
@@ -872,13 +874,14 @@ void popHistory(void)
 		printf("browser/ng_hist.dat opening error.");
 		exit(0);
 	}
+
 	OS_SEEKHANDLE(hf, filePos);
 	OS_READHANDLE(netbuf, hf, structSize);
 
 	memcpy(&link, netbuf, structSize);
 }
 
-void goHome(void)
+void goHome(char backSpace)
 {
 	OS_SETSYSDRV();
 	if (loadPageFromDisk("browser/nedogoph.gph", 0))
@@ -886,7 +889,10 @@ void goHome(void)
 		newPage();
 		link.type = '1';
 		strcpy(link.host, "HOMEPAGE");
-		pusHistory();
+		if (!backSpace)
+		{
+			pusHistory();
+		}
 		navi.nextBufPos = renderPage(navi.nextBufPos);
 	}
 	else
@@ -903,7 +909,7 @@ void errNoConnect(void)
 
 	if (strcmp(link.host, "HOMEPAGE") == 0)
 	{
-		goHome();
+		goHome(false);
 		return;
 	}
 
@@ -919,13 +925,7 @@ void errNoConnect(void)
 	errorBox(curWin, cmd);
 	strcpy(link.host, link.prevHost);
 	waitKey();
-	/*
-		if (strcmp(link.prevHost, "HOMEPAGE") == 0)
-		{
-			goHome();
-			return;
-		}
-	*/
+
 	switch (link.type)
 	{
 	case '0':
@@ -1013,18 +1013,16 @@ char getFileEsp(unsigned char *fileNamePtr)
 	do
 	{
 		todo = recvHead();
-		getdataEsp(todo);
 		downloaded = downloaded + todo;
-		printf("%lu kb  \r", downloaded / 1024);
+		if (downloaded == 0)
+		{
+			return false;
+		}
+		getdataEsp(todo);
 		saveBuf(fileNamePtr, 01, todo);
+		printf("%lu kb  \r", downloaded);
 	} while (todo != 0);
-	//  getAnswer2(); // OK
 	link.size = downloaded;
-	clearStatus();
-	if (downloaded == 0)
-	{
-		return false;
-	}
 	return true;
 }
 
@@ -1390,7 +1388,7 @@ void doLink(char backSpace)
 {
 	if (strcmp(link.host, "HOMEPAGE") == 0)
 	{
-		goHome();
+		goHome(backSpace);
 		return;
 	}
 
@@ -1414,7 +1412,6 @@ void doLink(char backSpace)
 		else
 		{
 			errNoConnect();
-			// goHome();
 		}
 		return;
 	case '1': // gopher page
@@ -1433,7 +1430,6 @@ void doLink(char backSpace)
 		{
 
 			errNoConnect();
-			// goHome();
 		}
 		return;
 	case '7': // search input
@@ -1628,7 +1624,7 @@ void navigationPage(char keypress)
 		break;
 	case 'h':
 	case 'H':
-		goHome();
+		goHome(false);
 		break;
 	case 'd':
 	case 'D':
@@ -1733,7 +1729,7 @@ void navigationPlain(char keypress)
 		break;
 	case 'h':
 	case 'H':
-		goHome();
+		goHome(false);
 		break;
 	case 'd':
 	case 'D':
@@ -1951,7 +1947,7 @@ C_task main(int argc, char *argv[])
 	// printTable();
 	// waitKey();
 
-	goHome();
+	goHome(false);
 
 	start = 0;
 	do
