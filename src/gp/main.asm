@@ -1308,9 +1308,9 @@ detectmoonsound
 	ld (hl),1
 	ld hl,firmwareerrorstr
 	call print_hl
-	ld hl,pressanykeystr
-	call print_hl
-	YIELDGETKEYLOOP
+	;ld hl,pressanykeystr
+	;call print_hl
+	;YIELDGETKEYLOOP
 	ret
 
 detecttfm
