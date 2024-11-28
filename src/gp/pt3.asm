@@ -497,6 +497,11 @@ midloadtracks
 	ld hl,(memorystreamcurrentaddr)
 	call midreadvarint
 	ld (memorystreamcurrentaddr),hl
+	
+	ld b,0
+    sla de : rl bc
+    sla de : rl bc
+	
 	ld (ix+MIDTRACK.nexteventtick+0),de
 	ld (ix+MIDTRACK.nexteventtick+2),c
 	call memorystreamgetpos

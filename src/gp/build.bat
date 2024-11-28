@@ -13,6 +13,12 @@ if "%currentdir%"=="" (
  copy /Y gp.plr "../../release/bin/gp/" > nul
  "../../tools/dmimg.exe" ../../us/hdd_nedo.vhd put gp.com /bin/gp.com
  "../../tools/dmimg.exe" ../../us/hdd_nedo.vhd put gp.plr /bin/gp/gp.plr
+
+
+ "../../tools/dmimg.exe" ../../us/sd_nedo.vhd put gp.com /bin/gp.com
+ "../../tools/dmimg.exe" ../../us/sd_nedo.vhd put gp.plr /bin/gp/gp.plr
+
+
  pause
  if "%makeall%"=="" ..\..\us\emul.exe
 )
