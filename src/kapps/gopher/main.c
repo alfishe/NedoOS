@@ -42,17 +42,6 @@ struct sockaddr_in targetadr;
 struct readstructure readStruct;
 struct sockaddr_in dnsaddress;
 
-struct linkStruct
-{
-	unsigned char type;
-	unsigned long size;
-	unsigned char nexType;
-	unsigned char path[512];
-	unsigned char host[256];
-	unsigned char prevHost[256];
-	unsigned int port;
-} link;
-
 struct mouseStruct
 {
 	char lmb;
@@ -90,6 +79,17 @@ struct navigationStruct
 	unsigned char fileName[128];
 } navi;
 
+struct linkStruct
+{
+	unsigned char type;
+	unsigned long size;
+	unsigned char nexType;
+	unsigned char path[512];
+	unsigned char host[256];
+	unsigned char prevHost[256];
+	unsigned int port;
+} link;
+
 struct window
 {
 	unsigned char x;
@@ -100,6 +100,14 @@ struct window
 	unsigned char back;
 	unsigned char tittle[80];
 } curWin;
+
+struct time
+{
+	unsigned int hours;
+	unsigned int minutes;
+	unsigned char oldMinutes;
+
+} clock;
 
 unsigned char nvext[1024];
 
@@ -228,13 +236,17 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 void drawClock(void)
 {
 	unsigned long dosTime;
-	unsigned int hours, minutes;
 	dosTime = OS_GETTIME();
-	hours = dosTime >> 11 & 31;	   // 0b00011111
-	minutes = (dosTime >> 5) & 63; // 0b00111111
+	clock.hours = dosTime >> 11 & 31;	 // 0b00011111
+	clock.minutes = (dosTime >> 5) & 63; // 0b00111111
 
-	OS_SETXY(73, 0);
-	printf("[%02u:%02u]", hours, minutes);
+	if (clock.minutes != clock.oldMinutes)
+	{
+		clock.oldMinutes == clock.minutes;
+		OS_SETCOLOR(207);
+		OS_SETXY(73, 0);
+		printf("[%02u:%02u]", clock.hours, clock.minutes);
+	}
 }
 
 void mainWinDraw(void)
@@ -439,6 +451,7 @@ void init(void)
 	loadNVext();
 	loadEspConfig();
 	initMouse();
+	clock.oldMinutes = 255;
 }
 void newPage(void)
 {
@@ -1020,7 +1033,7 @@ char getFileEsp(unsigned char *fileNamePtr)
 		}
 		getdataEsp(todo);
 		saveBuf(fileNamePtr, 01, todo);
-		printf("%lu kb  \r", downloaded);
+		printf("%lu kb  \r", downloaded / 1024);
 	} while (todo != 0);
 	link.size = downloaded;
 	return true;
@@ -1938,7 +1951,6 @@ unsigned char getMouse(void)
 C_task main(int argc, char *argv[])
 {
 	unsigned char keypress;
-	unsigned int start, finish = 0;
 	OS_HIDEFROMPARENT();
 	OS_SETGFX(0x86);
 	OS_CLS(0);
@@ -1949,7 +1961,6 @@ C_task main(int argc, char *argv[])
 
 	goHome(false);
 
-	start = 0;
 	do
 	{
 		keypress = getMouse();
@@ -1983,16 +1994,8 @@ C_task main(int argc, char *argv[])
 
 			//	printf("keypress [%d]", keypress);
 		}
-
-		finish++;
-		if ((finish - start) > 10000)
-		{
-			// mainWinDraw();
-			OS_SETCOLOR(207);
-			drawClock();
-			finish = 0;
-		}
 		YIELD();
+		drawClock();
 	} while (keypress != 27);
 	OS_DELETE("browser/current.gph");
 	OS_DELETE("browser/current.txt");
