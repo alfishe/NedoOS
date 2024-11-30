@@ -23,7 +23,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "0.65";
+unsigned char uVer[] = "0.70";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -73,11 +73,11 @@ unsigned char newsLink[] = "/svn/dl.php?repname=NedoOS&path=/release/doc/updater
 unsigned char wizNetLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/wizcfg.com";
 unsigned char netIniLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/net.ini";
 unsigned char relLink[] = "http://nedoos.ru/images/release.zip";
-unsigned char nameBuf1[256];
+unsigned char nameBuf1[512];
 unsigned char *nameBuf = nameBuf1;
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
-unsigned char cmd[256];
+unsigned char cmd[512];
 unsigned char link[512];
 unsigned char dataBuffer[4096];
 
@@ -134,7 +134,7 @@ void printNews(void) // max 20 lines in total and 59 col.
 	curLine = 0;
 	while (curLine < 20)
 	{
-		AT(20, 3 + curLine);
+		AT(20, 2 + curLine);
 		while (1)
 		{
 			OS_READHANDLE(str, fpNews, sizeof(str));
@@ -650,33 +650,25 @@ void restoreConfig(unsigned char oldBinExt)
 	errn = OS_RENAME("bin/nv.ext", "bin/nv.ext.new");
 	errn = OS_RENAME("bin/gp/gp.ini", "bin/gp/gp.ini.new");
 	errn = OS_RENAME("/bin/browser/index.gph", "/bin/browser/index.gph.new");
-	// errn = OS_RENAME("/bin/browser/espcom.ini", "/bin/browser/espcom.ini.new");
-
 	if (oldBinExt == 255)
 	{
-		errn = OS_SHELL("copy bin.old/autoexec.bat bin/autoexec.bat");
-
-		errn = OS_SHELL("copy bin.old/net.ini bin/net.ini");
-
-		errn = OS_SHELL("copy bin.old/nv.ext bin/nv.ext");
-
-		errn = OS_SHELL("copy bin.old/gp/gp.ini bin/gp/gp.ini");
-		errn = OS_SHELL("copy bin.old/browser/index.gph bin/browser/index.gph");
-		// errn = OS_SHELL("copy bin.old/browser/espcom.ini bin/browser/espcom.ini");
+		errn = OS_SHELL("copy bin.old/autoexec.bat bin/autoexec.bat >>updlog.txt");
+		errn = OS_SHELL("copy bin.old/net.ini bin/net.ini >>updlog.txt");
+		errn = OS_SHELL("copy bin.old/nv.ext bin/nv.ext >>updlog.txt");
+		errn = OS_SHELL("copy bin.old/gp/gp.ini bin/gp/gp.ini >>updlog.txt");
+		errn = OS_SHELL("copy bin.old/browser/index.gph bin/browser/index.gph >>updlog.txt");
 	}
 	else
 	{
-		sprintf(nameBuf, "copy bin.%u/autoexec.bat bin/autoexec.bat", oldBinExt);
+		sprintf(nameBuf, "copy bin.%u/autoexec.bat bin/autoexec.bat >>updlog.txt", oldBinExt);
 		OS_SHELL((void *)nameBuf);
-
-		sprintf(nameBuf, "copy bin.%u/net.ini bin/net.ini", oldBinExt);
+		sprintf(nameBuf, "copy bin.%u/net.ini bin/net.ini >>updlog.txt", oldBinExt);
 		OS_SHELL((void *)nameBuf);
-
-		sprintf(nameBuf, "copy bin.%u/nv.ext bin/nv.ext", oldBinExt);
+		sprintf(nameBuf, "copy bin.%u/nv.ext bin/nv.ext >>updlog.txt", oldBinExt);
 		OS_SHELL((void *)nameBuf);
-		sprintf(nameBuf, "copy bin.%u/gp/gp.ini bin/gp/gp.ini", oldBinExt);
+		sprintf(nameBuf, "copy bin.%u/gp/gp.ini bin/gp/gp.ini >>updlog.txt", oldBinExt);
 		OS_SHELL((void *)nameBuf);
-		sprintf(nameBuf, "copy bin.%u/browser/index.gph bin/browser/index.gph", oldBinExt);
+		sprintf(nameBuf, "copy bin.%u/browser/index.gph bin/browser/index.gph >>updlog.txt", oldBinExt);
 		OS_SHELL((void *)nameBuf);
 	}
 	AT(1, 4);
@@ -819,31 +811,41 @@ void binUpdate(void)
 	AT(cw.x + 2, cw.y + 10);
 	printf(">To full update start 'updater.com F'<");
 
+	OS_SHELL("time2 >updlog.txt");
+
 	AT(cw.x + 2, cw.y + 3);
+	printf("1.Downloading bin.zip...");
+	YIELD();
+	getFile(binLink, "bin/bin.zip"); //  Downloading the file
+
+	clearStatus();
+	AT(cw.x + 2, cw.y + 4);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("1.Backuping bin to bin.old...");
-
+	printf("2.Backuping bin to bin.old...");
 	YIELD();
-	YIELD();
-
 	oldBinExt = ren2old("bin");
-
 	OS_MKDIR("bin");
-
-	AT(cw.x + 2, cw.y + 4);
-	printf("2.Downloading bin.zip...");
-	getFile(binLink, "bin/bin.zip"); //  Downloading the file
 
 	clearStatus();
 	AT(cw.x + 2, cw.y + 5);
 	printf("3.Downloading tools...");
 	getTools();
 
+	if (oldBinExt != 255)
+	{
+		sprintf(nameBuf, "bin.%u/bin.zip", oldBinExt);
+	}
+	else
+	{
+		sprintf(nameBuf, "bin.old/bin.zip");
+	}
+	errn = OS_RENAME((void *)nameBuf, "bin/bin.zip");
+	// OS_SHELL((void *)nameBuf);
+
 	BOX(1, 1, 80, 25, 40, 32);
 	AT(1, 1);
 	printf("Depacking release. Its take about 10 minutes. Please wait...\r\n");
-
 	printNews();
 	YIELD();
 
@@ -860,9 +862,9 @@ void binUpdate(void)
 	ATRIB(cw.text);
 	ATRIB(cw.back);
 	AT(cw.x + 2, cw.y + 3);
-	printf("1.Backuping bin to bin.old...");
-	AT(cw.x + 2, cw.y + 4);
 	printf("2.Downloading bin.zip...");
+	AT(cw.x + 2, cw.y + 4);
+	printf("1.Backuping bin to bin.old...");
 	AT(cw.x + 2, cw.y + 5);
 	printf("3.Downloading tools...");
 	AT(cw.x + 2, cw.y + 6);
@@ -963,6 +965,7 @@ C_task main(int argc, char *argv[])
 	clearStatus();
 	infoBox("System Updated successfully!");
 	delay(2000);
+	OS_SHELL("time2 >>updlog.txt");
 	// getchar();
 	// OS_DELETE("release.zip");
 	ATRIB(40);
