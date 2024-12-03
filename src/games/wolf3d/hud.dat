@@ -21,11 +21,19 @@
 ;P: DDp palette
 ;%: mirror sprites, don't generate anything
 
-sprweapon1=c,0,184,16,8,7
-sprweapon2=c,24,184,16,8,7
-sprweapon3=c,48,184,16,8,7
-sprweapon4=c,72,184,16,8,7
-sprbullets=c,96,184,8,8,7
-sprgrenade=c,128,184,8,8,7
-sprhealth=c,192,184,8,8,7
-sprdigits=c,120,176,80,8,7
+;sprweapon1=c,0,184,16,8,7
+;sprweapon2=c,24,184,16,8,7
+;sprweapon3=c,48,184,16,8,7
+;sprweapon4=c,72,184,16,8,7
+;sprbullets=c,96,184,8,8,7
+;sprgrenade=c,128,184,8,8,7
+;sprhealth=c,192,184,8,8,7
+;sprdigits=c,120,176,80,8,7
+sprweapon1=c,0,185,16,7,7
+sprweapon2=c,24,185,16,7,7
+sprweapon3=c,48,185,16,7,7
+sprweapon4=c,72,185,16,7,7
+sprbullets=c,96,185,8,7,7
+sprgrenade=c,128,185,8,7,7
+sprhealth=c,192,185,8,7,7
+sprdigits=c,120,177,80,7,7

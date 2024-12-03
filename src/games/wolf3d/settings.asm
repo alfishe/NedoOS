@@ -4,7 +4,7 @@
 ;atm=1
 ;doublescr=1
 showfps=1-atm
-EDITOR=1;0
+EDITOR=0
 
 crosshair=1;0
 
@@ -39,6 +39,7 @@ sprites=1
 CURSPRITES_RECSZ=5;4 ;ID, distL, distH, xscr, [monsterindex]
 FATMONSTERS=0
 viewrange=6
+woundrange=2
 MONSTERviewrange=3
 MONSTERBACKviewrange=2
 
@@ -88,7 +89,7 @@ optres=1&(1-lores) ;+22t на мелких, выигрыш на крупных
 lores=1
 optres=0
         ENDIF 
-optfast=0
+optfast=1;0 ;в движении рисуем грубо
 loresspr=0|lores
 optresspr=1&(1-loresspr) ;выигрыш на крупных
 loresspr_hires=loresspr&(1-lores)
@@ -131,3 +132,6 @@ TIME_WOUNDED=30/LOGICSPEED
 TIME_WANTATTACK=40/LOGICSPEED
 TIME_ATTACK=25/LOGICSPEED
 TIME_STEP=10/LOGICSPEED
+TIME_SHOT=10/LOGICSPEED
+TIME_WOUNDED=10/LOGICSPEED
+TIME_EXPLODE=10/LOGICSPEED

@@ -205,11 +205,12 @@ pgsfx=$+1
         ld a,0
         SETPG8000
         pop af
-        jp 0x8000 ;SFXPLAY
+        call 0x8000 ;SFXPLAY
        else
         inc a
 	call queue_next
+       endif
+invalidatehud
         ld a,55
         ld (drawhudflag),a ;звук значит событие
         ret
-       endif

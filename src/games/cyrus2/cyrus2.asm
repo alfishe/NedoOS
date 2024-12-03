@@ -67,6 +67,15 @@ begin
         ld bc,0x1b00
         ldir
         
+        ld hl,0x5c00
+        ld de,0x5c01
+        ld bc,0xb6-1
+        ld (hl),0xff;l
+        ldir
+        ;ld a,0xff
+        ;ld (0x5c00),a
+        ;ld (0x5c04),a
+        
         YIELDGETKEYLOOP
         
         ld de,pal

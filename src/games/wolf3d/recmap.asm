@@ -41,7 +41,7 @@ INImons LD A,(HL) ;x
         sub 3 ;0..3
         rlca
         rlca
-        inc a
+        ;inc a
         ld (de),a ;dir
 INImons_nomove
 INImons_nolive
@@ -169,9 +169,9 @@ GETMOK
         LD HL,MONSTRS+1 ;1+начало табл.монстров/предметов
 remons0
         LD A,(HL) ;X
-         inc (hl)
         INC A
        jr Z,remonsq
+         inc (hl)
         ;ld a,0xff&(map+32+map+0)
         ;sub (hl)
         ;ld (hl),a ;???

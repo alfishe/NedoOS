@@ -606,7 +606,7 @@ wasmuz_sz=$-wasmuz
 
         display "WASMAP=",$
 WASMAP
-        INCBIN "mapatm.E" ;TODO load
+        INCBIN "!mapatm.E" ;TODO load
 szMAP=$-WASMAP
 
 res_path

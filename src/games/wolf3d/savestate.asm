@@ -17,16 +17,21 @@ angle   DW 64
 endlev
 
 health
-        db 20
+        db 99
 bullets
         db 10
 grenades
-        db 2
+        db 9
 leveltime
-        dw 0
+        db 0 ;frames
+        dw 0 ;sec,min
 gametime
-        dw 0
+        db 0 ;frames
+        dw 0 ;sec,min
+        db 0 ;hours
 firedelaycounter
+        db 0
+grenadedelaycounter
         db 0
 downtimer_time
         db 1
@@ -83,8 +88,9 @@ MONSTRS
 	DW #0E80,#A440,#200,0
 	DW #0D80,#A2C0,#200,0
 	DW #0D80,#A440,#200,0
+ENDMONS
 	DW -1
-eNDMONS
+;eNDMONS
 
 ;сейчас TYPE кодируется так (что видно в редакторе: что в TYPE):
 ;31: вход

@@ -901,3 +901,8 @@ EXPORT PROC closewrite(PBYTE file)
   fclose(file);
 }
 */
+CONST PBYTE mas[2]={closewrite,fclose}
+VAR PBYTE ad
+VAR BYTE i
+call (mas[i]);
+call (ad);
