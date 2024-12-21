@@ -35,7 +35,7 @@ unsigned char fileName[] = "radio/player.ovl";
 unsigned char appCmd[128] = "player.com ";
 unsigned char curPath[128];
 
-unsigned char ver[] = "3.1";
+unsigned char ver[] = "3.2";
 
 unsigned char queryType[64];
 unsigned char netbuf[4096];
@@ -148,7 +148,7 @@ void clearStatus(void)
   putchar('\r');
 }
 
-void printProgress(unsigned char type)
+void printProgress(const char type)
 {
   unsigned char bar, minutes, seconds;
   unsigned char *position;
@@ -386,7 +386,7 @@ int cutHeader(unsigned int todo)
   return todo - headlng;
 }
 
-unsigned char inputBox(struct window w, unsigned char *prefilled)
+unsigned char inputBox(struct window w, unsigned const char *prefilled)
 {
   unsigned char wcount, tempx, tittleStart;
   unsigned char byte, counter;
@@ -814,7 +814,7 @@ unsigned int getDataEsp(void)
 {
   unsigned char sizeLink;
   unsigned long downloaded;
-  unsigned char byte, count = 0;
+  unsigned char byte, countl = 0;
   unsigned int todo;
   unsigned char *count1;
 
@@ -837,19 +837,19 @@ unsigned int getDataEsp(void)
     // putchar(byte);
   } while (byte != '>');
   sendcommand(link);
-  count = 0;
+  countl = 0;
   do
   {
     byte = uart_readBlock();
-    if (byte == sendOk[count])
+    if (byte == sendOk[countl])
     {
-      count++;
+      countl++;
     }
     else
     {
-      count = 0;
+      countl = 0;
     }
-  } while (count < strlen(sendOk));
+  } while (countl < strlen(sendOk));
   uart_readBlock(); // CR
   uart_readBlock(); // LF
   downloaded = 0;
@@ -875,7 +875,7 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
 {
   FILE *fp3;
   unsigned int tSize;
-  unsigned char *count, result;
+  unsigned char *countl, result;
   clearStatus();
   printf("Getting data(%u)...", queryNum);
 
@@ -923,8 +923,8 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   clearStatus();
   printf("Processing data (%u)...", queryNum);
 
-  count = strstr(dataBuffer, "responseStatus\":\"success");
-  if (count == NULL)
+  countl = strstr(dataBuffer, "responseStatus\":\"success");
+  if (countl == NULL)
   {
     OS_CLS(0);
     OS_SETCOLOR(66);
@@ -936,8 +936,8 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     getchar();
     return -1;
   }
-  count = strstr(dataBuffer, "\"id\":");
-  if (count == NULL)
+  countl = strstr(dataBuffer, "\"id\":");
+  if (countl == NULL)
   {
     parseJson("\"totalAmount\":");
 
@@ -1005,7 +1005,7 @@ unsigned char getTrack2(unsigned long fileId)
   unsigned int packSize = 2000;
   unsigned long downloaded;
   unsigned char try = 0, byte = 0;
-  unsigned int count;
+  unsigned int countl;
   unsigned char *count1;
   clearStatus();
   printf("Getting track...");
@@ -1065,20 +1065,20 @@ unsigned char getTrack2(unsigned long fileId)
       // putchar(byte);
     } while (byte != '>');
     sendcommand(link);
-    count = 0;
+    countl = 0;
 
     do
     {
       byte = uart_readBlock();
-      if (byte == sendOk[count])
+      if (byte == sendOk[countl])
       {
-        count++;
+        countl++;
       }
       else
       {
-        count = 0;
+        countl = 0;
       }
-    } while (count < strlen(sendOk));
+    } while (countl < strlen(sendOk));
     uart_readBlock(); // CR
     uart_readBlock(); // LF
     downloaded = 0;
@@ -1180,7 +1180,7 @@ unsigned char testPlayer(void)
   }
 }
 
-void infoBox(struct window w, unsigned char *message)
+void infoBox(struct window w, const char *message)
 {
   unsigned char wcount, tempx, tittleStart;
 
@@ -1464,7 +1464,7 @@ rekey:
     strcpy(curWin.tittle, "Track number:");
     if (inputBox(curWin, ""))
     {
-      sscanf(cmd, "%lu", &count);
+      sscanf(cmd, "%ld", &count);
       OS_DROPAPP(pId);
       if (count > curFileStruct.totalAmount - 1)
       {
@@ -1521,6 +1521,7 @@ rekey:
     }
     changedFormat = 1;
     curFileStruct.totalAmount = 1;
+/*
     if (strstr(formats[curFormat], "tfc") != NULL)
     {
       cutOff = 0;
@@ -1529,7 +1530,7 @@ rekey:
     {
       cutOff = 0;
     }
-
+*/
     printStatus();
     printProgress(0);
     BDBOX(1, 2, 80, 6, 71, ' ');

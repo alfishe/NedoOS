@@ -23,8 +23,8 @@ unsigned int divider = 1;
 unsigned char comType = 0;
 unsigned int espType = 32;
 
-unsigned char picture[16384];
-unsigned char netbuf[6000];
+unsigned char picture[15000];
+unsigned char netbuf[6912];
 
 unsigned char minRating[] = "0000000000";
 struct fileStruct
@@ -43,6 +43,7 @@ struct fileStruct
   unsigned char fileName[128];
 } curFileStruct;
 
+
 struct window
 {
   unsigned char x;
@@ -58,7 +59,7 @@ struct sockaddr_in dnsaddress;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 
-unsigned char ver[] = "3.7";
+unsigned char ver[] = "3.8";
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
@@ -83,7 +84,7 @@ void clearStatus(void)
 
 void emptyKeys(void)
 {
-  unsigned char loop, key;
+  unsigned char loop = 0, key;
   do
   {
     key = OS_GETKEY();
@@ -110,7 +111,7 @@ void quit(void)
   exit(0);
 }
 
-void infoBox(struct window w, unsigned char *message)
+void infoBox(struct window w, const char *message)
 {
   unsigned char wcount, tempx, tittleStart;
 
@@ -200,7 +201,7 @@ void delay(unsigned long counter)
 #include <../common/network.c>
 //////////////////////////
 
-int testOperation2(unsigned char *process, int socket)
+int testOperation2(const char *process, int socket)
 {
   if (socket < 0)
   {
@@ -284,7 +285,7 @@ char fillPictureEsp(void)
 {
   unsigned char sizeLink = 0;
   unsigned long downloaded = 0;
-  unsigned char byte, count = 0;
+  unsigned char byte, countl = 0;
   unsigned int todo = 0;
   unsigned char *count1;
 
@@ -307,19 +308,19 @@ char fillPictureEsp(void)
     // putchar(byte);
   } while (byte != '>');
   sendcommand(link);
-  count = 0;
+  countl = 0;
   do
   {
     byte = uart_readBlock();
-    if (byte == sendOk[count])
+    if (byte == sendOk[countl])
     {
-      count++;
+      countl++;
     }
     else
     {
-      count = 0;
+      countl = 0;
     }
-  } while (count < strlen(sendOk));
+  } while (countl < strlen(sendOk));
   uart_readBlock(); // CR
   uart_readBlock(); // LF
   downloaded = 0;
@@ -338,13 +339,16 @@ char fillPictureEsp(void)
       printf("dataBuffer overrun... %u reached \n\r", downloaded + todo);
       return false;
     }
-
     memcpy(picture + downloaded, netbuf + headlng, todo);
     downloaded = downloaded + todo;
   } while (downloaded < contLen);
   sendcommand("AT+CIPCLOSE");
-  getAnswer2(); // CLOSED
-  getAnswer2(); // OK
+  getAnswer2(); // CLOSED or ERROR
+  count1 = strstr(netbuf, "CLOSED");
+  if (count1 != NULL)
+  {
+    getAnswer2(); // OK
+  }
   return true;
 }
 
@@ -576,7 +580,7 @@ const char *parseJson(unsigned char *property)
 void convert866(void)
 {
   unsigned int lng, targetPos, w, q = 0;
-  unsigned char buffer[8], one, two;
+  unsigned char bufferl[8], one, two;
   unsigned int decVal;
   lng = strlen(netbuf);
   targetPos = lng + 1;
@@ -590,11 +594,11 @@ void convert866(void)
       q = q + 2;
       for (w = 0; w < 4; w++)
       {
-        buffer[w] = netbuf[q + w];
+        bufferl[w] = netbuf[q + w];
       }
       q = q + 4;
-      buffer[4] = '\0';
-      decVal = (unsigned int)strtol(buffer, NULL, 16);
+      bufferl[4] = '\0';
+      decVal = (unsigned int)strtol(bufferl, NULL, 16);
 
       if (decVal < 1088)
       {
@@ -802,7 +806,7 @@ void printData(void)
   // YIELD();
 }
 
-unsigned char inputBox(struct window w, unsigned char *prefilled)
+unsigned char inputBox(struct window w, const char *prefilled)
 {
   unsigned char wcount, tempx, tittleStart;
   unsigned char byte, counter;

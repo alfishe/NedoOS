@@ -1,4 +1,24 @@
 ////////////////////////ESP32 PROCEDURES//////////////////////
+void portOutput(char port, char data)
+{
+	disable_interrupt();
+	output(0xfb, port);
+	output(0xfa, data);
+	// output(0xfb, 0x00);
+	enable_interrupt();
+}
+
+char portInput(char port)
+{
+	char byte;
+	disable_interrupt();
+	output(0xfb, port);
+	byte = input(0xfa);
+	// output(0xfb, 0x00);
+	enable_interrupt();
+	return byte;
+}
+
 void uart_write(unsigned char data)
 {
 	unsigned char status;
@@ -6,7 +26,7 @@ void uart_write(unsigned char data)
 	{
 	case 0:
 	case 2:
-		while ((input(LSR) & 64) == 0)
+		while ((input(LSR) & 32) == 0)
 		{
 		}
 		output(RBR_THR, data);
@@ -17,12 +37,18 @@ void uart_write(unsigned char data)
 		{
 			input(0x55fe);			// Переход в режим команд
 			status = input(0x42fe); // Команда прочесть статус
-		} while ((status & 64) == 0); // Проверяем 6 бит
+		} while ((status & 32) == 0); // Проверяем 5 бит
 
 		input(0x55fe);				 // Переход в режим команд
 		input(0x03fe);				 // Команда записать в порт
 		input((data << 8) | 0x00fe); // Записываем data в порт
 		enable_interrupt();
+		break;
+	case 3:
+		while ((portInput(LSR) & 32) == 0)
+		{
+		}
+		portOutput(RBR_THR, data);
 		break;
 	}
 }
@@ -77,16 +103,32 @@ void uart_setrts(unsigned char mode)
 		}
 	case 2:
 		break;
+	case 3:
+		switch (mode)
+		{
+		case 1:
+			portOutput(MCR, 2);
+			break;
+		case 0:
+			portOutput(MCR, 0);
+			break;
+		default:
+			disable_interrupt();
+			output(0xfb, MCR);
+			output(0xfa, 2);
+			output(0xfa, 0);
+			enable_interrupt();
+			break;
+		}
+		break;
 	}
 }
-
 void uart_init(unsigned char divisor)
 {
 	switch (comType)
 	{
 	case 0:
 	case 2:
-		// output(MCR, 0x00);		  // Disable input
 		output(IIR_FCR, 0x87);	  // Enable fifo 8 level, and clear it
 		output(LCR, 0x83);		  // 8n1, DLAB=1
 		output(RBR_THR, divisor); // 115200 (divider 1-115200, 3 - 38400)
@@ -100,6 +142,17 @@ void uart_init(unsigned char divisor)
 		input(0x55fe);
 		input(0xc3fe);
 		input((divisor << 8) | 0x00fe);
+		enable_interrupt();
+		uart_setrts(1);
+		break;
+	case 3:
+		portOutput(IIR_FCR, 0x87);	  // Enable fifo 8 level, and clear it
+		portOutput(LCR, 0x83);		  // 8n1, DLAB=1
+		portOutput(RBR_THR, divisor); // 115200 (divider 1-115200, 3 - 38400)
+		portOutput(IER, 0x00);		  // (divider 0). Divider is 16 bit, so we get (#0002 divider)
+		portOutput(LCR, 0x03);		  // 8n1, DLAB=0
+		portOutput(IER, 0x00);		  // Disable int
+		portOutput(MCR, 0x22);		  // Enable AFE
 		enable_interrupt();
 		uart_setrts(1);
 		break;
@@ -120,7 +173,11 @@ unsigned char uart_hasByte(void)
 		queue = input(0xc2fe); // Получаем количество байт в приемном буфере
 		enable_interrupt();
 		return queue;
+	case 3:
+		return 1 & portInput(LSR);
 	}
+	puts("uart_hasByte () Error 001");
+	getchar();
 	return 255;
 }
 
@@ -136,6 +193,14 @@ unsigned char uart_read(void)
 		disable_interrupt();
 		input(0x55fe);		  // Переход в режим команд
 		data = input(0x02fe); // Команда прочесть из порта
+		enable_interrupt();
+		return data;
+	case 3:
+		// data = portInput(RBR_THR);
+		disable_interrupt();
+		output(0xfb, RBR_THR);
+		data = input(0xfa);
+		output(0xfb, 0x00);
 		enable_interrupt();
 		return data;
 	}
@@ -168,6 +233,18 @@ unsigned char uart_readBlock(void)
 		{
 		}
 		return input(RBR_THR);
+	case 3:
+		while ((1 & portInput(LSR)) == 0)
+		{
+			uart_setrts(2);
+		}
+		//	data = portInput(RBR_THR);
+
+		disable_interrupt();
+		output(0xfb, RBR_THR);
+		data = input(0xfa);
+		enable_interrupt();
+		return data;
 	}
 	return 255;
 }
@@ -175,9 +252,9 @@ unsigned char uart_readBlock(void)
 void uart_flush(void)
 {
 	unsigned int count;
+	uart_setrts(1);
 	for (count = 0; count < 6000; count++)
 	{
-		uart_setrts(1);
 		uart_read();
 	}
 }
@@ -185,18 +262,55 @@ void uart_flush(void)
 void getdataEsp(unsigned int counted)
 {
 	unsigned int counter;
-	for (counter = 0; counter < counted; counter++)
+	switch (comType)
 	{
-		if (counter == sizeof(netbuf) - 1)
+	case 0:
+		for (counter = 0; counter < counted; counter++)
 		{
-			printf("netbuf overflow [%u] of [%u]\r\n", counter, sizeof(netbuf));
-			getchar();
-			break;
+			while ((1 & input(LSR)) == 0)
+			{
+				uart_setrts(2);
+			}
+			netbuf[counter] = input(RBR_THR);
 		}
-		netbuf[counter] = uart_readBlock();
+		return;
+	case 1:
+		for (counter = 0; counter < counted; counter++)
+		{
+			while (uart_hasByte() == 0)
+			{
+				uart_setrts(2);
+			}
+			disable_interrupt();
+			input(0x55fe);					 // Переход в режим команд
+			netbuf[counter] = input(0x02fe); // Команда прочесть из порта
+			enable_interrupt();
+		}
+		return;
+	case 2:
+		for (counter = 0; counter < counted; counter++)
+		{
+			while ((1 & input(LSR)) == 0)
+			{
+			}
+			netbuf[counter] = input(RBR_THR);
+		}
+		return;
+	case 3:
+		for (counter = 0; counter < counted; counter++)
+		{
+			while ((1 & portInput(LSR)) == 0)
+			{
+				uart_setrts(2);
+			}
+			disable_interrupt();
+			output(0xfb, RBR_THR);
+			netbuf[counter] = input(0xfa);
+			enable_interrupt();
+		}
+		return;
 	}
 }
-
 void sendcommand(const char *commandline)
 {
 	unsigned int count, cmdLen;
@@ -242,7 +356,7 @@ unsigned char getAnswer2(void)
 	netbuf[curPos - 1] = 0;
 	uart_readBlock(); // 0xa
 	// printf("Answer:[%s]\r\n", netbuf);
-	// getchar();
+	//  getchar();
 	return curPos;
 }
 
@@ -250,37 +364,38 @@ void espReBoot(void)
 {
 	unsigned char byte, count;
 	uart_flush();
-	sendcommand("AT+RST");
-	clearStatus();
-	printf("Resetting ESP...");
-	count = 0;
+	/*
+		uart_setrts(1);
+		sendcommand("AT+RST");
+		clearStatus();
+		printf("Resetting ESP...\r\n");
+		count = 0;
 
-	do
-	{
-		byte = uart_readBlock();
-		if (byte == gotWiFi[count])
+		do
 		{
-			count++;
-		}
-		else
-		{
-			count = 0;
-		}
-	} while (count < strlen(gotWiFi));
-	uart_readBlock(); // CR
-	uart_readBlock(); // LF
-	clearStatus();
-	printf("Reset complete.");
-
+			byte = uart_readBlock();
+			if (byte == gotWiFi[count])
+			{
+				count++;
+			}
+			else
+			{
+				count = 0;
+			}
+		} while (count < strlen(gotWiFi));
+		uart_readBlock(); // CR
+		uart_readBlock(); // LF
+		clearStatus();
+		printf("\r\n Reset complete.");
+	*/
 	sendcommand("ATE0");
 	do
 	{
 		byte = uart_readBlock();
 	} while (byte != 'K'); // OK
-	// puts("ATE0 Answer:[OK]");
 	uart_readBlock(); // CR
 	uart_readBlock(); // LN
-
+	// puts("ATE0 Answer:[OK]");
 	sendcommand("AT+CIPCLOSE");
 	getAnswer2();
 	sendcommand("AT+CIPDINFO=0");
@@ -324,12 +439,13 @@ int recvHead(void)
 	} while (byte != ':');
 	// netbuf[dataRead] = 0;
 	todo = atoi(netbuf); // <actual_len>
-	
-	// Спорное решение. Если  не поняли сколько получать, ждать пока все закроется. 
-	if(todo == 0)
+
+	// Спорное решение. Если  не поняли сколько получать, ждать пока все закроется.
+	if (todo == 0)
 	{
 		getAnswer2();
 	}
+	// printf("recvHead(); todo = %d \r\n", todo);
 	return todo;
 }
 
@@ -352,7 +468,8 @@ void loadEspConfig(void)
 
 	res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u %u %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider, &comType, &espType);
 	puts("Config loaded:");
-	if (comType == 1)
+
+	if (4 == 1)
 	{
 		puts("     Controller base port: 0x55fe");
 	}

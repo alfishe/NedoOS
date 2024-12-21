@@ -23,7 +23,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "0.70";
+unsigned char uVer[] = "0.80";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -841,7 +841,6 @@ void binUpdate(void)
 		sprintf(nameBuf, "bin.old/bin.zip");
 	}
 	errn = OS_RENAME((void *)nameBuf, "bin/bin.zip");
-	// OS_SHELL((void *)nameBuf);
 
 	BOX(1, 1, 80, 25, 40, 32);
 	AT(1, 1);
@@ -899,7 +898,7 @@ C_task main(int argc, char *argv[])
 	{
 		if (argv[1][0] == 'F')
 		{
-			netDriver == 0;
+			netDriver = 0;
 			get_dns();
 			test = dnsResolve("nedoos.ru");
 			if (test)
@@ -947,7 +946,7 @@ C_task main(int argc, char *argv[])
 	}
 	else
 	{
-		netDriver == 0;
+		netDriver = 0;
 		get_dns();
 		test = dnsResolve("nedoos.ru");
 		if (test)
