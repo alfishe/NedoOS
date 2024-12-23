@@ -28,14 +28,12 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "01.00";
+unsigned char uVer[] = "1.1";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
 unsigned long volumeOffsets[16];
 unsigned char crlf[2] = {13, 10};
-unsigned char heap[1500];
-
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 
 struct sockaddr_in targetadr;
@@ -85,8 +83,8 @@ struct linkStruct
 	unsigned long size;
 	unsigned char nexType;
 	unsigned char path[512];
-	unsigned char host[256];
-	unsigned char prevHost[256];
+	unsigned char host[300];
+	unsigned char prevHost[300];
 	unsigned int port;
 } link;
 
@@ -110,8 +108,8 @@ struct time
 } clock;
 
 unsigned char nvext[1024];
-
 unsigned char netbuf[32768];
+unsigned char heap[2000];
 
 void spaces(unsigned char number)
 {
@@ -242,7 +240,7 @@ void drawClock(void)
 
 	if (clock.minutes != clock.oldMinutes)
 	{
-		clock.oldMinutes == clock.minutes;
+		clock.oldMinutes = clock.minutes;
 		OS_SETCOLOR(207);
 		OS_SETXY(73, 0);
 		printf("[%02u:%02u]", clock.hours, clock.minutes);
@@ -280,6 +278,7 @@ void mainWinDraw(void)
 		printf("[Play It]");
 	}
 
+	clock.oldMinutes = 255;
 	drawClock();
 }
 
