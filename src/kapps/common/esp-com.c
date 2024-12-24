@@ -469,9 +469,9 @@ void loadEspConfig(void)
 	res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u %u %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider, &comType, &espType);
 	puts("Config loaded:");
 
-	if (4 == 1)
+	if (comType == 1)
 	{
-		puts("     Controller base port: 0x55fe");
+		puts("     Controller IO port: 0x55fe");
 	}
 	else
 	{
@@ -489,6 +489,10 @@ void loadEspConfig(void)
 		break;
 	case 2:
 		puts("(16550 with AFC)");
+		break;
+	case 3:
+		puts("(ATM2 IO Card)");
+		break;
 	default:
 		puts("(Unknown type)");
 		break;
