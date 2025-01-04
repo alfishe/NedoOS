@@ -23,7 +23,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "0.80";
+unsigned char uVer[] = "0.90";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;

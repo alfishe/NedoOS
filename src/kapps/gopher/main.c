@@ -10,6 +10,7 @@
 #include <ctype.h>
 #include <math.h>
 
+
 #define true 1
 #define false 0
 #define screenHeight 23
@@ -28,7 +29,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "1.1";
+unsigned char uVer[] = "1.2";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];

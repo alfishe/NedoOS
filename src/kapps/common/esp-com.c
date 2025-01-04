@@ -136,6 +136,7 @@ void uart_init(unsigned char divisor)
 		output(LCR, 0x03);		  // 8n1, DLAB=0
 		output(IER, 0x00);		  // Disable int
 		output(MCR, 0x2f);		  // Enable AFE
+		uart_setrts(0);
 		break;
 	case 1:
 		disable_interrupt();
@@ -143,7 +144,7 @@ void uart_init(unsigned char divisor)
 		input(0xc3fe);
 		input((divisor << 8) | 0x00fe);
 		enable_interrupt();
-		uart_setrts(1);
+		uart_setrts(0);
 		break;
 	case 3:
 		portOutput(IIR_FCR, 0x87);	  // Enable fifo 8 level, and clear it
@@ -154,7 +155,7 @@ void uart_init(unsigned char divisor)
 		portOutput(IER, 0x00);		  // Disable int
 		portOutput(MCR, 0x22);		  // Enable AFE
 		enable_interrupt();
-		uart_setrts(1);
+		uart_setrts(0);
 		break;
 	}
 }
@@ -213,7 +214,7 @@ unsigned char uart_readBlock(void)
 	switch (comType)
 	{
 	case 0:
-		while (uart_hasByte() == 0)
+		while ((1 & input(LSR)) == 0)
 		{
 			uart_setrts(2);
 		}
@@ -229,7 +230,7 @@ unsigned char uart_readBlock(void)
 		enable_interrupt();
 		return data;
 	case 2:
-		while (uart_hasByte() == 0)
+		while ((1 & input(LSR)) == 0)
 		{
 		}
 		return input(RBR_THR);
@@ -362,7 +363,7 @@ unsigned char getAnswer2(void)
 
 void espReBoot(void)
 {
-	unsigned char byte, count;
+	unsigned char byte; //, count;
 	uart_flush();
 	/*
 		uart_setrts(1);
