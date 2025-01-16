@@ -84,16 +84,17 @@ sys_timer
         jp sys_sysint
 
         ds 0x0038+7-$ -3
-sys_intq
+sys_intq_yield ;ei!
 ;bc=memport0000
 ;d=pgmain
 ;a=screenpg
        di ;на время до включения нужной pg0000, чтобы не запороть чужой стек
         out (0xfd),a ;дальше попадаем в init_resident
-;выход в конец юзерского обработчика прерываний
-
+;выход в конец юзерского обработчика прерываний (ei:nop:...)
 ;вход из начала юзерского обработчика прерываний
-        ;ds 0x0038+14-$ -4
+sys_intq
+        out (0xfd),a ;дальше попадаем в init_resident
+;выход в конец юзерского обработчика прерываний
         ;TODO захватить мьютекс (прерывание внутри прерывания должно попасть в простой обработчик без шедулера)
         jp sys_intgo ;нужно, чтобы можно было ставить точку останова на 0x0100
 
@@ -211,7 +212,7 @@ appaddr=$+1
         ld (sys_curpg4000),a ;не надо? (если di)
         out (c),a
 
-sys_int_popregs ;только для выхода из yield
+;normal exit
 ;iy=app
         ld de,-(safestack_sz-2) ;2 на запарывание прерыванием
         add iy,de
@@ -236,6 +237,32 @@ sys_int_popregs ;только для выхода из yield
         ld bc,memport0000
         ;TODO освободить мьютекс, можно включить прерывания
         jp sys_intq ;out (0xfd),a ;дальше попадаем в init_resident
+
+sys_int_popregs ;только для выхода из yield
+;iy=app
+        ld de,-(safestack_sz-2) ;2 на запарывание прерыванием
+        add iy,de
+        ld sp,iy ;ei!!!
+
+        pop af
+        ex af,af' ;'
+        pop ix
+        pop hl
+        pop de
+        pop bc
+        exx
+        ld d,(iy+app.mainpg+safestack_sz-2) ;2 на запарывание прерыванием
+        ld iy,(focusappaddr)
+        ld a,(iy+app.screen)
+        pop iy
+        pop bc ;"hl"
+        pop hl ;"sp"
+        ld sp,hl
+        ld h,b
+        ld l,c
+        ld bc,memport0000
+        ;TODO освободить мьютекс, можно включить прерывания
+        jp sys_intq_yield ;out (0xfd),a ;дальше попадаем в init_resident
 
 schedule
 ;find next app, set iy

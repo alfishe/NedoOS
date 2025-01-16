@@ -76,7 +76,9 @@ init_resident
 ;di ;сейчас мы в стеке чужой задачи, т.к. свою ещё не включили!!! можем запороть чужой стек!!!
 ;bc=memport0000
 ;d=pgmain
-       ei ;interrupt will be enabled after the following command (31 t-states di:out:ei:out, normal INT len = 32 t)
+       ei ;for YIELD: interrupt will be enabled after the following command (31 t-states di:out:ei:out, normal INT len = 32 t)
+       nop
+;for normal exit
         out (c),d ;may switch this code page
 curpg16k=$+1
         ld a,pgkillable;0;pgmain4000
@@ -93,6 +95,7 @@ curpg32khigh=$+1
         pop de
         pop bc
         pop af
+       ei ;for normal exit
         ret
 
         display "end of user kernel=",$

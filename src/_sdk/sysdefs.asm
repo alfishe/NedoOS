@@ -4,12 +4,12 @@ COMMANDLINE_sz=0x0080
 PROGSTART=0x0100
 
 ;from userkrnl.asm:
-curpg4000=0x0043
-curpg16k=curpg4000;0x0043
-curpg8000=0x0049
-curpg32klow=curpg8000;0x0049
-curpgc000=0x004f
-curpg32khigh=curpgc000;0x004f
+curpg4000=0x0044
+curpg16k=curpg4000
+curpg8000=0x004a
+curpg32klow=curpg8000
+curpgc000=0x0050
+curpg32khigh=curpgc000
 user_scr0_low=0x0017
 user_scr0_high=0x0035
 user_scr1_low=0x0036
