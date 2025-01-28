@@ -147,6 +147,15 @@ void clearStatus(void)
   putchar('\r');
 }
 
+void clearNetbuf(void)
+{
+  int counter = 0;
+  for (counter = 0; counter < sizeof(netbuf); counter++)
+  {
+    netbuf[counter] = 0;
+  }
+}
+
 void printProgress(const char type)
 {
   unsigned char bar, minutes, seconds;
@@ -769,7 +778,7 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
 char getDataNet(void)
 {
   unsigned int todo, downloaded;
-  unsigned char socket;
+  unsigned char socket, firstPacket;
   clearStatus();
   socket = OpenSock(AF_INET, SOCK_STREAM);
   testOperation("OS_NETSOCKET", socket);
@@ -781,6 +790,7 @@ char getDataNet(void)
   testOperation("OS_WIZNETWRITE", todo);
 
   downloaded = 0;
+  firstPacket = true;
   do
   {
     headlng = 0;
@@ -791,15 +801,17 @@ char getDataNet(void)
     {
       break;
     }
-    if (downloaded == 0)
+    if (firstPacket)
     {
       todo = cutHeader(todo);
+      firstPacket = false;
     }
 
-    if (downloaded + todo > sizeof(dataBuffer))
+    if (downloaded + todo > sizeof(dataBuffer - 1))
     {
       clearStatus();
       printf("dataBuffer overrun...");
+      getchar();
       break;
     }
     memcpy(dataBuffer + downloaded, netbuf + headlng, todo);
@@ -811,10 +823,10 @@ char getDataNet(void)
 
 unsigned int getDataEsp(void)
 {
-  unsigned char sizeLink;
+  unsigned char firstPacket;
   unsigned long downloaded;
   unsigned char byte, countl = 0;
-  unsigned int todo;
+  unsigned int todo, sizeLink;
   unsigned char *count1;
 
   strcpy(link, netbuf);
@@ -852,14 +864,16 @@ unsigned int getDataEsp(void)
   uart_readBlock(); // CR
   uart_readBlock(); // LF
   downloaded = 0;
+  firstPacket = true;
   do
   {
     headlng = 0;
     todo = recvHead();
     getdataEsp(todo); // Requested size
-    if (downloaded == 0)
+    if (firstPacket)
     {
       todo = cutHeader(todo);
+      firstPacket = false;
     }
     memcpy(dataBuffer + downloaded, netbuf + headlng, todo);
     downloaded = downloaded + todo;
@@ -927,7 +941,7 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   {
     OS_CLS(0);
     OS_SETCOLOR(66);
-    puts("dataBuffer[]:");
+    puts("Bad responseStatus - dataBuffer[]:");
     puts(dataBuffer);
     puts("---------------");
     printf("PROCESS JSON: [ERROR: Bad responseStatus.] [Query:%u] [Track:%lu]\r\n", queryNum, startPos);
@@ -952,7 +966,7 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
 
     OS_CLS(0);
     OS_SETCOLOR(66);
-    puts("dataBuffer[]:");
+    puts("ID not found - dataBuffer[]:");
     puts(dataBuffer);
     puts("---------------");
     printf("PROCESS JSON: [ERROR: ID not found] [Query:%u] [Track:%lu]", queryNum, startPos);
@@ -1002,7 +1016,7 @@ unsigned char getTrack2(unsigned long fileId)
   int todo;
   char socket;
   unsigned int packSize = 2000;
-  unsigned long downloaded;
+  unsigned long downloaded, firstPacket;
   unsigned char try = 0, byte = 0;
   unsigned int countl;
   unsigned char *count1;
@@ -1022,9 +1036,11 @@ unsigned char getTrack2(unsigned long fileId)
     testOperation("OS_WIZNETWRITE", todo);
     saveBuf(curFileStruct.picId, 00, 0);
     downloaded = 0;
+    firstPacket = true;
     do
     {
       headlng = 0;
+      //clearNetbuf();
       todo = tcpRead(socket, 10);
       testOperation("OS_WIZNETREAD", todo);
 
@@ -1032,9 +1048,11 @@ unsigned char getTrack2(unsigned long fileId)
       {
         break;
       }
-      if (downloaded == 0)
+      
+      if (firstPacket)
       {
         todo = cutHeader(todo);
+        firstPacket = false;
       }
       saveBuf(curFileStruct.picId, 01, todo);
       downloaded = downloaded + todo;
@@ -1081,14 +1099,16 @@ unsigned char getTrack2(unsigned long fileId)
     uart_readBlock(); // CR
     uart_readBlock(); // LF
     downloaded = 0;
+    firstPacket = true;
     do
     {
       headlng = 0;
       todo = recvHead();
       getdataEsp(todo); // Requested size
-      if (downloaded == 0)
+      if (firstPacket)
       {
         todo = cutHeader(todo);
+        firstPacket = false;
       }
       downloaded = downloaded + todo;
       saveBuf(curFileStruct.picId, 01, todo);
@@ -1520,16 +1540,16 @@ rekey:
     }
     changedFormat = 1;
     curFileStruct.totalAmount = 1;
-/*
-    if (strstr(formats[curFormat], "tfc") != NULL)
-    {
-      cutOff = 0;
-    }
-    else
-    {
-      cutOff = 0;
-    }
-*/
+    /*
+        if (strstr(formats[curFormat], "tfc") != NULL)
+        {
+          cutOff = 0;
+        }
+        else
+        {
+          cutOff = 0;
+        }
+    */
     printStatus();
     printProgress(0);
     BDBOX(1, 2, 80, 6, 71, ' ');
