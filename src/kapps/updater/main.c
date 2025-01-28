@@ -10,6 +10,9 @@
 #include <ctype.h>
 #include <math.h>
 
+#define true 1
+#define false 0
+
 unsigned int RBR_THR = 0xf8ef;
 unsigned int IER = 0xf9ef;
 unsigned int IIR_FCR = 0xfaef;
@@ -132,7 +135,7 @@ void printNews(void) // max 20 lines in total and 59 col.
 		return;
 	}
 	curLine = 0;
-	while (curLine < 20)
+	while (curLine < 21)
 	{
 		AT(20, 2 + curLine);
 		while (1)
@@ -407,7 +410,7 @@ unsigned int cutHeader(unsigned int todo)
 unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 {
 	int todo;
-	char socket;
+	char socket, firstPacket ;
 	unsigned int fileSize1;
 	unsigned long downloaded = 0;
 
@@ -434,6 +437,7 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 		todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), 10);
 		testOperation("OS_WIZNETWRITE", todo);
 		clearStatus();
+		firstPacket = true;
 		do
 		{
 			headlng = 0;
@@ -443,11 +447,12 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 			{
 				break;
 			}
-			if (downloaded == 0)
+			if (firstPacket)
 			{
 				todo = cutHeader(todo);
 				fileSize1 = contLen / 1024;
 				saveBuf(fileNamePtr, 00, 0);
+				firstPacket = false;
 			}
 			downloaded = downloaded + todo;
 			printf(" %lu of %u kb   \r", downloaded / 1024, fileSize1);
@@ -512,16 +517,18 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 		uart_readBlock(); // CR
 		uart_readBlock(); // LF
 		clearStatus();
+		firstPacket = true;
 		do
 		{
 			headlng = 0;
 			todo = recvHead();
 			getdataEsp(todo); // Requested size
-			if (downloaded == 0)
+			if (firstPacket)
 			{
 				todo = cutHeader(todo);
 				fileSize1 = contLen / 1024;
 				saveBuf(fileNamePtr, 00, 0);
+				firstPacket = false;
 			}
 			downloaded = downloaded + todo;
 			printf("%lu of %u kb   \r", downloaded / 1024, fileSize1);
