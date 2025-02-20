@@ -177,7 +177,7 @@ unsigned char uart_hasByte(void)
 	case 3:
 		return 1 & portInput(LSR);
 	}
-	puts("uart_hasByte () Error 001");
+	printf("uart_hasByte () Error 001: Unknown port Type:[%d]", comType);
 	getchar();
 	return 255;
 }
@@ -363,32 +363,31 @@ unsigned char getAnswer2(void)
 
 void espReBoot(void)
 {
-	unsigned char byte; //, count;
-	uart_flush();
-	/*
-		uart_setrts(1);
-		sendcommand("AT+RST");
-		clearStatus();
-		printf("Resetting ESP...\r\n");
-		count = 0;
+	unsigned char byte, count;
+	uart_setrts(1);
 
-		do
+	clearStatus();
+	printf("Resetting ESP...");
+
+	sendcommand("AT+RST");
+	count = 0;
+
+	do
+	{
+		byte = uart_readBlock();
+		if (byte == gotWiFi[count])
 		{
-			byte = uart_readBlock();
-			if (byte == gotWiFi[count])
-			{
-				count++;
-			}
-			else
-			{
-				count = 0;
-			}
-		} while (count < strlen(gotWiFi));
-		uart_readBlock(); // CR
-		uart_readBlock(); // LF
-		clearStatus();
-		printf("\r\n Reset complete.");
-	*/
+			count++;
+		}
+		else
+		{
+			count = 0;
+		}
+	} while (count < strlen(gotWiFi));
+	uart_readBlock(); // CR
+	uart_readBlock(); // LF
+	clearStatus();
+	printf("Reset complete.");
 	sendcommand("ATE0");
 	do
 	{
@@ -405,7 +404,7 @@ void espReBoot(void)
 	getAnswer2();
 	sendcommand("AT+CIPSERVER=0");
 	getAnswer2();
-	sendcommand("AT+CIPRECVMODE=0");
+	sendcommand("AT+CIPRECVMODE=1");
 	getAnswer2();
 }
 
@@ -414,10 +413,12 @@ int recvHead(void)
 	unsigned char byte, dataRead;
 	int todo = 0, count = 0;
 	const char closed[] = "CLOSED";
-
+	//+IPD,<length>:<data>
+	//+CIPRECVDATA:<actual_len>,<data>
 	do
 	{
 		byte = uart_readBlock();
+
 		if (byte == closed[count])
 		{
 			count++;
@@ -438,9 +439,7 @@ int recvHead(void)
 		netbuf[dataRead] = byte;
 		dataRead++;
 	} while (byte != ':');
-	// netbuf[dataRead] = 0;
 	todo = atoi(netbuf); // <actual_len>
-
 	// Спорное решение. Если  не поняли сколько получать, ждать пока все закроется.
 	if (todo == 0)
 	{
