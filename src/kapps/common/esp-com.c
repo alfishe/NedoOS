@@ -404,7 +404,7 @@ void espReBoot(void)
 	getAnswer2();
 	sendcommand("AT+CIPSERVER=0");
 	getAnswer2();
-	sendcommand("AT+CIPRECVMODE=1");
+	sendcommand("AT+CIPRECVMODE=0");
 	getAnswer2();
 }
 
