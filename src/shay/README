@@ -1,0 +1,3 @@
+Shut down AY sound.
+Writes 0xFF to mixer reg, 0 to volume regs
+
