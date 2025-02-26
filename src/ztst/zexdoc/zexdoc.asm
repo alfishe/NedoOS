@@ -96,7 +96,6 @@ start:
 	;ld	hl,(6)
 	;ld	sp,hl
 	ld	de,msg1
-	ld	c,9
 	call	pr_de
 
 	ld	hl,tests	; first test case
@@ -109,7 +108,6 @@ loop:	ld	a,(hl)		; end of list ?
 	jp	loop
 	
 done:	ld	de,msg2
-	ld	c,9
 	call	pr_de
 	ld	hl,0
 	QUIT
@@ -780,7 +778,6 @@ stt:	push	hl
 	ld	de,20+20+4	; skip incmask, scanmask and expcrc
 	add	hl,de
 	ex	de,hl
-	ld	c,9
 	call	pr_de		; show test name
 	call	initcrc		; initialise crc
 ; test loop
@@ -803,16 +800,14 @@ tlp2:	call	count		; increment the counter
 	ld	de,okmsg
 	jp	z,tlpok
 	ld	de,ermsg1
-	ld	c,9
 	call	pr_de
 	call	phex8
 	ld	de,ermsg2
-	ld	c,9
 	call	pr_de
 	ld	hl,crcval
 	call	phex8
 	ld	de,crlf
-tlpok:	ld	c,9
+tlpok:
 	call	pr_de
 	pop	hl
 	inc	hl
@@ -1082,13 +1077,11 @@ test:	push	af
 	push	hl
       if	0
 	ld	de,crlf
-	ld	c,9
 	call	pr_de
 	ld	hl,iut
 	ld	b,4
 	call	hexstr
 	ld	e,' '
-	ld	c,2
 	call	pr_e
 	ld	b,16
 	ld	hl,msbt
@@ -1131,18 +1124,15 @@ tcrc:	ld	a,(de)
 	jp	nz,tcrc
       if	0
 	ld	e,' '
-	ld	c,2
 	call	pr_e
 	ld	hl,crcval
 	call	phex8
 	ld	de,crlf
-	ld	c,9
 	call	pr_de
 	ld	hl,msat
 	ld	b,16
 	call	hexstr
 	ld	de,crlf
-	ld	c,9
 	call	pr_de
       endif
 	pop	hl
@@ -1204,7 +1194,6 @@ phex1:	push	af
 	add	a,'a'-'9'-1
 ph11:	add	a,'0'
 	ld	e,a
-	ld	c,2
 	call	pr_e
 	pop	hl
 	pop	de
@@ -1256,10 +1245,10 @@ pr_e:
 	pop	af
 	ret
 
-msg1:	db	'Z80doc instruction exerciser',10,13,'$'
+msg1:	db	'Z80doc instruction exerciser',13,10,'$'
 msg2:	db	'Tests complete'
-crlf:	db	10,13,'$'
-okmsg:	db	'  OK',10,13,'$'
+crlf:	db	13,10,'$'
+okmsg:	db	'  OK',13,10,'$'
 ermsg1:	db	'  ERROR **** crc expected:$'
 ermsg2:	db	' found:$'
 
@@ -1315,7 +1304,6 @@ crclp:	ld	a,(de)
 	ld	hl,crcval
 	call	phex8
 	ld	de,crlf
-	ld	c,9
 	call	pr_de
       endif
 	pop	hl
