@@ -32,6 +32,56 @@
 
 
 
+static uint8_t z80_filter_nedoos_api(void * param, uint16_t address)
+{
+	struct z80_context * z80 = param;
+
+	if( address==0 )
+	{
+		fprintf(stdout,"\n<<<Finished!>>>\n");
+		exit(0);
+	}
+	else if( address==5 )
+	{
+		uint8_t c = (z80->z80.bc)&0xFF;
+
+		if( c==0xD3 // GETSTDINOUT
+		 || c==0xFF // YIELDKEEP
+		  )
+		{
+			return 0xC9; // just ignore
+		}
+		else if( c==0x49 ) // WRITEHANDLE
+		{ // in:B  - handle (ignore)
+		  // in:DE - buffer
+		  // in:HL - bytes to write
+		  // out:HL - actually written
+		  // out:A  - error if nonzero
+			
+			uint16_t ptr = z80->z80.de;
+			uint16_t ctr = z80->z80.hl;
+
+			while( ctr-- )
+			{
+				fprintf(stdout,"%c",z80->z80_mem[ptr++]);
+			}
+			if( z80->z80.hl ) fflush(stdout);
+
+			// HL unchanged
+			z80->z80.af &= 0x00FF;
+			
+			return 0xC9;
+		}
+		else
+		{
+			fprintf(stderr,"\n<<unknown BDOS call: c=%02x!>>\n",c);
+			exit(1);
+		}
+	}
+
+	return z80->z80_mem[address];
+}
+
 static uint8_t z80_filter_cpm_api(void * param, uint16_t address)
 {
 	struct z80_context * z80 = param;
@@ -97,7 +147,7 @@ static void    z80_hlt(void * param, uint8_t state)
 
 
 
-struct z80_context * z80_init(char * filename)
+struct z80_context * z80_init(char * filename, int nedoos)
 {
 	// allocate structure for z80 context and associated data
 	//
@@ -136,6 +186,13 @@ struct z80_context * z80_init(char * filename)
 		fclose(f);
 	}
 
+	// init cp/m stack value
+	if( !nedoos )
+	{
+		z80->z80_mem[6] = 0x00;
+		z80->z80_mem[7] = 0x40;
+	}
+
 	z80->z80.context   = (void *)z80;
 
 	z80->z80.nmia      = NULL;
@@ -147,7 +204,8 @@ struct z80_context * z80_init(char * filename)
 	z80->z80.retn      = NULL;
 	z80->z80.illegal   = NULL;
 
-	z80->z80.fetch_opcode = &z80_filter_cpm_api;
+	z80->z80.fetch_opcode = nedoos ? (&z80_filter_nedoos_api) : (&z80_filter_cpm_api);
+
 	z80->z80.fetch        = &z80_rd;
 	z80->z80.read         = &z80_rd;
 	z80->z80.nop          = &z80_rd;

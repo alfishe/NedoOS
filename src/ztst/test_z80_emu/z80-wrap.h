@@ -38,7 +38,7 @@ struct z80_context
 };
 
 
-struct z80_context * z80_init(char * filename);
+struct z80_context * z80_init(char * filename, int nedoos);
 
 size_t z80_exec(struct z80_context * z80, size_t max_clocks, uint16_t addr);
 
