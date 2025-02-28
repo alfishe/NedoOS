@@ -32,6 +32,47 @@
 
 
 
+static uint8_t z80_filter_cpm_api(void * param, uint16_t address)
+{
+	struct z80_context * z80 = param;
+
+	if( address==0 )
+	{
+		fprintf(stdout,"\n<<<Finished!>>>\n");
+		exit(0);
+	}
+	else if( address==5 )
+	{
+		uint8_t c = (z80->z80.bc)&0xFF;
+
+		if( c==2 ) // print char in e
+		{
+			fprintf(stdout,"%c",(z80->z80.de)&0xFF);
+			fflush(stdout);
+		}
+		else if( c==9 ) // print string pointed to by de
+		{
+			uint16_t ptr = z80->z80.de;
+			uint8_t chr;
+
+			while( (chr=z80->z80_mem[ptr++]) != '$' )
+			{
+				fprintf(stdout,"%c",chr);
+			}
+			fflush(stdout);
+		}
+		else
+		{
+			fprintf(stderr,"\n<<<Unknown CP/M API call: C=%02x>>>\n", c);
+			exit(1);
+		}
+
+		return 0xC9;
+	}
+
+	return z80->z80_mem[address];
+}
+
 static uint8_t z80_rd(void * param, uint16_t address)
 {
 	struct z80_context * z80 = param;
@@ -61,8 +102,6 @@ struct z80_context * z80_init(char * filename)
 	// allocate structure for z80 context and associated data
 	//
 
-
-
 	struct z80_context * z80 = malloc(sizeof(struct z80_context));
 	//
 	if( !z80 )
@@ -75,7 +114,7 @@ struct z80_context * z80_init(char * filename)
 	memset(z80->z80_mem,0,65536);
 
 
-	// load Z80 binary, if needed
+	// load Z80 .com binary
 	if( filename )
 	{
 		FILE * f = fopen(filename,"rb");
@@ -85,13 +124,13 @@ struct z80_context * z80_init(char * filename)
 			exit(1);
 		}
 		//
-		size_t read=fread(z80->z80_mem,1,65536,f);
+		size_t read=fread(z80->z80_mem+256,1,65536-256,f);
 		off_t o=ftello(f);
 		int seek=fseeko(f,0,SEEK_END);
 		off_t e=ftello(f);
-		if( seek || o!=e || read!=e || !(0<o && o<=65536) )
+		if( seek || o!=e || read!=e || !(0<o && o<=(65536-256)) )
 		{
-			fprintf(stderr,"%s: %d, %s: can't read Z80 binary file <%s>!\n",__FILE__,__LINE__,__FUNCTION__,filename);
+			fprintf(stderr,"%s: %d, %s: can't read Z80 .com file <%s>!\n",__FILE__,__LINE__,__FUNCTION__,filename);
 			exit(1);
 		}
 		fclose(f);
@@ -108,7 +147,7 @@ struct z80_context * z80_init(char * filename)
 	z80->z80.retn      = NULL;
 	z80->z80.illegal   = NULL;
 
-	z80->z80.fetch_opcode = &z80_rd;
+	z80->z80.fetch_opcode = &z80_filter_cpm_api;
 	z80->z80.fetch        = &z80_rd;
 	z80->z80.read         = &z80_rd;
 	z80->z80.nop          = &z80_rd;
