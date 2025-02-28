@@ -333,7 +333,7 @@ void sendcommandNrn(const char *commandline)
 	{
 		uart_write(commandline[count]);
 	}
-	// printf("Sended:[%s] \r\n", commandline);
+	// printf("[Nrn]Sended:[%s] \r\n", commandline);
 }
 
 unsigned char getAnswer2(void)
@@ -343,7 +343,6 @@ unsigned char getAnswer2(void)
 	do
 	{
 		readbyte = uart_readBlock();
-		// putdec(readbyte);
 	} while (((readbyte == 0x0a) || (readbyte == 0x0d)));
 
 	netbuf[curPos] = readbyte;
@@ -357,7 +356,7 @@ unsigned char getAnswer2(void)
 	netbuf[curPos - 1] = 0;
 	uart_readBlock(); // 0xa
 	// printf("Answer:[%s]\r\n", netbuf);
-	//  getchar();
+	// getchar();
 	return curPos;
 }
 
@@ -411,13 +410,16 @@ void espReBoot(void)
 int recvHead(void)
 {
 	unsigned char byte, dataRead;
-	int todo = 0, count = 0;
+	int todo = 0, count = 0, countErr = 0;
 	const char closed[] = "CLOSED";
-	//+IPD,<length>:<data>
+	const char error[] = "ERROR";
+	//+IPD<,length>:<data>
 	//+CIPRECVDATA:<actual_len>,<data>
+	dataRead = 0;
 	do
 	{
 		byte = uart_readBlock();
+		//printf("[%c]", byte);
 
 		if (byte == closed[count])
 		{
@@ -427,25 +429,33 @@ int recvHead(void)
 		{
 			count = 0;
 		}
-		if (count == strlen(closed))
+
+		if (byte == error[countErr])
 		{
+			countErr++;
+		}
+		else
+		{
+			countErr = 0;
+		}
+		if ((count == strlen(closed)) || (countErr == strlen(error)))
+		{
+			//uart_readBlock(); // CR
+			//uart_readBlock(); // LF
 			return todo;
 		}
 	} while (byte != ',');
-	dataRead = 0;
+
 	do
 	{
 		byte = uart_readBlock();
 		netbuf[dataRead] = byte;
 		dataRead++;
 	} while (byte != ':');
-	todo = atoi(netbuf); // <actual_len>
-	// Спорное решение. Если  не поняли сколько получать, ждать пока все закроется.
-	if (todo == 0)
-	{
-		getAnswer2();
-	}
-	// printf("recvHead(); todo = %d \r\n", todo);
+	todo = atoi(netbuf);
+	// <actual_len>
+	// printf("recvHead(); todo = %d   ", todo);
+
 	return todo;
 }
 

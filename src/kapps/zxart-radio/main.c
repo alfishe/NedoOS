@@ -879,7 +879,7 @@ unsigned int getDataEsp(void)
   sendcommand("AT+CIPCLOSE");
   getAnswer2(); // CLOSED
   getAnswer2(); // OK
-  return 0;
+  return true;
 }
 
 long processJson(unsigned long startPos, unsigned char limit, unsigned char queryNum)
@@ -1120,7 +1120,7 @@ unsigned char getTrack2(unsigned long fileId)
     getAnswer2(); // OK
     saveBuf(curFileStruct.picId, 02, 0);
   }
-  return 0;
+  return true;
 }
 
 unsigned char runPlayer(void)
