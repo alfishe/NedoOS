@@ -34,7 +34,7 @@ unsigned char userQuery[256] = "/api/export:zxMusic/limit:10/filter:zxMusicId=44
 unsigned char fileName[] = "radio/player.ovl";
 unsigned char appCmd[128] = "player.com ";
 unsigned char curPath[128];
-unsigned char ver[] = "3.3";
+unsigned char ver[] = "3.4";
 
 unsigned char queryType[64];
 unsigned char netbuf[4096];
@@ -53,7 +53,7 @@ struct sockaddr_in dnsaddress;
 
 unsigned long contLen;
 long count;
-unsigned char saveFlag, saveBak, rptFlag, netDriver;
+unsigned char saveFlag, saveBak, rptFlag, netDriver, changedFormat;
 unsigned char status, key, curFormat;
 union APP_PAGES main_pg;
 union APP_PAGES player_pg;
@@ -71,6 +71,7 @@ struct fileStruct
   unsigned int curPos;
   unsigned int startBar;
   unsigned int trackInSeconds;
+  unsigned int httpErr;
   unsigned char time[16];
   unsigned char picRating[8];
   unsigned char trackName[256];
@@ -80,7 +81,6 @@ struct fileStruct
   unsigned char authorRealName[64];
   unsigned char afn[64];
   unsigned char tfn[64];
-  unsigned char fileName2[256];
 } curFileStruct;
 
 struct window
@@ -349,30 +349,23 @@ int pos(unsigned char *s, unsigned char *c, unsigned int n, unsigned int startPo
 
 int cutHeader(unsigned int todo)
 {
-  unsigned int err;
   unsigned char *count1;
 
-  err = httpError();
-  if (err != 200)
+  curFileStruct.httpErr = httpError();
+  if (curFileStruct.httpErr != 200)
   {
-
-    OS_CLS(0);
-    puts(netbuf);
-    puts("^^^^^^^^^^^^^^^^^^^^^");
-    printf("HTTP response:[%u]\r\n", err);
-    getchar();
-    refreshScreen();
+    clearStatus();
+    printf("HTTP response:[%u]", curFileStruct.httpErr);
+    return 0;
   }
   count1 = strstr(netbuf, "Content-Length:");
   if (count1 == NULL)
   {
-    OS_CLS(0);
-    puts(netbuf);
-    puts("^^^^^^^^^^^^^^^^^^^^^");
-    printf("contLen  not found \r\n");
+    clearStatus();
+    printf("contLen not found");
     contLen = 0;
-    getchar();
-    refreshScreen();
+    curFileStruct.httpErr = 999; // bad kostil
+    return 0;
   }
   else
   {
@@ -805,6 +798,11 @@ char getDataNet(void)
     {
       todo = cutHeader(todo);
       firstPacket = false;
+      if (curFileStruct.httpErr != 200)
+      {
+        netShutDown(socket, 1);
+        return false;
+      }
     }
 
     if (downloaded + todo > sizeof(dataBuffer - 1))
@@ -933,6 +931,12 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     result = getDataEsp();
     break;
   }
+
+  if (!result)
+  {
+    return -1;
+  }
+
   clearStatus();
   printf("Processing data (%u)...", queryNum);
 
@@ -996,8 +1000,6 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     strcpy(curFileStruct.time, netbuf);
     parseJson("\"authorIds\":[");
     strcpy(curFileStruct.authorIds, netbuf);
-    parseJson("\"authorIds\":[");
-    strcpy(curFileStruct.fileName2, netbuf);
   }
   if (queryNum == 99)
   {
@@ -1040,7 +1042,7 @@ unsigned char getTrack2(unsigned long fileId)
     do
     {
       headlng = 0;
-      //clearNetbuf();
+      // clearNetbuf();
       todo = tcpRead(socket, 10);
       testOperation("OS_WIZNETREAD", todo);
 
@@ -1048,7 +1050,7 @@ unsigned char getTrack2(unsigned long fileId)
       {
         break;
       }
-      
+
       if (firstPacket)
       {
         todo = cutHeader(todo);
@@ -1296,7 +1298,7 @@ void refreshQueryNames(int queryNum)
 
 C_task main(int argc, char *argv[])
 {
-  unsigned char errn, keypress, pId, changedFormat;
+  unsigned char errn, keypress, pId;
   long iddqd, idkfa;
   unsigned long curTimer, startTimer, oldTimer;
   srand(time());
@@ -1365,14 +1367,14 @@ start:
     strcpy(minRating, "1.0");
     refreshQueryNames(queryNum);
     clearStatus();
-    printf("No picture is returned in query. Minimal rating is set to %s", minRating);
     refreshScreen();
+    printf("No picture is returned in query. Minimal rating is set to %s", minRating);
     goto start;
   case -4: // return xxxx picture, but empty body.
     clearStatus();
+    refreshScreen();
     printf("Empty body is returned for %ld. Next picture, please.", count);
     count++;
-    refreshScreen();
     goto start;
   }
 
@@ -1380,15 +1382,14 @@ start:
   {
     {
       clearStatus();
-      printf("Error getting track info, next please(%ld)...", iddqd);
+      printf("[%u]Error getting track info, next please(%ld)...", curFileStruct.httpErr, iddqd);
       /*
         count = trackSelector(0);
         goto start;
-   */
+      */
 
       OS_DROPAPP(pId);
       changedFormat = 1;
-      refreshScreen();
       goto rekey;
     }
   }
