@@ -34,6 +34,8 @@ struct z80_context
 {
 	Z80 z80;
 
+	int was_ed;
+
 	uint8_t z80_mem[65536];
 };
 

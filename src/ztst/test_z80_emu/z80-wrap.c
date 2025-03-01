@@ -31,6 +31,42 @@
 
 
 
+static uint8_t z80_filter_fetch_opcode(void * param, uint16_t address)
+{
+	struct z80_context * z80 = param;
+	uint8_t opcode = z80->z80_mem[address];
+
+	if( !z80->was_ed && opcode==0xED )
+	{
+		z80->was_ed = 1;
+	}
+	else if( z80->was_ed )
+	{
+		if( opcode==0xA9 )
+		{
+			fprintf(stderr,"\n<<<CPD detected!>>>>\n");
+		}
+		else if( opcode==0xB9 )
+		{
+			fprintf(stderr,"\n<<<CPDR detected!>>>>\n");
+		}
+
+		if( opcode==0xA9 || opcode==0xB9 )
+		{
+			fprintf(stderr,"<<< MEMPTR=%04x >>>\n",z80->z80.memptr);
+			fprintf(stderr,"<<<     AF=%04x >>>\n",z80->z80.af);
+			fprintf(stderr,"<<<     BC=%04x >>>\n",z80->z80.bc);
+			fprintf(stderr,"<<<     DE=%04x >>>\n",z80->z80.de);
+			fprintf(stderr,"<<<     HL=%04x >>>\n",z80->z80.hl);
+			fprintf(stderr,"<<<     SP=%04x >>>\n",z80->z80.sp);
+			fprintf(stderr,"<<<     PC=%04x >>>\n",z80->z80.pc);
+		}
+
+		z80->was_ed = 0;
+	}
+
+	return opcode;
+}
 
 static uint8_t z80_filter_nedoos_api(void * param, uint16_t address)
 {
@@ -79,7 +115,7 @@ static uint8_t z80_filter_nedoos_api(void * param, uint16_t address)
 		}
 	}
 
-	return z80->z80_mem[address];
+	return z80_filter_fetch_opcode(param, address);
 }
 
 static uint8_t z80_filter_cpm_api(void * param, uint16_t address)
@@ -120,7 +156,7 @@ static uint8_t z80_filter_cpm_api(void * param, uint16_t address)
 		return 0xC9;
 	}
 
-	return z80->z80_mem[address];
+	return z80_filter_fetch_opcode(param, address);
 }
 
 static uint8_t z80_rd(void * param, uint16_t address)
@@ -162,7 +198,6 @@ struct z80_context * z80_init(char * filename, int nedoos)
 
 	// clear Z80 memory
 	memset(z80->z80_mem,0,65536);
-
 
 	// load Z80 .com binary
 	if( filename )
@@ -229,6 +264,8 @@ struct z80_context * z80_init(char * filename, int nedoos)
 
 size_t z80_exec(struct z80_context * z80, size_t max_clocks, uint16_t addr)
 {
+	z80->was_ed = 0;
+
 	z80_power(&z80->z80,1);
 
 	z80->z80.pc = addr;

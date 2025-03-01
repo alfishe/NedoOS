@@ -91,10 +91,10 @@ msbtlo	equ	msbt & 0ffh
 
 
 start:
+	ld	hl,(6)
+	;ld	sp,hl
 	ld	sp,STACK
 	call	initstdio
-	;ld	hl,(6)
-	;ld	sp,hl
 	ld	de,msg1
 	call	pr_de
 
@@ -1071,6 +1071,7 @@ counter: ds	2*20
 shifter: ds	2*20
 
 ; test harness
+	ds	6
 test:	push	af
 	push	bc
 	push	de
