@@ -872,6 +872,12 @@ unsigned int getDataEsp(void)
     {
       todo = cutHeader(todo);
       firstPacket = false;
+      if (curFileStruct.httpErr != 200)
+      {
+        getAnswer2(); // CLOSED
+        getAnswer2(); // OK
+        return false;
+      }
     }
     memcpy(dataBuffer + downloaded, netbuf + headlng, todo);
     downloaded = downloaded + todo;
@@ -1012,7 +1018,7 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   }
   return curFileStruct.picId;
 }
-
+/*
 unsigned char getTrack2(unsigned long fileId)
 {
   int todo;
@@ -1055,6 +1061,11 @@ unsigned char getTrack2(unsigned long fileId)
       {
         todo = cutHeader(todo);
         firstPacket = false;
+        if (curFileStruct.httpErr != 200)
+        {
+          netShutDown(socket, 1);
+          return false;
+        }
       }
       saveBuf(curFileStruct.picId, 01, todo);
       downloaded = downloaded + todo;
@@ -1121,6 +1132,155 @@ unsigned char getTrack2(unsigned long fileId)
     saveBuf(curFileStruct.picId, 02, 0);
   }
   return true;
+}
+*/
+unsigned char getTrack2Net(unsigned long fileId)
+{
+  int todo;
+  char socket;
+  unsigned int packSize = 2000;
+  unsigned long downloaded, firstPacket;
+  unsigned char try = 0, byte = 0;
+  clearStatus();
+  printf("Getting track...");
+  sprintf(netbuf, "GET /file/id:%lu%s", fileId, userAgent);
+  socket = OpenSock(AF_INET, SOCK_STREAM);
+  clearStatus();
+  testOperation("OS_NETSOCKET", socket);
+
+  todo = netConnect(socket, 10);
+  testOperation("OS_NETCONNECT", todo);
+
+  todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), 10);
+  testOperation("OS_WIZNETWRITE", todo);
+  saveBuf(curFileStruct.picId, 00, 0);
+  downloaded = 0;
+  firstPacket = true;
+  do
+  {
+    headlng = 0;
+    // clearNetbuf();
+    todo = tcpRead(socket, 10);
+    testOperation("OS_WIZNETREAD", todo);
+
+    if (todo == 0)
+    {
+      break;
+    }
+
+    if (firstPacket)
+    {
+      todo = cutHeader(todo);
+      firstPacket = false;
+      if (curFileStruct.httpErr != 200)
+      {
+        netShutDown(socket, 1);
+        return false;
+      }
+    }
+    saveBuf(curFileStruct.picId, 01, todo);
+    downloaded = downloaded + todo;
+  } while (downloaded < contLen);
+  netShutDown(socket, 0);
+  return true;
+}
+
+unsigned char getTrack2Esp(unsigned long fileId)
+{
+  int todo;
+  unsigned int packSize = 2000;
+  unsigned long downloaded, firstPacket;
+  unsigned char try = 0, byte = 0;
+  unsigned int countl;
+  unsigned char *count1;
+  clearStatus();
+  printf("Getting track...");
+  sprintf(netbuf, "GET /file/id:%lu%s", fileId, userAgent);
+  strcpy(link, netbuf);
+  saveBuf(curFileStruct.picId, 00, 0);
+  do
+  {
+    sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
+    getAnswer2(); // CONNECT or ERROR or link is not valid
+    count1 = strstr(netbuf, "CONNECT");
+  } while (count1 == NULL);
+
+  getAnswer2(); // OK
+
+  sprintf(cmd, "AT+CIPSEND=%u", strlen(link) + 2); // second CRLF in send command
+  sendcommand(cmd);
+  getAnswer2();
+
+  do
+  {
+    byte = uart_readBlock();
+    // putchar(byte);
+  } while (byte != '>');
+  sendcommand(link);
+  countl = 0;
+
+  do
+  {
+    byte = uart_readBlock();
+    if (byte == sendOk[countl])
+    {
+      countl++;
+    }
+    else
+    {
+      countl = 0;
+    }
+  } while (countl < strlen(sendOk));
+  uart_readBlock(); // CR
+  uart_readBlock(); // LF
+  downloaded = 0;
+  firstPacket = true;
+  do
+  {
+    headlng = 0;
+    todo = recvHead();
+    getdataEsp(todo); // Requested size
+    if (firstPacket)
+    {
+      todo = cutHeader(todo);
+      firstPacket = false;
+      if (curFileStruct.httpErr != 200)
+      {
+        sendcommand("AT+CIPCLOSE");
+        getAnswer2(); // CLOSED
+        getAnswer2(); // OK
+        return false;
+      }
+    }
+    downloaded = downloaded + todo;
+    saveBuf(curFileStruct.picId, 01, todo);
+  } while (downloaded < contLen);
+  sendcommand("AT+CIPCLOSE");
+  getAnswer2(); // CLOSED
+  getAnswer2(); // OK
+  saveBuf(curFileStruct.picId, 02, 0);
+  return true;
+}
+
+int getTrack3(long iddqd)
+{
+  int errn;
+  switch (netDriver)
+  {
+  case 0:
+    errn = getTrack2Net(iddqd);
+    break;
+  case 1:
+    errn = getTrack2Esp(iddqd);
+    break;
+  }
+
+  if (errn < 0)
+  {
+    clearStatus();
+    printf("[%u]Error getting track, next please(%ld)...", curFileStruct.httpErr, errn);
+  }
+  return errn;
 }
 
 unsigned char runPlayer(void)
@@ -1399,7 +1559,7 @@ start:
   if (idkfa < 0)
   {
     clearStatus();
-    printf("Error getting author %lu", atol(curFileStruct.authorIds));
+    printf("Error getting author info %lu", atol(curFileStruct.authorIds));
     strcpy(curFileStruct.authorTitle, "-");
     strcpy(curFileStruct.authorRealName, "-");
   }
@@ -1409,8 +1569,20 @@ start:
 
 replay:
 
-  errn = getTrack2(iddqd); // Downloading the track
+  // errn = getTrack2(iddqd); // Downloading the track
 
+  errn = getTrack3(iddqd);
+
+  if (errn == 0)
+  {
+    /*
+      count = trackSelector(0);
+      goto start;
+    */
+    OS_DROPAPP(pId);
+    changedFormat = 1;
+    goto rekey;
+  }
 resume:
   startTimer = time();
   printProgress(0);
@@ -1575,7 +1747,20 @@ rekey:
     saveBak = saveFlag;
     saveFlag = 1;
 
-    errn = getTrack2(iddqd); // Downloading the track
+    // errn = getTrack2(iddqd); // Downloading the track
+
+    errn = getTrack3(iddqd);
+
+    if (errn == 0)
+    {
+      /*
+        count = trackSelector(0);
+        goto start;
+      */
+      OS_DROPAPP(pId);
+      changedFormat = 1;
+      goto rekey;
+    }
 
     saveFlag = saveBak;
     clearStatus();
