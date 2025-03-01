@@ -38,7 +38,7 @@ static uint8_t z80_filter_nedoos_api(void * param, uint16_t address)
 
 	if( address==0 )
 	{
-		fprintf(stdout,"\n<<<Finished!>>>\n");
+		fprintf(stdout,"\n<<<Finished in %ld clocks!>>>\n",z80->z80.cycles);
 		exit(0);
 	}
 	else if( address==5 )
@@ -88,7 +88,7 @@ static uint8_t z80_filter_cpm_api(void * param, uint16_t address)
 
 	if( address==0 )
 	{
-		fprintf(stdout,"\n<<<Finished!>>>\n");
+		fprintf(stdout,"\n<<<Finished in %ld clocks!>>>\n",z80->z80.cycles);
 		exit(0);
 	}
 	else if( address==5 )
@@ -192,7 +192,8 @@ struct z80_context * z80_init(char * filename, int nedoos)
 		z80->z80_mem[6] = 0x00;
 		z80->z80_mem[7] = 0x40;
 	}
-
+	
+	// init callbacks
 	z80->z80.context   = (void *)z80;
 
 	z80->z80.nmia      = NULL;
