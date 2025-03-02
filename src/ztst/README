@@ -1,4 +1,30 @@
 A collection of different Z80 tests ported to NedoOS.
 
-2025.03.01: Added zexdoc.com
 
+=================
+= ZEXDOC/ZEXALL =
+=================
+
+zexdoc tests documented flags.
+zexall also includes undocumented ones.
+
+Working time is about 50 billions of standard Z80 clock cycles.
+For best results, redirect program output to file like this:
+
+zexall >log.txt
+
+
+zexdoc and zexall tests are known to pass on Z84C0020 (cmos), Z0840008 (nmos), libZ80 by ZJoyKiler (redcode on github) and Unreal Speccy 0.39.0
+
+When these tests pass, all lines of their output are OK and there should be no CRC mismatches.
+
+
+
+
+===========
+= Changes =
+===========
+
+2025.03.01: added working zexdoc.com
+
+2025.03.02: added working zexall.com

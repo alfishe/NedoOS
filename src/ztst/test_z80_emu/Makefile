@@ -15,7 +15,8 @@ else
  CFLAGS += -O3 -fcf-protection=none -ffunction-sections -fdata-sections -ggdb -Wall -Wextra -Wno-unused-variable -Wno-unused-but-set-variable
 endif
 
-LDFLAGS = $(CFLAGS) -LzetaZ80 -lZ80 -Wl,--gc-sections -Wl,-rpath,zetaZ80
+LIBS = -lZ80
+LDFLAGS = $(CFLAGS) -LzetaZ80 -Wl,--gc-sections -Wl,-rpath,zetaZ80
 
 
 CC = gcc
@@ -29,7 +30,7 @@ include $(OBJS:%=%.d)
 	$(CC) -MM $(CFLAGS) $< | sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' > $@
 
 $(NAME): $(OBJS:%=%.o)
-	$(CC) $(LDFLAGS) -o $@ $^
+	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 clean:
 	rm -f $(NAME) \

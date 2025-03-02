@@ -1,5 +1,6 @@
 if "%settedpath%"=="" call ../_sdk/setpath.bat
 sjasmplus --nologo --msg=war zexdoc/zexdoc.asm
+sjasmplus --nologo --msg=war zexall/zexall.asm
 
 if "%currentdir%"=="" (
  FOR %%j IN (*.com) DO (
@@ -9,3 +10,4 @@ if "%currentdir%"=="" (
  )
  rem if "%makeall%"=="" ..\..\us\emul.exe
 )
+
