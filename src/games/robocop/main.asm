@@ -1,5 +1,5 @@
         DEVICE ZXSPECTRUM48
-        include "../../_sdk/sys_h.asm"
+        include "../_sdk/sys_h.asm"
 
 
         macro BRIGHTBYTE x
@@ -22,7 +22,7 @@ _g3=(~_>>3)&1
 cmd_begin
         ld sp,0x4000
 
-        OS_HIDEFROMPARENT
+
 
 
         ld e,6+0x80  //set TEXT mode  keep
@@ -44,6 +44,11 @@ cmd_begin
         ld (winpage2),a
         ld a,l
         ld (winpage3),a
+
+        ;d=pgmain0000
+        call dropotherapps ;OS_HIDEFROMPARENT
+        call setpgsmain4000_C000
+
 
 
         ld de,res_path
@@ -402,17 +407,22 @@ skip_ram16_patch:
                                 ldir
 
 
-                                ld a,0xc9
-                                ld (sv_buf_0),a
-                                ld (sv_buf_1),a
-                                ld (transfer_screen),a
-        ld de,intro
-        call vid_plll
 
-                                xor a
-                                ld (sv_buf_0),a
-                                ld (sv_buf_1),a
-                                ld (transfer_screen),a
+        ld hl,0x4000
+        ld (VP_ADR1),hl
+        ld (VP_ADR2),hl
+        ld (VP_ADR3),hl
+
+
+        ld de,intro
+        call vid_load_play
+
+
+        ld hl,0x4021
+        ld (VP_ADR1),hl
+        ld (VP_ADR2),hl
+        ld (VP_ADR3),hl
+
 
 
                                 ld hl,0x4000
@@ -554,20 +564,21 @@ skip_mid_scr:
                 ld (hl),d
 ;-------------------------------------
                                                             ;<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-                                                            ;;  first level hack
+                ;;  first level hack
                                                                        ; org 0xac32   ;ram3 conatains level 0 and restores after death
-          ;      ld hl,0xac32
-          ;      ld (hl),8
-                                                                       ;db 5
+                ;      ld hl,0xac32
+                ;      ld (hl),8
+
                                                             
-                                                            ;immunity cheat
-                                                                       ;org 0x9a74
-                                                                     ;   ret 
+               ;immunity cheat
+               ;      ld hl,0x9a74
+               ;      ld (hl),0xc9
+
                                                             ;<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-                                                            ;restore sound effect 1
-                                                                         ;0x7bec  ;after init - 62e8   
-                                                                         ; org 0x7bec
-                                                            ;              db 0x18   
+               ;restore sound effect 1
+               ;      ld hl,0x7bec        ;;after init - 62e8   
+               ;      ld (hl),0x18
+
                 ld a,(mode)
                 and a
                 jp z,0x8134
@@ -1243,7 +1254,7 @@ difficulty_setup:
                     db "4. Hell",0x0D,0x0A,0
                     
 
-vidload    db "video"
+video_name    db "video"
 vidloadnum db "0.bin",0
 
 res_path db "robocop",0
@@ -1283,7 +1294,7 @@ intro      db "intro.bin",0
 txt_memoryerror:    db 0x0A,"Memory allocation error!",0x0D,0x0A,0
 txt_dircherror:     db 0x0A,"Cannot change directory: ",0
 txt_nl:             db 0x0D,0x0A,0
-        include "../../_sdk/file.asm"
+        include "../_sdk/file.asm"
 
 page_switch_table
         dw setpage0
@@ -1412,7 +1423,6 @@ p_manager:
                 call p_manager_controller_text
                 call p_manager_controller_video
 
-
                 ;disable stun
                 xor a
                 ld (0x9acb),a
@@ -1448,11 +1458,14 @@ p_manager_controller_video
                 im 1
                 ei
         
+
+
+
 ;load selected video
+                ld de,video_name
+                call vid_load_play
 
 
-                ld de,vidload
-                call vid_plll
 
                 di
                 im 2
@@ -1460,7 +1473,11 @@ p_manager_controller_video
                 ret
 
 
-vid_plll:
+
+
+
+
+vid_load_play:
                 call openstream_file
                 or a
                 jp nz,$
@@ -1505,15 +1522,7 @@ load_vid_file_number = $+1 :
                 call closestream_file
 ;-----------------------------------------
 
-
-                call sv_buf_0
                 CALL VIDEOPLAY
-                call sv_buf_1
-
-
-
-
-
 
                 ld hl,t_vid_file00_pages_list+$FF 
                 call free_vid_file
@@ -1525,22 +1534,6 @@ load_vid_file_number = $+1 :
                                 OS_SETGFX
 
                 halt
-                ret
-
-sv_buf_0
-                nop
-                ld a,(vidbuf)
-                SETPG4000
-                ld a,(user_scr0_high)
-                SETPG8000
-                ret 
-
-sv_buf_1        
-                nop 
-                ld a,(user_scr0_high)
-                SETPG4000
-                ld a,(winpage2)
-                SETPG8000
                 ret
 
 
@@ -1611,8 +1604,62 @@ p_manager_controller_text
         call 0x9b90 ;erase cursor
 
        djnz .prt_loop
+
+
+
+;------------------------------------------------------------------
+;debug
+/*
+                
+                di
+                im 1
+                ei
+
+                call mem_check
+                ;a - free pages count
+                ld de,mes_free_pg_num_c
+                call ConvertNumberA
+
+                di
+                im 2
+                ei
+        
+                
+                ld hl,mes_free_mem
+                call _clone_0xac80
+                ld a,0x40
+                call 0x9b90 ;erase cursor
+
+
+                ld hl,mes_free_pg_num
+                call _clone_0xac80
+                ld a,0x40
+                call 0x9b90 ;erase cursor
+
+*/
+;------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
        call 0x61ab
        ret 
+
+mes_free_mem:
+           dw 0x5001
+           db "FREE@PAGES:@@",0
+mes_free_pg_num:
+           dw 0x500d
+mes_free_pg_num_c:
+           db "00000" ,0    
 
 
 _clone_0xac80:
@@ -1872,13 +1919,11 @@ EX_KEYFRM  EQU %00111111
 VIDEO   EQU 49152       ;адрес распложения видео
 
 
-FIRST1  EQU 0x4000 ;       ;адрес экрана
+FIRST1  EQU 0x4201  ;0x4000 ;       ;адрес экрана
 FSTATR  EQU 0x5800  ; ;x`22528+32+1
 
-;FIRST1  EQU 0x8000 ;       ;адрес экрана
-;FSTATR  EQU 0x9800  ; ;x`22528+32+1
 
-MAXSCR  EQU HIGH FIRST1 + #18
+MAXSCR  EQU 0x58 ;HIGH FIRST1 + #18
 
 SPEDE   EQU 4           ;задержка между кадрами
 
@@ -1920,6 +1965,7 @@ NEWKAD  EXX
         SET EXCFIN,(IX)
         EXX
         LD HL,FIRST1
+VP_ADR1 equ $-2 
         LD C,0
 PLCYC
         BIT EXTPCK,(IX)
@@ -2036,11 +2082,6 @@ W_LOOP  HALT
         DEC A
         JR NZ,W_LOOP
 ESCR    
-        push hl
-                call transfer_screen
-        pop hl
-
-
 
 
         LD A,127
@@ -2082,17 +2123,17 @@ EX_DPCK RR C
         LD C,A
         XOR A
         LD B,A          ;OLDB
-        EX AF,AF' ;'
+        EX AF,AF'
 
 EX_DBPC RR C
         JR NC,EX_NOB1
         LD A,(DE)
         IDE
         LD B,A
-EX_NOB1 EX AF,AF' ;'
+EX_NOB1 EX AF,AF'
         XOR B
         LD (HL),A
-        EX AF,AF' ;'
+        EX AF,AF'
         INC H
         LD A,H
         AND 7
@@ -2170,6 +2211,7 @@ EX_COFS LD A,(DE)
 SCRENE  
 
         LD HL,FIRST1
+VP_ADR2 equ $-2 
         LD A,(DE)
         LD C,A
         IDE
@@ -2195,7 +2237,7 @@ M5
 
 REPT    IDE
         LD A,C
-        EX AF,AF' ;'
+        EX AF,AF'
         LD A,(DE)
         LD C,A
         IDE
@@ -2240,7 +2282,7 @@ NDP2    POP DE
 CONPKC  DEC C
         JR NZ,DEPCYC
         POP DE
-ISEND   EX AF,AF' ;'
+ISEND   EX AF,AF'
         LD C,A
         LD A,H
         CP MAXSCR
@@ -2258,9 +2300,8 @@ NEWK
 
 LSCRENE 
 
-;        call transfer_screen
-
         LD HL,FIRST1
+VP_ADR3 equ $-2 
         EXX
         LD HL,FSTATR    ;ADR
         EXX
@@ -2467,189 +2508,107 @@ M7_     POP BC
 PLFLG   DB 0
 
 
-        macro linne stack,addr
-
-            ld sp,stack
-            pop hl:ld (addr),hl
-            pop hl:ld (addr+2),hl
-            pop hl:ld (addr+4),hl
-            pop hl:ld (addr+6),hl
-            pop hl:ld (addr+8),hl
-            pop hl:ld (addr+10),hl
-            pop hl:ld (addr+12),hl
-            pop hl:ld (addr+14),hl
-            pop hl:ld (addr+16),hl
-            pop hl:ld (addr+18),hl
-            pop hl:ld (addr+20),hl
-            pop hl:ld (addr+22),hl
-            pop hl:ld (addr+24),hl
-            pop hl:ld a,l:ld (addr+26),a
-        endm
-
-
-transfer_screen:  
-            nop    
- ;27*16
-            di
-            ld (store_t_sp),sp
-;===============
-            linne 0x4000,0x8021
-            linne 0x4100,0x8121
-            linne 0x4200,0x8221
-            linne 0x4300,0x8321
-            linne 0x4400,0x8421
-            linne 0x4500,0x8521
-            linne 0x4600,0x8621
-            linne 0x4700,0x8721
-
-            linne 0x4020,0x8041
-            linne 0x4120,0x8141
-            linne 0x4220,0x8241
-            linne 0x4320,0x8341
-            linne 0x4420,0x8441
-            linne 0x4520,0x8541
-            linne 0x4620,0x8641
-            linne 0x4720,0x8741
-
-            linne 0x4040,0x8061
-            linne 0x4140,0x8161
-            linne 0x4240,0x8261
-            linne 0x4340,0x8361
-            linne 0x4440,0x8461
-            linne 0x4540,0x8561
-            linne 0x4640,0x8661
-            linne 0x4740,0x8761
-
-            linne 0x4060,0x8081
-            linne 0x4160,0x8181
-            linne 0x4260,0x8281
-            linne 0x4360,0x8381
-            linne 0x4460,0x8481
-            linne 0x4560,0x8581
-            linne 0x4660,0x8681
-            linne 0x4760,0x8781
-
-            linne 0x4080,0x80a1
-            linne 0x4180,0x81a1
-            linne 0x4280,0x82a1
-            linne 0x4380,0x83a1
-            linne 0x4480,0x84a1
-            linne 0x4580,0x85a1
-            linne 0x4680,0x86a1
-            linne 0x4780,0x87a1
-
-            linne 0x40a0,0x80c1
-            linne 0x41a0,0x81c1
-            linne 0x42a0,0x82c1
-            linne 0x43a0,0x83c1
-            linne 0x44a0,0x84c1
-            linne 0x45a0,0x85c1
-            linne 0x46a0,0x86c1
-            linne 0x47a0,0x87c1
-
-            linne 0x40c0,0x80e1
-            linne 0x41c0,0x81e1
-            linne 0x42c0,0x82e1
-            linne 0x43c0,0x83e1
-            linne 0x44c0,0x84e1
-            linne 0x45c0,0x85e1
-            linne 0x46c0,0x86e1
-            linne 0x47c0,0x87e1
-
-            linne 0x40e0,0x8801
-            linne 0x41e0,0x8901
-            linne 0x42e0,0x8a01
-            linne 0x43e0,0x8b01
-            linne 0x44e0,0x8c01
-            linne 0x45e0,0x8d01
-            linne 0x46e0,0x8e01
-            linne 0x47e0,0x8f01
-
-;===============
 
 
 
-            linne 0x4800,0x8821
-            linne 0x4900,0x8921
-            linne 0x4a00,0x8a21
-            linne 0x4b00,0x8b21
-            linne 0x4c00,0x8c21
-            linne 0x4d00,0x8d21
-            linne 0x4e00,0x8e21
-            linne 0x4f00,0x8f21
 
 
-            linne 0x4820,0x8841
-            linne 0x4920,0x8941
-            linne 0x4a20,0x8a41
-            linne 0x4b20,0x8b41
-            linne 0x4c20,0x8c41
-            linne 0x4d20,0x8d41
-            linne 0x4e20,0x8e41
-            linne 0x4f20,0x8f41
+mem_check:
+        ld d,0
+        ld e,0
+.loop
+        push de
+        dec e
+        OS_GETPAGEOWNER
+        ld a,e
+        pop de
 
-            linne 0x4840,0x8861
-            linne 0x4940,0x8961
-            linne 0x4a40,0x8a61
-            linne 0x4b40,0x8b61
-            linne 0x4c40,0x8c61
-            linne 0x4d40,0x8d61
-            linne 0x4e40,0x8e61
-            linne 0x4f40,0x8f61
-
-            linne 0x4860,0x8881
-            linne 0x4960,0x8981
-            linne 0x4a60,0x8a81
-            linne 0x4b60,0x8b81
-            linne 0x4c60,0x8c81
-            linne 0x4d60,0x8d81
-            linne 0x4e60,0x8e81
-            linne 0x4f60,0x8f81
+        and a
+        jr nz,.ll
+        inc d
+.ll:
+        dec e
+        jr nz,.loop 
+        ;ld h,0
+        ;ld l,d
+        ld a,d
+        ret 
 
 
+ConvertNumberA:
+    ld h, 0
+    ld l, a
+ConvertNumberHL:
+    ; Get the number in hl as text in de
+    ld bc, -10000
+    call .one
+    ld bc, -1000
+    call .one
+    ld bc, -100
+    call .one
+    ld bc, -10
+    call .one
+    ld c, -1
+.one
+    ld a, "0"-1
+.two
+    inc a
+    add hl, bc
+    jr c, .two
+    push bc;
+    push af;
+    ld a, b;
+    cpl;
+    ld b, a;
+    ld a, c;
+    cpl;
+    ld c, a;
+    inc bc;
+    call c, .carry;
+    pop af;
+    add hl, bc;
+    pop bc;
+    ld (de), a
+    inc de
+    ret
 
-            linne 0x4880,0x88a1
-            linne 0x4980,0x89a1
-            linne 0x4a80,0x8aa1
-            linne 0x4b80,0x8ba1
-            linne 0x4c80,0x8ca1
-            linne 0x4d80,0x8da1
-            linne 0x4e80,0x8ea1
-            linne 0x4f80,0x8fa1
+.carry;
+    dec bc;
+    ret;
 
-            linne 0x48a0,0x88c1
-            linne 0x49a0,0x89c1
-            linne 0x4aa0,0x8ac1
-            linne 0x4ba0,0x8bc1
-            linne 0x4ca0,0x8cc1
-            linne 0x4da0,0x8dc1
-            linne 0x4ea0,0x8ec1
-            linne 0x4fa0,0x8fc1
+dropotherapps
+;d=pgmain0000
+;от последних id (детей) к первым (родителям), т.к. при dropapp будится родитель
+        ld e,0xfe ;no id 0xff
+dropotherapps0
+        push de
+        OS_GETAPPMAINPAGES ;d,e,h,l=pages in 0000,4000,8000,c000, c=flags ;a!=0: no app
+        or a
+        ld a,d
+        pop de
+        jr nz,dropotherapps_skip ;no app
+       cp d
+       jr z,dropotherapps_skip ;my app
+        push de
+        ;e=id
+        OS_DROPAPP
+        pop de
+dropotherapps_skip
+        dec e
+        ld a,e
+        dec a ;no id 0 ;id 1 = idle
+        cp 3
+        jr nz,dropotherapps0
+        ret
 
-            linne 0x48c0,0x88e1
-            linne 0x49c0,0x89e1
-            linne 0x4ac0,0x8ae1
-            linne 0x4bc0,0x8be1
-            linne 0x4cc0,0x8ce1
-            linne 0x4dc0,0x8de1
-            linne 0x4ec0,0x8ee1
-            linne 0x4fc0,0x8fe1
-
-            linne 0x48e0,0x9001
-            linne 0x49e0,0x9101
-            linne 0x4ae0,0x9201
-            linne 0x4be0,0x9301
-            linne 0x4ce0,0x9401
-            linne 0x4de0,0x9501
-            linne 0x4ee0,0x9601
-            linne 0x4fe0,0x9701
-
-            ld sp,0
-store_t_sp equ $-2
-            ei
-            ret
-
-
+setpgsmain4000_C000
+        ld a,(winpage1)
+        SETPG4000
+        ld a,(winpage2)
+        SETPG8000
+        ld a,(winpage3)
+        SETPGC000
+        ret
 
 
 ;scr_buffer ds 6912,0
@@ -2658,4 +2617,4 @@ cmd_end:
 
 
         savebin "robocop.com",cmd_begin,cmd_end-cmd_begin
-        LABELSLIST "../../../us_ns2/user.l",1
+        LABELSLIST "..\..\us_ns2\user.l",1
