@@ -145,6 +145,9 @@ C_task main(void)
     OS_SETXY(32, 3);
     OS_SETCOLOR(87);
     puts("TASK MANAGER");
+    filltable();
+    redraw();
+
     while (42)
     {
         filltable();
