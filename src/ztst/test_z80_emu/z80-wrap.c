@@ -35,7 +35,7 @@ static uint8_t z80_filter_fetch_opcode(void * param, uint16_t address)
 {
 	struct z80_context * z80 = param;
 	uint8_t opcode = z80->z80_mem[address];
-
+/*
 	if( !z80->was_ed && opcode==0xED )
 	{
 		z80->was_ed = 1;
@@ -64,8 +64,57 @@ static uint8_t z80_filter_fetch_opcode(void * param, uint16_t address)
 
 		z80->was_ed = 0;
 	}
-
+*/
 	return opcode;
+}
+
+static uint8_t z80_filter_zx_api(void * param, uint16_t address)
+{
+	struct z80_context * z80 = param;
+
+	if( address==0x1601 ) // CHAN-OPEN (ignore)
+	{
+		return 0xC9;
+	}
+	else if( address==0x0010 ) // RST 0x10 (print character)
+	{
+		uint8_t c = ((z80->z80.af)>>8)&0xFF;
+
+		if( z80->was_23 ) // skip 2 bytes after 23
+		{
+			if( z80->was_23==2 )
+			{
+				fprintf(stdout,"\033[%dG",c);
+			}
+
+			z80->was_23--;
+		}
+		else if( c==13 )
+		{
+			fprintf(stdout,"\n");
+		}
+		else if( c==127 ) // skip
+		{
+		}
+		else if( c==23 ) // skip following 2 bytes
+		{
+			z80->was_23=2;
+		}
+		else
+		{
+			fprintf(stdout,"%c",c);
+			fflush(stdout);
+		}
+
+		return 0xC9;
+	}
+	else if( address<0x4000 ) // catch all other ROM accesses
+	{
+		fprintf(stderr,"Accessed addr %04x! [sp]=%04x\n",address,*((uint16_t *)&z80->z80_mem[z80->z80.sp]));
+		exit(1);
+	}
+
+	return z80_filter_fetch_opcode(param, address);
 }
 
 static uint8_t z80_filter_nedoos_api(void * param, uint16_t address)
@@ -166,6 +215,13 @@ static uint8_t z80_rd(void * param, uint16_t address)
 	return z80->z80_mem[address];
 }
 
+static void    z80_zx_wr(void * param, uint16_t address, uint8_t data)
+{
+	struct z80_context * z80 = param;
+
+	if( address>=0x4000 ) z80->z80_mem[address] = data;
+}
+
 static void    z80_wr(void * param, uint16_t address, uint8_t data)
 {
 	struct z80_context * z80 = param;
@@ -180,10 +236,21 @@ static void    z80_hlt(void * param, uint8_t state)
 	z80_break(&z80->z80);
 }
 
+static void z80_out(void * param, uint8_t state)
+{
+	// ignore
+}
+
+static uint8_t z80_in(void * param, uint16_t address)
+{
+	struct z80_context * z80 = param;
+
+	return 0xBF;
+}
 
 
 
-struct z80_context * z80_init(char * filename, int nedoos)
+struct z80_context * z80_init(char * filename, int sys_type)
 {
 	// allocate structure for z80 context and associated data
 	//
@@ -202,6 +269,9 @@ struct z80_context * z80_init(char * filename, int nedoos)
 	// load Z80 .com binary
 	if( filename )
 	{
+		size_t load_address = (sys_type==SYS_ZX) ? 0x8000 : 0x0100;
+
+
 		FILE * f = fopen(filename,"rb");
 		if( !f )
 		{
@@ -209,11 +279,11 @@ struct z80_context * z80_init(char * filename, int nedoos)
 			exit(1);
 		}
 		//
-		size_t read=fread(z80->z80_mem+256,1,65536-256,f);
+		size_t read=fread(z80->z80_mem+load_address,1,65536-load_address,f);
 		off_t o=ftello(f);
 		int seek=fseeko(f,0,SEEK_END);
 		off_t e=ftello(f);
-		if( seek || o!=e || read!=e || !(0<o && o<=(65536-256)) )
+		if( seek || o!=e || read!=e || !(0<o && o<=(65536-load_address)) )
 		{
 			fprintf(stderr,"%s: %d, %s: can't read Z80 .com file <%s>!\n",__FILE__,__LINE__,__FUNCTION__,filename);
 			exit(1);
@@ -221,13 +291,40 @@ struct z80_context * z80_init(char * filename, int nedoos)
 		fclose(f);
 	}
 
+	if( sys_type==SYS_ZX ) // load ROM
+	{
+		FILE * f = fopen("1982.rom","rb");
+		if( !f )
+		{
+			fprintf(stderr,"%s: %d, %s: can't open <1982.rom>!\n",__FILE__,__LINE__,__FUNCTION__);
+			exit(1);
+		}
+		//
+		size_t read=fread(z80->z80_mem,1,16384,f);
+		off_t o=ftello(f);
+		int seek=fseeko(f,0,SEEK_END);
+		off_t e=ftello(f);
+		if( seek || o!=e || read!=e || o!=16384 )
+		{
+			fprintf(stderr,"%s: %d, %s: can't read <1982.rom>!\n",__FILE__,__LINE__,__FUNCTION__);
+			exit(1);
+		}
+		fclose(f);
+	}
+
 	// init cp/m stack value
-	if( !nedoos )
+	if( sys_type==SYS_CPM )
 	{
 		z80->z80_mem[6] = 0x00;
 		z80->z80_mem[7] = 0x40;
 	}
 	
+	// start address
+	z80->start_address = (sys_type==SYS_ZX) ? 0x8000 : 0x0100;
+
+	// start SP
+	z80->start_sp = (sys_type==SYS_ZX) ? 0x8000 : 0x4000;
+
 	// init callbacks
 	z80->z80.context   = (void *)z80;
 
@@ -240,18 +337,20 @@ struct z80_context * z80_init(char * filename, int nedoos)
 	z80->z80.retn      = NULL;
 	z80->z80.illegal   = NULL;
 
-	z80->z80.fetch_opcode = nedoos ? (&z80_filter_nedoos_api) : (&z80_filter_cpm_api);
+	z80->z80.fetch_opcode = (sys_type==SYS_ZX    ) ? (&z80_filter_zx_api)     :
+	                        (sys_type==SYS_NEDOOS) ? (&z80_filter_nedoos_api) :
+	                        (sys_type==SYS_CPM   ) ? (&z80_filter_cpm_api)    : NULL;
 
 	z80->z80.fetch        = &z80_rd;
 	z80->z80.read         = &z80_rd;
 	z80->z80.nop          = &z80_rd;
 
-	z80->z80.write     = &z80_wr;
+	z80->z80.write     = (sys_type==SYS_ZX) ? &z80_zx_wr : &z80_wr;
 
 	z80->z80.hook      = NULL;
 
-	z80->z80.in        = NULL;
-	z80->z80.out       = NULL;
+	z80->z80.in        = &z80_in;
+	z80->z80.out       = &z80_out;
 
 	z80->z80.halt      = &z80_hlt;
 
@@ -262,13 +361,14 @@ struct z80_context * z80_init(char * filename, int nedoos)
 
 
 
-size_t z80_exec(struct z80_context * z80, size_t max_clocks, uint16_t addr)
+size_t z80_exec(struct z80_context * z80, size_t max_clocks)
 {
 	z80->was_ed = 0;
 
 	z80_power(&z80->z80,1);
 
-	z80->z80.pc = addr;
+	z80->z80.pc = z80->start_address;
+	z80->z80.sp = z80->start_sp;
 	
 	size_t clocks = z80_execute(&z80->z80, max_clocks);
 

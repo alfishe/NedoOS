@@ -23,6 +23,15 @@
 #ifndef _Z80_WRAP_H_
 #define _Z80_WRAP_H_
 
+#define SYS_CPM    (1)
+#define SYS_NEDOOS (2)
+#define SYS_ZX     (3)
+
+struct type_detect
+{
+	const char * const argument_name;
+	const int sys_type;
+};
 
 enum z80_max_clocks
 {
@@ -33,16 +42,19 @@ enum z80_max_clocks
 struct z80_context
 {
 	Z80 z80;
+	uint16_t start_address;
+	uint16_t start_sp;
 
 	int was_ed;
+	int was_23;
 
 	uint8_t z80_mem[65536];
 };
 
 
-struct z80_context * z80_init(char * filename, int nedoos);
+struct z80_context * z80_init(char * filename, int sys_type);
 
-size_t z80_exec(struct z80_context * z80, size_t max_clocks, uint16_t addr);
+size_t z80_exec(struct z80_context * z80, size_t max_clocks);
 
 
 uint8_t  z80_rdbyte(struct z80_context * z80, uint16_t addr);
