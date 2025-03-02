@@ -367,11 +367,8 @@ int cutHeader(unsigned int todo)
     curFileStruct.httpErr = 999; // bad kostil
     return 0;
   }
-  else
-  {
-    contLen = atol(count1 + 15);
-    // printf("Content-Length: %lu \n\r", contLen);
-  }
+  contLen = atol(count1 + 15);
+  // printf("Content-Length: %lu \n\r", contLen);
 
   count1 = strstr(netbuf, "\r\n\r\n");
   if (count1 == NULL)
@@ -874,6 +871,7 @@ unsigned int getDataEsp(void)
       firstPacket = false;
       if (curFileStruct.httpErr != 200)
       {
+        sendcommand("AT+CIPCLOSE");
         getAnswer2(); // CLOSED
         getAnswer2(); // OK
         return false;
@@ -1536,25 +1534,16 @@ start:
     printf("Empty body is returned for %ld. Next picture, please.", count);
     count++;
     goto start;
+  case -1: // return HTTP error != 200
+    clearStatus();
+    printf("[%u]Error getting track info, next please(%ld)...", curFileStruct.httpErr, iddqd);
+
+    OS_DROPAPP(pId);
+    changedFormat = 1;
+    goto rekey;
   }
 
-  if (iddqd < 0)
-  {
-    {
-      clearStatus();
-      printf("[%u]Error getting track info, next please(%ld)...", curFileStruct.httpErr, iddqd);
-      /*
-        count = trackSelector(0);
-        goto start;
-      */
-
-      OS_DROPAPP(pId);
-      changedFormat = 1;
-      goto rekey;
-    }
-  }
-
-  idkfa = processJson(atol(curFileStruct.authorIds), 0, 99); // Query for AuthorID
+ idkfa = processJson(atol(curFileStruct.authorIds), 0, 99); // Query for AuthorID
 
   if (idkfa < 0)
   {

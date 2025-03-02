@@ -32,6 +32,7 @@ struct fileStruct
   long picId;
   unsigned int picYear;
   unsigned long totalAmount;
+  unsigned int httpErr;
   unsigned char picRating[8];
   unsigned char picName[256];
   unsigned char picType[64];
@@ -42,7 +43,6 @@ struct fileStruct
   unsigned char pfn[128];
   unsigned char fileName[128];
 } curFileStruct;
-
 
 struct window
 {
@@ -216,33 +216,32 @@ int testOperation2(const char *process, int socket)
 
 int cutHeader(unsigned int todo)
 {
-  unsigned int err;
   unsigned char *count1;
 
-  err = httpError();
-  if (err != 200)
+  curFileStruct.httpErr = httpError();
+  if (curFileStruct.httpErr != 200)
   {
-    printf("\r\nHTTP response:[%u]\r\n", err);
-    printf("^^^^^^^^^^^^^^^^^^^^^\r\n");
-    puts(netbuf);
-    getchar();
+    clearStatus();
+    printf("HTTP response:[%u]", curFileStruct.httpErr);
+    return 0;
   }
   count1 = strstr(netbuf, "Content-Length:");
   if (count1 == NULL)
   {
-    printf("contLen  not found \r\n");
+    clearStatus();
+    printf("contLen not found");
     contLen = 0;
+    curFileStruct.httpErr = 999; // bad kostil
+    return 0;
   }
-  else
-  {
-    contLen = atol(count1 + 15);
-    // printf("Content-Length: %lu \n\r", contLen);
-  }
+  contLen = atol(count1 + 15);
+  // printf("Content-Length: %lu \n\r", contLen);
 
   count1 = strstr(netbuf, "\r\n\r\n");
   if (count1 == NULL)
   {
-    printf("header not found\r\n");
+    clearStatus();
+    printf("end of header not found\r\n");
   }
   else
   {
@@ -288,7 +287,7 @@ char fillPictureEsp(void)
   unsigned char byte, countl = 0;
   unsigned int todo = 0;
   unsigned char *count1;
-
+  unsigned char firstPacket;
   strcpy(link, netbuf);
   sizeLink = strlen(link);
   do
@@ -324,14 +323,23 @@ char fillPictureEsp(void)
   uart_readBlock(); // CR
   uart_readBlock(); // LF
   downloaded = 0;
+  firstPacket = true;
   do
   {
     headlng = 0;
     todo = recvHead();
     getdataEsp(todo); // Requested size
-    if (downloaded == 0)
+    if (firstPacket)
     {
       todo = cutHeader(todo);
+      firstPacket = false;
+      if (curFileStruct.httpErr != 200)
+      {
+        sendcommand("AT+CIPCLOSE");
+        getAnswer2(); // CLOSED
+        getAnswer2(); // OK
+        return false;
+      }
     }
 
     if (downloaded + todo > sizeof(picture))
@@ -356,6 +364,7 @@ char fillPictureNet(void)
 {
   int todo;
   unsigned int downloaded = 0;
+  unsigned char firstPacket;
   char socket, retry;
   picture[0] = 0;
   retry = 3;
@@ -377,16 +386,22 @@ char fillPictureNet(void)
     getchar();
     quit();
   }
-
+  firstPacket = true;
   do
   {
     headlng = 0;
     todo = tcpRead(socket, retry);
     testOperation("OS_WIZNETREAD", todo); // Quit if too many retries
 
-    if (downloaded == 0)
+    if (firstPacket)
     {
       todo = cutHeader(todo);
+      firstPacket = false;
+      if (curFileStruct.httpErr != 200)
+      {
+        netShutDown(socket, 0);
+        return false;
+      }
     }
 
     if (downloaded + todo > sizeof(picture))
@@ -659,6 +674,11 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   case 1:
     result = fillPictureEsp();
     break;
+  }
+
+  if (!result)
+  {
+    return -1;
   }
 
   count1 = strstr(picture, "responseStatus\":\"success");
@@ -1130,25 +1150,23 @@ start:
   }
 
   OS_SETCOLOR(70);
+
   switch (iddqd)
   {
   case -3: // return 0 pictures
     strcpy(minRating, "1.0");
-    printf("\r\n No picture is returned in query. Minimal rating is set to %s\r\n", minRating);
+    printf("[%u]No picture is returned in query. Minimal rating is set to %s\r\n", curFileStruct.httpErr, minRating);
     delayLong(500);
     goto start;
   case -4: // return xxxx picture, but empty body.
-    puts("Empty body is returned. Next picture, please.");
+    printf("[%u]Empty body is returned. Next picture, please.(%ld)...\r\n", curFileStruct.httpErr, iddqd);
     delayLong(500);
     count++;
     goto start;
-  }
-
-  if (iddqd < 0)
-  {
+  case -1: // return HTTP error != 200
+    printf("[%u]Error getting pic info. Next picture, please(%ld)...\r\n", curFileStruct.httpErr, iddqd);
     count++;
-    keypress = getchar();
-    safeKeys(keypress);
+    delayLong(500);
     goto start;
   }
 
@@ -1157,15 +1175,16 @@ start:
     idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
     if (idkfa < 0)
     {
-      printf(" Cant parse curFileStruct.authorIds = %s \r\n\r\n", curFileStruct.authorIds);
+      printf("[%u]Error can't parse authorIds(%s). Next picture, please(%ld)...\r\n", curFileStruct.httpErr, curFileStruct.authorIds);
       count++;
-      getchar();
+      delayLong(500);
       goto start;
     }
   }
   if (strcmp(curFileStruct.picType, "standard") != 0)
   {
-    printf("  >>Format '%s' not supported, skipped \n\r", curFileStruct.picType);
+    printf("[%u]Error format '%s' not supported. Next picture, please.\n\r", curFileStruct.picType);
+    delayLong(500);
     count++;
     goto start;
   }
@@ -1178,6 +1197,14 @@ start:
   case 1:
     result = fillPictureEsp();
     break;
+  }
+
+  if (result == -1) // return HTTP error != 200  case -3: // return 0 pictures
+  {
+    printf("[%u]Error getting pic. Next picture, please(%ld)...\r\n", curFileStruct.httpErr, result);
+    count++;
+    delayLong(500);
+    goto start;
   }
 
 review:
