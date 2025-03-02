@@ -37,6 +37,24 @@ unsigned char c1, c2, pgbak, freemem, sysmem, usedmem, curpos;
 unsigned char procname;
 union APP_PAGES main_pg;
 
+void delayLong(unsigned long counter)
+{
+    unsigned long start, finish;
+    counter = counter / 20;
+    if (counter < 1)
+    {
+        counter = 1;
+    }
+    start = time();
+    finish = start + counter;
+
+    while (start < finish)
+    {
+        start = time();
+        YIELD();
+    }
+}
+
 void redraw(void)
 {
     unsigned char c3;
@@ -136,6 +154,8 @@ void filltable(void)
 
 C_task main(void)
 {
+    unsigned long oldTime, newTime, counter;
+
     OS_HIDEFROMPARENT();
     OS_SETGFX(0x86);
     OS_CLS(0);
@@ -152,8 +172,14 @@ C_task main(void)
     {
         filltable();
         redraw();
+
+        oldTime = time();
         do
         {
+            if (time() - oldTime > 100)
+            {
+                break;
+            }
             procname = OS_GETKEY();
             if (procname == 0)
                 YIELD();
