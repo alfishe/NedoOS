@@ -60,10 +60,10 @@ void uart_setrts(unsigned char mode)
 	case 0:
 		switch (mode)
 		{
-		case 1:
+		case 1:	//Enable flow
 			output(MCR, 2);
 			break;
-		case 0:
+		case 0:	//Stop flow
 			output(MCR, 0);
 			break;
 		default:
@@ -136,7 +136,6 @@ void uart_init(unsigned char divisor)
 		output(LCR, 0x03);		  // 8n1, DLAB=0
 		output(IER, 0x00);		  // Disable int
 		output(MCR, 0x2f);		  // Enable AFE
-		uart_setrts(0);
 		break;
 	case 1:
 		disable_interrupt();
@@ -253,11 +252,12 @@ unsigned char uart_readBlock(void)
 void uart_flush(void)
 {
 	unsigned int count;
-	uart_setrts(1);
-	for (count = 0; count < 6000; count++)
+	for (count = 0; count < 3000; count++)
 	{
+		uart_setrts(2);
 		uart_read();
 	}
+	uart_setrts(0);
 }
 
 void getdataEsp(unsigned int counted)
@@ -363,10 +363,11 @@ unsigned char getAnswer2(void)
 void espReBoot(void)
 {
 	unsigned char byte, count;
-	uart_setrts(1);
-
+	//uart_setrts(1);
 	clearStatus();
 	printf("Resetting ESP...");
+
+	uart_flush();
 
 	sendcommand("AT+RST");
 	count = 0;

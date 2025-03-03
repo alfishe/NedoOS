@@ -406,11 +406,10 @@ unsigned int cutHeader(unsigned int todo)
 	}
 	return todo - headlng;
 }
-
 unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 {
 	int todo;
-	char socket, firstPacket ;
+	char socket, firstPacket;
 	unsigned int fileSize1;
 	unsigned long downloaded = 0;
 
@@ -480,8 +479,8 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 			try++;
 			if (try > 1)
 			{
-				clearStatus();
-				printf("----->Retry:%u", try);
+				//clearStatus();
+				//printf("----->Retry:%u", try);
 				delay(500);
 			}
 			sendcommand("AT+CIPSTART=\"TCP\",\"nedoos.ru\",80");
@@ -766,26 +765,28 @@ void fullUpdate(void)
 	printf("Restoring configs...");
 }
 
+
 unsigned char testConect(void)
 {
 	unsigned char *count1;
-	if (netDriver == 1)
-	{
-		sendcommand("AT+CIPSTART=\"TCP\",\"nedoos.ru\",80");
-		getAnswer2(); // CONNECT or ERROR or link is not valid
-		count1 = strstr(netbuf, "CONNECT");
+	sendcommand("AT+CIPSTART=\"TCP\",\"nedoos.ru\",80");
+	getAnswer2(); // CONNECT or ERROR or link is not valid
+	count1 = strstr(netbuf, "CONNECT");
 
-		if (count1 == NULL)
-		{
-			YIELD();
-			uart_flush();
-			return 0;
-		}
-		getAnswer2(); // OK
-		sendcommand("AT+CIPCLOSE");
-		getAnswer2(); // CLOSED
-		getAnswer2(); // OK
+	if (count1 == NULL)
+	{
+		YIELD();
+		uart_flush();
+		
+		printf("%s\r\n------------------[netbuf]------------------", netbuf);
+		puts("[testConect(void)]\r\n[count1 == NULL]");
+		return 0;
 	}
+	getAnswer2(); // OK
+	sendcommand("AT+CIPCLOSE");
+	getAnswer2(); // CLOSED
+	getAnswer2(); // OK
+
 	return 1;
 }
 

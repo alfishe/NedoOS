@@ -1199,7 +1199,7 @@ start:
     break;
   }
 
-  if (result == -1) // return HTTP error != 200  case -3: // return 0 pictures
+  if (result == -1) // return HTTP error != 200
   {
     printf("[%u]Error getting pic. Next picture, please(%ld)...\r\n", curFileStruct.httpErr, result);
     count++;
