@@ -15,16 +15,16 @@
             db      n&0xff
             endm
 
-            macro   inst op1,op2,op3,op4,tail
+            macro   inst op1,op2,op3,op4,taila
             ; Unfortunately, elseifidn doesn't seem to work properly.
             if   op4==stop
-            db      op1,op2,op3,tail,0
+            db      op1,op2,op3,taila,0
             elseif   op3==stop
-            db      op1,op2,tail,op4,0
+            db      op1,op2,taila,op4,0
             elseif   op2==stop
-            db      op1,tail,op3,op4,0
+            db      op1,taila,op3,op4,0
             else
-            db      op1,op2,op3,op4,tail
+            db      op1,op2,op3,op4,taila
             endif
             endm
 
