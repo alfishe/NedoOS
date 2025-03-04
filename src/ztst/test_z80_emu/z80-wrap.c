@@ -44,7 +44,7 @@ static uint8_t z80_filter_fetch_opcode(void * param, uint16_t address)
 	struct z80_context * z80 = param;
 	uint8_t opcode = z80->z80_mem[address];
 
-	fprintf(stderr,"<<< MP=%04x AF=%04x BC=%04x DE=%04x HL=%04x SP=%04x PC=%04x op=%02x\n",z80->z80.memptr,z80->z80.af,z80->z80.bc,z80->z80.de,z80->z80.hl,z80->z80.sp,z80->z80.pc,opcode);
+//	fprintf(stderr,"<<< MP=%04x AF=%04x BC=%04x DE=%04x HL=%04x SP=%04x PC=%04x op=%02x\n",z80->z80.memptr,z80->z80.af,z80->z80.bc,z80->z80.de,z80->z80.hl,z80->z80.sp,z80->z80.pc,opcode);
 
 	return opcode;
 }
