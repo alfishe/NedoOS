@@ -7,8 +7,8 @@ NAME = z80test
 VERSION = 1.2a
 PKG := $(NAME)-$(VERSION)
 
-PROGS := z80doc
-#PROGS := z80full z80flags z80doc z80docflags z80ccf z80memptr z80ccfscr
+#PROGS := z80ccf
+PROGS := z80full z80flags z80doc z80docflags z80ccf z80memptr z80ccfscr
 SRCS  := main idea crctab tests testmacros print
 
 #all: $(addsuffix .tap,$(PROGS))

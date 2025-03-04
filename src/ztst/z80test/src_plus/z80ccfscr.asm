@@ -3,6 +3,7 @@
 ; Copyright (C) 2023 Patrik Rak (patrik@raxoft.cz)
 ;
 ; This source code is released under the MIT license, see included license.txt.
+        DEVICE ZXSPECTRUM128
 
             org     0x8000
 

@@ -6,6 +6,7 @@
 ; Copyright (C) 2012-2023 Patrik Rak (patrik@raxoft.cz)
 ;
 ; This source code is released under the MIT license, see included license.txt.
+        DEVICE ZXSPECTRUM128
 
             macro       testname
             db          "MEMPTR"
@@ -17,5 +18,8 @@ postccf     equ         0
 memptr      equ         1
 
             include     main.asm
+main_end:
+
+	savebin "z80memptr.bin",main,main_end-main
 
 ; EOF ;

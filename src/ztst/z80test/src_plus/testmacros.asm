@@ -17,18 +17,14 @@
 
             macro   inst op1,op2,op3,op4,tail
             ; Unfortunately, elseifidn doesn't seem to work properly.
-            ifidn   op4,stop
+            if   op4==stop
             db      op1,op2,op3,tail,0
-            else
-            ifidn   op3,stop
+            elseif   op3==stop
             db      op1,op2,tail,op4,0
-            else
-            ifidn   op2,stop
+            elseif   op2==stop
             db      op1,tail,op3,op4,0
             else
             db      op1,op2,op3,op4,tail
-            endif
-            endif
             endif
             endm
 
@@ -40,18 +36,16 @@
             endif
             endm
 
-.veccount = 0
-
             macro   vec op1,op2,op3,op4,memn,mema,an,aa,fn,f,bcn,bca,den,dea,hln,hla,ixn,ixa,iyn,iya,spn,spa
 
             if      postccf
 
-            if      ( .@veccount % 3 ) == 0
+            if      ( @veccount % 3 ) == 0
             inst    op1,op2,op3,op4,tail
-.@areg      =      0
+!areg      =      0
             else
             db      op1,op2,op3,op4,0
-.@areg      =      .@areg | aa
+!areg      =      @areg | aa
             endif
 
             else
@@ -60,8 +54,8 @@
 
             db      f
 
-            if      postccf & ( ( .veccount % 3 ) == 2 )
-            db      aa | ( ( ~ .@areg ) & 0x28 )
+            if      postccf & ( ( @veccount % 3 ) == 2 )
+            db      aa | ( ( ~ @areg ) & 0x28 )
             else
             db      aa
             endif
@@ -70,7 +64,7 @@
             dw      mema
             dw      spa
 
-.veccount = .veccount+1
+!veccount = @veccount+1
 
             endm
 

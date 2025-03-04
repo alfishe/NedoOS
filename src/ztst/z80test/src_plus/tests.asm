@@ -29,6 +29,9 @@ stop        equ     0
 tail        equ     0
             endif
 
+veccount = 0
+areg = 0
+
 testtable:
             if      selftests
             dw      .crc
