@@ -31,40 +31,21 @@
 
 
 
+static void z80_finish(void * param)
+{
+	struct z80_context * z80 = param;
+
+	fprintf(stdout,"\n<<<Finished in %ld clocks!>>>\n",z80->z80.cycles);
+	exit(0);
+}
+
 static uint8_t z80_filter_fetch_opcode(void * param, uint16_t address)
 {
 	struct z80_context * z80 = param;
 	uint8_t opcode = z80->z80_mem[address];
-/*
-	if( !z80->was_ed && opcode==0xED )
-	{
-		z80->was_ed = 1;
-	}
-	else if( z80->was_ed )
-	{
-		if( opcode==0xA9 )
-		{
-			fprintf(stderr,"\n<<<CPD detected!>>>>\n");
-		}
-		else if( opcode==0xB9 )
-		{
-			fprintf(stderr,"\n<<<CPDR detected!>>>>\n");
-		}
 
-		if( opcode==0xA9 || opcode==0xB9 )
-		{
-			fprintf(stderr,"<<< MEMPTR=%04x >>>\n",z80->z80.memptr);
-			fprintf(stderr,"<<<     AF=%04x >>>\n",z80->z80.af);
-			fprintf(stderr,"<<<     BC=%04x >>>\n",z80->z80.bc);
-			fprintf(stderr,"<<<     DE=%04x >>>\n",z80->z80.de);
-			fprintf(stderr,"<<<     HL=%04x >>>\n",z80->z80.hl);
-			fprintf(stderr,"<<<     SP=%04x >>>\n",z80->z80.sp);
-			fprintf(stderr,"<<<     PC=%04x >>>\n",z80->z80.pc);
-		}
+	fprintf(stderr,"<<< MP=%04x AF=%04x BC=%04x DE=%04x HL=%04x SP=%04x PC=%04x op=%02x\n",z80->z80.memptr,z80->z80.af,z80->z80.bc,z80->z80.de,z80->z80.hl,z80->z80.sp,z80->z80.pc,opcode);
 
-		z80->was_ed = 0;
-	}
-*/
 	return opcode;
 }
 
@@ -72,7 +53,11 @@ static uint8_t z80_filter_zx_api(void * param, uint16_t address)
 {
 	struct z80_context * z80 = param;
 
-	if( address==0x1601 ) // CHAN-OPEN (ignore)
+	if( address==0 ) // finish?
+	{
+		z80_finish(param);
+	}
+	else if( address==0x1601 ) // CHAN-OPEN (ignore)
 	{
 		return 0xC9;
 	}
@@ -123,8 +108,7 @@ static uint8_t z80_filter_nedoos_api(void * param, uint16_t address)
 
 	if( address==0 )
 	{
-		fprintf(stdout,"\n<<<Finished in %ld clocks!>>>\n",z80->z80.cycles);
-		exit(0);
+		z80_finish(param);
 	}
 	else if( address==5 )
 	{
@@ -173,8 +157,7 @@ static uint8_t z80_filter_cpm_api(void * param, uint16_t address)
 
 	if( address==0 )
 	{
-		fprintf(stdout,"\n<<<Finished in %ld clocks!>>>\n",z80->z80.cycles);
-		exit(0);
+		z80_finish(param);
 	}
 	else if( address==5 )
 	{
@@ -245,7 +228,7 @@ static uint8_t z80_in(void * param, uint16_t address)
 {
 	struct z80_context * z80 = param;
 
-	return 0xBF;
+	return (address&1) ? 0xFF : 0xBF;
 }
 
 
@@ -312,6 +295,9 @@ struct z80_context * z80_init(char * filename, int sys_type)
 		fclose(f);
 	}
 
+	z80->z80.i = 0x3F;
+	z80->z80.af = 0x3222;
+
 	// init cp/m stack value
 	if( sys_type==SYS_CPM )
 	{
@@ -323,8 +309,15 @@ struct z80_context * z80_init(char * filename, int sys_type)
 	z80->start_address = (sys_type==SYS_ZX) ? 0x8000 : 0x0100;
 
 	// start SP
-	z80->start_sp = (sys_type==SYS_ZX) ? 0x8000 : 0x4000;
-
+	//z80->start_sp = (sys_type==SYS_ZX) ? 0x7FE8 : 0x4000;
+	z80->start_sp = (sys_type==SYS_ZX) ? 0xFFFD : 0x4000;
+	// return address (for ZX)
+/*	if( sys_type==SYS_ZX )
+	{
+		z80->z80_mem[0x7FE8] = 0;
+		z80->z80_mem[0x7FE9] = 0;
+	}
+*/
 	// init callbacks
 	z80->z80.context   = (void *)z80;
 
@@ -353,6 +346,9 @@ struct z80_context * z80_init(char * filename, int sys_type)
 	z80->z80.out       = &z80_out;
 
 	z80->z80.halt      = &z80_hlt;
+
+
+	z80->z80.options = Z80_MODEL_ZILOG_NMOS;
 
 
 	return z80;
