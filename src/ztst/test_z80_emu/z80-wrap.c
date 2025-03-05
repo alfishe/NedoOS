@@ -219,7 +219,7 @@ static void    z80_hlt(void * param, uint8_t state)
 	z80_break(&z80->z80);
 }
 
-static void z80_out(void * param, uint8_t state)
+static void z80_out(void * param, uint16_t addr, uint8_t data)
 {
 	// ignore
 }

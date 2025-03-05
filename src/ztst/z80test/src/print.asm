@@ -6,7 +6,8 @@
 
 
 printinit:  ld      a,2
-            jp      0x1601      ; CHAN-OPEN
+;            jp      0x1601      ; CHAN-OPEN
+            jp      EMU_CHAN_OPEN
 
 
 print:      ex      (sp),hl
@@ -69,10 +70,13 @@ printchr:   push    iy
             push    de
             push    bc
             exx
-            ei
-            ; out     (0xff),a
-            rst     0x10
-            di
+
+;            ei
+;            ; out     (0xff),a
+;            rst     0x10
+;            di
+            call    EMU_RST_10
+
             exx
             pop     bc
             pop     de

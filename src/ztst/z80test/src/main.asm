@@ -4,7 +4,7 @@
 ;
 ; This source code is released under the MIT license, see included license.txt.
 
-            org     0x8000
+;            org     0x8000
 
 main:       di                                  ; disable interrupts
             push    iy                          ; preserve stuff needed by BASIC
@@ -67,9 +67,12 @@ main:       di                                  ; disable interrupts
 
 .done       pop     hl                          ; return to BASIC
             exx
-            pop     iy
-            ei
-            ret
+;            pop     iy
+;            ei
+;            ret
+            nop
+            jp      EMU_QUIT
+
 
 .test       push    bc                          ; preserve number of failures
 
