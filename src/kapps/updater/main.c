@@ -409,7 +409,7 @@ unsigned int cutHeader(unsigned int todo)
 unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 {
 	int todo;
-	char socket, firstPacket;
+	char socket, firstPacket, key;
 	unsigned int fileSize1;
 	unsigned long downloaded = 0;
 
@@ -456,10 +456,13 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 			downloaded = downloaded + todo;
 			printf(" %lu of %u kb   \r", downloaded / 1024, fileSize1);
 			saveBuf(fileNamePtr, 01, todo);
-			if (_low_level_get() == 27)
+
+			key = OS_GETKEY();
+			if (key == 27)
 			{
 				fatalError("File download aborted!");
 			}
+
 		} while (downloaded < contLen);
 		netShutDown(socket, 0);
 		saveBuf(fileNamePtr, 02, 00);
@@ -479,8 +482,8 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 			try++;
 			if (try > 1)
 			{
-				//clearStatus();
-				//printf("----->Retry:%u", try);
+				// clearStatus();
+				// printf("----->Retry:%u", try);
 				delay(500);
 			}
 			sendcommand("AT+CIPSTART=\"TCP\",\"nedoos.ru\",80");
@@ -532,8 +535,8 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 			downloaded = downloaded + todo;
 			printf("%lu of %u kb   \r", downloaded / 1024, fileSize1);
 			saveBuf(fileNamePtr, 01, todo);
-
-			if (_low_level_get() == 27)
+			key = OS_GETKEY();
+			if (key == 27)
 			{
 				fatalError("File download aborted!");
 			}
@@ -765,7 +768,6 @@ void fullUpdate(void)
 	printf("Restoring configs...");
 }
 
-
 unsigned char testConect(void)
 {
 	unsigned char *count1;
@@ -777,7 +779,7 @@ unsigned char testConect(void)
 	{
 		YIELD();
 		uart_flush();
-		
+
 		printf("%s\r\n------------------[netbuf]------------------", netbuf);
 		puts("[testConect(void)]\r\n[count1 == NULL]");
 		return 0;
