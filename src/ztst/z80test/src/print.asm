@@ -69,7 +69,8 @@ printchr:   push    iy
             ld      iy,0x5c3a   ; ERR-NR
             push    de
             push    bc
-            exx
+            ;exx
+            nop
 
 ;            ei
 ;            ; out     (0xff),a
@@ -77,7 +78,9 @@ printchr:   push    iy
 ;            di
             call    EMU_RST_10
 
-            exx
+            ;exx
+            nop
+
             pop     bc
             pop     de
             pop     iy
