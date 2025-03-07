@@ -19,11 +19,29 @@ zexdoc and zexall tests are known to pass on Z84C0020 (cmos), Z0840008 (nmos), l
 When these tests pass, all lines of their output are OK and there should be no CRC mismatches.
 
 
+============
+= Z80TESTS =
+============
+
+there's plenty of tests:
+z80ccf.com
+z80doc.com
+z80docflags.com
+z80flags.com
+z80full.com
+z80memptr.com
+
+Among them, z80doc and z80docflags should pass except for probably any IN* insns.
+The latter require port FF to always read FF and port FE to always read BF. The tests check that and do not report 'failed CRC' if it is not the case.
+
+All other tests test different undoc features of Z80.
 
 
 ===========
 = Changes =
 ===========
+
+2025.03.08: added working z80tests by Patrik Rak
 
 2025.03.01: added working zexdoc.com
 

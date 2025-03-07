@@ -5,7 +5,7 @@
 ; This source code is released under the MIT license, see included license.txt.
 
         DEVICE ZXSPECTRUM128
-        include "../../_sdk/sys_h.asm"
+        include "../_sdk/sys_h.asm"
 
 DST_ADDR=0x8000
 STK_ADDR=0xFFFD
@@ -98,5 +98,5 @@ EMU_RST_10:	;iy,de,bc are already pushed
 		exa
 		ret
 
-        include "../../_sdk/stdio.asm"
+        include "../_sdk/stdio.asm"
 
