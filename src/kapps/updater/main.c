@@ -821,7 +821,7 @@ void binUpdate(void)
 	AT(cw.x + 2, cw.y + 10);
 	printf(">To full update start 'updater.com F'<");
 
-	OS_SHELL("time2 >updlog.txt");
+	//OS_SHELL("time2 >updlog.txt");
 
 	AT(cw.x + 2, cw.y + 3);
 	printf("1.Downloading bin.zip...");
@@ -974,7 +974,7 @@ C_task main(int argc, char *argv[])
 	clearStatus();
 	infoBox("System Updated successfully!");
 	delay(2000);
-	OS_SHELL("time2 >>updlog.txt");
+	//OS_SHELL("time2 >>updlog.txt");
 	// getchar();
 	// OS_DELETE("release.zip");
 	ATRIB(40);
