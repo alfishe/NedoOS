@@ -210,7 +210,7 @@ void drawWindow(struct window w)
 	printf("%s", w.tittle);
 }
 
-void fatalError(unsigned char *message)
+void fatalError(const unsigned char *message)
 {
 	strcpy(cw.tittle, "FATAL ERROR!");
 
@@ -236,7 +236,7 @@ void fatalError(unsigned char *message)
 	exit(0);
 }
 
-void infoBox(unsigned char *message)
+void infoBox(const unsigned char *message)
 {
 	strcpy(cw.tittle, "nedoOS system updater ");
 	strcat(cw.tittle, uVer);
@@ -259,7 +259,7 @@ void infoBox(unsigned char *message)
 	AT(1, 1);
 }
 
-unsigned char OS_SHELL(unsigned char *command)
+unsigned char OS_SHELL(const unsigned char *command)
 {
 	unsigned char fileName[] = "bin/cmd.com";
 	unsigned char appCmd[128] = "cmd.com ";
@@ -406,7 +406,7 @@ unsigned int cutHeader(unsigned int todo)
 	}
 	return todo - headlng;
 }
-unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
+unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 {
 	int todo;
 	char socket, firstPacket, key;
@@ -414,8 +414,8 @@ unsigned char getFile(unsigned char *fileLink, unsigned char *fileNamePtr)
 	unsigned long downloaded = 0;
 
 	unsigned char sizeLink;
-	unsigned char byte, count = 0, try = 0;
-	unsigned char *count1;
+	unsigned char byte, count, try;
+	const unsigned char *count1;
 
 	strcpy(netbuf, "GET ");
 	strcat(netbuf, fileLink);
@@ -617,7 +617,7 @@ unsigned char ren2old(unsigned char *name)
 	}
 	return counter;
 }
-
+/*
 void ren2tar(void)
 {
 	unsigned int counter = 2400;
@@ -633,7 +633,8 @@ void ren2tar(void)
 		}
 	} while (errn != 0);
 }
-
+*/
+/*
 void ren2bin(void)
 {
 	unsigned char counter = 20;
@@ -649,7 +650,7 @@ void ren2bin(void)
 		}
 	} while (errn != 0);
 }
-
+*/
 void restoreConfig(unsigned char oldBinExt)
 {
 	unsigned char count;
@@ -770,7 +771,7 @@ void fullUpdate(void)
 
 unsigned char testConect(void)
 {
-	unsigned char *count1;
+	const unsigned char *count1;
 	sendcommand("AT+CIPSTART=\"TCP\",\"nedoos.ru\",80");
 	getAnswer2(); // CONNECT or ERROR or link is not valid
 	count1 = strstr(netbuf, "CONNECT");
@@ -886,7 +887,7 @@ void binUpdate(void)
 	printf("5.Restoring configs...");
 }
 
-C_task main(int argc, char *argv[])
+C_task main(int argc, const char *argv[])
 {
 	unsigned char test;
 	os_initstdio();

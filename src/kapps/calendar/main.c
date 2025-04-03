@@ -118,7 +118,7 @@ void readClock(void)
 	clock.year = (dosTime >> 25 & 63) + 1980;
 }
 
-void calendarBox(struct window w, unsigned char *message)
+void calendarBox(struct window w, const unsigned char *message)
 {
 	unsigned char wcount, tempx, tittleStart;
 
@@ -557,13 +557,13 @@ void clearHolidays(void)
 char readParamFromIni(void)
 {
 	FILE *fpini;
-	char skip2end = false;
-	unsigned int count = 0;
-	unsigned long loop;
+	//char skip2end = false;
+	//unsigned int count = 0;
+	//unsigned long loop = 0;
 	unsigned char *count1;
 
-	char useProdCalendar[] = "useProdCalendar";
-	char currentCountry[] = "currentCountry";
+	const char useProdCalendar[] = "useProdCalendar";
+	const char currentCountry[] = "currentCountry";
 
 	OS_GETPATH((unsigned int)&curPath);
 	OS_SETSYSDRV();
@@ -582,7 +582,7 @@ char readParamFromIni(void)
 	OS_READHANDLE(calbuf, fpini, 512);
 	OS_CLOSEHANDLE(fpini);
 
-	calbuf[loop + 1] = 0;
+	//calbuf[loop + 1] = 0;
 
 	count1 = strstr(calbuf, useProdCalendar);
 	if (count1 != NULL)
@@ -606,9 +606,9 @@ char loadProdCalDisk(int year)
 {
 	FILE *fpdat;
 	unsigned long loaded, total = 0;
-	int lineYear = 0;
-	int lineMonth = 0;
-	int lineDay = 0;
+	//int lineYear = 0;
+	//int lineMonth = 0;
+	//int lineDay = 0;
 	odoa = 12;
 	clearStatus();
 	printf("Загрузка производственного кадендаря с диска на %d год", year);
@@ -766,7 +766,7 @@ char fillBuffer(signed char socket)
 	return true;
 }
 
-unsigned char loadProdCalNet(int year, char *country)
+unsigned char loadProdCalNet(int year, const char *country)
 {
 	int todo;
 	char socket;
@@ -790,14 +790,14 @@ unsigned char loadProdCalNet(int year, char *country)
 	return 2;
 }
 
-unsigned char loadProdCalEsp(int year, char *country)
+unsigned char loadProdCalEsp(int year, const char *country)
 {
 	unsigned char sizeLink = 0;
 	unsigned long downloaded = 0;
 	unsigned char byte, count = 0, try = 0;
-	unsigned int dataSize = 0;
+	unsigned int dataSize;
 	unsigned char skipHeader = 0;
-	unsigned char *count1;
+	const unsigned char *count1;
 	odoa = 11;
 
 	sprintf(curPath, "GET /data/%s/%d/calendar.txt HTTP/1.1\r\n%s", country, year, userAgent);

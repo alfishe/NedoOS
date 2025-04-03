@@ -28,7 +28,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "1.2";
+unsigned char uVer[] = "1.3";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
@@ -961,7 +961,7 @@ void errNoConnect(void)
 char getFileEsp(unsigned char *fileNamePtr)
 {
 	int todo;
-	unsigned char *count1;
+	const unsigned char *count1;
 	unsigned char byte;
 	unsigned long downloaded = 0;
 	unsigned int count;
@@ -1072,12 +1072,12 @@ char getFileNet(unsigned char *fileNamePtr)
 		return false;
 	}
 	todo = netConnect(socket, 1);
-	if (socket < 0)
+	if (todo < 0)
 	{
 		return false;
 	}
 	todo = tcpSend(socket, (unsigned int)&link.path, strlen(link.path), 1);
-	if (socket < 0)
+	if (todo < 0)
 	{
 		return false;
 	}
@@ -1205,7 +1205,7 @@ char extractName(void)
 {
 	unsigned int counter, counter2 = 0, lng, byte, source;
 	unsigned char ext2[128];
-	unsigned char *count1;
+	const unsigned char *count1;
 
 	lng = strlen(link.path);
 
@@ -1300,7 +1300,7 @@ unsigned char mediaProcessorExt(void)
 	unsigned char extLow[4];
 	unsigned char extUp[4];
 	unsigned char byte;
-	unsigned char *count1;
+	const unsigned char *count1;
 	unsigned int counter, counter2, next, curPosition;
 	int n;
 
@@ -1336,7 +1336,7 @@ unsigned char mediaProcessorExt(void)
 	curPosition = 0;
 	do
 	{
-		n = -1;
+		//n = -1;
 		n = pos(nvext, extLow, next, curPosition);
 		curPosition = n;
 		if (n == -1)

@@ -34,7 +34,7 @@ unsigned char userQuery[256] = "/api/export:zxMusic/limit:10/filter:zxMusicId=44
 unsigned char fileName[] = "radio/player.ovl";
 unsigned char appCmd[128] = "player.com ";
 unsigned char curPath[128];
-unsigned char ver[] = "3.4";
+unsigned char ver[] = "3.5";
 
 unsigned char queryType[64];
 unsigned char netbuf[4096];
@@ -57,7 +57,6 @@ unsigned char saveFlag, saveBak, rptFlag, netDriver, changedFormat;
 unsigned char status, key, curFormat;
 union APP_PAGES main_pg;
 union APP_PAGES player_pg;
-unsigned int loaded;
 unsigned int headlng;
 unsigned char cutOff = 1;
 int remainTime;
@@ -93,7 +92,7 @@ struct window
   unsigned char back;
   unsigned char tittle[80];
 } curWin;
-
+/*
 void writeLog(char *logline)
 {
   FILE *LogFile;
@@ -112,7 +111,8 @@ void writeLog(char *logline)
   OS_WRITEHANDLE(logline, LogFile, strlen(logline));
   OS_CLOSEHANDLE(LogFile);
 }
-
+*/
+/*
 void delay(unsigned long counter)
 {
   unsigned long start, finish;
@@ -129,7 +129,7 @@ void delay(unsigned long counter)
     start = time();
   }
 }
-
+*/
 void spaces(unsigned char number)
 {
   while (number > 0)
@@ -146,7 +146,7 @@ void clearStatus(void)
   spaces(79);
   putchar('\r');
 }
-
+/*
 void clearNetbuf(void)
 {
   int counter = 0;
@@ -155,11 +155,11 @@ void clearNetbuf(void)
     netbuf[counter] = 0;
   }
 }
-
+*/
 void printProgress(const char type)
 {
   unsigned char bar, minutes, seconds;
-  unsigned char *position;
+  const unsigned char *position;
   long barLenght;
   int timer;
   switch (type)
@@ -167,7 +167,7 @@ void printProgress(const char type)
   case 0: // print empty bar
     OS_SETXY(5, 10);
     OS_SETCOLOR(70);
-    printf("%02u:%02u", 0, 0);
+    printf("%02d:%02d", 0, 0);
     OS_SETXY(14, 10);
     OS_SETCOLOR(71);
     for (bar = 0; bar < 50; bar++)
@@ -188,7 +188,7 @@ void printProgress(const char type)
     OS_SETXY(5, 10);
     OS_SETCOLOR(70);
     timer = floor(curFileStruct.curPos / 60);
-    printf("%02u:%02u", timer, (curFileStruct.curPos - (timer * 60)));
+    printf("%02d:%02u", timer, (curFileStruct.curPos - (timer * 60)));
 
     barLenght = (curFileStruct.curPos * 50 / curFileStruct.trackInSeconds);
     if (barLenght > 49)
@@ -266,11 +266,11 @@ void printInfo(void)
   OS_SETCOLOR(70);
   printf(" #: ");
   OS_SETCOLOR(71);
-  printf("%lu", count);
+  printf("%ld", count);
   OS_SETCOLOR(70);
   printf(" ID: ");
   OS_SETCOLOR(71);
-  printf("%lu", curFileStruct.picId);
+  printf("%ld", curFileStruct.picId);
   OS_SETCOLOR(70);
   printf(" Total Tracks: ");
   OS_SETCOLOR(71);
@@ -532,7 +532,7 @@ const char *parseJson(unsigned char *property)
   unsigned int w, lng, lngp1, findEnd, listPos;
   unsigned char terminator;
   int n;
-  n = -1;
+  //n = -1;
   netbuf[0] = 0;
   n = pos(dataBuffer, property, 1, 0);
   if (n == -1)
@@ -717,7 +717,7 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
 
       if (strlen(curFileStruct.fileName) > 63)
       {
-        sprintf(fileIdChar, "-%ld", fileId);
+        sprintf(fileIdChar, "-%lu", fileId);
         str_replace(curFileStruct.fileName, sizeof(curFileStruct.fileName) - 1, curFileStruct.fileName, fileIdChar, "");
         curFileStruct.fileName[50] = '\0';
         strcat(curFileStruct.fileName, fileIdChar);
@@ -802,7 +802,7 @@ char getDataNet(void)
       }
     }
 
-    if (downloaded + todo > sizeof(dataBuffer - 1))
+    if ((downloaded + todo) > (sizeof(dataBuffer) - 1))
     {
       clearStatus();
       printf("dataBuffer overrun...");
@@ -822,7 +822,7 @@ unsigned int getDataEsp(void)
   unsigned long downloaded;
   unsigned char byte, countl = 0;
   unsigned int todo, sizeLink;
-  unsigned char *count1;
+  const unsigned char *count1;
 
   strcpy(link, netbuf);
   sizeLink = strlen(link);
@@ -890,7 +890,8 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
 {
   FILE *fp3;
   unsigned int tSize;
-  unsigned char *countl, result;
+  const unsigned char *countl;
+  unsigned char result;
   clearStatus();
   printf("Getting data(%u)...", queryNum);
 
@@ -1016,129 +1017,12 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   }
   return curFileStruct.picId;
 }
-/*
-unsigned char getTrack2(unsigned long fileId)
-{
-  int todo;
-  char socket;
-  unsigned int packSize = 2000;
-  unsigned long downloaded, firstPacket;
-  unsigned char try = 0, byte = 0;
-  unsigned int countl;
-  unsigned char *count1;
-  clearStatus();
-  printf("Getting track...");
-  sprintf(netbuf, "GET /file/id:%lu%s", fileId, userAgent);
-  if (netDriver == 0)
-  {
-    socket = OpenSock(AF_INET, SOCK_STREAM);
-    clearStatus();
-    testOperation("OS_NETSOCKET", socket);
 
-    todo = netConnect(socket, 10);
-    testOperation("OS_NETCONNECT", todo);
-
-    todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), 10);
-    testOperation("OS_WIZNETWRITE", todo);
-    saveBuf(curFileStruct.picId, 00, 0);
-    downloaded = 0;
-    firstPacket = true;
-    do
-    {
-      headlng = 0;
-      // clearNetbuf();
-      todo = tcpRead(socket, 10);
-      testOperation("OS_WIZNETREAD", todo);
-
-      if (todo == 0)
-      {
-        break;
-      }
-
-      if (firstPacket)
-      {
-        todo = cutHeader(todo);
-        firstPacket = false;
-        if (curFileStruct.httpErr != 200)
-        {
-          netShutDown(socket, 1);
-          return false;
-        }
-      }
-      saveBuf(curFileStruct.picId, 01, todo);
-      downloaded = downloaded + todo;
-    } while (downloaded < contLen);
-    netShutDown(socket, 0);
-  }
-  else
-  {
-    strcpy(link, netbuf);
-    saveBuf(curFileStruct.picId, 00, 0);
-    do
-    {
-      sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
-      getAnswer2(); // CONNECT or ERROR or link is not valid
-      count1 = strstr(netbuf, "CONNECT");
-    } while (count1 == NULL);
-
-    getAnswer2(); // OK
-
-    sprintf(cmd, "AT+CIPSEND=%u", strlen(link) + 2); // second CRLF in send command
-    sendcommand(cmd);
-    getAnswer2();
-
-    do
-    {
-      byte = uart_readBlock();
-      // putchar(byte);
-    } while (byte != '>');
-    sendcommand(link);
-    countl = 0;
-
-    do
-    {
-      byte = uart_readBlock();
-      if (byte == sendOk[countl])
-      {
-        countl++;
-      }
-      else
-      {
-        countl = 0;
-      }
-    } while (countl < strlen(sendOk));
-    uart_readBlock(); // CR
-    uart_readBlock(); // LF
-    downloaded = 0;
-    firstPacket = true;
-    do
-    {
-      headlng = 0;
-      todo = recvHead();
-      getdataEsp(todo); // Requested size
-      if (firstPacket)
-      {
-        todo = cutHeader(todo);
-        firstPacket = false;
-      }
-      downloaded = downloaded + todo;
-      saveBuf(curFileStruct.picId, 01, todo);
-    } while (downloaded < contLen);
-    sendcommand("AT+CIPCLOSE");
-    getAnswer2(); // CLOSED
-    getAnswer2(); // OK
-    saveBuf(curFileStruct.picId, 02, 0);
-  }
-  return true;
-}
-*/
 unsigned char getTrack2Net(unsigned long fileId)
 {
   int todo;
   char socket;
-  unsigned int packSize = 2000;
   unsigned long downloaded, firstPacket;
-  unsigned char try = 0, byte = 0;
   clearStatus();
   printf("Getting track...");
   sprintf(netbuf, "GET /file/id:%lu%s", fileId, userAgent);
@@ -1186,11 +1070,10 @@ unsigned char getTrack2Net(unsigned long fileId)
 unsigned char getTrack2Esp(unsigned long fileId)
 {
   int todo;
-  unsigned int packSize = 2000;
   unsigned long downloaded, firstPacket;
-  unsigned char try = 0, byte = 0;
+  unsigned char byte;
   unsigned int countl;
-  unsigned char *count1;
+  const unsigned char *count1;
   clearStatus();
   printf("Getting track...");
   sprintf(netbuf, "GET /file/id:%lu%s", fileId, userAgent);
@@ -1205,7 +1088,7 @@ unsigned char getTrack2Esp(unsigned long fileId)
 
   getAnswer2(); // OK
 
-  sprintf(cmd, "AT+CIPSEND=%u", strlen(link) + 2); // second CRLF in send command
+  sprintf(cmd, "AT+CIPSEND=%d", strlen(link) + 2); // second CRLF in send command
   sendcommand(cmd);
   getAnswer2();
 
@@ -1276,7 +1159,7 @@ int getTrack3(long iddqd)
   if (errn < 0)
   {
     clearStatus();
-    printf("[%u]Error getting track, next please(%ld)...", curFileStruct.httpErr, errn);
+    printf("[%u]Error getting track, next please(%d)...", curFileStruct.httpErr, errn);
   }
   return errn;
 }
@@ -1291,7 +1174,6 @@ unsigned char runPlayer(void)
   sprintf(appCmd, "player.com %s", curFileStruct.fileName);
   player_pg.l = OS_GETMAINPAGES();
   pgbak = main_pg.pgs.window_3;
-  loaded = 0;
   loop = 0;
   OS_GETPATH((unsigned int)&curPath);
   OS_SETSYSDRV();
@@ -1344,7 +1226,7 @@ long trackSelector(unsigned char mode)
   }
   return count;
 }
-
+/*
 unsigned char testPlayer(void)
 {
   union APP_PAGES player2_pg;
@@ -1358,7 +1240,8 @@ unsigned char testPlayer(void)
     return 0;
   }
 }
-
+*/
+/*
 void infoBox(struct window w, const char *message)
 {
   unsigned char wcount, tempx, tittleStart;
@@ -1400,7 +1283,7 @@ void infoBox(struct window w, const char *message)
   OS_SETXY(tittleStart, w.y + 1);
   printf("%s", message);
 }
-
+*/
 /*
 char optionsMenu(void)
 {
@@ -1454,7 +1337,7 @@ void refreshQueryNames(int queryNum)
   }
 }
 
-C_task main(int argc, char *argv[])
+C_task main(int argc, const char *argv[])
 {
   unsigned char errn, keypress, pId;
   long iddqd, idkfa;
@@ -1548,7 +1431,7 @@ start:
   if (idkfa < 0)
   {
     clearStatus();
-    printf("Error getting author info %lu", atol(curFileStruct.authorIds));
+    printf("Error getting author info %ld", atol(curFileStruct.authorIds));
     strcpy(curFileStruct.authorTitle, "-");
     strcpy(curFileStruct.authorRealName, "-");
   }

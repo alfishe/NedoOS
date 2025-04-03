@@ -59,7 +59,7 @@ struct sockaddr_in dnsaddress;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 
-unsigned char ver[] = "3.9";
+unsigned char ver[] = "4.0";
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
@@ -110,7 +110,7 @@ void quit(void)
   OS_SETGFX(-1);
   exit(0);
 }
-
+/*
 void infoBox(struct window w, const char *message)
 {
   unsigned char wcount, tempx, tittleStart;
@@ -152,7 +152,7 @@ void infoBox(struct window w, const char *message)
   OS_SETXY(tittleStart, w.y + 1);
   printf("%s", message);
 }
-
+*/
 void printHelp(void)
 {
   OS_SETCOLOR(67);
@@ -282,11 +282,11 @@ char *str_replace(char *dst, int num, const char *str, const char *orig, const c
 
 char fillPictureEsp(void)
 {
-  unsigned char sizeLink = 0;
-  unsigned long downloaded = 0;
-  unsigned char byte, countl = 0;
-  unsigned int todo = 0;
-  unsigned char *count1;
+  unsigned char sizeLink;
+  unsigned long downloaded;
+  unsigned char byte, countl;
+  unsigned int todo;
+  const unsigned char *count1;
   unsigned char firstPacket;
   strcpy(link, netbuf);
   sizeLink = strlen(link);
@@ -539,7 +539,7 @@ const char *parseJson(unsigned char *property)
   unsigned int w, lng, lngp1, findEnd, listPos;
   unsigned char terminator;
   int n;
-  n = -1;
+  //n = -1;
   // netbuf[0] = '\0';
   n = pos(picture, property, 1, 0);
   if (n == -1)
@@ -652,7 +652,8 @@ void convert866(void)
 long processJson(unsigned long startPos, unsigned char limit, unsigned char queryNum)
 {
   unsigned int tSize;
-  unsigned char *count1, result;
+  const unsigned char *count1;
+  unsigned char result;
   switch (queryNum)
   {
   case 0:
@@ -1175,7 +1176,7 @@ start:
     idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
     if (idkfa < 0)
     {
-      printf("[%u]Error can't parse authorIds(%s). Next picture, please(%ld)...\r\n", curFileStruct.httpErr, curFileStruct.authorIds);
+      printf("[%u]Error can't parse authorIds(%s). Next picture, please...\r\n", curFileStruct.httpErr, curFileStruct.authorIds);
       count++;
       delayLong(500);
       goto start;
@@ -1183,12 +1184,12 @@ start:
   }
   if (strcmp(curFileStruct.picType, "standard") != 0)
   {
-    printf("[%u]Error format '%s' not supported. Next picture, please.\n\r", curFileStruct.picType);
+    printf("[%u]Error format '%s' not supported. Next picture, please.\n\r", curFileStruct.httpErr, curFileStruct.picType);
     delayLong(500);
     count++;
     goto start;
   }
-  sprintf(netbuf, "GET /file/id:%lu%s", iddqd, userAgent);
+  sprintf(netbuf, "GET /file/id:%ld%s", iddqd, userAgent);
   switch (netDriver)
   {
   case 0:
@@ -1201,7 +1202,7 @@ start:
 
   if (result == -1) // return HTTP error != 200
   {
-    printf("[%u]Error getting pic. Next picture, please(%ld)...\r\n", curFileStruct.httpErr, result);
+    printf("[%u]Error getting pic. Next picture, please...\r\n", curFileStruct.httpErr);
     count++;
     delayLong(500);
     goto start;
