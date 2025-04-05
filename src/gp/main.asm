@@ -11,7 +11,7 @@ FILE_NAME_OFFSET = FILE_DISPLAY_INFO_OFFSET+FILE_DISPLAY_INFO_SIZE
 FILE_NAME_SIZE = SFN_SIZE
 FILE_ATTRIB_OFFSET = FILE_NAME_OFFSET+FILE_NAME_SIZE
 FILE_ATTRIB_SIZE = 1
-BROWSER_FILE_COUNT=158
+BROWSER_FILE_COUNT=152
 PLAYLIST_FILE_COUNT=40
 PANELCOLOR = 0x4f
 CURSORCOLOR = 0x28
@@ -56,6 +56,7 @@ mainbegin
 	call loadsettings
 	call detectmoonsound
 	call detecttfm
+	call detectopm
 	call loadplayers
 	jp nz,printerrorandexit
 
@@ -1109,17 +1110,22 @@ detectingmoonsoundstr
 	db "Detecting MoonSound...",0
 detectingtfmstr
 	db "Detecting TurboSound FM...",0
+detectingopmstr
+	db "Detecting OPM...",0
 notfoundstr
 	db "no device!\r\n",0
 foundstr
 	db "found!\r\n",0
+bomgemoonstr
+	db "OPL3\r\n",0
 rom001200
 	db "Copyright"
 loadingstr
 	db "LOADING...",0
 firmwareerrorstr
 	db "firmware problem!\r\nPlease update ZXM-MoonSound firmware to revision 1.01\r\n"
-	db "https://www.dropbox.com/s/1e0b2197emrhzos/zxm_moonsound01_frm0101.zip",0
+	db "https://www.dropbox.com/s/1e0b2197emrhzos/zxm_moonsound01_frm0101.zip\r\n"
+	db "Or set BomgeMoon=1 in bin\\gp\\gp.ini to skip OPL4 ports detection.",0
 hotkeystr
 	db "Arrows=Navigate  Enter=Play  Tab=Panel  Space=Add/Remove  S=Save Playlist",0
 drivedata
@@ -1180,20 +1186,26 @@ devicetfm
 	db "TurboSound FM",0
 devicemoonsound
 	db "MoonSound",0
+devicebomgemoon
+	db "BomgeMoon",0
 devicegs
 	db "GeneralSound",0
 deviceneogs
 	db "NeoGS",0
 devicemidiuart
 	db "MIDI UART",0
+deviceopm
+	db "YM2151",0
 devicelist
 	dw deviceay
 	dw deviceturbosound
 	dw devicetfm
+.moonsoundstraddr
 	dw devicemoonsound
 	dw devicegs
 	dw deviceneogs
 	dw devicemidiuart
+	dw deviceopm
 
 loadplayer
 ;de = code size
@@ -1279,6 +1291,16 @@ loadplayers
 	xor a
 	ret
 
+isbomgemoon
+;output: zf=0 is BomgeMoon flag is set
+	ld hl,(bomgemoonsettings)
+	ld a,l
+	or h
+	ret z
+	ld a,(hl)
+	cp '0'
+	ret
+
 detectmoonsound
 	ld hl,detectingmoonsoundstr
 	call print_hl
@@ -1286,6 +1308,15 @@ detectmoonsound
 	ld hl,notfoundstr
 	jp nz,print_hl
 	call opl4init
+	call isbomgemoon
+	jr z,.detectwaveports
+	ld hl,devicebomgemoon
+	ld (devicelist.moonsoundstraddr),hl
+	ld a,1
+	ld (gpsettings.moonsoundstatus),a
+	ld hl,bomgemoonstr
+	jp print_hl
+.detectwaveports
 	ld bc,9
 	ld d,0
 	ld hl,0x1200
@@ -1308,9 +1339,9 @@ detectmoonsound
 	ld (hl),1
 	ld hl,firmwareerrorstr
 	call print_hl
-	;ld hl,pressanykeystr
-	;call print_hl
-	;YIELDGETKEYLOOP
+	ld hl,pressanykeystr
+	call print_hl
+	YIELDGETKEYLOOP
 	ret
 
 detecttfm
@@ -1321,6 +1352,17 @@ detecttfm
 	jp nz,print_hl
 	ld a,1
 	ld (gpsettings.tfmstatus),a
+	ld hl,foundstr
+	jp print_hl
+
+detectopm
+	ld hl,detectingopmstr
+	call print_hl
+	call isopmpresent
+	ld hl,notfoundstr
+	jp nz,print_hl
+	ld a,1
+	ld (gpsettings.opmstatus),a
 	ld hl,foundstr
 	jp print_hl
 
@@ -1388,6 +1430,7 @@ findnextchar
 	jr findnextchar
 
 gpsettings GPSETTINGS
+bomgemoonsettings dw 0
 
 settingsvars
 	db 0x19 : dw gpsettings.usemp3
@@ -1397,6 +1440,7 @@ settingsvars
 	db 0x26 : dw gpsettings.usemoonmod
 	db 0x7F : dw gpsettings.moonmoddefaultpanning
 	db 0x7A : dw gpsettings.midiuartdelayoverride
+	db 0x61 : dw bomgemoonsettings
 settingsvarcount=($-settingsvars)/3
 
 getfileextension
@@ -1653,6 +1697,7 @@ isfilesupported jumpindirect ISFILESUPPORTEDPROCADDR
 	include "common/radixsort.asm"
 	include "common/opl4.asm"
 	include "common/opn.asm"
+	include "common/opm.asm"
 
 trywritingmoonsoundfm1
 	djnz $
@@ -1728,6 +1773,41 @@ istfmpresent
 	ret nz
 ;there must be TFM in this system
 	call opnmute
+	xor a
+	ret
+
+trywritingopm0
+	dec a
+	jr nz,$-1
+	ld bc,OPN_REG
+	out (c),e
+	dec a
+	jr nz,$-1
+	ld bc,OPN_DAT
+	out (c),d
+	ret
+
+isopmpresent
+;check for non-zero as an early exit condition
+	ld bc,OPM0_REG
+	in a,(c)
+	or a
+	ret nz
+;start timer
+	ld de,0xff12
+	call trywritingopm0
+	ld de,0x2a14
+	call trywritingopm0
+;wait for the timer to finish
+	YIELD
+	YIELD
+;check the timer flags
+	ld bc,OPM0_REG
+	in a,(c)
+	cp 2
+	ret nz
+;there must be YM2151 in this system
+	call opmmute
 	xor a
 	ret
 

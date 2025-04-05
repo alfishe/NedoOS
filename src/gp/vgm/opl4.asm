@@ -16,8 +16,8 @@ opl4writemusiconlyfm2
 ;e = register
 ;d = value
 	ld a,e
-        cp 1
-        ret z        
+	cp 4
+	ret c
 	cp 5
 	ret z
 	jp opl4writefm2

@@ -973,13 +973,11 @@ s3mhandlecommandTN
 	ld b,(iy+S3MCHANNEL.patternloopcount)
 	inc b
 	cp b
-	jr c,.restartloop
+	jr nc,$+4
+	ld b,0
 	ld (iy+S3MCHANNEL.patternloopcount),b
 	ld a,(iy+S3MCHANNEL.patternloopstart)
 	jp s3msetnextstep
-.restartloop
-	ld (iy+S3MCHANNEL.patternloopcount),0
-	ret
 .doexteffC
 	ld a,(iy+S3MCHANNEL.tempcommand)
 	or a

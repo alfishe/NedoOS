@@ -12,8 +12,8 @@
 ;   GzipExitWithError
 ;   GzipThrowException
 ; Defines
-;   GzipBuffersStart
-;
+;   GzipOutputBuffersStart
+;   GzipWorkBuffersStart
 ;
 
 ; Read a single bit from the input.
@@ -3077,8 +3077,11 @@ SkipInc64:
 		inc hl
 		exx
 		xor e
+		add a,CRC32Table % 256
 		ld l,a
-		ld h,CRC32Table / 256
+		adc a,CRC32Table / 256
+		sub l
+		ld h,a
 		ld a,(hl)
 		xor d
 		ld e,a
@@ -3116,8 +3119,11 @@ CRC32Loop:	pop hl
 		ld a,l
 		exx
 		xor e
+		add a,CRC32Table % 256
 		ld l,a
-		ld h,CRC32Table / 256
+		adc a,CRC32Table / 256
+		sub l
+		ld h,a
 		ld a,(hl)
 		xor d
 		ld e,a
@@ -3136,8 +3142,11 @@ CRC32Loop:	pop hl
 		ld a,h
 		exx
 		xor e
+		add a,CRC32Table % 256
 		ld l,a
-		ld h,CRC32Table / 256
+		adc a,CRC32Table / 256
+		sub l
+		ld h,a
 		ld a,(hl)
 		xor d
 		ld e,a
@@ -3251,8 +3260,7 @@ FixedDistLen:	db 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5
 FixedDistCount:	equ $ - FixedDistLen
 
 
-; -- CRC32 lookup table, must be 256-byte aligned --
-		ds (256 - ($ & 255) & 255)
+; -- CRC32 lookup table --
 CRC32Table:	; uint32_t[256]
 		; bits 0-7
 		db #00, #96, #2c, #ba, #19, #8f, #35, #a3
@@ -3408,8 +3416,8 @@ HdrCodeLSize:	equ MAX_HEADER_LEN
 LLDCodeLSize:	equ MAX_LIT_LEN + MAX_DIST_LEN
 HeaderTreeSize:	equ (8 + 5) * (MAX_HEADER_LEN - 1)
 
-HdrCodeLengths:	equ GzipBuffersStart			; ds HdrCodeLSize
-LLDCodeLengths:	equ GzipBuffersStart			; ds LLDCodeLSize
+HdrCodeLengths:	equ GzipWorkBuffersStart		; ds HdrCodeLSize
+LLDCodeLengths:	equ GzipWorkBuffersStart		; ds LLDCodeLSize
 HeaderTree:	equ LLDCodeLengths + LLDCodeLSize	; ds HeaderTreeSize
 
 HeaderTreeEnd:	equ HeaderTree + HeaderTreeSize
@@ -3426,28 +3434,32 @@ CopySetLength:	equ LiteralTreeEnd
 DistanceTree:	equ CopySetLength + CopySLLen
 DistanceTreeEnd:equ DistanceTree + DistTreeSize
 
+Padding1:	equ (256 - ((DistanceTreeEnd) & 255)) & 255
+
+InputBufSize:	equ 8192
+InputBuffer:	equ DistanceTreeEnd + Padding1
+InputBufferEnd:	equ InputBuffer + InputBufSize
+
+GzipWorkBuffersEnd: equ InputBufferEnd
+
 ; -- Input and output file buffers
 ; These must be aligned at 256-byte boundary. OutputBuffer must be exactly
 ; 32kB. InputBuffer must be (any) multiple of 256 bytes, but bigger improves
 ; read performance.
-Padding:	equ (256 - ((DistanceTreeEnd) & 255)) & 255
+Padding2:	equ (256 - ((GzipOutputBuffersStart) & 255)) & 255
 
 OutputBufSize:	equ #8000	; _must_ be exactly 32kB
-OutputBuffer:	equ DistanceTreeEnd + Padding
+OutputBuffer:	equ GzipOutputBuffersStart + Padding2
 OutputBufEnd:	equ OutputBuffer + OutputBufSize
-
-InputBufSize:	equ 512
-InputBuffer:	equ OutputBufEnd
-InputBufferEnd:	equ InputBuffer + InputBufSize
 
 ; -- Huffman scratch area --
 ; Used while generating Huffman decoder.  TODO maybe overlap with 'Padding'?
 CountBufSize:	equ MAX_CODELENGTH * 2	; must be 256-byte aligned
-CountBuffer:	equ InputBufferEnd
+CountBuffer:	equ OutputBufEnd
 CountBufEnd:	equ CountBuffer + CountBufSize
 
 SortedBufSize:	equ 4 * MAX_LIT_LEN + 1
 SortedBuffer:	equ CountBufEnd
 SortedBufEnd:	equ SortedBuffer + SortedBufSize
 
-GzipBuffersEnd:	equ SortedBufEnd
+GzipOutputBuffersEnd:	equ SortedBufEnd

@@ -32,8 +32,9 @@ usevgm dw 0
 usemoonmod dw 0
 moonmoddefaultpanning dw 0
 midiuartdelayoverride dw 0
-moonsoundstatus ds 1 ; 0 - no device, 1 - MoonSound with old firmware (wave ports not working), 2 - MoonSound OK
+moonsoundstatus ds 1 ; 0 - no device, 1 - BomgeMoon or MoonSound with old firmware (wave ports not working), 2 - MoonSound OK
 tfmstatus ds 1 ; 0 - no device, 1 - found TFM
+opmstatus ds 1 ; 0 - no device, 1 - found OPM
 	ends
 
 DEVICE_AY_BIT         = 0
@@ -43,6 +44,7 @@ DEVICE_MOONSOUND_BIT  = 3
 DEVICE_GS_BIT         = 4
 DEVICE_NEOGS_BIT      = 5
 DEVICE_MIDI_UART_BIT  = 6
+DEVICE_OPM_BIT        = 7
 
 DEVICE_AY_MASK         = 1<<DEVICE_AY_BIT
 DEVICE_TURBOSOUND_MASK = 1<<DEVICE_TURBOSOUND_BIT
@@ -51,3 +53,4 @@ DEVICE_MOONSOUND_MASK  = 1<<DEVICE_MOONSOUND_BIT
 DEVICE_GS_MASK         = 1<<DEVICE_GS_BIT
 DEVICE_NEOGS_MASK      = 1<<DEVICE_NEOGS_BIT
 DEVICE_MIDI_UART_MASK  = 1<<DEVICE_MIDI_UART_BIT
+DEVICE_OPM_MASK        = 1<<DEVICE_OPM_BIT

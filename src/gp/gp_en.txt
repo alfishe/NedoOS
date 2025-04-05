@@ -1,4 +1,5 @@
-gp.com - Player for AY8910, GeneralSound, NeoGS, MoonSound, TurboSound, MultiSound
+gp.com - Player for AY8910, GeneralSound, NeoGS, MoonSound/BomgeMoon, TurboSound,
+	MultiSound, YM2151
 
 Supported formats:
  - mp3  NeoGS
@@ -6,7 +7,8 @@ Supported formats:
         MIDI UART connected to AY port A.2 (e.g. MultiSound)
  - ogg  NeoGS rev.CM with VLSI VS1053/VS1063 decoder chip
  - aac  NeoGS rev.CM with VLSI VS1033/VS1053/VS1063 decoder chip
- - vgm  AY, MoonSound (chips YM3812, YMF262, YMF278B), TurboSound FM (2x YM2203)
+ - vgm  AY, MoonSound (chips YM3526, YM3812, YMF262, YMF278B),
+	TurboSound FM (2x YM2203), YM2151
  - vgz  same as vgm
  - mwm  MoonSound
  - pt2  AY
@@ -35,6 +37,11 @@ Firmware 1.01 is fully backwards compatible with 1.0.
 If you're running NedoOS on a hardware other than ZX-Evolution (e.g. ATM), 
 you can get OPL4 working with the firmware 1.0. You'd need to recompile the
 player changing MOON_WREG = 0xc2 to MOON_WREG = 0x7e in moonsound.asm
+
+Please set parameter value BomgeMoon=1 in the config file bin\gp\gp.ini
+if you have OPL3-only sound card, such as BomgeMoon. This prevents
+the player from trying to detect OPL4 ports, which are unavailable on 
+your sound card.
 
 Wavekits for MoonBlaster modules (.mwm)
 
@@ -72,6 +79,11 @@ formats is how notes are structured. Unfortunately, this player doesn't convert
 MIDI to SMF 0 automatically, so you'd have to convert MIDI files to SMF 0 
 offline using GN1:0 MIDI Converter (or a similar program)
 http://www.gnmidi.com/gn1to0.zip
+
+YM2151
+
+This player supports a prototype board that hosts two YM2151 chips accessible
+via ports f0c1/f1c1 (chip 1), and f2c1/f3c1 (chip 2).
 
 Collections of chiptunes and tracker music
 

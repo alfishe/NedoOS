@@ -1,4 +1,5 @@
-gp.com - Проигрыватель для AY8910, GeneralSound, NeoGS, MoonSound, TurboSound, MultiSound
+gp.com - Проигрыватель для AY8910, GeneralSound, NeoGS, MoonSound/BomgeMoon, TurboSound,
+	MultiSound, YM2151
 
 Поддерживаемые форматы:
  - mp3  NeoGS
@@ -6,7 +7,8 @@ gp.com - Проигрыватель для AY8910, GeneralSound, NeoGS, MoonSound, TurboSound, M
         MIDI UART подключённый к AY порт A.2 (напр. MultiSound)
  - ogg  NeoGS rev.CM с декодером VLSI VS1053/VS1063
  - aac  NeoGS rev.CM с декодером VLSI VS1033/VS1053/VS1063
- - vgm  AY, MoonSound (чипы YM3812, YMF262, YMF278B), TurboSound FM (2x YM2203)
+ - vgm  AY, MoonSound (чипы YM3526, YM3812, YMF262, YMF278B),
+	TurboSound FM (2x YM2203), YM2151
  - vgz  аналогично vgm
  - mwm  MoonSound
  - pt2  AY
@@ -36,6 +38,10 @@ https://www.dropbox.com/s/hzcj8wbmion3d3g/zxm_moonsound01_src0101.zip
 Если вы используете NedoOS на компьютере отличном от ZX-Evolution (например АТМ),
 то OPL4 будет работать и на прошивке 1.0, но надо пересобрать плеер заменив
 MOON_WREG = 0xc2 на MOON_WREG = 0x7e в файле moonsound.asm
+
+Если у вас в компьютере стоит OPL3 карта, например BomgeMoon, то установите
+параметр BomgeMoon=1 в файле конфигурации bin\gp\gp.ini чтобы плеер не
+пытался определять несуществующие на данной карте OPL4 порты.
 
 Загрузка семплов для MoonBlaster модулей (.mwm)
 
@@ -76,6 +82,11 @@ SMF 2 невозможно загружать потоком. Основное различие между форматами в том,
 файлы в SMF 0 автоматически. Воспользуйтесь для конверсии сторонними программами,
 такими как GN1:0 MIDI Converter
 http://www.gnmidi.com/gn1to0.zip
+
+YM2151
+
+Этот плеер поддерживает прототип звуковой карты с двумя YM2151 на борту, доступных
+через порты f0c1/f1c1 (чип 1) и f2c1/f3c1 (чип 2).
 
 Ресурсы с чиптюнами и трекерной музыкой
 

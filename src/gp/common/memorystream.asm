@@ -4,17 +4,18 @@ memorystreamloadfile
 ;configurable params:
 ; .pagestoload <= MEMORYSTREAMMAXPAGES
 ; .errormask = 0xff to require loading the entire file into memory, 0x00 if only [pagestoload] needed
+;ON_DATA_LOADED_CALLBACK defines label called upon every page load
 	call openstream_file
 	or a
 	ret nz
-	ld hl,memorystreampages
-	ld (memorystreampageaddr),hl
 	ld hl,0
 	ld de,hl
 	ld c,l
 .pagestoload=$+1
 	ld b,MEMORYSTREAMMAXPAGES
 .loadloop
+	ld a,c
+	ld (.pageindex),a
 	push bc
 	push de
 	push hl
@@ -26,23 +27,44 @@ memorystreamloadfile
 	pop bc
 	jr .breakloop
 .pageallocated
-	ld hl,(memorystreampageaddr)
+.pageindex=$+1
+	ld a,0
+	add a,memorystreampages%256
+	ld l,a
+	adc a,memorystreampages/256
+	sub l
+	ld h,a
 	ld (hl),e
 	inc hl
 	ld (memorystreampageaddr),hl
 	ld a,e
+	ld (memorystreamcurrentpage),a
 	SETPG8000
 	ld de,0x8000
 	ld hl,0x4000
 	call readstream_file
 	ex (sp),hl
 	pop bc
-	add hl,bc
 	pop de
+	add hl,bc
 	jr nc,$+3
 	inc e
 	ld a,b
 	pop bc
+	ifdef ON_DATA_LOADED_CALLBACK
+	push hl,de,bc,af
+	res 6,h
+	set 7,h
+	and 0x40
+	jr z,$+5
+	ld hl,0xc000
+	ld (memorystreamcurrentaddr),hl
+	call ON_DATA_LOADED_CALLBACK
+	pop bc
+	ld a,b
+	pop bc,de,hl
+	jr nz,.breakloop
+	endif
 	inc c
 	and 0x40
 	jr z,.breakloop
@@ -79,8 +101,7 @@ memorystreamallocate
 	cp b
 	ret c
 	ld hl,memorystreampages
-.loop
-	push bc
+.loop	push bc
 	push hl
 	OS_NEWPAGE
 	pop hl
@@ -105,20 +126,33 @@ memorystreamfree
 ;out: zf=0 so that this function can be used to return error condition
 memorystreampagecount=$+1
 	ld a,0
+	call memorystreamfreecustompagecount
+	or 1
+	ret
+
+memorystreamfreecustompagecount
+;a = page count
+;UNUSED_PAGE_ADDR defines address containing page index used to mark the pages that are already released
 	or a
 	ret z
 	ld b,a
 	ld hl,memorystreampages
 .pagefreeloop
+	ld e,(hl)
+	ifdef UNUSED_PAGE_ADDR
+	ld a,(UNUSED_PAGE_ADDR)
+	cp e
+	jr z,.alreadydeleted
+	ld (hl),a
+	endif
 	push bc
 	push hl
-	ld e,(hl)
 	OS_DELPAGE
 	pop hl
 	pop bc
+.alreadydeleted
 	inc hl
 	djnz .pagefreeloop
-	inc b
 	ret
 
 memorystreamstart
@@ -146,8 +180,7 @@ memorystreampageaddr=$+1
 memorystreamskip
 ;b = byte count
 	ld hl,(memorystreamcurrentaddr)
-.loop
-	bit 6,h
+.loop	bit 6,h
 	call nz,memorystreamnextpage
 	inc hl
 	djnz .loop

@@ -1,18 +1,14 @@
 ; Video Game Music player
-; Supports AY8910, YM3812, YMF262, YMF278B, YM2203.
+; Supports AY8910, YM3526, YM3812, YMF262, YMF278B, YM2203, YM2151.
 
 	DEVICE ZXSPECTRUM128
 	include "../_sdk/sys_h.asm"
 	include "playerdefs.asm"
 
 HEADER_DATA_OFFSET = 0x8034
-HEADER_LOOP_SAMPLES_COUNT = 0x8020
-HEADER_GD3_OFFSET = 0x8014
-HEADER_SAMPLES_COUNT = 0x8018
-HEADER_LOOP_OFFSET = 0x801c
 HEADER_SIZE_MAX = 256
 TITLELENGTH = 64
-MEMORYSTREAMMAXPAGES = 210
+MEMORYSTREAMMAXPAGES = 250
 MEMORYSTREAMERRORMASK = 255 ; TODO: do we need to enforce loading the entire file?
 ENABLE_FM = 1
 
@@ -57,6 +53,8 @@ playerinit
 	ld (moonsoundstatus),a
 	ld a,(ix+GPSETTINGS.tfmstatus)
 	ld (tfmstatus),a
+	ld a,(ix+GPSETTINGS.opmstatus)
+	ld (opmstatus),a
 ;hardware detection is done when loading VGM
 	ld hl,initokstr
 	xor a
@@ -82,9 +80,20 @@ musicload
 ;cde = file extension
 ;hl = input file name
 ;out: a = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
+	push hl
+	set_timer waittimer50hz,882
+	ld hl,0
+	ld (waitcounter),hl
+	ld (samplecounterlo),hl
+	ld (dataoffsetlo),hl
+	ld (dataoffsethi),hl
+	ld a,l
+	ld (samplecounterhi),a
+	ld (devicemask),a
+	ld (vgmheadercopy),a
 	ld a,e
+	pop de
 	cp 'z'
-	ex de,hl
 	jr z,.loadcompressed
 	call memorystreamloadfile
 	jr z,.doneloading
@@ -93,38 +102,6 @@ musicload
 	call decompressfiletomemorystream
 	ret nz
 .doneloading
-	set_timer waittimer50hz,882
-	ld hl,0
-	ld (waitcounter),hl
-	ld (samplecounterlo),hl
-	xor a
-	ld (samplecounterhi),a
-	ld (devicemask),a
-;map header to 0x8000
-	ld a,(memorystreampages)
-	SETPG8000
-;copy header
-	ld bc,HEADER_SIZE_MAX
-	ld hl,vgmheadercopy
-	ld de,vgmheadercopy+1
-	ld (hl),0
-	ldir
-	ld hl,(HEADER_DATA_OFFSET)
-	ld a,h
-	or l
-	ld bc,0x40
-	jr z,$+4
-	ld c,0x34
-	add hl,bc
-	ld (.dataoffset),hl
-	ld bc,hl
-	ld hl,-HEADER_SIZE_MAX-1
-	add hl,bc
-	jr nc,$+5
-	ld bc,HEADER_SIZE_MAX
-	ld hl,0x8000
-	ld de,vgmheadercopy
-	ldir
 ;init progress
 	ld hl,(HEADER_SAMPLES_COUNT+2)
 	ld bc,(HEADER_LOOP_SAMPLES_COUNT+2)
@@ -149,18 +126,30 @@ musicload
 	ld a,1
 	inc a
 	ld (loopcounter),a
-;init AY before TFM in case of weird chip combos
+;start command stream
+dataoffsetlo=$+1
+	ld hl,0
+dataoffsethi=$+1
+	ld de,0
+	call memorystreamseek
+	xor a
+devicemask=$+1
+	ld a,0
+	ret
+
+inithardware
+;out: zf=1 if hardware is found, zf=0 otherwise
 	xor a
 	a_or_dw HEADER_CLOCK_AY8910
 	call nz,initAY8910
-;init TFM
+;init OPM
 	xor a
-	a_or_dw HEADER_CLOCK_YM2203
-	a_or_dw HEADER_CLOCK_YM2608
-	call nz,initYM2203
-	jp nz,memorystreamfree ;sets zf=0
+	a_or_dw HEADER_CLOCK_YM2151
+	call nz,initYM2151
+	ret nz
 ;init Moonsound
 	xor a
+	a_or_dw HEADER_CLOCK_YM3526
 	a_or_dw HEADER_CLOCK_YM3812
 	ld (useYM3812),a
 	a_or_dw HEADER_CLOCK_YMF262
@@ -169,21 +158,21 @@ musicload
 	jr z,.opl4notneeded
 	ld a,(moonsoundstatus)
 	cp 2
-	jp nz,memorystreamfree ;sets zf=0
+	ret nz
 	or a
 .opl4notneeded
 	call nz,initYMF278B
-	jp nz,memorystreamfree ;sets zf=0
-.dataoffset=$+1
-	ld hl,0
-	ld de,0
-	call memorystreamseek
-devicemask=$+1
-	ld a,0
-;zf=0 if there isn't any supported device
-	dec a
-	ret m
-	inc a
+	ret nz
+;init TFM
+	xor a
+	a_or_dw HEADER_CLOCK_YM2203
+	a_or_dw HEADER_CLOCK_YM2608
+	call nz,initYM2203
+	ret nz
+;zf=0 if there is no supported device
+	ld a,(devicemask)
+	cp 1
+	ret c
 	cp a
 	ret
 
@@ -191,13 +180,129 @@ playerdeinit
 	ret
 
 	include "../_sdk/file.asm"
+	define ON_DATA_LOADED_CALLBACK ondataloaded
+	define UNUSED_PAGE_ADDR page8000
 	include "common/memorystream.asm"
 	include "common/opl4.asm"
 	include "vgm/opl4.asm"
 	include "common/opn.asm"
+	include "common/opm.asm"
 	include "vgm/opn.asm"
+	include "vgm/opm.asm"
 	include "vgm/ssg.asm"
 	include "progress.asm"
+
+ondataloaded
+;output: zf=1 if hardware is found, zf=0 otherwise
+	call memorystreamgetpos
+	push de
+	push hl
+	ld a,(vgmheadercopy)
+	or a
+	jr nz,.headerloaded
+;copy header
+	ld a,(memorystreampages)
+	SETPG8000
+	ld bc,HEADER_SIZE_MAX
+	ld hl,vgmheadercopy
+	ld de,vgmheadercopy+1
+	ld (hl),0
+	ldir
+	ld hl,(HEADER_DATA_OFFSET)
+	ld a,h
+	or l
+	ld bc,0x40
+	jr z,$+4
+	ld c,0x34
+	add hl,bc
+	ld (dataoffsetlo),hl
+	ld bc,hl
+	ld hl,-HEADER_SIZE_MAX-1
+	add hl,bc
+	jr nc,$+5
+	ld bc,HEADER_SIZE_MAX
+	ld hl,0x8000
+	ld de,vgmheadercopy
+	ldir
+;we've got the header, now we know which hardware we need
+	call inithardware
+	jr z,.checkfirstdatablock
+	pop hl
+	pop de
+	ret
+.checkfirstdatablock
+	ld hl,(dataoffsetlo)
+	ld de,(dataoffsethi)
+	push de
+	push hl
+	call memorystreamseek
+	pop hl
+	pop de
+	call .checkdatablock
+	pop hl
+	pop de
+	push de
+	push hl
+.headerloaded
+.blockendlo=$+1
+	ld bc,0
+	sub hl,bc
+.blockendhi=$+1
+	ld bc,0
+	ex de,hl
+	sbc hl,bc
+	jr c,.done
+.blockstartlo=$+1
+	ld hl,0
+.blockstarthi=$+1
+	ld de,0
+	call memorystreamseek
+	call memorystreamread3 ;c = 0x67, e = 0x66, d = data type
+	ld e,d
+	call processdatablock
+	call memorystreamgetpos
+	ld (dataoffsetlo),hl
+	ld (dataoffsethi),de
+	call .checkdatablock
+;free unused pages
+	ld hl,(dataoffsetlo)
+	ld a,(dataoffsethi)
+	add hl,hl : rla
+	add hl,hl : rla
+	call memorystreamfreecustompagecount
+.done	pop hl
+	pop de
+	call memorystreamseek
+	xor a
+	ret
+.checkdatablock
+;dehl = current stream offset
+	ld (.blockstartlo),hl
+	ld (.blockstarthi),de
+	ld hl,0xffff
+	ld (.blockendlo),hl
+	ld (.blockendhi),hl
+	call memorystreamread3 ;c = 0x67, e = 0x66, d = data type
+	ld a,c
+	cp 0x67
+	ret nz
+	ld a,e
+	cp 0x66
+	ret nz
+	call memorystreamread4 ;adbc = data size
+	xor a
+	ld hl,32 ;include the next data block header
+	add hl,bc
+	adc a,d
+	ld bc,(.blockstartlo)
+	add hl,bc
+	ld (.blockendlo),hl
+	ld l,a
+	ld h,0
+	ld bc,(.blockstarthi)
+	adc hl,bc
+	ld (.blockendhi),hl
+	ret
 
 waittimer50hz
 	YIELD
@@ -215,9 +320,10 @@ waittimerstep=$+1
 	sub hl,bc
 	jr nc,exitplayloop
 ;read command
-	memory_stream_read_1 a
-	ld l,a
-	ld h,cmdtable/256
+	memory_stream_read_1 e
+	ld d,0
+	ld hl,cmdtable
+	add hl,de
 	ld e,(hl)
 	inc h
 	ld d,(hl)
@@ -294,7 +400,6 @@ skip6	skip_n 5
 skip11	skip_n 10
 skip12	skip_n 11
 
-
 endofsounddata
 loopcounter=$+1
 	ld a,0
@@ -338,6 +443,22 @@ cmdYM3812dp
 	memory_stream_read_2 e,d
 	jp opl4writemusiconlyfm2
 
+cmdYM3526
+	memory_stream_read_2 e,d
+	jp opl4writemusiconlyfm1
+
+cmdYM3526dp
+	memory_stream_read_2 e,d
+	jp opl4writemusiconlyfm2
+
+cmdYM2151
+	memory_stream_read_2 e,d
+	jp opmwritemusiconlychip0
+
+cmdYM2151dp
+	memory_stream_read_2 e,d
+	jp opmwritemusiconlychip1
+
 cmdAY8910
 	memory_stream_read_2 e,d
 	bit 7,e
@@ -348,10 +469,12 @@ cmdAY8910
 cmdYMF262dp0 equ memorystreamread2
 cmdYMF262dp1 equ memorystreamread2
 
-processdatablock
+cmddatablock
 	memory_stream_read_2 a,e ;a = 0x66 guard, e = type
 	cp 0x66
 	jp nz,cmdunsupported
+processdatablock
+;e = data type
 	call memorystreamread4 ;adbc = data size
 	ld a,e
 	ld hl,bc
@@ -359,13 +482,18 @@ processdatablock
 	jp z,opl4loadromdatablock
 	cp 0x87
 	jp z,opl4loadramdatablock
-	call setup24bitscounterloop
-.loop	call memorystreamskip
-	dec de
-	ld a,e
-	or d
-	jr nz,.loop
-	ret
+	push de
+	push bc
+	call memorystreamgetpos
+	pop bc
+	pop af
+	add hl,bc
+	adc a,e
+	ld e,a
+	adc a,d
+	sub e
+	ld d,a
+	jp memorystreamseek
 
 seektoloop
 	ld bc,0x1c
@@ -413,8 +541,6 @@ parsegd3
 	call z,gd3stringcopy ;author
 	ld hl,titlestr
 	ld (MUSICTITLEADDR),hl
-	ld a,(memorystreampages)
-	SETPG8000
 	ret
 
 gd3stringcopy
@@ -454,7 +580,6 @@ stringcopy
 	djnz stringcopy
 	ret
 
-	align 256
 cmdtable
 	db skip1           %256 ; 00
 	db skip1           %256 ; 01
@@ -540,14 +665,14 @@ cmdtable
 	db cmdunsupported  %256 ; 51
 	db cmdunsupported  %256 ; 52
 	db cmdunsupported  %256 ; 53
-	db cmdunsupported  %256 ; 54
+	db cmdYM2151       %256 ; 54
 	db cmdYM2203       %256 ; 55
 	db cmdYM2608p0     %256 ; 56
 	db cmdYM2608p1     %256 ; 57
 	db cmdunsupported  %256 ; 58
 	db cmdunsupported  %256 ; 59
 	db cmdYM3812       %256 ; 5A
-	db cmdunsupported  %256 ; 5B
+	db cmdYM3526       %256 ; 5B
 	db cmdunsupported  %256 ; 5C
 	db skip3           %256 ; 5D
 	db cmdYMF262p0     %256 ; 5E
@@ -559,7 +684,7 @@ cmdtable
 	db cmdunsupported  %256 ; 64
 	db cmdunsupported  %256 ; 65
 	db endofsounddata  %256 ; 66
-	db processdatablock%256 ; 67
+	db cmddatablock    %256 ; 67
 	db skip12          %256 ; 68
 	db cmdunsupported  %256 ; 69
 	db cmdunsupported  %256 ; 6A
@@ -620,14 +745,14 @@ cmdtable
 	db skip3           %256 ; A1
 	db cmdunsupported  %256 ; A2
 	db cmdunsupported  %256 ; A3
-	db cmdunsupported  %256 ; A4
+	db cmdYM2151dp     %256 ; A4
 	db cmdYM2203dp     %256 ; A5
 	db skip3           %256 ; A6
 	db skip3           %256 ; A7
 	db skip3           %256 ; A8
 	db skip3           %256 ; A9
 	db cmdYM3812dp     %256 ; AA
-	db cmdunsupported  %256 ; AB
+	db cmdYM3526dp     %256 ; AB
 	db cmdunsupported  %256 ; AC
 	db skip3           %256 ; AD
 	db cmdYMF262dp0    %256 ; AE
@@ -796,14 +921,14 @@ cmdtable
 	db cmdunsupported  /256 ; 51
 	db cmdunsupported  /256 ; 52
 	db cmdunsupported  /256 ; 53
-	db cmdunsupported  /256 ; 54
+	db cmdYM2151       /256 ; 54
 	db cmdYM2203       /256 ; 55
 	db cmdYM2608p0     /256 ; 56
 	db cmdYM2608p1     /256 ; 57
 	db cmdunsupported  /256 ; 58
 	db cmdunsupported  /256 ; 59
 	db cmdYM3812       /256 ; 5A
-	db cmdunsupported  /256 ; 5B
+	db cmdYM3526       /256 ; 5B
 	db cmdunsupported  /256 ; 5C
 	db skip3           /256 ; 5D
 	db cmdYMF262p0     /256 ; 5E
@@ -815,7 +940,7 @@ cmdtable
 	db cmdunsupported  /256 ; 64
 	db cmdunsupported  /256 ; 65
 	db endofsounddata  /256 ; 66
-	db processdatablock/256 ; 67
+	db cmddatablock    /256 ; 67
 	db skip12          /256 ; 68
 	db cmdunsupported  /256 ; 69
 	db cmdunsupported  /256 ; 6A
@@ -876,14 +1001,14 @@ cmdtable
 	db skip3           /256 ; A1
 	db cmdunsupported  /256 ; A2
 	db cmdunsupported  /256 ; A3
-	db cmdunsupported  /256 ; A4
+	db cmdYM2151dp     /256 ; A4
 	db cmdYM2203dp     /256 ; A5
 	db skip3           /256 ; A6
 	db skip3           /256 ; A7
 	db skip3           /256 ; A8
 	db skip3           /256 ; A9
 	db cmdYM3812dp     /256 ; AA
-	db cmdunsupported  /256 ; AB
+	db cmdYM3526dp     /256 ; AB
 	db cmdunsupported  /256 ; AC
 	db skip3           /256 ; AD
 	db cmdYMF262dp0    /256 ; AE
@@ -1000,14 +1125,30 @@ decompressfiletomemorystream
 	call memorystreamallocate
 	jr nz,closefilewitherror
 	call memorystreamstart
+;backup the data from app page
+	ld a,(filedatapage)
+	SETPG8000
+	ld hl,GzipWorkBuffersStart
+	ld de,0x8000
+	ld bc,GzipWorkBuffersEnd-GzipWorkBuffersStart
+	ldir
 ;decompress
 	call setsharedpages
-	ld hl,0xffff
-	ld (filedatasourceaddr),hl
 	ld (savedSP),sp
 	call GzipExtract
 	call closestream_file
+	call restoreappdata
 	xor a
+	ret
+
+restoreappdata
+filedatapage=$+1
+	ld a,0
+	SETPG8000
+	ld hl,0x8000
+	ld de,GzipWorkBuffersStart
+	ld bc,GzipWorkBuffersEnd-GzipWorkBuffersStart
+	ldir
 	ret
 
 GzipThrowException
@@ -1015,6 +1156,7 @@ savedSP=$+1
 	ld sp,0
 GzipExitWithError
 	call memorystreamfree
+	call restoreappdata
 closefilewitherror
 	call closestream_file
 	or 1
@@ -1032,32 +1174,15 @@ pageC000=$+1
 GzipReadInputBuffer
 ;de = InputBuffer
 ;hl = InputBufSize
-filedatapage=$+1
-	ld a,0
-	SETPG8000
-filedatasourceaddr=$+1
-	ld hl,0
-	bit 6,h
-	call nz,loadfiledata
-	ld bc,InputBufSize
-	ldir
-	ld (filedatasourceaddr),hl
-	ld a,(page8000)
-	SETPG8000
-	ret
-
-loadfiledata
 	exx
 	ex af,af'
 	push af,bc,de,hl,ix,iy
-	ld de,0x8000
-	ld hl,0x4000
+	ld de,InputBuffer
+	ld hl,InputBufSize
 	call readstream_file
 	pop iy,ix,hl,de,bc,af
 	exx
 	ex af,af'
-	ld hl,0x8000
-	ld de,InputBuffer
 	ret
 
 GzipWriteOutputBuffer
@@ -1092,6 +1217,8 @@ GzipWriteOutputBuffer
 	pop bc
 .below8000
 	call memorystreamwrite
+	call ondataloaded
+	jp nz,GzipThrowException
 	jp setsharedpages
 
 	include "common/gunzip.asm"
@@ -1128,6 +1255,8 @@ moonsoundstatus=$+1
 	ret m
 	call vgmopl4init
 	ld a,(HEADER_CLOCK_YM3812+3)
+	ld hl,HEADER_CLOCK_YM3526+3
+	or (hl)
 	and 0x40
 	jr nz,notOPL2
 useYM3812=$+1
@@ -1141,6 +1270,17 @@ notOPL2 set_timer opl4waittimer60hz,735
 	xor a
 	ret
 
+initYM2151
+opmstatus=$+1
+	ld a,0
+	dec a
+	ret m
+	call opminit
+	ld hl,devicemask
+	set DEVICE_OPM_BIT,(hl)
+	xor a
+	ret
+
 musicunload
 	ld a,(devicemask)
 	and DEVICE_MOONSOUND_MASK
@@ -1151,6 +1291,9 @@ musicunload
 	ld a,(devicemask)
 	and DEVICE_AY_MASK|DEVICE_TURBOSOUND_MASK
 	call nz,ssgmute
+	ld a,(devicemask)
+	and DEVICE_OPM_MASK
+	call nz,opmmute
 	jp memorystreamfree
 
 cmdYM2608p0 equ cmdYM2203
@@ -1172,22 +1315,30 @@ bystr
 	db "] by ",0
 end
 
-GzipBuffersStart = $
-waveheaderbuffer = $
+GzipWorkBuffersStart = PROGSTART
+vgmheadercopy = $
+vgmheadercopyend = vgmheadercopy+HEADER_SIZE_MAX
+GzipOutputBuffersStart = vgmheadercopyend
+waveheaderbuffer = vgmheadercopyend
 waveheaderbufferend = waveheaderbuffer+WAVEHEADERBUFFERSIZE
 titlestr = waveheaderbufferend
 titlestrend = titlestr+TITLELENGTH
-vgmheadercopy = titlestrend
-vgmheadercopyend = vgmheadercopy+HEADER_SIZE_MAX
 
-HEADER_CLOCK_YM2203 = vgmheadercopy+0x44
-HEADER_CLOCK_YM2608 = vgmheadercopy+0x48
-HEADER_CLOCK_YM3812 = vgmheadercopy+0x50
-HEADER_CLOCK_YMF262 = vgmheadercopy+0x5c
+HEADER_LOOP_SAMPLES_COUNT = vgmheadercopy+0x20
+HEADER_GD3_OFFSET    = vgmheadercopy+0x14
+HEADER_SAMPLES_COUNT = vgmheadercopy+0x18
+HEADER_LOOP_OFFSET   = vgmheadercopy+0x1c
+HEADER_CLOCK_YM2151  = vgmheadercopy+0x30
+HEADER_CLOCK_YM2203  = vgmheadercopy+0x44
+HEADER_CLOCK_YM2608  = vgmheadercopy+0x48
+HEADER_CLOCK_YM3812  = vgmheadercopy+0x50
+HEADER_CLOCK_YM3526  = vgmheadercopy+0x54
+HEADER_CLOCK_YMF262  = vgmheadercopy+0x5c
 HEADER_CLOCK_YMF278B = vgmheadercopy+0x60
-HEADER_CLOCK_AY8910 = vgmheadercopy+0x74
+HEADER_CLOCK_AY8910  = vgmheadercopy+0x74
 
 	assert vgmheadercopyend <= PLAYEREND ;ensure everything is within the player page
-	assert GzipBuffersEnd <= 0x10000
+	assert GzipOutputBuffersEnd <= 0x10000
+	assert GzipWorkBuffersEnd <= 0x3500 ;ensure the buffers and stack are not overlapping
 
 	savebin "vgm.bin",begin,end-begin
