@@ -6,10 +6,11 @@ OPM1_DAT = 0xf3c1
 	macro opm_write_reg chip_n
 ;e = register
 ;d = value
-	ld bc,OPM0_REG+(chip_n*0x200)
+	ld bc,OPM0_DAT+(chip_n*(OPM1_DAT-OPM0_DAT))
 	in a,(c)
 	rlca
 	jr c,$-3
+	dec b
 	out (c),e
 	in a,(c)
 	rlca
@@ -30,13 +31,18 @@ opmwrite1
 	opm_write_reg 1
 	ret
 
+opmwriteall
+;e = register
+;d = value
+	call opmwrite0
+	jp opmwrite1
+
 	macro opm_write_regs incr,incd
 ;e = base register
 ;d = value
 ;l = count
 .loop
-	call opmwrite0
-	call opmwrite1
+	call opmwriteall
 	IF incr
 	inc e
 	ENDIF
@@ -54,12 +60,20 @@ opminit
 	ret
 
 opmmute
+;stop timers
+	ld de,0x3014
+	call opmwriteall
+	ld de,0x0014
+	call opmwriteall
+;max release rate
 	ld l,0x20
 	ld de,0x0fe0
 	opm_write_regs 1,0
+;min total level
 	ld l,0x20
 	ld de,0x7f60
 	opm_write_regs 1,0
+;key off
 	ld l,0x08
 	ld de,0x0008
 	opm_write_regs 0,1

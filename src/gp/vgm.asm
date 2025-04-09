@@ -1276,6 +1276,7 @@ opmstatus=$+1
 	dec a
 	ret m
 	call opminit
+	set_timer opmwaittimer100hz,441
 	ld hl,devicemask
 	set DEVICE_OPM_BIT,(hl)
 	xor a

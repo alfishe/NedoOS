@@ -1779,17 +1779,17 @@ istfmpresent
 trywritingopm0
 	dec a
 	jr nz,$-1
-	ld bc,OPN_REG
+	ld bc,OPM0_REG
 	out (c),e
 	dec a
 	jr nz,$-1
-	ld bc,OPN_DAT
+	inc b
 	out (c),d
 	ret
 
 isopmpresent
 ;check for non-zero as an early exit condition
-	ld bc,OPM0_REG
+	ld bc,OPM0_DAT
 	in a,(c)
 	or a
 	ret nz
@@ -1802,7 +1802,7 @@ isopmpresent
 	YIELD
 	YIELD
 ;check the timer flags
-	ld bc,OPM0_REG
+	ld bc,OPM0_DAT
 	in a,(c)
 	cp 2
 	ret nz
