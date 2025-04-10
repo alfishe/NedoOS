@@ -37,6 +37,11 @@ opmwriteall
 	call opmwrite0
 	jp opmwrite1
 
+opmdisablechip1
+	ld a,0xc9 ;ret opcode
+	ld (opmwrite1),a
+	ret
+
 	macro opm_write_regs incr,incd
 ;e = base register
 ;d = value

@@ -11,7 +11,7 @@ FILE_NAME_OFFSET = FILE_DISPLAY_INFO_OFFSET+FILE_DISPLAY_INFO_SIZE
 FILE_NAME_SIZE = SFN_SIZE
 FILE_ATTRIB_OFFSET = FILE_NAME_OFFSET+FILE_NAME_SIZE
 FILE_ATTRIB_SIZE = 1
-BROWSER_FILE_COUNT=152
+BROWSER_FILE_COUNT=151
 PLAYLIST_FILE_COUNT=40
 PANELCOLOR = 0x4f
 CURSORCOLOR = 0x28
@@ -1118,6 +1118,8 @@ foundstr
 	db "found!\r\n",0
 bomgemoonstr
 	db "OPL3\r\n",0
+dualopmstr
+	db "2x YM2151\r\n",0
 rom001200
 	db "Copyright"
 loadingstr
@@ -1355,16 +1357,59 @@ detecttfm
 	ld hl,foundstr
 	jp print_hl
 
+trywritingopm
+	dec a
+	jr nz,$-1
+	out (c),e
+	dec a
+	jr nz,$-1
+	inc b
+	out (c),d
+	ret
+
 detectopm
 	ld hl,detectingopmstr
 	call print_hl
-	call isopmpresent
+	xor a
+	ld (gpsettings.opmstatus),a
+;check for non-zero as an early exit condition
+	ld bc,OPM0_DAT
+	in a,(c)
+	or a
 	ld hl,notfoundstr
 	jp nz,print_hl
-	ld a,1
-	ld (gpsettings.opmstatus),a
+;start timer
+	ld de,0xff12
+	ld bc,OPM0_REG
+	call trywritingopm
+	ld bc,OPM1_REG
+	call trywritingopm
+	ld de,0x2a14
+	ld bc,OPM0_REG
+	call trywritingopm
+	ld bc,OPM1_REG
+	call trywritingopm
+;wait for the timer to finish
+	YIELD
+	YIELD
+;check the timer flags
+	ld bc,OPM0_DAT
+	in a,(c)
+	cp 2
+	ld hl,notfoundstr
+	jp nz,print_hl
+	ld bc,OPM1_DAT
+	in a,(c)
+	cp 2
+	ld hl,dualopmstr
+	jr z,.hasdualopm
+	call opmdisablechip1
 	ld hl,foundstr
-	jp print_hl
+	ld a,1
+.hasdualopm
+	ld (gpsettings.opmstatus),a
+	call print_hl
+	jp opmmute
 
 loadsettings
 	ld de,settingsfilename
@@ -1773,41 +1818,6 @@ istfmpresent
 	ret nz
 ;there must be TFM in this system
 	call opnmute
-	xor a
-	ret
-
-trywritingopm0
-	dec a
-	jr nz,$-1
-	ld bc,OPM0_REG
-	out (c),e
-	dec a
-	jr nz,$-1
-	inc b
-	out (c),d
-	ret
-
-isopmpresent
-;check for non-zero as an early exit condition
-	ld bc,OPM0_DAT
-	in a,(c)
-	or a
-	ret nz
-;start timer
-	ld de,0xff12
-	call trywritingopm0
-	ld de,0x2a14
-	call trywritingopm0
-;wait for the timer to finish
-	YIELD
-	YIELD
-;check the timer flags
-	ld bc,OPM0_DAT
-	in a,(c)
-	cp 2
-	ret nz
-;there must be YM2151 in this system
-	call opmmute
 	xor a
 	ret
 

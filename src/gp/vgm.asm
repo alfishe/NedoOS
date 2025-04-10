@@ -1275,6 +1275,12 @@ opmstatus=$+1
 	ld a,0
 	dec a
 	ret m
+	jr nz,.hasdualopm
+	call opmdisablechip1
+	ld a,(HEADER_CLOCK_YM2151+3)
+	and 0x40
+	ret nz
+.hasdualopm
 	call opminit
 	set_timer opmwaittimer100hz,441
 	ld hl,devicemask

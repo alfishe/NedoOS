@@ -34,7 +34,7 @@ moonmoddefaultpanning dw 0
 midiuartdelayoverride dw 0
 moonsoundstatus ds 1 ; 0 - no device, 1 - BomgeMoon or MoonSound with old firmware (wave ports not working), 2 - MoonSound OK
 tfmstatus ds 1 ; 0 - no device, 1 - found TFM
-opmstatus ds 1 ; 0 - no device, 1 - found OPM
+opmstatus ds 1 ; 0 - no device, 1 - single YM2151, 2 - dual YM2151
 	ends
 
 DEVICE_AY_BIT         = 0
