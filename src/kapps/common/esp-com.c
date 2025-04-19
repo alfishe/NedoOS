@@ -60,10 +60,10 @@ void uart_setrts(unsigned char mode)
 	case 0:
 		switch (mode)
 		{
-		case 1:	//Enable flow
+		case 1: // Enable flow
 			output(MCR, 2);
 			break;
-		case 0:	//Stop flow
+		case 0: // Stop flow
 			output(MCR, 0);
 			break;
 		default:
@@ -263,6 +263,7 @@ void uart_flush(void)
 void getdataEsp(unsigned int counted)
 {
 	unsigned int counter;
+	char byte;
 	switch (comType)
 	{
 	case 0:
@@ -300,10 +301,26 @@ void getdataEsp(unsigned int counted)
 	case 3:
 		for (counter = 0; counter < counted; counter++)
 		{
-			while ((1 & portInput(LSR)) == 0)
+			/*
+						while ((1 & portInput(LSR)) == 0)
+						{
+							uart_setrts(2);
+						}
+			*/
+
+			do
 			{
+				disable_interrupt();
+				output(0xfb, LSR);
+				byte = 1 & input(0xfa);
+				enable_interrupt();
+				if (byte != 0)
+				{
+					break;
+				}
 				uart_setrts(2);
-			}
+			} while (42);
+
 			disable_interrupt();
 			output(0xfb, RBR_THR);
 			netbuf[counter] = input(0xfa);
@@ -363,7 +380,7 @@ unsigned char getAnswer2(void)
 void espReBoot(void)
 {
 	unsigned char byte, count;
-	//uart_setrts(1);
+	// uart_setrts(1);
 	clearStatus();
 	printf("Resetting ESP...");
 
@@ -420,7 +437,7 @@ int recvHead(void)
 	do
 	{
 		byte = uart_readBlock();
-		//printf("[%c]", byte);
+		// printf("[%c]", byte);
 
 		if (byte == closed[count])
 		{
@@ -441,8 +458,8 @@ int recvHead(void)
 		}
 		if ((count == strlen(closed)) || (countErr == strlen(error)))
 		{
-			//uart_readBlock(); // CR
-			//uart_readBlock(); // LF
+			// uart_readBlock(); // CR
+			// uart_readBlock(); // LF
 			return todo;
 		}
 	} while (byte != ',');

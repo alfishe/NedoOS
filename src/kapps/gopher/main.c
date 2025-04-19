@@ -28,7 +28,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "1.3";
+unsigned char uVer[] = "1.4";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
