@@ -112,7 +112,7 @@ void writeLog(char *logline)
   OS_CLOSEHANDLE(LogFile);
 }
 */
-/*
+
 void delay(unsigned long counter)
 {
   unsigned long start, finish;
@@ -129,7 +129,7 @@ void delay(unsigned long counter)
     start = time();
   }
 }
-*/
+
 void spaces(unsigned char number)
 {
   while (number > 0)

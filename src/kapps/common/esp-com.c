@@ -4,7 +4,6 @@ void portOutput(char port, char data)
 	disable_interrupt();
 	output(0xfb, port);
 	output(0xfa, data);
-	// output(0xfb, 0x00);
 	enable_interrupt();
 }
 
@@ -14,7 +13,6 @@ char portInput(char port)
 	disable_interrupt();
 	output(0xfb, port);
 	byte = input(0xfa);
-	// output(0xfb, 0x00);
 	enable_interrupt();
 	return byte;
 }
@@ -48,7 +46,11 @@ void uart_write(unsigned char data)
 		while ((portInput(LSR) & 32) == 0)
 		{
 		}
-		portOutput(RBR_THR, data);
+		// portOutput(RBR_THR, data);
+		disable_interrupt();
+		output(0xfb, RBR_THR);
+		output(0xfa, data);
+		enable_interrupt();
 		break;
 	}
 }
@@ -107,10 +109,18 @@ void uart_setrts(unsigned char mode)
 		switch (mode)
 		{
 		case 1:
-			portOutput(MCR, 2);
+			// portOutput(MCR, 2);
+			disable_interrupt();
+			output(0xfb, MCR);
+			output(0xfa, 2);
+			enable_interrupt();
 			break;
 		case 0:
-			portOutput(MCR, 0);
+			// portOutput(MCR, 0);
+			disable_interrupt();
+			output(0xfb, MCR);
+			output(0xfa, 0);
+			enable_interrupt();
 			break;
 		default:
 			disable_interrupt();
@@ -215,13 +225,23 @@ unsigned char uart_readBlock(void)
 	case 0:
 		while ((1 & input(LSR)) == 0)
 		{
-			uart_setrts(2);
+			disable_interrupt();
+			output(MCR, 2);
+			output(MCR, 0);
+			enable_interrupt();
 		}
 		return input(RBR_THR);
 	case 1:
 		while (uart_hasByte() == 0)
 		{
-			uart_setrts(2);
+			disable_interrupt();
+			input(0x55fe); // Переход в режим команд
+			input(0x43fe); // Команда установить статус
+			input(0x03fe); // Устанавливаем готовность DTR и RTS
+			input(0x55fe); // Переход в режим команд
+			input(0x43fe); // Команда установить статус
+			input(0x00fe); // Снимаем готовность DTR и RTS
+			enable_interrupt();
 		}
 		disable_interrupt();
 		input(0x55fe);		  // Переход в режим команд
@@ -236,7 +256,11 @@ unsigned char uart_readBlock(void)
 	case 3:
 		while ((1 & portInput(LSR)) == 0)
 		{
-			uart_setrts(2);
+			disable_interrupt();
+			output(0xfb, MCR);
+			output(0xfa, 2);
+			output(0xfa, 0);
+			enable_interrupt();
 		}
 		//	data = portInput(RBR_THR);
 
@@ -251,12 +275,18 @@ unsigned char uart_readBlock(void)
 
 void uart_flush(void)
 {
-	unsigned int count;
-	for (count = 0; count < 3000; count++)
-	{
-		uart_setrts(2);
-		uart_read();
-	}
+	/*
+		unsigned int count;
+		for (count = 0; count < 3000; count++)
+		{
+			uart_setrts(1);
+			uart_read();
+		}
+		uart_setrts(0);
+	*/
+
+	uart_setrts(1);
+	delay(500);
 	uart_setrts(0);
 }
 
@@ -266,22 +296,32 @@ void getdataEsp(unsigned int counted)
 	char byte;
 	switch (comType)
 	{
-	case 0:
+	case 0: // Kondratyev  NO AFC
 		for (counter = 0; counter < counted; counter++)
 		{
 			while ((1 & input(LSR)) == 0)
 			{
-				uart_setrts(2);
+				disable_interrupt();
+				output(MCR, 2);
+				output(MCR, 0);
+				enable_interrupt();
 			}
 			netbuf[counter] = input(RBR_THR);
 		}
 		return;
-	case 1:
+	case 1: // ATM2 COM port
 		for (counter = 0; counter < counted; counter++)
 		{
 			while (uart_hasByte() == 0)
 			{
-				uart_setrts(2);
+				disable_interrupt();
+				input(0x55fe); // Переход в режим команд
+				input(0x43fe); // Команда установить статус
+				input(0x03fe); // Устанавливаем готовность DTR и RTS
+				input(0x55fe); // Переход в режим команд
+				input(0x43fe); // Команда установить статус
+				input(0x00fe); // Снимаем готовность DTR и RTS
+				enable_interrupt();
 			}
 			disable_interrupt();
 			input(0x55fe);					 // Переход в режим команд
@@ -289,7 +329,7 @@ void getdataEsp(unsigned int counted)
 			enable_interrupt();
 		}
 		return;
-	case 2:
+	case 2: // Kondratyev AFC
 		for (counter = 0; counter < counted; counter++)
 		{
 			while ((1 & input(LSR)) == 0)
@@ -298,30 +338,22 @@ void getdataEsp(unsigned int counted)
 			netbuf[counter] = input(RBR_THR);
 		}
 		return;
-	case 3:
+	case 3: // ATM2IOESP
 		for (counter = 0; counter < counted; counter++)
 		{
-			/*
-						while ((1 & portInput(LSR)) == 0)
-						{
-							uart_setrts(2);
-						}
-			*/
-
+			disable_interrupt();
 			do
 			{
-				disable_interrupt();
 				output(0xfb, LSR);
 				byte = 1 & input(0xfa);
-				enable_interrupt();
 				if (byte != 0)
 				{
 					break;
 				}
-				uart_setrts(2);
+				output(0xfb, MCR);
+				output(0xfa, 2);
+				output(0xfa, 0);
 			} while (42);
-
-			disable_interrupt();
 			output(0xfb, RBR_THR);
 			netbuf[counter] = input(0xfa);
 			enable_interrupt();
@@ -380,7 +412,6 @@ unsigned char getAnswer2(void)
 void espReBoot(void)
 {
 	unsigned char byte, count;
-	// uart_setrts(1);
 	clearStatus();
 	printf("Resetting ESP...");
 
