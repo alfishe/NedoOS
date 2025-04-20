@@ -147,6 +147,12 @@ inithardware
 	a_or_dw HEADER_CLOCK_YM2151
 	call nz,initYM2151
 	ret nz
+;init TFM
+	xor a
+	a_or_dw HEADER_CLOCK_YM2203
+	a_or_dw HEADER_CLOCK_YM2608
+	call nz,initYM2203
+	ret nz
 ;init Moonsound
 	xor a
 	a_or_dw HEADER_CLOCK_YM3526
@@ -162,12 +168,6 @@ inithardware
 	or a
 .opl4notneeded
 	call nz,initYMF278B
-	ret nz
-;init TFM
-	xor a
-	a_or_dw HEADER_CLOCK_YM2203
-	a_or_dw HEADER_CLOCK_YM2608
-	call nz,initYM2203
 	ret nz
 ;zf=0 if there is no supported device
 	ld a,(devicemask)
@@ -1217,7 +1217,18 @@ GzipWriteOutputBuffer
 	pop bc
 .below8000
 	call memorystreamwrite
+;ondataloaded can do OS calls
+	exx
+	ex af,af'
+	push af,bc,de,hl,ix,iy
+	exx
+	ex af,af'
 	call ondataloaded
+	exx
+	ex af,af'
+	pop iy,ix,hl,de,bc,af
+	exx
+	ex af,af'
 	jp nz,GzipThrowException
 	jp setsharedpages
 
@@ -1281,7 +1292,7 @@ opmstatus=$+1
 	and 0x40
 	ret nz
 .hasdualopm
-	call opminit
+	call vgmopminit
 	set_timer opmwaittimer100hz,441
 	ld hl,devicemask
 	set DEVICE_OPM_BIT,(hl)

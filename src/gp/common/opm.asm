@@ -1,31 +1,33 @@
-OPM0_REG = 0xf0c1
-OPM0_DAT = 0xf1c1
-OPM1_REG = 0xf2c1
-OPM1_DAT = 0xf3c1
+OPM0_REG = 0xf0c1 ;write: address
+OPM0_DAT = 0xf1c1 ;write: value, read: status
+OPM1_REG = 0xf2c1 ;write: address
+OPM1_DAT = 0xf3c1 ;write: value, read: status
 
 	macro opm_write_reg chip_n
 ;e = register
 ;d = value
-	ld bc,OPM0_DAT+(chip_n*(OPM1_DAT-OPM0_DAT))
-	in a,(c)
-	rlca
-	jr c,$-3
+	IF chip_n
+	ld bc,OPM1_DAT
+	ELSE
+	ld bc,OPM0_DAT
+	ENDIF
+	in f,(c)
+	jp m,$-2
 	dec b
 	out (c),e
-	in a,(c)
-	rlca
-	jr c,$-3
 	inc b
+	in f,(c)
+	jp m,$-2
 	out (c),d
 	endm
 
-opmwrite0
+opmwritechip0
 ;e = register
 ;d = value
 	opm_write_reg 0
 	ret
 
-opmwrite1
+opmwritechip1
 ;e = register
 ;d = value
 	opm_write_reg 1
@@ -34,20 +36,19 @@ opmwrite1
 opmwriteall
 ;e = register
 ;d = value
-	call opmwrite0
-	jp opmwrite1
+	call opmwritechip0
+	jp opmwritechip1
 
 opmdisablechip1
 	ld a,0xc9 ;ret opcode
-	ld (opmwrite1),a
+	ld (opmwritechip1),a
 	ret
 
 	macro opm_write_regs incr,incd
 ;e = base register
 ;d = value
 ;l = count
-.loop
-	call opmwriteall
+.loop	call opmwriteall
 	IF incr
 	inc e
 	ENDIF

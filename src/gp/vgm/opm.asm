@@ -4,7 +4,7 @@ opmwritemusiconlychip0
 	ld a,e
 	cp 8
 	ret c
-	jp opmwrite0
+	jp opmwritechip0
 
 opmwritemusiconlychip1
 ;e = register
@@ -12,7 +12,12 @@ opmwritemusiconlychip1
 	ld a,e
 	cp 8
 	ret c
-	jp opmwrite1
+	jp opmwritechip1
+
+vgmopminit
+	ld a,2
+	ld (opmwaittimer100hz.counter),a
+	jp opminit
 
 opmwaittimer100hz
 .counter=$+1

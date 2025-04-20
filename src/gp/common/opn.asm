@@ -36,13 +36,15 @@ opnwritefm2
 	opn_write_fm_reg 1
 	ret
 
+opnwriteall
+	call opnwritefm1
+	jp opnwritefm2
+
 	macro opn_write_fm_regs incr,incd
 ;e = base register
 ;d = value
 ;l = count
-.loop
-	call opnwritefm1
-	call opnwritefm2
+.loop	call opnwriteall
 	IF incr
 	inc e
 	ENDIF
@@ -59,20 +61,16 @@ opninit
 	opn_write_fm_regs 1,0
 ;configure prescaler
 	ld de,0x002f
-	call opnwritefm1
-	call opnwritefm2
+	call opnwriteall
 	ld de,0x002d
-	call opnwritefm1
-	jp opnwritefm2
+	jp opnwriteall
 
 opnmute
 ;stop timers
 	ld de,0x3027
-	call opnwritefm1
-	call opnwritefm2
+	call opnwriteall
 	ld de,0x0027
-	call opnwritefm1
-	call opnwritefm2
+	call opnwriteall
 ;mute SSG
 	ld l,3
 	ld de,0x0008
