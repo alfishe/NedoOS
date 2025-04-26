@@ -9,7 +9,7 @@ s98: s98_play.com
 zip,gz : pkunzip.com
 tar: tar.com
 rar: unrar.com
-trd,scl,fdi,tap: dmm.com -a
+trd,scl,fdi,tap: dmm.com -Za
 sna,b  ,z80: nmisvc.com
 thk: texted.com
 x86: x86.com
@@ -21,3 +21,4 @@ bk : bk.com
 unt: untr.com
 z5 : zxzvm.com
 pt2,pt3,mod,mp3,mid,ogg,aac,mwm,vgm,vgz,gpl,s3m: gp.com
+sca: scaview.com
