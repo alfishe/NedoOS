@@ -184,7 +184,6 @@ display:
 	ld a,(user_scr1_high)
 	jp z, fillScr
 	ld a,(user_scr0_high)
-
 fillScr
 	push ix
 	push iy

@@ -26,10 +26,17 @@ struct headers
   unsigned int doffset;
   unsigned long filesize;
   unsigned char pagesNeeded;
+  unsigned char isAtm;
+  unsigned char totalMem;
+  unsigned char freeMem;
+  unsigned char scr0high;
+  unsigned char scr1high;
   unsigned int headerSize;
 } header;
 
-unsigned char buf[25000];
+unsigned char buf[4096];
+unsigned char mem[256]; // reserved pages
+unsigned char framesDelays[512];
 
 unsigned char ver[] = "0.1";
 unsigned char buffer[] = "0000000000";
@@ -61,41 +68,59 @@ void delay(unsigned long counter)
     start = time();
   }
 }
-
-C_task main(int argc, char *argv[])
+unsigned char getFreeMem(void)
 {
-  unsigned int todo, curFrame, curFrameAdr, curBufAdr;
-  unsigned char frameDelay;
-  unsigned long bufIntBrd;
-  OS_HIDEFROMPARENT();
-  OS_SETGFX(0x86);
-  OS_CLS(0);
+  unsigned char freeMem = 0, counter;
 
-  OS_SETCOLOR(67);
-  printf("SCA viewer version:%s\r\n", ver);
-  OS_SETCOLOR(6);
-
-  if (argc < 2)
+  for (counter = 0; counter < header.totalMem; counter++)
   {
-    OS_SETCOLOR(67);
-    puts("Error: File name required.");
-    OS_SETCOLOR(6);
-    while (OS_GETKEY() == 0)
+    unsigned char owner;
+    owner = OS_GETPAGEOWNER(counter);
+    if (owner == 0)
     {
+      freeMem++;
     }
-    exit(0);
   }
+  return freeMem;
+}
 
-  fp1 = OS_OPENHANDLE(argv[1], 0x80);
+char getMem(char numOfPages)
+{
+  char result, pageCount;
 
-  if (((int)fp1) & 0xff)
+  unsigned char pgbak;
+  unsigned int newPage;
+  /*
+    union APP_PAGES main_pg;
+    main_pg.l = OS_GETMAINPAGES();
+    pgbak = main_pg.pgs.window_3;
+    OS_DELPAGE(pgbak);
+    printf("page %u freed\r\n", pgbak);
+    pgbak = main_pg.pgs.window_2;
+    OS_DELPAGE(pgbak);
+    printf("page %u freed\r\n", pgbak);
+  */
+  result = true;
+  for (pageCount = 0; pageCount < numOfPages; pageCount++)
   {
-    printf("Error: %s opening error\r\n", argv[1]);
-    exit(0);
+    newPage = OS_NEWPAGE();
+    if (newPage > 255)
+    {
+      result = false;
+      break;
+    }
+    mem[pageCount] = newPage;
   }
+  return result;
+}
 
-  todo = OS_READHANDLE(buf, fp1, sizeof(buf));
-  printf("Readed:%u\r\n", todo);
+void loadFile(void)
+{
+  const char *marker;
+  unsigned int todo, counter;
+
+  todo = OS_READHANDLE(buf, fp1, 1024);
+  // OS_SEEKHANDLE(fp1, 0);
 
   header.marker[0] = buf[0];
   header.marker[1] = buf[1];
@@ -112,11 +137,13 @@ C_task main(int argc, char *argv[])
   header.filesize = OS_GETFILESIZE(fp1);
   header.pagesNeeded = header.filesize / 16384 + 1;
   header.headerSize = 14;
+  header.freeMem = getFreeMem();
 
-
-
-  printf("Size: %lu\r\n", header.filesize);
+  printf("TODO :%u\r\n", todo);
+  printf("Size : %lu\r\n", header.filesize);
   printf("Pages needed : %u\r\n", header.pagesNeeded);
+  printf("Total pages  : %u\r\n", header.totalMem);
+  printf("Free pages   : %u\r\n", header.freeMem);
   printf("Marker: %s\r\n", header.marker);
   printf("Width: %u\r\n", header.width);
   printf("Height: %u\r\n", header.height);
@@ -125,11 +152,115 @@ C_task main(int argc, char *argv[])
   printf("Payload type: %u\r\n", header.ptype);
   printf("payload offset: %u\r\n", header.poffset);
   printf("data offset: %u\r\n", header.doffset);
+
+  marker = strstr(header.marker, "SCA");
+  if (marker == NULL)
+  {
+    printf("File is not a SCA animation [%s] \r\n", header.marker);
+    waitKey();
+    OS_SETGFX(0x86);
+    exit(0);
+  }
+
+  if (header.pagesNeeded > header.freeMem)
+  {
+    printf("Not enough memory. Needed %u pages more  \r\n", header.pagesNeeded - header.freeMem);
+
+    OS_SETGFX(0x86);
+    exit(0);
+  }
+
+  if (!getMem(header.pagesNeeded))
+  {
+    printf("Memory allocarion error\r\n");
+    waitKey();
+    OS_SETGFX(0x86);
+    exit(0);
+  }
+  OS_SEEKHANDLE(fp1, header.poffset);
+  OS_READHANDLE(framesDelays, fp1, header.frames);
+
+  ///////////////////////LOADER///////////////////////
+
+  for (counter = 0; counter < header.pagesNeeded; counter++)
+  {
+    
+    todo = OS_READHANDLEMEM(0x8000, fp1, 16384);
+  }
+
+  ///////////////////////LOADER///////////////////////
+}
+
+void init(void)
+{
+  OS_HIDEFROMPARENT();
+  OS_SETGFX(0x86);
+  OS_CLS(0);
+
+  header.scr0high = OS_GETSCR0() >> 8;
+  header.scr1high = OS_GETSCR1() >> 8;
+
+  header.isAtm = (unsigned char)OS_GETCONFIG(); // 1-Evo 2-ATM2 3-ATM3 6-p2.666
+
+  switch (header.isAtm)
+  {
+  case 1:
+    header.totalMem = 192;
+    break;
+  case 2:
+    header.totalMem = 64;
+    break;
+  case 3:
+    header.totalMem = 192;
+    break;
+  case 6:
+    header.totalMem = 64;
+    break;
+  default:
+    header.totalMem = 192;
+    break;
+  }
+  header.freeMem = getFreeMem();
+}
+
+C_task main(int argc, char *argv[])
+{
+  unsigned int curFrame, curFrameAdr, curBufAdr;
+  unsigned char frameDelay;
+  unsigned long bufIntBrd;
+
+  init();
+
+  OS_SETCOLOR(67);
+  printf("SCA viewer version:%s\r\n", ver);
+  OS_SETCOLOR(6);
+
+  if (argc < 2)
+  {
+    OS_SETCOLOR(67);
+    printf("Error: File name required.[argc=%d]", argc);
+    OS_SETCOLOR(6);
+    while (OS_GETKEY() == 0)
+    {
+    }
+    exit(0);
+  }
+
+  fp1 = OS_OPENHANDLE(argv[1], 0x80);
+
+  if (((int)fp1) & 0xff)
+  {
+    printf("Error: %s opening error\r\n", argv[1]);
+    waitKey();
+    exit(0);
+  }
+
+  loadFile();
+
   waitKey();
   OS_SETGFX(0x83);
 label:
   curFrame = 0;
-  //frameDelay = 4;
   do
   {
     frameDelay = buf[header.headerSize + curFrame];
@@ -138,7 +269,6 @@ label:
     bufIntBrd = curBufAdr * 65536;
     bufIntBrd = bufIntBrd + frameDelay * 256;
     bufIntBrd = bufIntBrd + header.border;
-    // viewScreen6912NoKeyGraph(curBufAdr, frameDelay, header.border);
     viewScreen6912NoKeyGraph(bufIntBrd);
     curFrame++;
     if (OS_GETKEY() != 0)

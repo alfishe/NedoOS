@@ -237,6 +237,22 @@ SETPG32KHIGH:
 	ret
 	ENDMOD
 
+	MODULE OS_SETPG8000
+	PUBLIC OS_SETPG8000
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_SETPG8000:
+	push bc
+	push ix
+	push iy
+	ld a,e
+	rst 0x20
+	pop iy
+	pop ix
+	pop bc
+	ret
+	ENDMOD
+
 	MODULE MAIN_ARGS
 	PUBLIC main_args
 	RSEG CODE
@@ -374,6 +390,49 @@ OS_NEWPAGE:
 	ret
 	ENDMOD
 
+	MODULE OS_DELPAGE	;out: a=0 (OK)/!=0 (fail), e=page
+	PUBLIC OS_DELPAGE
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_DELPAGE:
+    push bc
+	push hl
+	ld c,CMD_DELPAGE
+	push ix
+	push iy
+	call BDOS
+	pop iy
+	pop ix
+    pop hl
+	pop bc
+	ret
+	ENDMOD
+
+	MODULE OS_GETSCR0	
+	PUBLIC OS_GETSCR0
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_GETSCR0:
+	
+	
+	ld a,(user_scr0_high)
+	ld h,a
+	ld a,(user_scr0_low)
+	ld l, a
+	ret
+	ENDMOD
+
+	MODULE OS_GETSCR1	
+	PUBLIC OS_GETSCR1
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_GETSCR1:
+	ld a,(user_scr1_high)
+	ld h,a
+	ld a,(user_scr1_low)
+	ld l,a
+	ret
+	ENDMOD
 
 // DE - старое имя, возможно с полным или относительным путём (ASCIIZ). HL - новое имя, пока что требуется такой же путь, как в DE.
 // out HL - указатель на последний элемент пути в этом буфере (NOT MSXDOS compatible! with Drive/path!)
@@ -394,6 +453,25 @@ OS_RENAME:
 	pop ix
 	ret
 	ENDMOD
+
+	MODULE OS_SETBORDER	
+	PUBLIC OS_SETBORDER
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_SETBORDER:
+    push bc
+	push hl
+	push ix
+	push iy
+    ld c,CMD_SETBORDER ;e=0..15
+	call BDOS
+	pop iy
+	pop ix
+	pop hl
+	pop bc
+	ret
+	ENDMOD
+
 
 // DE - имя файла, возможно с полным или относительным путём (ASCIIZ).; А - ошибка. Если 0x00, то ошибки нет.												
 	MODULE OS_DELETE
