@@ -34,9 +34,10 @@ struct headers
   unsigned int headerSize;
 } header;
 
-unsigned char buf[4096];
-unsigned char mem[256]; // reserved pages
+unsigned char buf[25000];
 unsigned char framesDelays[512];
+unsigned char mem[256]; // reserved pages
+
 
 unsigned char ver[] = "0.1";
 unsigned char buffer[] = "0000000000";
@@ -119,7 +120,7 @@ void loadFile(void)
   const char *marker;
   unsigned int todo, counter;
 
-  todo = OS_READHANDLE(buf, fp1, 1024);
+  todo = OS_READHANDLE(buf, fp1, 25000);
   // OS_SEEKHANDLE(fp1, 0);
 
   header.marker[0] = buf[0];
@@ -177,19 +178,22 @@ void loadFile(void)
     OS_SETGFX(0x86);
     exit(0);
   }
-  OS_SEEKHANDLE(fp1, header.poffset);
-  OS_READHANDLE(framesDelays, fp1, header.frames);
+  
+  //OS_SEEKHANDLE(fp1, header.poffset);
+  //OS_READHANDLE(framesDelays, fp1, header.frames);
 
+/*
   ///////////////////////LOADER///////////////////////
 
   for (counter = 0; counter < header.pagesNeeded; counter++)
   {
-    
+
     todo = OS_READHANDLEMEM(0x8000, fp1, 16384);
   }
 
   ///////////////////////LOADER///////////////////////
-}
+*/
+  }
 
 void init(void)
 {
