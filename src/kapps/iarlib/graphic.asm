@@ -190,17 +190,7 @@ fillScr
 	rst 0x28		;SETPGC000
 	pop iy
 	pop ix
-/*
-	ld hl, 0xD800
-	ld de, 768
-emptybuf
-	inc hl
-	ld (hl), 0
-	dec de
-	ld  a, d
-	or d
-	jp nz, emptybuf
-*/
+
     ld hl, (bufAdr)
 	ld de, 0xC000
 	ld bc, 6912
@@ -268,5 +258,31 @@ rst0x08:
 	pop ix
 	ld a,c
 	ret
+ENDMOD
+
+
+MODULE CLEARC000
+PUBLIC CLEARC000
+#include "sysdefs.asm"
+RSEG CODE
+CLEARC000:	
+	push hl
+	push bc
+	push de
+	ld bc, 6912
+	ld hl, 0xc000
+clearloop:
+	ld (hl), 0
+	inc hl
+	dec bc
+	ld a, b
+	or c
+	jp nz, clearloop
+	pop de
+	pop bc
+	pop hl
+	ret
 ENDMOD	
+
+
 END

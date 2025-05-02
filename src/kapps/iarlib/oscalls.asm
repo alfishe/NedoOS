@@ -237,18 +237,39 @@ SETPG32KHIGH:
 	ret
 	ENDMOD
 
+	MODULE OS_SETSCREEN
+	PUBLIC OS_SETSCREEN
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_SETSCREEN:
+    halt
+	push bc
+	push hl
+	push ix
+	push iy
+	ld c,CMD_SETSCREEN	 ;e=screen=0..1
+	call BDOS
+	pop iy
+	pop ix
+	pop hl
+	pop bc
+	ret
+	ENDMOD
+
 	MODULE OS_SETPG8000
 	PUBLIC OS_SETPG8000
 	#include "sysdefs.asm"
 	RSEG CODE
 OS_SETPG8000:
 	push bc
+	push hl
 	push ix
 	push iy
 	ld a,e
 	rst 0x20
 	pop iy
 	pop ix
+	pop hl
 	pop bc
 	ret
 	ENDMOD
@@ -313,16 +334,19 @@ OS_DROPAPP:	;e=id ; hl=result
 	#include "sysdefs.asm"
 	RSEG CODE
 OS_SETGFX:	;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;eF=-1: disable gfx (out: e=old gfxmode)
-    push bc
+    push af
+	push bc
 	push hl
 	push ix
 	push iy
 	ld c,CMD_SETGFX
+	halt
 	call BDOS
 	pop iy
 	pop ix
 	pop hl
 	pop bc
+	pop af
 	ret
 	ENDMOD
 
@@ -459,7 +483,8 @@ OS_RENAME:
 	#include "sysdefs.asm"
 	RSEG CODE
 OS_SETBORDER:
-    push bc
+    push af
+	push bc
 	push hl
 	push ix
 	push iy
@@ -469,6 +494,7 @@ OS_SETBORDER:
 	pop ix
 	pop hl
 	pop bc
+	pop af
 	ret
 	ENDMOD
 
