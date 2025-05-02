@@ -186,7 +186,7 @@ void loadFile(void)
   {
     OS_SETPG8000(mem[counter]);
     todo = OS_READHANDLEMEM(0x8000, fp1, 16384);
-    printf("Page %02u loaded[%u]   \r", counter, todo);
+    printf("Page %02u loaded   \r", counter);
     ///////////////////////LOADER///////////////////////
   }
   putchar('\n');
