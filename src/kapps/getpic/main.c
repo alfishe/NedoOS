@@ -4,7 +4,7 @@
 #include <oscalls.h>
 #include <osfs.h>
 #include <intrz80.h>
-#include <graphic.h>
+//#include <graphic.h>
 #include <../common/terminal.c>
 #include <tcp.h>
 //
@@ -59,7 +59,7 @@ struct sockaddr_in dnsaddress;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 
-unsigned char ver[] = "4.1";
+unsigned char ver[] = "4.2";
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
@@ -94,6 +94,30 @@ void emptyKeys(void)
     }
     loop++;
   } while (key != 0);
+}
+
+unsigned char delayLongKey(unsigned long counter)
+{
+  unsigned long start, finish, key;
+  counter = counter / 20;
+  if (counter < 1)
+  {
+    counter = 1;
+  }
+  start = time();
+  finish = start + counter;
+
+  while (start < finish)
+  {
+    start = time();
+    key = OS_GETKEY();
+    if (key != 0)
+    {
+      return key;
+    }
+    YIELD();
+  }
+  return 32;
 }
 
 void spaces(unsigned char number)
@@ -539,8 +563,8 @@ const char *parseJson(unsigned char *property)
   unsigned int w, lng, lngp1, findEnd, listPos;
   unsigned char terminator;
   int n;
-  //n = -1;
-  // netbuf[0] = '\0';
+  // n = -1;
+  //  netbuf[0] = '\0';
   n = pos(picture, property, 1, 0);
   if (n == -1)
   {
@@ -1115,6 +1139,26 @@ void init(void)
   targetadr.b4 = 13;  // 0D
 }
 
+unsigned char viewScreen6912c(unsigned int bufAdr)
+{
+  unsigned char key;
+  OS_SETBORDER(0);
+  OS_SETGFX(0x83);
+  SETPG32KHIGH(OS_GETSCR0() >> 8);
+  memcpy((unsigned char *)(0xc000), (unsigned char *)(bufAdr), 6912);
+
+  if (slideShowTime != 0)
+  {
+    key = delayLongKey(slideShowTime * 20);
+  }
+  else
+  {
+    key = getchar();
+  }
+  OS_SETGFX(0x86);
+  return key;
+}
+
 C_task main(void)
 {
   long iddqd, idkfa;
@@ -1211,7 +1255,8 @@ start:
 review:
   OS_CLS(0);
   YIELD();
-  keypress = viewScreen6912((unsigned int)&picture, slideShowTime);
+  // keypress = viewScreen6912((unsigned int)&picture, slideShowTime);
+  keypress = viewScreen6912c((unsigned int)&picture);
   emptyKeys();
 
   ///// Keys only for pictures
@@ -1238,7 +1283,9 @@ review:
   if (keypress == 'i' || keypress == 'I')
   {
     printData();
-    getchar();
+    while (OS_GETKEY() == 0)
+    {
+    }
     goto review;
   }
   safeKeys(keypress);
