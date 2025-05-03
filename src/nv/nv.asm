@@ -3353,7 +3353,7 @@ HS_strpg
 twinto866
         incbin "../_sdk/codepage/winto866"
 textpages
-        ds 164;256
+        ds 256;256
 cmd_end
 
 	display "nv size ",cmd_end-cmd_begin," bytes"
