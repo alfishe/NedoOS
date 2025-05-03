@@ -334,7 +334,6 @@ OS_DROPAPP:	;e=id ; hl=result
 	#include "sysdefs.asm"
 	RSEG CODE
 OS_SETGFX:	;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;eF=-1: disable gfx (out: e=old gfxmode)
-    push af
 	push bc
 	push hl
 	push ix
@@ -346,7 +345,6 @@ OS_SETGFX:	;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;eF=-1: disable gfx 
 	pop ix
 	pop hl
 	pop bc
-	pop af
 	ret
 	ENDMOD
 
@@ -483,7 +481,6 @@ OS_RENAME:
 	#include "sysdefs.asm"
 	RSEG CODE
 OS_SETBORDER:
-    push af
 	push bc
 	push hl
 	push ix
@@ -494,7 +491,6 @@ OS_SETBORDER:
 	pop ix
 	pop hl
 	pop bc
-	pop af
 	ret
 	ENDMOD
 

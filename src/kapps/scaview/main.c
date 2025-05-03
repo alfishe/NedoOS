@@ -92,8 +92,6 @@ char getMem(char numOfPages)
   char result, pageCount;
 
   unsigned char pgbak;
-  unsigned int newPage;
-
   union APP_PAGES main_pg;
   main_pg.l = OS_GETMAINPAGES();
   pgbak = main_pg.pgs.window_3;
@@ -106,6 +104,7 @@ char getMem(char numOfPages)
   result = true;
   for (pageCount = 0; pageCount < numOfPages; pageCount++)
   {
+    unsigned int newPage;
     newPage = OS_NEWPAGE();
     if (newPage > 255)
     {
@@ -120,9 +119,9 @@ char getMem(char numOfPages)
 void loadFile(void)
 {
   const char *marker;
-  unsigned int todo, counter;
-  printf("reading header[%u]", header.headerSize);
-  todo = OS_READHANDLE(buf, fp1, header.headerSize);
+  unsigned int counter;
+
+  OS_READHANDLE(buf, fp1, header.headerSize);
 
   header.marker[0] = buf[0];
   header.marker[1] = buf[1];
@@ -142,8 +141,8 @@ void loadFile(void)
   header.curPage = 0;
 
   printf("Size : %lu bytes\r\n", header.filesize);
-  printf("Pages needed : %u\r\n", header.pagesNeeded);
   printf("Total pages  : %u\r\n", header.totalMem);
+  printf("Pages needed : %u\r\n", header.pagesNeeded);
   printf("Free pages   : %u\r\n", header.freeMem);
   printf("Marker: %s\r\n", header.marker);
   printf("Width: %u\r\n", header.width);
@@ -185,7 +184,7 @@ void loadFile(void)
   for (counter = 0; counter < header.pagesNeeded; counter++)
   {
     OS_SETPG8000(mem[counter]);
-    todo = OS_READHANDLEMEM(0x8000, fp1, 16384);
+    OS_READHANDLEMEM(0x8000, fp1, 16384);
     printf("Page %02u loaded   \r", counter);
     ///////////////////////LOADER///////////////////////
   }
@@ -234,29 +233,28 @@ void clearScreens(void)
 
 unsigned int viewScreen6912NoKeyGraph_c(unsigned int bufAdr, unsigned int bufOffset)
 {
-  unsigned int shift;
   OS_SETBORDER(header.border);
   OS_SETPG8000(mem[header.curPage]);
-  
-    if (header.curScreen == 1)
-    {
-      SETPG32KHIGH(header.scr0high);
-      header.curScreen = 0;
-    }
-    else
-    {
-      SETPG32KHIGH(header.scr1high);
-      header.curScreen = 1;
-    }
-  
-    if (bufOffset < 9473)
+
+  if (header.curScreen == 1)
+  {
+    SETPG32KHIGH(header.scr0high);
+    header.curScreen = 0;
+  }
+  else
+  {
+    SETPG32KHIGH(header.scr1high);
+    header.curScreen = 1;
+  }
+
+  if (bufOffset < 9473)
   {
     memcpy((unsigned char *)(0xc000), (unsigned char *)(bufAdr + bufOffset), 6912);
     bufOffset = bufOffset + 6912;
   }
   else
   {
-    unsigned int shiftAdr;
+    unsigned int shiftAdr, shift;
     shift = 16384 - bufOffset;
     shiftAdr = 49152 + shift;
     memcpy((unsigned char *)(0xc000), (unsigned char *)(bufAdr + bufOffset), shift);
@@ -321,7 +319,7 @@ label:
   do
   {
     bufOffset = viewScreen6912NoKeyGraph_c(0x8000, bufOffset);
-    delay((framesDelays[header.curFrame] -1 )* 20);
+    delay((framesDelays[header.curFrame] - 1) * 20);
     header.curFrame++;
     if (OS_GETKEY() != 0)
     {
