@@ -232,7 +232,7 @@ void fatalError(const unsigned char *message)
 	do
 	{
 		YIELD();
-	} while (_low_level_get() == 0);
+	} while (OS_GETKEY() == 0);
 	exit(0);
 }
 
@@ -284,7 +284,7 @@ unsigned char OS_SHELL(const unsigned char *command)
 		do
 		{
 			YIELD();
-		} while (_low_level_get() == 0);
+		} while (OS_GETKEY() == 0);
 		exit(0);
 	}
 
@@ -412,7 +412,8 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 	char socket, firstPacket, key;
 	unsigned int fileSize1;
 	unsigned long downloaded = 0;
-
+	unsigned int down;
+	unsigned int counter;
 	unsigned char sizeLink;
 	unsigned char byte, count, try;
 	const unsigned char *count1;
@@ -426,7 +427,6 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 
 	if (netDriver == 0)
 	{
-		clearStatus();
 		socket = OpenSock(AF_INET, SOCK_STREAM);
 		testOperation("OS_NETSOCKET", socket);
 
@@ -435,7 +435,6 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 
 		todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), 10);
 		testOperation("OS_WIZNETWRITE", todo);
-		clearStatus();
 		firstPacket = true;
 		do
 		{
@@ -452,9 +451,16 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 				fileSize1 = contLen / 1024;
 				saveBuf(fileNamePtr, 00, 0);
 				firstPacket = false;
+				counter = 0;
 			}
 			downloaded = downloaded + todo;
-			printf(" %lu of %u kb   \r", downloaded / 1024, fileSize1);
+			down = downloaded / 1024;
+			counter++;
+			if (counter % 10 == 0)
+			{
+				printf("%u of %u kb   \r", down, fileSize1);
+			}
+
 			saveBuf(fileNamePtr, 01, todo);
 
 			key = OS_GETKEY();
@@ -531,10 +537,18 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 				fileSize1 = contLen / 1024;
 				saveBuf(fileNamePtr, 00, 0);
 				firstPacket = false;
+				counter = 0;
 			}
 			downloaded = downloaded + todo;
-			printf("%lu of %u kb   \r", downloaded / 1024, fileSize1);
+			down = downloaded / 1024;
+			counter++;
+			if (counter % 10 == 0)
+			{
+				printf("%lu of %u kb   \r", down, fileSize1);
+			}
+			
 			saveBuf(fileNamePtr, 01, todo);
+			
 			key = OS_GETKEY();
 			if (key == 27)
 			{
@@ -822,7 +836,7 @@ void binUpdate(void)
 	AT(cw.x + 2, cw.y + 10);
 	printf(">To full update start 'updater.com F'<");
 
-	//OS_SHELL("time2 >updlog.txt");
+	// OS_SHELL("time2 >updlog.txt");
 
 	AT(cw.x + 2, cw.y + 3);
 	printf("1.Downloading bin.zip...");
@@ -975,9 +989,9 @@ C_task main(int argc, const char *argv[])
 	clearStatus();
 	infoBox("System Updated successfully!");
 	delay(2000);
-	//OS_SHELL("time2 >>updlog.txt");
-	// getchar();
-	// OS_DELETE("release.zip");
+	// OS_SHELL("time2 >>updlog.txt");
+	//  getchar();
+	//  OS_DELETE("release.zip");
 	ATRIB(40);
 	ATRIB(32);
 	AT(1, 25);
