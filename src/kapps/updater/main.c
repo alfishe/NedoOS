@@ -229,10 +229,7 @@ void fatalError(const unsigned char *message)
 	AT(cw.x + 2, cw.y + 3);
 	printf("%s", message);
 	AT(1, 1);
-	do
-	{
-		YIELD();
-	} while (OS_GETKEY() == 0);
+	getchar();
 	exit(0);
 }
 
@@ -281,10 +278,7 @@ unsigned char OS_SHELL(const unsigned char *command)
 		AT(1, 24);
 		printf("%s", fileName);
 		printf(" not found.");
-		do
-		{
-			YIELD();
-		} while (OS_GETKEY() == 0);
+		getchar();
 		exit(0);
 	}
 
@@ -462,13 +456,6 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 			}
 
 			saveBuf(fileNamePtr, 01, todo);
-
-			key = OS_GETKEY();
-			if (key == 27)
-			{
-				fatalError("File download aborted!");
-			}
-
 		} while (downloaded < contLen);
 		netShutDown(socket, 0);
 		saveBuf(fileNamePtr, 02, 00);
@@ -546,14 +533,8 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 			{
 				printf("%u of %u kb   \r", down, fileSize1);
 			}
-			
+
 			saveBuf(fileNamePtr, 01, todo);
-			
-			key = OS_GETKEY();
-			if (key == 27)
-			{
-				fatalError("File download aborted!");
-			}
 		} while (downloaded < contLen);
 		saveBuf(fileNamePtr, 02, 00);
 		sendcommand("AT+CIPCLOSE");
@@ -904,6 +885,7 @@ void binUpdate(void)
 C_task main(int argc, const char *argv[])
 {
 	unsigned char test;
+	unsigned char key;
 	os_initstdio();
 
 	targetadr.family = AF_INET;
