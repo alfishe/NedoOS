@@ -7,6 +7,8 @@ memorystreamloadfile
 ;ON_DATA_LOADED_CALLBACK defines label called upon every page load
 	call openstream_file
 	or a
+	ld a,MEMORYSTREAMERROR_FILEIO
+	ld (memorystreamerrorcode),a
 	ret nz
 	ld hl,0
 	ld de,hl
@@ -16,6 +18,7 @@ memorystreamloadfile
 .loadloop
 	ld a,c
 	ld (.pageindex),a
+	inc c ;increase page count
 	push bc
 	push de
 	push hl
@@ -25,6 +28,9 @@ memorystreamloadfile
 	pop hl
 	pop de
 	pop bc
+	dec c ;decrease page count because there's no page
+	ld a,MEMORYSTREAMERROR_OOM
+	ld (memorystreamerrorcode),a
 	jr .breakloop
 .pageallocated
 .pageindex=$+1
@@ -65,7 +71,6 @@ memorystreamloadfile
 	pop bc,de,hl
 	jr nz,.breakloop
 	endif
-	inc c
 	and 0x40
 	jr z,.breakloop
 	djnz .loadloop
@@ -79,47 +84,9 @@ memorystreamloadfile
 	ld (memorystreampagecount),a
 	call closestream_file
 	pop af
-	ret z
-	jp memorystreamfree
-
-memorystreamallocate
-;dehl = buffer size
-;out: zf=1 if successful, zf=0 otherwise
-	ld (memorystreamsize+0),hl
-	ld (memorystreamsize+2),de
-	ld a,e
-	ld de,0x3fff
-	add hl,de
-	ld c,0
-	adc a,c
-	sla h
-	rla
-	sla h
-	rla
-	ld b,a
-	ld a,MEMORYSTREAMMAXPAGES
-	cp b
-	ret c
-	ld hl,memorystreampages
-.loop	push bc
-	push hl
-	OS_NEWPAGE
-	pop hl
-	pop bc
-	or a
-	jr z,.pageallocated
-	ld a,c
-	ld (memorystreampagecount),a
-	jp memorystreamfree
-
-.pageallocated
-	ld (hl),e
-	inc hl
-	inc c
-	djnz .loop
-	ld a,c
-	ld (memorystreampagecount),a
-	xor a
+	jp nz,memorystreamfree
+	ld a,MEMORYSTREAMERROR_SUCCESS
+	ld (memorystreamerrorcode),a
 	ret
 
 memorystreamfree
@@ -331,9 +298,15 @@ memorystreamgetpos
 	ld h,a
 	ret
 
+MEMORYSTREAMERROR_SUCCESS = 0
+MEMORYSTREAMERROR_FILEIO  = 1
+MEMORYSTREAMERROR_OOM     = 2
+
 memorystreamsize
 	ds 4
 memorystreampages
 	ds MEMORYSTREAMMAXPAGES
 memorystreamcurrentpage
+	ds 1
+memorystreamerrorcode
 	ds 1

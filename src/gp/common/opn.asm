@@ -24,6 +24,10 @@ OPN_DAT = 0xbffd
 	out (c),d
 	endm
 
+opnwriteall
+;e = register
+;d = value
+	call opnwritefm2
 opnwritefm1
 ;e = register
 ;d = value
@@ -35,10 +39,6 @@ opnwritefm2
 ;d = value
 	opn_write_fm_reg 1
 	ret
-
-opnwriteall
-	call opnwritefm1
-	jp opnwritefm2
 
 	macro opn_write_fm_regs incr,incd
 ;e = base register
@@ -65,12 +65,14 @@ opninit
 	ld de,0x002d
 	jp opnwriteall
 
-opnmute
-;stop timers
+opnstoptimers
 	ld de,0x3027
 	call opnwriteall
 	ld de,0x0027
-	call opnwriteall
+	jp opnwriteall
+
+opnmute
+	call opnstoptimers
 ;mute SSG
 	ld l,3
 	ld de,0x0008

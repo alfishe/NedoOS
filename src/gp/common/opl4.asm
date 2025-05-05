@@ -83,11 +83,14 @@ opl4init
 	ld de,0x0004
 	jp opl4writefm2
 
-opl4mute
+opl4stoptimers
 	ld de,0x8004
 	call opl4writefm1
 	ld de,0x0004
-	call opl4writefm1 ;stop timers
+	jp opl4writefm1
+
+opl4mute
+	call opl4stoptimers
 	ld de,0x0004
 	call opl4writefm2
 	ld de,0x00bd

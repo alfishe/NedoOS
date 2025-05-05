@@ -113,7 +113,7 @@ ismodfile
 musicload
 ;cde = file extension
 ;hl = input file name
-;out: a = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
+;out: hl = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
 	call ismodfile
 	ex de,hl
 	jr nz,.loads3m
@@ -155,7 +155,7 @@ musicload
 .notitle
 	xor a
 	ld (currentposition),a
-	ld a,DEVICE_MOONSOUND_MASK
+	ld hl,DEVICE_MOONSOUND_MASK
 	ret
 
 musicunload

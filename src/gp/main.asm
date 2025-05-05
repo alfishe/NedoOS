@@ -11,13 +11,14 @@ FILE_NAME_OFFSET = FILE_DISPLAY_INFO_OFFSET+FILE_DISPLAY_INFO_SIZE
 FILE_NAME_SIZE = SFN_SIZE
 FILE_ATTRIB_OFFSET = FILE_NAME_OFFSET+FILE_NAME_SIZE
 FILE_ATTRIB_SIZE = 1
-BROWSER_FILE_COUNT=151
-PLAYLIST_FILE_COUNT=40
+BROWSER_FILE_COUNT = 146
+PLAYLIST_FILE_COUNT = 40
 PANELCOLOR = 0x4f
 CURSORCOLOR = 0x28
 PANELFILECOLOR = 0x0f
 PANELDIRCOLOR = 0x4f
 PANELDRIVECOLOR = 0x4b
+ERRORWINDOWCOLOR = 0x17
 FILE_LINE_COUNT = 22
 FILES_WINDOW_X = 0
 FILE_ATTRIB_MUSIC = 255
@@ -192,13 +193,17 @@ clearplaylist
 	call clearpanel
 	jp drawplaylistwindow
 
-playnextfile
+setnextfileindexandwrap
 	ld ix,(currentpaneladdr)
 	call setnextfileindex
+	ret c
+	ld (ix+PANEL.currentfileindex),0
+	ld (ix+PANEL.firstfiletoshow),0
+	ret
+
+playnextfile
+	call setnextfileindexandwrap
 	jp c,startplaying
-	xor a
-	ld (ix+PANEL.currentfileindex),a
-	ld (ix+PANEL.firstfiletoshow),a
 	ld hl,(currentpaneladdr)
 	ld de,PANEL.fileslist+FILE_ATTRIB_OFFSET
 	add hl,de
@@ -394,9 +399,10 @@ startplaying
 	call isfileplaylist
 	jp z,.loadplaylist
 	call findsupportedplayer
-	ret nz
-	xor a
-	ld (devicemask),a
+	jp nz,drawerrorwindow
+	ld hl,0
+	ld (devicemask),hl
+	ld (ERRORSTRINGADDR),hl
 	call drawplayerwindow
 .filext1=$+1
 	ld bc,0
@@ -405,8 +411,8 @@ startplaying
 .filename=$+1
 	ld hl,0
 	call musicload
-	jp nz,drawui
-	ld (devicemask),a
+	jp nz,drawerrorwindow
+	ld (devicemask),hl
 	ld hl,playmsgtable
 	ld (currentmsgtable),hl
 	ld a,1
@@ -675,6 +681,46 @@ getmusicprogress
 	ret z
 	ld a,(hl)
 	ret
+
+drawerrorwindow
+;show the error if esc was pressed to avoid infinitely looping through unplayable files
+	OS_GETKEY
+	cp key_esc
+	jr z,.drawwindow
+;don't display errors in playlist mode and just skip to the next file silently
+	ld a,(browserpanel.isinactive)
+	or a
+	jr z,.drawwindow
+	call setnextfileindexandwrap
+	call drawui
+	jp startplaying
+.drawwindow
+	ld de,ERRORWINDOWCOLOR
+	OS_SETCOLOR
+	ld hl,(ERRORSTRINGADDR)
+	ld a,l
+	or h
+	jp z,drawui; got no text to print!
+	ld b,1
+.strlenloop
+	ld a,(hl)
+	inc hl
+	inc b
+	or a
+	jr nz,.strlenloop
+	ld c,3
+	ld de,10*256+16
+	call drawwindow
+	ld de,10*256+18
+	OS_SETXY
+	ld hl,errorwindowheaderstr
+	call print_hl
+	ld de,12*256+18
+	OS_SETXY
+	ld hl,(ERRORSTRINGADDR)
+	call print_hl
+	YIELDGETKEYLOOP
+	jp drawui
 
 drawplayerwindow
 	ld de,PANELCOLOR
@@ -1124,6 +1170,8 @@ rom001200
 	db "Copyright"
 loadingstr
 	db "LOADING...",0
+errorwindowheaderstr
+	db "Error",0
 firmwareerrorstr
 	db "firmware problem!\r\nPlease update ZXM-MoonSound firmware to revision 1.01\r\n"
 	db "https://www.dropbox.com/s/1e0b2197emrhzos/zxm_moonsound01_frm0101.zip\r\n"
@@ -1144,19 +1192,19 @@ playerwindowtitlepos=$+1
 	ld de,8*256+0
 	OS_SETXY
 devicemask=$+1
-	ld a,0
+	ld bc,0
+	ld a,b
+	or c
 	ld hl,(PLAYERNAMESTRADDR)
-	or a
 	jp z,print_hl
-	ld b,a
-	ld c,0
 	ld hl,playingstr
 	ld de,filinfo
 	call strcopy_hltode
 	ld hl,devicelist
-.loop	bit 0,b
+	ld ixl,15
+.loop	bit 0,c
 	jr z,.skip
-	bit 0,c
+	bit 7,b
 	jr z,.noseparator
 	push hl
 	ld hl,deviceseparatorstr
@@ -1170,10 +1218,11 @@ devicemask=$+1
 	ld l,a
 	call strcopy_hltode
 	pop hl
-	ld c,1
+	set 7,b
 .skip	inc hl
 	inc hl
-	srl b
+	sra bc
+	dec ixl
 	jr nz,.loop
 	ld hl,playing1str
 	call strcopy_hltode
@@ -1198,6 +1247,10 @@ devicemidiuart
 	db "MIDI UART",0
 deviceopm
 	db "YM2151",0
+devicedualopm
+	db "2x YM2151",0
+deviceopna
+	db "YM2608",0
 devicelist
 	dw deviceay
 	dw deviceturbosound
@@ -1208,6 +1261,8 @@ devicelist
 	dw deviceneogs
 	dw devicemidiuart
 	dw deviceopm
+	dw devicedualopm
+	dw deviceopna
 
 loadplayer
 ;de = code size
@@ -1409,7 +1464,7 @@ detectopm
 .hasdualopm
 	ld (gpsettings.opmstatus),a
 	call print_hl
-	jp opmmute
+	jp opmstoptimers
 
 loadsettings
 	ld de,settingsfilename
@@ -1780,7 +1835,7 @@ ismoonsoundpresent
 	cp 0xa0
 	ret nz
 ;there must be MoonSound in this system
-	call opl4mute
+	call opl4stoptimers
 	xor a
 	ret
 
@@ -1817,7 +1872,7 @@ istfmpresent
 	cp 2
 	ret nz
 ;there must be TFM in this system
-	call opnmute
+	call opnstoptimers
 	xor a
 	ret
 

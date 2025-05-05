@@ -130,15 +130,15 @@ playerdeinit
 musicload
 ;cde = file extension
 ;hl = input file name
-;out: a = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
+;out: hl = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
 	call ismidfile
 	jr nz,.ptfile
 	call midloadfile
 	ret nz
 	ld a,255
 	ld (isplayingmidfile),a
-	ld a,DEVICE_MIDI_UART_MASK
-	cp a
+	ld hl,DEVICE_MIDI_UART_MASK
+	xor a
 	ret
 .ptfile	ex de,hl
 	call openstream_file
@@ -170,10 +170,10 @@ playerpage=$+1
 	ld (isplayingmidfile),a
 	ld a,(is_ts)
 	or a
-	ld a,DEVICE_AY_MASK
-	jr z,$+4
-	ld a,DEVICE_TURBOSOUND_MASK
-	cp a
+	ld hl,DEVICE_AY_MASK
+	jr z,$+5
+	ld hl,DEVICE_TURBOSOUND_MASK
+	xor a
 	ret
 
 musicunload

@@ -79,7 +79,7 @@ playerinit
 musicload
 ;cde = file extension
 ;hl = input file name
-;out: a = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
+;out: hl = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
 	push hl
 	set_timer waittimer50hz,882
 	ld hl,0
@@ -87,9 +87,9 @@ musicload
 	ld (samplecounterlo),hl
 	ld (dataoffsetlo),hl
 	ld (dataoffsethi),hl
+	ld (devicemask),hl
 	ld a,l
 	ld (samplecounterhi),a
-	ld (devicemask),a
 	ld (vgmheadercopy),a
 	ld a,e
 	pop de
@@ -97,6 +97,20 @@ musicload
 	jr z,.loadcompressed
 	call memorystreamloadfile
 	jr z,.doneloading
+	ld hl,(ERRORSTRINGADDR)
+	ld a,l
+	or h
+	ret nz
+	ld a,(memorystreamerrorcode)
+	dec a
+	ret m
+	ld hl,fileioerrorstr
+	ld (ERRORSTRINGADDR),hl
+	dec a
+	ret m
+	ld hl,oomerrorstr
+	ld (ERRORSTRINGADDR),hl
+	dec a
 	ret
 .loadcompressed
 	call decompressfiletomemorystream
@@ -134,7 +148,7 @@ dataoffsethi=$+1
 	call memorystreamseek
 	xor a
 devicemask=$+1
-	ld a,0
+	ld hl,0
 	ret
 
 inithardware
@@ -146,17 +160,18 @@ inithardware
 	xor a
 	a_or_dw HEADER_CLOCK_YM2151
 	call nz,initYM2151
-	ret nz
+	jp nz,.missinghardwareerror
 ;init TFM
 	xor a
 	a_or_dw HEADER_CLOCK_YM2203
 	a_or_dw HEADER_CLOCK_YM2608
 	call nz,initYM2203
-	ret nz
+	jp nz,.missinghardwareerror
 ;init Moonsound
 	xor a
 	a_or_dw HEADER_CLOCK_YM3526
 	a_or_dw HEADER_CLOCK_YM3812
+	a_or_dw HEADER_CLOCK_Y8950
 	ld (useYM3812),a
 	a_or_dw HEADER_CLOCK_YMF262
 	jr nz,.opl4notneeded
@@ -164,17 +179,31 @@ inithardware
 	jr z,.opl4notneeded
 	ld a,(moonsoundstatus)
 	cp 2
-	ret nz
+	jr nz,.missinghardwareerror
 	or a
 .opl4notneeded
 	call nz,initYMF278B
-	ret nz
+	jp nz,.missinghardwareerror
 ;zf=0 if there is no supported device
-	ld a,(devicemask)
+	ld hl,(devicemask)
+	ld a,l
+	or h
 	cp 1
-	ret c
-	cp a
+	sbc a,a
+	ret z
+.missinghardwareerror
+	ld hl,missinghardwareerrorstr
+	ld (ERRORSTRINGADDR),hl
 	ret
+
+missinghardwareerrorstr
+	db "Unable to initialize the sound device!",0
+fileioerrorstr
+	db "Unable to read the file!",0
+oomerrorstr
+	db "Not enough memory to load the module!",0
+gziperrorstr
+	db "Failed to decompress the file!",0
 
 playerdeinit
 	ret
@@ -420,14 +449,6 @@ cmdYM2203dp
 	memory_stream_read_2 e,d
 	jp opnwritemusiconlyfm2
 
-cmdYMF262p0
-	memory_stream_read_2 e,d
-	jp opl4writemusiconlyfm1
-
-cmdYMF262p1
-	memory_stream_read_2 e,d
-	jp opl4writemusiconlyfm2
-
 cmdYMF278B
 	memory_stream_read_3 c,e,d
 	dec c
@@ -435,18 +456,16 @@ cmdYMF278B
 	jp p,opl4writewavemusiconly
 	jp opl4writemusiconlyfm1
 
+cmdYMF262p0
 cmdYM3812
-	memory_stream_read_2 e,d
-	jp opl4writemusiconlyfm1
-
-cmdYM3812dp
-	memory_stream_read_2 e,d
-	jp opl4writemusiconlyfm2
-
+cmdY8950
 cmdYM3526
 	memory_stream_read_2 e,d
 	jp opl4writemusiconlyfm1
 
+cmdYMF262p1
+cmdYM3812dp
+cmdY8950dp
 cmdYM3526dp
 	memory_stream_read_2 e,d
 	jp opl4writemusiconlyfm2
@@ -673,7 +692,7 @@ cmdtable
 	db cmdunsupported  %256 ; 59
 	db cmdYM3812       %256 ; 5A
 	db cmdYM3526       %256 ; 5B
-	db cmdunsupported  %256 ; 5C
+	db cmdY8950        %256 ; 5C
 	db skip3           %256 ; 5D
 	db cmdYMF262p0     %256 ; 5E
 	db cmdYMF262p1     %256 ; 5F
@@ -753,7 +772,7 @@ cmdtable
 	db skip3           %256 ; A9
 	db cmdYM3812dp     %256 ; AA
 	db cmdYM3526dp     %256 ; AB
-	db cmdunsupported  %256 ; AC
+	db cmdY8950dp      %256 ; AC
 	db skip3           %256 ; AD
 	db cmdYMF262dp0    %256 ; AE
 	db cmdYMF262dp0    %256 ; AF
@@ -929,7 +948,7 @@ cmdtable
 	db cmdunsupported  /256 ; 59
 	db cmdYM3812       /256 ; 5A
 	db cmdYM3526       /256 ; 5B
-	db cmdunsupported  /256 ; 5C
+	db cmdY8950        /256 ; 5C
 	db skip3           /256 ; 5D
 	db cmdYMF262p0     /256 ; 5E
 	db cmdYMF262p1     /256 ; 5F
@@ -1009,7 +1028,7 @@ cmdtable
 	db skip3           /256 ; A9
 	db cmdYM3812dp     /256 ; AA
 	db cmdYM3526dp     /256 ; AB
-	db cmdunsupported  /256 ; AC
+	db cmdY8950dp      /256 ; AC
 	db skip3           /256 ; AD
 	db cmdYMF262dp0    /256 ; AE
 	db cmdYMF262dp0    /256 ; AF
@@ -1100,30 +1119,10 @@ decompressfiletomemorystream
 	call openstream_file
 	or a
 	ret nz
-;read the last 4 bytes containing decompressed file size
-	ld a,(filehandle)
-	ld b,a
-	OS_GETFILESIZE
-	ld bc,4
-	sub hl,bc
-	jr nc,$+3
-	dec de
-	ld a,(filehandle)
-	ld b,a
-	OS_SEEKHANDLE
-	ld de,memorystreamsize
-	ld hl,4
-	call readstream_file
-	ld a,(filehandle)
-	ld b,a
+	ld (memorystreampagecount),a
 	ld hl,0
-	ld de,hl
-	OS_SEEKHANDLE
-;allocate memory
-	ld hl,(memorystreamsize+0)
-	ld de,(memorystreamsize+2)
-	call memorystreamallocate
-	jr nz,closefilewitherror
+	ld (memorystreamsize+0),hl
+	ld (memorystreamsize+2),hl
 	call memorystreamstart
 ;backup the data from app page
 	ld a,(filedatapage)
@@ -1152,12 +1151,14 @@ filedatapage=$+1
 	ret
 
 GzipThrowException
+	ld hl,gziperrorstr
+	ld (ERRORSTRINGADDR),hl
+GzipThrowExceptionNoError
 savedSP=$+1
 	ld sp,0
 GzipExitWithError
 	call memorystreamfree
 	call restoreappdata
-closefilewitherror
 	call closestream_file
 	or 1
 	ret
@@ -1188,8 +1189,63 @@ GzipReadInputBuffer
 GzipWriteOutputBuffer
 ;de = OutputBuffer
 ;hl = size
-	ld a,(memorystreamcurrentpage)
-	SETPG8000
+	exx
+	ex af,af'
+	push af,bc,de,hl,ix,iy
+	exx
+;allocate memory
+	ld a,l
+	add a,0xff
+	ld a,h
+	adc a,0x3f
+	rlca
+	rlca
+	and 3
+	ld b,a
+	ld a,(memorystreampagecount)
+	ld c,a
+	push hl
+	add a,memorystreampages%256
+	ld l,a
+	adc a,memorystreampages/256
+	sub l
+	ld h,a
+.allocloop
+	push bc
+	push hl
+	OS_NEWPAGE
+	or a
+	pop hl
+	pop bc
+	jr z,.pageallocated
+	ld a,c
+	ld (memorystreampagecount),a
+	ld hl,oomerrorstr
+	ld (ERRORSTRINGADDR),hl
+	jp GzipThrowExceptionNoError
+.pageallocated
+	ld (hl),e
+	inc hl
+	inc c
+	djnz .allocloop
+	ld a,c
+	ld (memorystreampagecount),a
+	ld hl,(memorystreamsize+0)
+	ld de,(memorystreamsize+2)
+	push hl
+	push de
+	call memorystreamseek
+	pop bc
+	pop hl
+	pop de
+	add hl,de
+	ld (memorystreamsize+0),hl
+	jr nc,$+7
+	inc bc
+	ld (memorystreamsize+2),bc
+	ex de,hl
+	ld de,OutputBuffer
+;copy data to memory stream
 	ld bc,hl
 	add hl,de
 	bit 7,h
@@ -1217,33 +1273,34 @@ GzipWriteOutputBuffer
 	pop bc
 .below8000
 	call memorystreamwrite
-;ondataloaded can do OS calls
-	exx
-	ex af,af'
-	push af,bc,de,hl,ix,iy
-	exx
-	ex af,af'
 	call ondataloaded
-	exx
-	ex af,af'
+	jp nz,GzipThrowExceptionNoError
 	pop iy,ix,hl,de,bc,af
 	exx
 	ex af,af'
-	jp nz,GzipThrowException
 	jp setsharedpages
 
 	include "common/gunzip.asm"
 
+	macro set_device_mask devicebit
+	ld hl,devicemask+devicebit/8
+	set devicebit%8,(hl)
+	endm
+
+	macro check_device_mask devicebit
+	ld hl,devicemask+devicebit/8
+	bit devicebit%8,(hl)
+	endm
+
 initAY8910
 	call ssginit
-	ld hl,devicemask
 	ld a,(HEADER_CLOCK_AY8910+3)
 	and 0x40
 	jr nz,.dualchip
-	set DEVICE_AY_BIT,(hl)
+	set_device_mask DEVICE_AY_BIT
 	ret
 .dualchip
-	set DEVICE_TURBOSOUND_BIT,(hl)
+	set_device_mask DEVICE_TURBOSOUND_BIT
 	ret
 
 initYM2203
@@ -1254,8 +1311,7 @@ tfmstatus=$+1
 	call opninit
 	set_timer opnwaittimer60hz,735
 	call opninittimer60hz
-	ld hl,devicemask
-	set DEVICE_TFM_BIT,(hl)
+	set_device_mask DEVICE_TFM_BIT
 	xor a
 	ret
 
@@ -1268,6 +1324,8 @@ moonsoundstatus=$+1
 	ld a,(HEADER_CLOCK_YM3812+3)
 	ld hl,HEADER_CLOCK_YM3526+3
 	or (hl)
+	ld hl,HEADER_CLOCK_Y8950+3
+	or (hl)
 	and 0x40
 	jr nz,notOPL2
 useYM3812=$+1
@@ -1276,8 +1334,7 @@ useYM3812=$+1
 	call nz,opl4writefm2
 notOPL2 set_timer opl4waittimer60hz,735
 	call opl4inittimer60hz
-	ld hl,devicemask
-	set DEVICE_MOONSOUND_BIT,(hl)
+	set_device_mask DEVICE_MOONSOUND_BIT
 	xor a
 	ret
 
@@ -1293,24 +1350,29 @@ opmstatus=$+1
 	ret nz
 .hasdualopm
 	call vgmopminit
-	set_timer opmwaittimer100hz,441
-	ld hl,devicemask
-	set DEVICE_OPM_BIT,(hl)
+	ld a,(HEADER_CLOCK_YM2151+3)
+	and 0x40
+	jr nz,.dualchip
+	set_device_mask DEVICE_OPM_BIT
+	xor a
+	ret
+.dualchip
+	set_device_mask DEVICE_DUAL_OPM_BIT
 	xor a
 	ret
 
 musicunload
-	ld a,(devicemask)
-	and DEVICE_MOONSOUND_MASK
+	check_device_mask DEVICE_MOONSOUND_BIT
 	call nz,opl4mute
-	ld a,(devicemask)
-	and DEVICE_TFM_MASK
+	check_device_mask DEVICE_TFM_BIT
 	call nz,opnmute
-	ld a,(devicemask)
-	and DEVICE_AY_MASK|DEVICE_TURBOSOUND_MASK
+	check_device_mask DEVICE_AY_BIT
 	call nz,ssgmute
-	ld a,(devicemask)
-	and DEVICE_OPM_MASK
+	check_device_mask DEVICE_TURBOSOUND_BIT
+	call nz,ssgmute
+	check_device_mask DEVICE_OPM_BIT
+	call nz,opmmute
+	check_device_mask DEVICE_DUAL_OPM_BIT
 	call nz,opmmute
 	jp memorystreamfree
 
@@ -1351,6 +1413,7 @@ HEADER_CLOCK_YM2203  = vgmheadercopy+0x44
 HEADER_CLOCK_YM2608  = vgmheadercopy+0x48
 HEADER_CLOCK_YM3812  = vgmheadercopy+0x50
 HEADER_CLOCK_YM3526  = vgmheadercopy+0x54
+HEADER_CLOCK_Y8950   = vgmheadercopy+0x58
 HEADER_CLOCK_YMF262  = vgmheadercopy+0x5c
 HEADER_CLOCK_YMF278B = vgmheadercopy+0x60
 HEADER_CLOCK_AY8910  = vgmheadercopy+0x74

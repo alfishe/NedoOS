@@ -165,7 +165,12 @@ modparsetype
 	inc hl
 	ret z
 	djnz .loop
+	ld hl,modbadsignatureerrorstr
+	ld (ERRORSTRINGADDR),hl
 	ret
+
+modbadsignatureerrorstr
+	db "Unsupported module type!",0
 
 modunload
 	call opl4mute

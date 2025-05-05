@@ -165,7 +165,7 @@ playerdeinit
 musicload
 ;cde = file extension
 ;hl = input file name
-;out: a = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
+;out: hl = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
 	call ismodfile
 	ld a,1
 	jr z,$+3
@@ -195,8 +195,8 @@ pageC000=$+1
 	ld hl,0
 	ld (paddingframecount),hl
 	ld (bufferdataleft),hl
-	ld a,DEVICE_NEOGS_MASK
-	cp a
+	ld hl,DEVICE_NEOGS_MASK
+	xor a
 	ret
 
 TITLELENGTH = 64
@@ -269,7 +269,7 @@ loadmod
 	WC
 	xor a
 	ld (currentposition),a
-	ld a,DEVICE_GS_MASK
+	ld hl,DEVICE_GS_MASK
 	ret
 
 musicunload

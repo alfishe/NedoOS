@@ -48,11 +48,13 @@ playerdeinit
 musicload
 ;cde = file extension
 ;hl = input file name
-;out: a = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
+;out: hl = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
 ;
 ;First try loading wavekit with the same filename as input file.
 ;This allows overriding wavekit specified in MWM header without
 ;having the file edited.
+	ld de,wavekiterrorstr
+	ld (ERRORSTRINGADDR),de
 	ld (filenameaddr),hl
 	ld c,'.'
 	call findlastchar ;out: de = after last dot or start
@@ -129,6 +131,8 @@ loadmwkdata
 	pop af
 	ret nz
 loadmwm
+	ld hl,moduleerrorstr
+	ld (ERRORSTRINGADDR),hl
 	ld de,(filenameaddr)
 	call openstream_file
 	or a
@@ -166,7 +170,8 @@ noloopinmusic
 	ld (loopcounter),a
 	ld hl,0
 	ld (playposacc),hl
-	ld a,DEVICE_MOONSOUND_MASK
+	ld (ERRORSTRINGADDR),hl
+	ld hl,DEVICE_MOONSOUND_MASK
 	ret
 
 musicunload
@@ -265,6 +270,10 @@ mwknone
 	db "NONE    "
 playernamestr
 	db "MBWave",0
+wavekiterrorstr
+	db "Unable to load wavekit!",0
+moduleerrorstr
+	db "Failed to load the module!",0
 end
 
 	savebin "mwm.bin",begin,end-begin

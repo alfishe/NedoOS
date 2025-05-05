@@ -1,16 +1,15 @@
-OPM0_REG = 0xf0c1 ;write: address
-OPM0_DAT = 0xf1c1 ;write: value, read: status
-OPM1_REG = 0xf2c1 ;write: address
-OPM1_DAT = 0xf3c1 ;write: value, read: status
+;Having chip 0 is mandatory for the player to detect YM2151,
+;chip 1 is an optional second chip.
 
-	macro opm_write_reg chip_n
+OPM0_REG = 0xf0c1 ;write: chip 0 address
+OPM0_DAT = 0xf1c1 ;write: chip 0 value, read: chip 0 status
+OPM1_REG = 0xf2c1 ;write: chip 1 address
+OPM1_DAT = 0xf3c1 ;write: chip 1 value, read: chip 1 status
+
+	macro opm_write_reg
+;bc = data port
 ;e = register
 ;d = value
-	IF chip_n
-	ld bc,OPM1_DAT
-	ELSE
-	ld bc,OPM0_DAT
-	ENDIF
 	in f,(c)
 	jp m,$-2
 	dec b
@@ -21,23 +20,23 @@ OPM1_DAT = 0xf3c1 ;write: value, read: status
 	out (c),d
 	endm
 
+opmwriteall
+;e = register
+;d = value
+	call opmwritechip1
 opmwritechip0
 ;e = register
 ;d = value
-	opm_write_reg 0
+	ld bc,OPM0_DAT
+	opm_write_reg
 	ret
 
 opmwritechip1
 ;e = register
 ;d = value
-	opm_write_reg 1
+	ld bc,OPM1_DAT
+	opm_write_reg
 	ret
-
-opmwriteall
-;e = register
-;d = value
-	call opmwritechip0
-	jp opmwritechip1
 
 opmdisablechip1
 	ld a,0xc9 ;ret opcode
@@ -65,12 +64,14 @@ opminit
 	opm_write_regs 1,0
 	ret
 
-opmmute
-;stop timers
+opmstoptimers
 	ld de,0x3014
 	call opmwriteall
 	ld de,0x0014
-	call opmwriteall
+	jp opmwriteall
+
+opmmute
+	call opmstoptimers
 ;max release rate
 	ld l,0x20
 	ld de,0x0fe0
