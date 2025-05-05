@@ -544,7 +544,7 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 			counter++;
 			if (counter % 10 == 0)
 			{
-				printf("%lu of %u kb   \r", down, fileSize1);
+				printf("%u of %u kb   \r", down, fileSize1);
 			}
 			
 			saveBuf(fileNamePtr, 01, todo);
