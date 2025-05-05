@@ -37,14 +37,14 @@ struct headers
   unsigned int headerSize;
 } header;
 
-unsigned char buf[2048];
-unsigned char framesDelays[512];
+unsigned char buf[4096];
+unsigned char framesDelays[1024];
 unsigned char mem[256]; // reserved pages
-
-unsigned char ver[] = "0.3";
-unsigned char buffer[] = "0000000000";
-unsigned char crlf[2] = {13, 10};
-
+void quit(void)
+{
+  OS_SETGFX(-1);
+  exit(0);
+}
 char waitKey(void)
 {
   char key;
@@ -71,14 +71,32 @@ void delay(unsigned long counter)
     start = time();
   }
 }
+
+void delayLong(unsigned long counter)
+{
+  unsigned long start, finish;
+  counter = counter / 20;
+  if (counter < 1)
+  {
+    counter = 1;
+  }
+  start = time();
+  finish = start + counter;
+
+  while (start < finish)
+  {
+    start = time();
+    YIELD();
+  }
+}
+
 unsigned char getFreeMem(void)
 {
   unsigned char freeMem = 0, counter;
-
   for (counter = 0; counter < header.totalMem; counter++)
   {
     unsigned char owner;
-    owner = OS_GETPAGEOWNER(counter);
+    owner = OS_GETPAGEOWNER(~counter);
     if (owner == 0)
     {
       freeMem++;
@@ -90,17 +108,6 @@ unsigned char getFreeMem(void)
 char getMem(char numOfPages)
 {
   char result, pageCount;
-
-  unsigned char pgbak;
-  union APP_PAGES main_pg;
-  main_pg.l = OS_GETMAINPAGES();
-  pgbak = main_pg.pgs.window_3;
-  OS_DELPAGE(pgbak);
-  printf("page %u freed\r\n", pgbak);
-  pgbak = main_pg.pgs.window_2;
-  OS_DELPAGE(pgbak);
-  printf("page %u freed\r\n", pgbak);
-
   result = true;
   for (pageCount = 0; pageCount < numOfPages; pageCount++)
   {
@@ -139,43 +146,39 @@ void loadFile(void)
   header.pagesNeeded = header.filesize / 16384 + 1;
   header.curScreen = 1;
   header.curPage = 0;
-
-  printf("Size : %lu bytes\r\n", header.filesize);
-  printf("Total pages  : %u\r\n", header.totalMem);
-  printf("Pages needed : %u\r\n", header.pagesNeeded);
-  printf("Free pages   : %u\r\n", header.freeMem);
-  printf("Marker: %s\r\n", header.marker);
-  printf("Width: %u\r\n", header.width);
-  printf("Height: %u\r\n", header.height);
-  printf("Border: %u\r\n", header.border);
-  printf("Frames: %u\r\n", header.frames);
-  printf("Payload type: %u\r\n", header.ptype);
-  printf("payload offset: %u\r\n", header.poffset);
-  printf("data offset: %u\r\n", header.doffset);
-
+  /*
+    printf("Size : %lu bytes\r\n", header.filesize);
+    printf("Total pages  : %u\r\n", header.totalMem);
+    printf("Pages needed : %u\r\n", header.pagesNeeded);
+    printf("Free pages   : %u\r\n", header.freeMem);
+    printf("Marker: %s\r\n", header.marker);
+    printf("Width: %u\r\n", header.width);
+    printf("Height: %u\r\n", header.height);
+    printf("Border: %u\r\n", header.border);
+    printf("Frames: %u\r\n", header.frames);
+    printf("Payload type: %u\r\n", header.ptype);
+    printf("payload offset: %u\r\n", header.poffset);
+    printf("data offset: %u\r\n", header.doffset);
+  */
   marker = strstr(header.marker, "SCA");
   if (marker == NULL)
   {
     printf("File is not a SCA animation [%s] \r\n", header.marker);
     waitKey();
-    OS_SETGFX(-1);
-    exit(0);
+    quit();
   }
 
   if (header.pagesNeeded > header.freeMem)
   {
     printf("Not enough memory. Needed %u pages more  \r\n", header.pagesNeeded - header.freeMem);
     waitKey();
-    OS_SETGFX(-1);
-    exit(0);
+    quit();
   }
-
   if (!getMem(header.pagesNeeded))
   {
     printf("Memory allocarion error\r\n");
     waitKey();
-    OS_SETGFX(-1);
-    exit(0);
+    quit();
   }
 
   OS_READHANDLE(framesDelays, fp1, header.frames);
@@ -185,41 +188,26 @@ void loadFile(void)
   {
     OS_SETPG8000(mem[counter]);
     OS_READHANDLEMEM(0x8000, fp1, 16384);
-    printf("Page %02u loaded   \r", counter);
+    //printf("Page %02u loaded   \r", counter);
+    //printf("%02u [%u]", counter, mem[counter]);
     ///////////////////////LOADER///////////////////////
   }
-  putchar('\n');
 }
 void init(void)
 {
-  OS_HIDEFROMPARENT();
-  OS_SETGFX(0x86);
-  OS_CLS(0);
-
+  unsigned char pgbak;
+  union APP_PAGES main_pg;
   header.scr0high = OS_GETSCR0() >> 8;
   header.scr1high = OS_GETSCR1() >> 8;
   header.isAtm = (unsigned char)OS_GETCONFIG(); // 1-Evo 2-ATM2 3-ATM3 6-p2.666
   header.headerSize = 14;
-  header.freeMem = getFreeMem();
+  header.totalMem = 255;
+  main_pg.l = OS_GETMAINPAGES();
 
-  switch (header.isAtm)
-  {
-  case 1:
-    header.totalMem = 192;
-    break;
-  case 2:
-    header.totalMem = 64;
-    break;
-  case 3:
-    header.totalMem = 192;
-    break;
-  case 6:
-    header.totalMem = 64;
-    break;
-  default:
-    header.totalMem = 192;
-    break;
-  }
+  pgbak = main_pg.pgs.window_2;
+  OS_DELPAGE(pgbak);
+  pgbak = main_pg.pgs.window_3;
+  OS_DELPAGE(pgbak);
   header.freeMem = getFreeMem();
 }
 
@@ -264,7 +252,6 @@ unsigned int viewScreen6912NoKeyGraph_c(unsigned int bufAdr, unsigned int bufOff
     memcpy((unsigned char *)(shiftAdr), (unsigned char *)(bufAdr), 6912 - shift);
     bufOffset = 6912 - shift;
   }
-
   OS_SETSCREEN(header.curScreen);
 
   if (header.curScreen == 0)
@@ -276,28 +263,25 @@ unsigned int viewScreen6912NoKeyGraph_c(unsigned int bufAdr, unsigned int bufOff
   {
     SETPG32KHIGH(header.scr0high);
   }
-
+  CLEARC000();
   return bufOffset;
 }
 
 C_task main(int argc, char *argv[])
 {
   unsigned int bufOffset;
-
+  OS_HIDEFROMPARENT();
+  OS_SETGFX(0x86);
+  OS_CLS(0);
   init();
-  OS_SETCOLOR(67);
-  printf("SCA viewer version:%s\r\n", ver);
-  OS_SETCOLOR(6);
 
   if (argc < 2)
   {
     OS_SETCOLOR(67);
     printf("Error: File name required.[argc=%d]", argc);
     OS_SETCOLOR(6);
-    while (OS_GETKEY() == 0)
-    {
-    }
-    exit(0);
+    waitKey();
+    quit();
   }
 
   fp1 = OS_OPENHANDLE(argv[1], 0x80);
@@ -306,12 +290,13 @@ C_task main(int argc, char *argv[])
   {
     printf("Error: %s opening error\r\n", argv[1]);
     waitKey();
-    exit(0);
+    quit();
   }
 
   loadFile();
   clearScreens();
   OS_SETGFX(0x83);
+  delayLong(1000);
 label:
   header.curFrame = 0;
   bufOffset = 0;
@@ -323,8 +308,7 @@ label:
     header.curFrame++;
     if (OS_GETKEY() != 0)
     {
-      OS_SETGFX(-1);
-      exit(0);
+      quit();
     }
   } while (header.curFrame < header.frames);
   goto label;
