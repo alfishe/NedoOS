@@ -250,7 +250,6 @@ unsigned int viewScreen6912NoKeyGraph_c(unsigned int bufAdr, unsigned int bufOff
     memcpy((unsigned char *)(shiftAdr), (unsigned char *)(bufAdr), 6912 - shift);
     bufOffset = 6912 - shift;
   }
-
   enable_interrupt();
 
   OS_SETSCREEN(header.curScreen);
@@ -269,7 +268,8 @@ unsigned int viewScreen6912NoKeyGraph_c(unsigned int bufAdr, unsigned int bufOff
 
 C_task main(int argc, char *argv[])
 {
-  unsigned int bufOffset;
+  unsigned int bufOffset, koef;
+  unsigned long start, finish, renderTime, delays;
   OS_HIDEFROMPARENT();
   OS_SETGFX(0x86);
   OS_CLS(0);
@@ -302,18 +302,31 @@ label:
   header.curPage = 0;
   OS_SETPG8000(mem[header.curPage]);
   OS_SETBORDER(header.border);
+
+  if (header.isAtm == 2)
+  {
+    koef = 10;
+  }
+  else
+  {
+    koef = 20;
+  }
   do
   {
+    start = time();
     bufOffset = viewScreen6912NoKeyGraph_c(0x8000, bufOffset);
-
-    if (header.isAtm == 2)
+    finish = time();
+    renderTime = finish - start;
+    delays = framesDelays[header.curFrame];
+    if (delays > renderTime)
     {
-      delay((framesDelays[header.curFrame]) * 10);
+      delays = (delays - renderTime) * koef;
     }
     else
     {
-      delay(framesDelays[header.curFrame] * 20);
+      delays = 0;
     }
+    delay(delays);
     header.curFrame++;
     if (OS_GETKEY() != 0)
     {
