@@ -26,7 +26,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "1.0";
+unsigned char uVer[] = "1.1";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -511,7 +511,6 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 		} while (count < strlen(sendOk));
 		uart_readBlock(); // CR
 		uart_readBlock(); // LF
-		clearStatus();
 		firstPacket = true;
 		do
 		{
@@ -531,7 +530,7 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 			counter++;
 			if (counter % 10 == 0)
 			{
-				printf("%u of %u kb   \r", down, fileSize1);
+				printf("%u of %u kb    \r", down, fileSize1);
 			}
 
 			saveBuf(fileNamePtr, 01, todo);
@@ -885,7 +884,6 @@ void binUpdate(void)
 C_task main(int argc, const char *argv[])
 {
 	unsigned char test;
-	unsigned char key;
 	os_initstdio();
 
 	targetadr.family = AF_INET;
