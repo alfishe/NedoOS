@@ -39,7 +39,7 @@ struct headers
 
 unsigned char buf[4096];
 unsigned char framesDelays[1024];
-unsigned char mem[256]; // reserved pages
+unsigned char mem[260]; // reserved pages
 void quit(void)
 {
   OS_SETGFX(0x86);
@@ -102,25 +102,25 @@ unsigned char getFreeMem(void)
       freeMem++;
     }
   }
-  return freeMem;
+  return freeMem - 8;
 }
 
 char getMem(char numOfPages)
 {
-  char result, pageCount;
-  result = true;
+  unsigned int pageCount;
+  unsigned char page;
+  unsigned int newPage;
   for (pageCount = 0; pageCount < numOfPages; pageCount++)
   {
-    unsigned int newPage;
     newPage = OS_NEWPAGE();
     if (newPage > 255)
     {
-      result = false;
-      break;
+      return false;
     }
-    mem[pageCount] = newPage;
+    page = newPage;
+    mem[pageCount] = page;
   }
-  return result;
+  return true;
 }
 
 void loadFile(void)
@@ -143,22 +143,22 @@ void loadFile(void)
   header.poffset = buf[12] + (buf[13] * 256);
   header.doffset = header.poffset + header.frames;
   header.filesize = OS_GETFILESIZE(fp1);
-  header.pagesNeeded = header.filesize / 16384 + 1;
+  header.pagesNeeded = (header.filesize / 16384) + 1;
   header.curScreen = 1;
   header.curPage = 0;
   /*
-    printf("Size : %lu bytes\r\n", header.filesize);
-    printf("Total pages  : %u\r\n", header.totalMem);
-    printf("Pages needed : %u\r\n", header.pagesNeeded);
-    printf("Free pages   : %u\r\n", header.freeMem);
-    printf("Marker: %s\r\n", header.marker);
-    printf("Width: %u\r\n", header.width);
-    printf("Height: %u\r\n", header.height);
-    printf("Border: %u\r\n", header.border);
-    printf("Frames: %u\r\n", header.frames);
-    printf("Payload type: %u\r\n", header.ptype);
-    printf("payload offset: %u\r\n", header.poffset);
-    printf("data offset: %u\r\n", header.doffset);
+      printf("Size : %lu bytes\r\n", header.filesize);
+      printf("Total pages  : %u\r\n", header.totalMem);
+      printf("Pages needed : %u\r\n", header.pagesNeeded);
+      printf("Free pages   : %u\r\n", header.freeMem);
+      printf("Marker: %s\r\n", header.marker);
+      printf("Width: %u\r\n", header.width);
+      printf("Height: %u\r\n", header.height);
+      printf("Border: %u\r\n", header.border);
+      printf("Frames: %u\r\n", header.frames);
+      printf("Payload type: %u\r\n", header.ptype);
+      printf("payload offset: %u\r\n", header.poffset);
+      printf("data offset: %u\r\n", header.doffset);
   */
   marker = strstr(header.marker, "SCA");
   if (marker == NULL)
@@ -176,7 +176,7 @@ void loadFile(void)
   }
   if (!getMem(header.pagesNeeded))
   {
-    printf("Memory allocarion error\r\n");
+    printf("Memory allocation error\r\n");
     waitKey();
     quit();
   }
