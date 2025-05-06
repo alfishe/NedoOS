@@ -242,7 +242,7 @@ SETPG32KHIGH:
 	#include "sysdefs.asm"
 	RSEG CODE
 OS_SETSCREEN:
-    halt
+   ;halt
 	push bc
 	push hl
 	push ix
@@ -262,14 +262,12 @@ OS_SETSCREEN:
 	RSEG CODE
 OS_SETPG8000:
 	push bc
-	push hl
 	push ix
 	push iy
 	ld a,e
 	rst 0x20
 	pop iy
 	pop ix
-	pop hl
 	pop bc
 	ret
 	ENDMOD
@@ -333,7 +331,7 @@ OS_DROPAPP:	;e=id ; hl=result
 	PUBLIC OS_SETGFX
 	#include "sysdefs.asm"
 	RSEG CODE
-OS_SETGFX:	;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;eF=-1: disable gfx (out: e=old gfxmode)
+OS_SETGFX:	;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
 	push bc
 	push hl
 	push ix
@@ -345,6 +343,7 @@ OS_SETGFX:	;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;eF=-1: disable gfx 
 	pop ix
 	pop hl
 	pop bc
+	ld a, e
 	ret
 	ENDMOD
 
@@ -354,15 +353,13 @@ OS_SETGFX:	;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;eF=-1: disable gfx 
 	RSEG CODE
 OS_GETPAGEOWNER:
     push bc
-	ld c,CMD_GETPAGEOWNER
-	push de
 	push ix
 	push iy
+	ld c,CMD_GETPAGEOWNER
 	call BDOS
 	LD a, e
 	pop iy
 	pop ix
-	pop de
     pop bc
 	ret
 	ENDMOD

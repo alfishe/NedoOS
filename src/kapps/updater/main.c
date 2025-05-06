@@ -403,7 +403,7 @@ unsigned int cutHeader(unsigned int todo)
 unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 {
 	int todo;
-	char socket, firstPacket, key;
+	char socket, firstPacket;
 	unsigned int fileSize1;
 	unsigned long downloaded = 0;
 	unsigned int down;

@@ -5,4 +5,5 @@ unsigned char viewScreen6912(unsigned int bufAdr, unsigned int ints);
 unsigned char viewScreen6912NoKeyGraph(unsigned long bufIntBrd);
 unsigned char rst0x08(void);
 void CLEARC000(void);
+//void CLEARC000FAST(void);
 // out a=key

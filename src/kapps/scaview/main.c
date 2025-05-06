@@ -42,7 +42,7 @@ unsigned char framesDelays[1024];
 unsigned char mem[256]; // reserved pages
 void quit(void)
 {
-  OS_SETGFX(-1);
+  OS_SETGFX(0x86);
   exit(0);
 }
 char waitKey(void)
@@ -188,8 +188,8 @@ void loadFile(void)
   {
     OS_SETPG8000(mem[counter]);
     OS_READHANDLEMEM(0x8000, fp1, 16384);
-    //printf("Page %02u loaded   \r", counter);
-    //printf("%02u [%u]", counter, mem[counter]);
+    // printf("Page %02u loaded   \r", counter);
+    // printf("%02u [%u]", counter, mem[counter]);
     ///////////////////////LOADER///////////////////////
   }
 }
@@ -203,7 +203,6 @@ void init(void)
   header.headerSize = 14;
   header.totalMem = 255;
   main_pg.l = OS_GETMAINPAGES();
-
   pgbak = main_pg.pgs.window_2;
   OS_DELPAGE(pgbak);
   pgbak = main_pg.pgs.window_3;
@@ -221,9 +220,6 @@ void clearScreens(void)
 
 unsigned int viewScreen6912NoKeyGraph_c(unsigned int bufAdr, unsigned int bufOffset)
 {
-  OS_SETBORDER(header.border);
-  OS_SETPG8000(mem[header.curPage]);
-
   if (header.curScreen == 1)
   {
     SETPG32KHIGH(header.scr0high);
@@ -234,6 +230,8 @@ unsigned int viewScreen6912NoKeyGraph_c(unsigned int bufAdr, unsigned int bufOff
     SETPG32KHIGH(header.scr1high);
     header.curScreen = 1;
   }
+
+  disable_interrupt();
 
   if (bufOffset < 9473)
   {
@@ -252,14 +250,16 @@ unsigned int viewScreen6912NoKeyGraph_c(unsigned int bufAdr, unsigned int bufOff
     memcpy((unsigned char *)(shiftAdr), (unsigned char *)(bufAdr), 6912 - shift);
     bufOffset = 6912 - shift;
   }
+
+  enable_interrupt();
+
   OS_SETSCREEN(header.curScreen);
 
   if (header.curScreen == 0)
   {
     SETPG32KHIGH(header.scr1high);
   }
-
-  if (header.curScreen == 1)
+  else
   {
     SETPG32KHIGH(header.scr0high);
   }
@@ -296,20 +296,30 @@ C_task main(int argc, char *argv[])
   loadFile();
   clearScreens();
   OS_SETGFX(0x83);
-  delayLong(1000);
 label:
   header.curFrame = 0;
   bufOffset = 0;
   header.curPage = 0;
+  OS_SETPG8000(mem[header.curPage]);
+  OS_SETBORDER(header.border);
   do
   {
     bufOffset = viewScreen6912NoKeyGraph_c(0x8000, bufOffset);
-    delay((framesDelays[header.curFrame] - 1) * 20);
+
+    if (header.isAtm == 2)
+    {
+      delay((framesDelays[header.curFrame]) * 10);
+    }
+    else
+    {
+      delay(framesDelays[header.curFrame] * 20);
+    }
     header.curFrame++;
     if (OS_GETKEY() != 0)
     {
       quit();
     }
   } while (header.curFrame < header.frames);
+  // waitKey();
   goto label;
 }

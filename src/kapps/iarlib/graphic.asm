@@ -285,4 +285,35 @@ clearloop:
 ENDMOD	
 
 
+;MODULE CLEARC000FAST
+;PUBLIC CLEARC000FAST
+;#include "sysdefs.asm"
+;RSEG CODE
+;CLEARC000FAST:	
+;	push hl
+;	push bc
+;	push de
+;fill_hl_de_b
+;
+;    ld (sp_back),sp
+;    ld sp,hl
+;1
+;    dup 64
+;    push de
+;    edup
+;    djnz 1b
+;
+;sp_back = $+1 :    ld sp,$0000
+;    pop de
+;	pop bc
+;	pop hl
+;	
+;	ret
+
+;    ld hl,last_scr_addr+1
+;    ld de,$C000
+;    ld b,6912/128
+;    call fill_hl_de_b
+;ENDMOD	
+
 END

@@ -5,7 +5,7 @@ void OS_DROPAPP(unsigned char id);
 unsigned long OS_GETAPPMAINPAGES(unsigned char id);
 unsigned char OS_GETPAGEOWNER(unsigned char id);
 void YIELD(void);
-void OS_SETGFX(unsigned char mode);
+unsigned char OS_SETGFX(unsigned char mode);
 void OS_CLS(unsigned char color);
 void OS_SETCOLOR(unsigned char color);
 void OS_PRATTR(unsigned char attribute);
