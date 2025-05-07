@@ -64,7 +64,7 @@ PROGRESBARWINHGTWID=0x0324 ;0x051f ;bc=hgt,wid
         PRCHAR
        endif
         endm
-        
+
         macro MYSETXY
        if PRSTDIO
         SETXY_
@@ -213,9 +213,9 @@ mainloop
         jp mainloop
 
 assignpages
-	;OS_NEWPAGE ; for dircopy batch
-	;ld hl,dirpg
-	;ld (hl),e
+	OS_NEWPAGE ; for dircopy batch
+	ld hl,dirpg
+	ld (hl),e
 
 	OS_NEWPAGE ;выделяем по одной страничке для каталогов
         ld hl,HS_strpg
@@ -257,8 +257,8 @@ assignpages
         ret
 
 deletepages
-        ;ld a,(dirpg)
-        ;call delpage_a ;for dircopy batch
+        ld a,(dirpg)
+        call delpage_a ;for dircopy batch
         ld a,(HS_strpg)
         call delpage_a ;по одной страничке для каталогов
         ld a,(HS_strpg+DIRPAGES+1)
@@ -410,7 +410,7 @@ drawpanel_head ;ix=panel (keep!!!)
 	sbc hl,de
 	add hl,de
 	jr nz,drawpanel_dir
-        ld de,_FILECURSORCOLOR
+	ld de,_FILECURSORCOLOR
 	jr drawpanel_dir0
 drawpanel_dir
 	ld de,_PANELCOLOR
@@ -433,11 +433,6 @@ drawpanel_dir0
         ld de,tdoublehoriz
         push ix
         call sendchars
-
-       if PRSTDIO
-        call printRTCnow        ;Если обновили панель, то обновим и часы
-       endif
-
         pop ix
         ret
 
@@ -455,6 +450,7 @@ drawpanel_with_files
 
 	call drawpanel_head
         call drawpanelfilesandsize
+
 drawpanel_files
 ;ix=panel
 	call setpanelcolor
@@ -994,6 +990,7 @@ keyfromcalledapp=$+1
         ld (keyfromcalledapp),a
         jr controlloop_nokeyq
 controlloop_nokey
+        
         ld ix,(curpanel)
         ld a,(ix+PANEL.files)
         or (ix+PANEL.files+1)
@@ -1009,11 +1006,10 @@ controlloop_nokey
         ;SETX_ ;force reprint cursor
 
        if PRSTDIO
-        call yieldgetkeyloop_rtc        ; Частично перенесена из stdio.asm чтобы вклинить в нее обновление часов
+        call yieldgetkeyloop
        else
         YIELDGETKEYLOOP
        endif
-
          or a
          jr z,controlloop_nokey ;TODO handle mouse events
         push af
@@ -1035,6 +1031,7 @@ controlloop_nokey
          call nv_setcolor ;even if we didn't reprint command line, draw windows with its color
 controlloop_nokeyq
         pop af
+
         ld hl,tnvcmds
         ld bc,nnvcmds
         cpir
@@ -1144,10 +1141,10 @@ editcmddirbackfind0
         call getfcbaddrunderhl
         ld de,FCB_EXTENTNUMBERLO
         add hl,de
-        ld a,(hl) ;hl=fcb+FCB_EXTENTNUMBERLO
+        ld a,(hl)
         inc hl
         inc hl
-        ld e,(hl) ;hl=fcb+FCB_EXTENTNUMBERHI
+        ld e,(hl)
         inc hl
         ld d,(hl)
         SETPGC000
@@ -2078,7 +2075,6 @@ editcmd_F6
         pop hl
         ld de,tnewfilename
         call strcopy
-     
         ;ld bc,64 ;max filename size+terminator
         ;ldir
         else
@@ -2091,43 +2087,8 @@ editcmd_F6
         ld bc,12
         ldir
         endif
-;Kulich 20240622
-; Нельзя проверять при переименовании.
-;        call getcurpaneldir_hl
-;        ld a,(hl)
-;        push af
-;	call getanotherpanel_hl
-;        add hl,de
-;        pop af
-;        ld b,(hl)
-;        cp b
-;        jp nz, name_error
 
-	call getanotherpanel_hl
-	ld de,PANEL.dir
-        inc de;'M'
-        inc de;':'
-        add hl,de
-	ld de,dir2_buf
-	call strcopy;nv_strcopy_hltode
-        dec de
-        dec de
-        ld a,(de)
-        cp '/'
-        inc de
-        jp z, editcmd_no_slash
-        ld a,'/'
-        ld (de),a
-        inc de
-        xor a
-        ld(de),a
-editcmd_no_slash
-        ld hl,tnewfilename
-	call strcopy;nv_strcopy_hltode
-        ld hl,dir2_buf
-        ld de,tnewfilename
-        call strcopy;nv_strcopy_hltode
-        ld de,_COLOR_DIALOG
+	ld de,_COLOR_DIALOG
 	call nv_setcolor
 
         ld hl,winrename
@@ -2135,8 +2096,7 @@ editcmd_no_slash
 	ld c,63;13 ;max filename size
         call prwindow_edit ;CY=OK
         ret nc ;cancel
-;если в имени есть символ :то выйти с ошибкой
-
+;если в имени есть символы :,/,\, то выйти с ошибкой
         ld hl,tnewfilename
 editcmd_ren_checkname0
         ld a,(hl)
@@ -2144,19 +2104,17 @@ editcmd_ren_checkname0
         jr z,editcmd_ren_checknameq
         inc hl
         cp ':'
-        jp z,name_error ;error
+        ret z ;error
+        cp '/'
+        ret z ;error
+        cp 0x5c;'\\'
+        ret z ;error
         jr editcmd_ren_checkname0
 editcmd_ren_checknameq
         ld de,filenametext
         ld hl,tnewfilename
         OS_RENAME
         ;todo error
-        ret
-name_error
-	ld de,_COLOR_RED
-	call nv_setcolor
-        ld hl,ren_error1
-	call prwindow_waitkey
         ret
 
 editcmd_7 ;mkdir
@@ -2241,10 +2199,14 @@ proc_del_file_batch
 	ld hl,dir_buf ;src
 	call nv_makefilepath_hltode ;result :  dest=hl'/'bc (de указывает после терминатора)
         pop hl
+         ;ld hl,dir3_buf
          ld de,windel2_file
-        ;ld b,64
-        call strcopy_maxb64
-
+         push de
+         ld bc,64
+         ldir
+         pop hl
+	;ld hl,windel2_file
+	call nv_fillpathspaces_hl ;fill to 64bytes spaces
 	ld hl,windel2
 	call upwindow_text ;update window
 
@@ -2297,7 +2259,7 @@ editcmd_5_0
 
         ld hl,wincopy
 	ld de,dir2_buf
-	ld c,60 ;c=texteditsize
+	ld c,60
         call prwindow_edit ;CY=OK
         jp nc,editcmd_reprintall_noreaddir
 
@@ -2310,12 +2272,8 @@ editcmd_5_0
 ;        ld de,PROGRESBARWINXY
 ;        ld bc,PROGRESBARWINHGTWID
 ;        call prwin
-        
-        ld hl,overwriteflag     ;0-skip all; 1-ask each; 2-over all; 3-отмена
-        ld (hl),1   
-
-        call printwincopy2
-        
+	ld hl,wincopy2
+	call prwindow_text
         ld hl,proceditcmd_copy
         ld ix,(curpanel)
 	jp processfiles
@@ -2355,8 +2313,32 @@ nv_makefilepath_hltode ;DE=dest HL=src BC=filename
         pop hl
 	jp strcopy;nv_strcopy_hltode
 
-strcopy_maxb64
-        ld b,64
+;TODO remove this
+nv_fillpathspaces_hl
+	ld b,0
+nv_fillpathspaces_hl0
+         ;ld a,b
+         ;cp 64
+         ;ret z
+         bit 6,b
+         ret nz
+	ld a,(hl)
+	inc b
+	inc hl
+	or a
+	jr nz,nv_fillpathspaces_hl0
+	dec hl
+	dec b
+	ld c,' '
+	ld a,b
+nv_fillpathspaces_hl1
+	ld (hl),c
+	inc hl
+	inc a
+	cp 64
+	jr c,nv_fillpathspaces_hl1
+	ret
+
 strcopy_maxb
 ;copy hl->de no more than b bytes, add spaces after
 strcopy_maxb0
@@ -2376,47 +2358,27 @@ strcopy_maxb_fill0
 	djnz strcopy_maxb_fill0
 	ret
 
-batch_find_pg
-	ld hl,(dir_batch_pointer)
-        add hl,hl
-        add hl,hl
-        ld c,h ;pointer/64
-        ld b,0
-        ld hl,tdirpgs
-        add hl,bc
-        ret
-
-batch_find_pointer
-	ld hl,0x8000
-	ld bc,(dir_batch_pointer)
-	ld de,256 ;64 записи в странице
-batch_find_pointer0
-	ld a,b
-	or c
-	ret z
-	add hl,de
-	dec bc
-	jr batch_find_pointer0
 
 nv_copydir_add;=nv_batch_pushrecord
-;TODO сохранить текущий номер файла в директории
+;	jp nv_batch_pushrecord
+;nv_batch_pushrecord
 	OS_GETMAINPAGES
 	ld a,h
 	ld (savepg),a
-        
-        call batch_find_pg
-        ld a,(dir_batch_pointer)
-        and 63
-        jr nz,nv_batch_pushrecord_nonewpg
-        push hl
-        OS_NEWPAGE
-        pop hl
-        ld (hl),e
-nv_batch_pushrecord_nonewpg
-        ld a,(hl)
+	ld a,(dirpg)
 	SETPG8000
-        call batch_find_pointer ;hl=pointer
 
+	ld hl,0x8000
+	ld bc,(dir_batch_pointer)
+	ld de,256
+nv_batch_pushsrecord
+	ld a,b
+	or c
+	jr z,nv_batch_pushsrecordend
+	add hl,de
+	dec bc
+	jr nv_batch_pushsrecord
+nv_batch_pushsrecordend
 	push hl
 ;dir 1
 	ld de,dir_buf
@@ -2432,55 +2394,49 @@ nv_batch_pushrecord_nonewpg
 	ld bc,filenametext
 	call nv_makefilepath_hltode
 
-	ld hl,(dir_batch_pointer)
-	inc hl
-	ld (dir_batch_pointer),hl
+	ld bc,(dir_batch_pointer)
+	inc bc
+	ld (dir_batch_pointer),bc
 	ld a,(savepg)
 	SETPG8000
-	ret ;TODO jp nv_batch ;здесь же рекурсивно обрабатывать добавленную директорию (содержит CHDIR!)
+	ret
 
 nv_batch_poprecord ;z=empty
 	OS_GETMAINPAGES
 	ld a,h
 	ld (savepg),a
-
-        ld hl,(dir_batch_pointer)
-        ld a,h
-        or l
-        jr z,nv_batch_poprecordq ;empty :(
-
-	ld hl,(dir_batch_pointer)
-	dec hl
-	ld (dir_batch_pointer),hl
-        call batch_find_pg
-        ld a,(hl)
-       push hl
+	ld a,(dirpg)
 	SETPG8000
-        call batch_find_pointer ;hl=pointer
-        
+
+	ld hl,0x8000
+	ld bc,(dir_batch_pointer)
+	ld a,b
+	or c
+	jr z,nv_batch_popsrecordq ;empty :(
+	dec bc
+	ld de,256
+nv_batch_popsrecord
+	ld a,b
+	or c
+	jr z,nv_batch_popsrecordend
+	add hl,de
+	dec bc
+	jr nv_batch_popsrecord
+nv_batch_popsrecordend
 	ld de,dir_buf
 	ld bc,128
 	ldir
 	ld de,dir2_buf
 	ld  c,128
 	ldir
-
-       pop hl
-        ld a,(dir_batch_pointer)
-        and 63
-        jr nz,nv_batch_poprecord_nodelpg
-        ld e,(hl)
-        OS_DELPAGE
-nv_batch_poprecord_nodelpg
-	;ld a,1
-	;or a ;NZ
-        xor a
-        inc a ;NZ
-nv_batch_poprecordq
-
+	ld bc,(dir_batch_pointer)
+	dec bc
+	ld (dir_batch_pointer),bc
+	ld a,1
+	or a ;NZ
+nv_batch_popsrecordq
 	ld a,(savepg)
 	SETPG8000
-;TODO вспомнить текущий номер файла в директории
 	ret
 
 nv_batch
@@ -2545,11 +2501,11 @@ nv_batch1
 
         ld a,(filinfo+FILINFO_FATTRIB)
 	ld (fcb_attrib),a
-         ld a,(leftpanel+PANEL.poipg);(dirpg) ;по сути не важно, данные будут браться из filinfo
-         ld (fcb+FCB_EXTENTNUMBERLO),a
+         ld a,(dirpg)
+         ld (fcb+FCB_EXTENTNUMBERLO),a ;NU
 
 nv_batch_proc=$+1
-	call proceditcmd_copy_fcb ;не содержит CHDIR
+	call proceditcmd_copy_fcb
 	jr nv_batch1
 
 nv_batch_nofiles
@@ -2587,12 +2543,6 @@ proceditcmd_copy
 
 proceditcmd_copy_fcb
 ;нельзя CHDIR, потому что это вызывается в цикле чтения директории в nv_batch1!
-
-        ld hl,overwriteflag     ;0-skip all; 1-ask each; 2-over all; отмена
-        ld a,(hl) 
-        cp 3                                    ;Проверка  на отмена всего
-        ret z
-
         ld hl,proceditcmd_copy_q
         push hl
 	;ld de,dir_buf
@@ -2622,8 +2572,18 @@ proceditcmd_copy_fcb
 	call nv_makefilepath_hltode
         pop hl
          ld de,wincopy_dest
-        ;ld b,64
-        call strcopy_maxb64
+       if 1
+        ld b,64
+        call strcopy_maxb
+       else
+         ;ld hl,dir3_buf
+         push de
+         ld bc,64
+         ldir
+         pop hl
+	;ld hl,wincopy_dest
+	call nv_fillpathspaces_hl
+       endif
 
 	ld de,dir3_buf;wincopy_src ;update copy window
         push de
@@ -2632,22 +2592,30 @@ proceditcmd_copy_fcb
 	call nv_makefilepath_hltode
         pop hl
          ld de,wincopy_src
-        ;ld b,64
-        call strcopy_maxb64
+       if 1
+        ld b,64
+        call strcopy_maxb
+       else
+         ;ld hl,dir3_buf
+         push de
+         ld bc,64
+         ldir
+         pop hl
+	;ld hl,wincopy_src
+	call nv_fillpathspaces_hl
+       endif
 
-        ;hl=string to test bc=string tester
-        ;out: Z if equal
-        ld hl,wincopy_src
-        ld bc,wincopy_dest
-        call comparestr                 ;Don't try copy file into himself
-        ret z 
-
-        ld hl,wincopy2          ; Print filename
-        call upwindow_text
+	ld hl,wincopy2
+	call upwindow_text
 
 	ld de,dir3_buf
+        ;push de
+	;ld bc,filenametext
+	;ld hl,dir_buf
+	;call nv_makefilepath_hltode
+        ;pop de
         push de
-        OS_OPENHANDLE   ;Test for source file.
+        OS_OPENHANDLE
         pop de
         or a
         ret nz ;jp nz,cmd_error_wrongfile
@@ -2660,73 +2628,17 @@ proceditcmd_copy_fcb
         OS_GETFILETIME ;ix=date, hl=time
         ld (proceditcmd_copy_time),hl
         ld (proceditcmd_copy_date),ix
+
+	;ld de,dir2_buf
+	;OS_CHDIR
 	ld de,dir3_buf;wincopy_dest ;256 bytes
-        push de
-	ld bc,filenametext
-	ld hl,dir2_buf
-	call nv_makefilepath_hltode
-       
-        pop de  
-        push de       
-        OS_OPENHANDLE
-        or a
-        jp  nz,notargetfile                     ; Файл назначения не существует
-        OS_CLOSEHANDLE
-
-        ld hl,overwriteflag
-        ld a,(hl) 
-        or a                                    ;Проверка  на skip all
-        jp z, pop_exit
-        cp 2
-        jp z,notargetfile                       ;Проверка на replace all
-                                                
-        ld de,_COLOR_RED
-        call nv_setcolor
-        ld hl,overwritefile 
-        call prwindow_waitkey_any ;CY=OK;A=KEY  ; если не выбрали что-либо all, выводим вопрос
-        push af
-        ld de,_COLOR_DIALOG
-        call nv_setcolor
-        call printwincopy2                      ; Восстанавливаем окно копирования                              
-        pop af
-        jp c, no_exit
-pop_exit
-        pop de
-        ret 
-no_exit
-        cp 'r'                                   ; Давай все перезапишем
-        jp nz,proceditcmd_nextkey0 
-
-        ld hl,overwriteflag
-        ld (hl),2               
-        jp notargetfile
-proceditcmd_nextkey0
-        cp 's'                                   ; Давай все существующие пропустим
-        jp nz,proceditcmd_nextkey1
-        
-        ld hl,overwriteflag
-        ld (hl),0
-        pop de
-        ret
-
-proceditcmd_nextkey1
-        cp 'c'                                   ; Давай все отменим
-        jp nz,proceditcmd_nextkey2
-      
-        ld hl,overwriteflag
-        ld (hl),3
-        pop de
-        ret
-
-proceditcmd_nextkey2
-        ld hl,overwriteflag                       ; Давай будем спрашивать каждый файл
-        ld (hl),1
-        
-notargetfile        
-        ;ld de,_COLOR_DIALOG    ; moved to 2686
-        ;call nv_setcolor
-        pop de
-        OS_CREATEHANDLE                           ; создаем файл получатель
+         push de
+	 ld bc,filenametext
+	 ld hl,dir2_buf
+	 call nv_makefilepath_hltode
+         pop de
+        ;ld de,filenametext;swordbuf2 ;de=drive/path/file
+        OS_CREATEHANDLE
         or a
         ret nz ;jp nz,cmd_error_cant_copy
         ld a,b
@@ -2750,8 +2662,8 @@ cmd_copy0
 ;HL = Number of bytes actually read, A=error
         ld b,h
         ld c,l
-        pop hl
-        pop de
+       pop hl
+       pop de
         ld a,b
         or c
         ret z ;0 bytes remain
@@ -2759,9 +2671,9 @@ cmd_copy0
         sbc hl,bc
         jr nc,$+3
         dec de
-        push bc
-        push de
-        push hl
+       push bc
+       push de
+       push hl
         push bc
         push de
         ld de,11*256+32
@@ -2775,9 +2687,9 @@ cmd_copy0
         pop hl
 ;B = file handle, DE = Buffer address, HL = Number of bytes to write
         OS_WRITEHANDLE
-        pop hl
-        pop de
-        pop bc
+       pop hl
+       pop de
+       pop bc
         jr cmd_copy0
 
 cmd_copy_close_file1
@@ -2974,35 +2886,6 @@ editcmd_typeword_empty
         ld (curcmdx),a
         ret
 
-comparestr:		
-;hl=string to test	bc=string tester
-;Z if equal
-		push de
-comparestr2		
-	ld a, (hl)
-	ld d, a
-	ld a, (bc)
-	cp d
-	jp nz, notequal
-	inc bc
-	inc hl
-	ld a, (bc)
-	cp 0
-	jp nz, comparestr2
-	pop de
-        xor a
-	ret
-notequal:
-	pop de
-	ld a,1
-        or a
-	ret
-printwincopy2
-        ld de,_COLOR_DIALOG
-	call nv_setcolor
-        ld hl,wincopy2          ; Print filename
-        call prwindow_text
-        ret
 windrv
         dw 0x0003 ;de=yx
         dw 256*(3+NDRIVES)+28 ;0x0809 ;bc=hgt,wid
@@ -3045,7 +2928,7 @@ winrename
 
 wincopy
         dw 0x0a07 ;de=yx
-        dw 0x0543 ;bc=hgt,wid
+        dw 0x0544 ;bc=hgt,wid
         db "Copy ",0
 	db 1
 	db " file(s)/dir(s) to:",0
@@ -3101,24 +2984,6 @@ windrverr
         db 3 ;next line
 	db "Drive error!",0 
         db 0 ;end of window
-
-ren_error1
-        dw 0x0c0f ;de=yx
-        dw 0x0534 ;bc=hgt,wid
-        db 3 ;next line
-	db "file movement is only available within disk!",0 
-        db 0 ;end of window
-
-overwritefile
-	dw 0x0d15 ;de=yx
-        dw 0x0528 ;bc=hgt,wid
-        ;db 3 ;next line
-	db "          OVERWRITE FILE?",0,3 
-        db "[Y]es/[No]/[S]kip all/[R]eplace All",0,3
-        db "             [C]ancel",0  
-        db 0 ;end of window
-
-
 
 tdotdot
 	dw "..",0
@@ -3187,15 +3052,9 @@ copybuf=0x4000 ;нельзя 0xc000 - поверх какой-нибудь директории (а она использует
 copybuf_sz=0x4000 ;$-copybuf
 
 dir_batch_pointer db 0,0
-savepg
-        db 0
-;dirpg db 0,0
-ndirpgs
-        db 0
-tdirpgs
-        ds 64
-overwriteflag
-        db 0
+savepg db 0,0
+dirpg db 0,0
+
 washobetarunner
 ;pgsys=pagexor-10
 ;pgfatfs=pagexor-9
@@ -3320,22 +3179,9 @@ filinfo
         include "cmdpr.asm"
        if PRSTDIO
         include "../_sdk/stdio.asm"
-        include "nvclock.asm"   ; сейчас часы реализованы только в nv.com поэтому весь код под условием.
-
-yieldgetkeyloop_rtc
-        call printRTC           ; Обновляем часы даже если не трогаем клавиатуру.
-        ld c,CMD_YIELD
-        call BDOS	;YIELD
-        call getkey
-        ret c ;error
-
-        jr z,yieldgetkeyloop_rtc ;no event
-         scf
-         ccf ;no error
-        ret
        endif
 
-       align 256
+        align 256
 searchbuf
 SEARCHBUF_SZ=128 ;2 таких
 file_buf
@@ -3350,19 +3196,19 @@ dir3_buf
         align 256
 HS_strpg
         ds 256;DIRPAGES*2+2 ;по 1 байту на маркеры "0"
+        align 256
+textpages
+        ds 256
 twinto866
         incbin "../_sdk/codepage/winto866"
-textpages
-        ds 256;256
 cmd_end
 
 	display "nv size ",cmd_end-cmd_begin," bytes"
+
        if PRSTDIO
-	 display "nv.com free space ",0x4000-cmd_end
-        savebin "nv.com",cmd_begin,cmd_end-cmd_begin
+	savebin "nv.com",cmd_begin,cmd_end-cmd_begin
        else
-	display "nvfast.com free space ",0x4000-cmd_end
-        savebin "nvfast.com",cmd_begin,cmd_end-cmd_begin
+	savebin "nvfast.com",cmd_begin,cmd_end-cmd_begin
        endif
 
 	LABELSLIST "../../us/user.l",1
