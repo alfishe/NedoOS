@@ -257,7 +257,7 @@ unsigned int viewScreen6912NoKeyGraph_c(unsigned int bufAdr, unsigned int bufOff
   // enable_interrupt();
 
   OS_SETSCREEN(header.curScreen);
-  OS_HALT();
+   OS_HALT();
   if (header.curScreen == 0)
   {
     SETPG32KHIGH(header.scr1high);
@@ -266,7 +266,6 @@ unsigned int viewScreen6912NoKeyGraph_c(unsigned int bufAdr, unsigned int bufOff
   {
     SETPG32KHIGH(header.scr0high);
   }
-  
   return bufOffset;
 }
 
@@ -325,6 +324,13 @@ label:
     if (delays >= finish)
     {
       delayInt(delays - finish);
+    }
+    else
+    {
+      if (OS_GETKEY() != 0)
+      {
+        quit();
+      }
     }
 
     header.curFrame++;
