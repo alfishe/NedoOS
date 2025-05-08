@@ -55,20 +55,25 @@ char waitKey(void)
   return key;
 }
 
-void delay(unsigned long counter)
+void delayInt(unsigned long counter)
 {
   unsigned long start, finish;
-  counter = counter / 20;
-  if (counter < 1)
-  {
-    counter = 1;
-  }
   start = time();
   finish = start + counter;
-
-  while (start < finish)
+  if (counter == 0)
   {
-    start = time();
+    if (OS_GETKEY() != 0)
+    {
+      quit();
+    }
+  }
+
+  while (time() < finish)
+  {
+    if (OS_GETKEY() != 0)
+    {
+      quit();
+    }
   }
 }
 
@@ -231,7 +236,7 @@ unsigned int viewScreen6912NoKeyGraph_c(unsigned int bufAdr, unsigned int bufOff
     header.curScreen = 1;
   }
 
-  disable_interrupt();
+  // disable_interrupt();
 
   if (bufOffset < 9473)
   {
@@ -244,16 +249,15 @@ unsigned int viewScreen6912NoKeyGraph_c(unsigned int bufAdr, unsigned int bufOff
     shift = 16384 - bufOffset;
     shiftAdr = 49152 + shift;
     memcpy((unsigned char *)(0xc000), (unsigned char *)(bufAdr + bufOffset), shift);
-    header.curPage++;
-    OS_SETPG8000(mem[header.curPage]);
+    OS_SETPG8000(mem[++header.curPage]);
     bufOffset = bufOffset + shift;
     memcpy((unsigned char *)(shiftAdr), (unsigned char *)(bufAdr), 6912 - shift);
     bufOffset = 6912 - shift;
   }
-  enable_interrupt();
+  // enable_interrupt();
 
   OS_SETSCREEN(header.curScreen);
-
+  OS_HALT();
   if (header.curScreen == 0)
   {
     SETPG32KHIGH(header.scr1high);
@@ -262,14 +266,14 @@ unsigned int viewScreen6912NoKeyGraph_c(unsigned int bufAdr, unsigned int bufOff
   {
     SETPG32KHIGH(header.scr0high);
   }
-  CLEARC000();
+  
   return bufOffset;
 }
 
 C_task main(int argc, char *argv[])
 {
   unsigned int bufOffset, koef;
-  unsigned long start, finish, renderTime, delays;
+  unsigned long delays, start, finish;
   OS_HIDEFROMPARENT();
   OS_SETGFX(0x86);
   OS_CLS(0);
@@ -315,23 +319,16 @@ label:
   {
     start = time();
     bufOffset = viewScreen6912NoKeyGraph_c(0x8000, bufOffset);
-    finish = time();
-    renderTime = finish - start;
+    finish = time() - start;
     delays = framesDelays[header.curFrame];
-    if (delays > renderTime)
+
+    if (delays >= finish)
     {
-      delays = (delays - renderTime) * koef;
+      delayInt(delays - finish);
     }
-    else
-    {
-      delays = 0;
-    }
-    delay(delays);
+
     header.curFrame++;
-    if (OS_GETKEY() != 0)
-    {
-      quit();
-    }
+
   } while (header.curFrame < header.frames);
   // waitKey();
   goto label;

@@ -453,8 +453,6 @@ OS_GETSCR1:
 	ret
 	ENDMOD
 
-// DE - старое имя, возможно с полным или относительным путём (ASCIIZ). HL - новое имя, пока что требуется такой же путь, как в DE.
-// out HL - указатель на последний элемент пути в этом буфере (NOT MSXDOS compatible! with Drive/path!)
 	MODULE OS_RENAME
 	PUBLIC OS_RENAME
 	#include "sysdefs.asm"
@@ -491,8 +489,6 @@ OS_SETBORDER:
 	ret
 	ENDMOD
 
-
-// DE - имя файла, возможно с полным или относительным путём (ASCIIZ).; А - ошибка. Если 0x00, то ошибки нет.												
 	MODULE OS_DELETE
 	PUBLIC OS_DELETE
 	#include "sysdefs.asm"

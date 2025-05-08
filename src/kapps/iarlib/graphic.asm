@@ -284,36 +284,105 @@ clearloop:
 	ret
 ENDMOD	
 
+MODULE OS_HALT
+PUBLIC OS_HALT
+RSEG CODE
+OS_HALT:	
+	halt
+	ret
+ENDMOD	
 
-;MODULE CLEARC000FAST
-;PUBLIC CLEARC000FAST
-;#include "sysdefs.asm"
-;RSEG CODE
-;CLEARC000FAST:	
-;	push hl
-;	push bc
-;	push de
-;fill_hl_de_b
-;
-;    ld (sp_back),sp
-;    ld sp,hl
-;1
-;    dup 64
-;    push de
-;    edup
-;    djnz 1b
-;
-;sp_back = $+1 :    ld sp,$0000
-;    pop de
-;	pop bc
-;	pop hl
-;	
-;	ret
 
-;    ld hl,last_scr_addr+1
-;    ld de,$C000
-;    ld b,6912/128
-;    call fill_hl_de_b
-;ENDMOD	
+
+MODULE CLEARC000FAST
+PUBLIC CLEARC000FAST
+#include "sysdefs.asm"
+RSEG CODE
+CLEARC000FAST:	
+        push hl
+		push de
+		push bc
+		LD HL,0xc000 + 6912		; конец картинки
+        LD DE,0x0000			; заполнение
+        LD B,0x36				; количество циклов заполнения
+;       CALL fill_hl_de_b
+;       RET
+fill_hl_de_b:
+        LD (sp_back),SP
+        LD SP,HL
+l1b:
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        PUSH DE
+        DJNZ l1b
+	defb 0x31		;ld sp, nn
+sp_back:
+        defw 0x0000
+		pop bc
+		pop de
+		pop hl
+        RET
+ENDMOD	
 
 END
