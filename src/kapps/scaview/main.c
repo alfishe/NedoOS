@@ -33,7 +33,7 @@ struct headers
   unsigned char scr1high;
   unsigned char curScreen;
   unsigned char curPage;
-  unsigned char curFrame;
+  unsigned int curFrame;
   unsigned int headerSize;
 } header;
 
