@@ -528,7 +528,7 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 			downloaded = downloaded + todo;
 			down = downloaded / 1024;
 			counter++;
-			if (counter % 10 == 0)
+			if (counter % 5 == 0)
 			{
 				printf("%u of %u kb    \r", down, fileSize1);
 			}
@@ -656,23 +656,23 @@ void restoreConfig(unsigned char oldBinExt)
 	errn = OS_RENAME("/bin/browser/index.gph", "/bin/browser/index.gph.new");
 	if (oldBinExt == 255)
 	{
-		errn = OS_SHELL("copy bin.old/autoexec.bat bin/autoexec.bat >>updlog.txt");
-		errn = OS_SHELL("copy bin.old/net.ini bin/net.ini >>updlog.txt");
-		errn = OS_SHELL("copy bin.old/nv.ext bin/nv.ext >>updlog.txt");
-		errn = OS_SHELL("copy bin.old/gp/gp.ini bin/gp/gp.ini >>updlog.txt");
-		errn = OS_SHELL("copy bin.old/browser/index.gph bin/browser/index.gph >>updlog.txt");
+		errn = OS_SHELL("copy bin.old/autoexec.bat bin/autoexec.bat");
+		errn = OS_SHELL("copy bin.old/net.ini bin/net.ini");
+		errn = OS_SHELL("copy bin.old/nv.ext bin/nv.ext");
+		errn = OS_SHELL("copy bin.old/gp/gp.ini bin/gp/gp.ini");
+		errn = OS_SHELL("copy bin.old/browser/index.gph bin/browser/index.gph");
 	}
 	else
 	{
-		sprintf(nameBuf, "copy bin.%u/autoexec.bat bin/autoexec.bat >>updlog.txt", oldBinExt);
+		sprintf(nameBuf, "copy bin.%u/autoexec.bat bin/autoexec.bat", oldBinExt);
 		OS_SHELL((void *)nameBuf);
-		sprintf(nameBuf, "copy bin.%u/net.ini bin/net.ini >>updlog.txt", oldBinExt);
+		sprintf(nameBuf, "copy bin.%u/net.ini bin/net.ini", oldBinExt);
 		OS_SHELL((void *)nameBuf);
-		sprintf(nameBuf, "copy bin.%u/nv.ext bin/nv.ext >>updlog.txt", oldBinExt);
+		sprintf(nameBuf, "copy bin.%u/nv.ext bin/nv.ext", oldBinExt);
 		OS_SHELL((void *)nameBuf);
-		sprintf(nameBuf, "copy bin.%u/gp/gp.ini bin/gp/gp.ini >>updlog.txt", oldBinExt);
+		sprintf(nameBuf, "copy bin.%u/gp/gp.ini bin/gp/gp.ini", oldBinExt);
 		OS_SHELL((void *)nameBuf);
-		sprintf(nameBuf, "copy bin.%u/browser/index.gph bin/browser/index.gph >>updlog.txt", oldBinExt);
+		sprintf(nameBuf, "copy bin.%u/browser/index.gph bin/browser/index.gph", oldBinExt);
 		OS_SHELL((void *)nameBuf);
 	}
 	AT(1, 4);

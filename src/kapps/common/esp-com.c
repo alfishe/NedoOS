@@ -46,7 +46,6 @@ void uart_write(unsigned char data)
 		while ((portInput(LSR) & 32) == 0)
 		{
 		}
-		// portOutput(RBR_THR, data);
 		disable_interrupt();
 		output(0xfb, RBR_THR);
 		output(0xfa, data);
@@ -109,14 +108,12 @@ void uart_setrts(unsigned char mode)
 		switch (mode)
 		{
 		case 1:
-			// portOutput(MCR, 2);
 			disable_interrupt();
 			output(0xfb, MCR);
 			output(0xfa, 2);
 			enable_interrupt();
 			break;
 		case 0:
-			// portOutput(MCR, 0);
 			disable_interrupt();
 			output(0xfb, MCR);
 			output(0xfa, 0);
@@ -206,7 +203,6 @@ unsigned char uart_read(void)
 		enable_interrupt();
 		return data;
 	case 3:
-		// data = portInput(RBR_THR);
 		disable_interrupt();
 		output(0xfb, RBR_THR);
 		data = input(0xfa);
@@ -262,8 +258,6 @@ unsigned char uart_readBlock(void)
 			output(0xfa, 0);
 			enable_interrupt();
 		}
-		//	data = portInput(RBR_THR);
-
 		disable_interrupt();
 		output(0xfb, RBR_THR);
 		data = input(0xfa);
@@ -275,16 +269,6 @@ unsigned char uart_readBlock(void)
 
 void uart_flush(void)
 {
-	/*
-		unsigned int count;
-		for (count = 0; count < 3000; count++)
-		{
-			uart_setrts(1);
-			uart_read();
-		}
-		uart_setrts(0);
-	*/
-
 	uart_setrts(1);
 	delay(500);
 	uart_setrts(0);
@@ -293,7 +277,6 @@ void uart_flush(void)
 void getdataEsp(unsigned int counted)
 {
 	unsigned int counter;
-	char byte;
 	switch (comType)
 	{
 	case 0: // Kondratyev  NO AFC
@@ -345,8 +328,7 @@ void getdataEsp(unsigned int counted)
 			do
 			{
 				output(0xfb, LSR);
-				byte = 1 & input(0xfa);
-				if (byte != 0)
+				if ((1 & input(0xfa)) != 0)
 				{
 					break;
 				}
@@ -550,7 +532,7 @@ void loadEspConfig(void)
 		puts("(16550 with AFC)");
 		break;
 	case 3:
-		puts("(ATM2 IO Card)");
+		puts("(ATM2IOESP Card)");
 		break;
 	default:
 		puts("(Unknown type)");
