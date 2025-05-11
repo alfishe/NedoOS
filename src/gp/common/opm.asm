@@ -6,15 +6,16 @@ OPM0_DAT = 0xf1c1 ;write: chip 0 value, read: chip 0 status
 OPM1_REG = 0xf2c1 ;write: chip 1 address
 OPM1_DAT = 0xf3c1 ;write: chip 1 value, read: chip 1 status
 
-	macro opm_write_reg
+	macro opm_write_reg reg,dat
 ;bc = data port
 ;e = register
 ;d = value
+	ld bc,dat
 	in f,(c)
 	jp m,$-2
-	dec b
+	ld bc,reg
 	out (c),e
-	inc b
+	ld bc,dat
 	in f,(c)
 	jp m,$-2
 	out (c),d
@@ -27,15 +28,13 @@ opmwriteall
 opmwritechip0
 ;e = register
 ;d = value
-	ld bc,OPM0_DAT
-	opm_write_reg
+	opm_write_reg OPM0_REG,OPM0_DAT
 	ret
 
 opmwritechip1
 ;e = register
 ;d = value
-	ld bc,OPM1_DAT
-	opm_write_reg
+	opm_write_reg OPM1_REG,OPM1_DAT
 	ret
 
 opmdisablechip1

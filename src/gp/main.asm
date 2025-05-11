@@ -11,7 +11,7 @@ FILE_NAME_OFFSET = FILE_DISPLAY_INFO_OFFSET+FILE_DISPLAY_INFO_SIZE
 FILE_NAME_SIZE = SFN_SIZE
 FILE_ATTRIB_OFFSET = FILE_NAME_OFFSET+FILE_NAME_SIZE
 FILE_ATTRIB_SIZE = 1
-BROWSER_FILE_COUNT = 146
+BROWSER_FILE_COUNT = 145
 PLAYLIST_FILE_COUNT = 40
 PANELCOLOR = 0x4f
 CURSORCOLOR = 0x28
@@ -55,6 +55,7 @@ mainbegin
 
 	OS_SETSYSDRV
 	call loadsettings
+	call detectcpuspeed
 	call detectmoonsound
 	call detecttfm
 	call detectopm
@@ -1166,6 +1167,14 @@ bomgemoonstr
 	db "OPL3\r\n",0
 dualopmstr
 	db "2x YM2151\r\n",0
+detectingcpustr
+	db "Running on...",0
+cpufpgastr
+	db "FPGA\r\n",0
+cpuevostr
+	db "ZX Evolution\r\n",0
+cpuatmstr
+	db "ATM\r\n",0
 rom001200
 	db "Copyright"
 loadingstr
@@ -1415,10 +1424,15 @@ detecttfm
 trywritingopm
 	dec a
 	jr nz,$-1
+	ld bc,OPM0_REG
+	out (c),e
+	ld bc,OPM1_REG
 	out (c),e
 	dec a
 	jr nz,$-1
-	inc b
+	ld bc,OPM0_DAT
+	out (c),d
+	ld bc,OPM1_DAT
 	out (c),d
 	ret
 
@@ -1435,14 +1449,8 @@ detectopm
 	jp nz,print_hl
 ;start timer
 	ld de,0xff12
-	ld bc,OPM0_REG
-	call trywritingopm
-	ld bc,OPM1_REG
 	call trywritingopm
 	ld de,0x2a14
-	ld bc,OPM0_REG
-	call trywritingopm
-	ld bc,OPM1_REG
 	call trywritingopm
 ;wait for the timer to finish
 	YIELD
@@ -1946,6 +1954,75 @@ isplayer
 	or a
 	ret z
 	cp '.'
+	ret
+
+detectcpuspeed
+	ld hl,detectingcpustr
+	call print_hl
+	call swapinterrupthandler ;avoid OS while benchmarking
+	halt
+	ld hl,0
+	ld e,0
+	xor a
+	ld (.spincount),a
+	ld a,32
+	halt
+;--> 42 t-states loop start
+.loop	inc e
+	jp nz,$+4
+	inc hl
+	nop
+.spincount=$+1
+	ld bc,0
+	cp c
+	jp nc,.loop
+;<-- loop end
+	push de
+	push hl
+	call swapinterrupthandler ;restore OS handler
+	pop hl
+	pop de
+;hl = hle / 32
+	sla e : adc hl,hl
+	sla e : adc hl,hl
+	sla e : adc hl,hl
+	ld (gpsettings.framelength),hl
+	ex de,hl
+	ld hl,-MIN_FRAME_LENGTH_FPGA
+	add hl,de
+	ld hl,cpufpgastr
+	jp c,print_hl
+	ld hl,-MIN_FRAME_LENGTH_ZXEVO
+	add hl,de
+	ld hl,cpuevostr
+	jp c,print_hl
+	ld hl,cpuatmstr
+	jp print_hl
+
+swapinterrupthandler
+	di
+	ld hl,.store
+	ld de,0x38
+	ld b,3
+.loop	ld a,(de)
+	ld c,(hl)
+	ld (hl),a
+	ld a,c
+	ld (de),a
+	inc hl
+	inc de
+	djnz .loop
+	ei
+	ret
+.store	jp lightweightinterrupthandler
+
+lightweightinterrupthandler
+	push af
+	ld a,(detectcpuspeed.spincount)
+	inc a
+	ld (detectcpuspeed.spincount),a
+	pop af
+	ei
 	ret
 mainend
 

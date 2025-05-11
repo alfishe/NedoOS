@@ -13,13 +13,15 @@ OPN_DAT = 0xbffd
 	ld a,chip_n+%11111100
 	endif
 	out (c),a
-	in a,(c)
-	rlca
-	jr c,$-3
+	nop
+	nop
+	in f,(c)
+	jp m,$-4
 	out (c),e
-	in a,(c)
-	rlca
-	jr c,$-3
+	nop
+	nop
+	in f,(c)
+	jp m,$-4
 	ld bc,OPN_DAT
 	out (c),d
 	endm
@@ -32,12 +34,18 @@ opnwritefm1
 ;e = register
 ;d = value
 	opn_write_fm_reg 0
+.extradelay ;additional delay for FPGA systems
+	ld b,8
+	djnz $
 	ret
 
 opnwritefm2
 ;e = register
 ;d = value
 	opn_write_fm_reg 1
+.extradelay ;additional delay for FPGA systems
+	ld b,8
+	djnz $
 	ret
 
 	macro opn_write_fm_regs incr,incd
@@ -54,6 +62,12 @@ opnwritefm2
 	dec l
 	jr nz,.loop
 	endm
+
+opndisableextradelay
+	ld a,0xc9 ;ret opcode
+	ld (opnwritefm1.extradelay),a
+	ld (opnwritefm2.extradelay),a
+	ret
 
 opninit
 	ld l,0xb4

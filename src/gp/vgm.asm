@@ -55,6 +55,10 @@ playerinit
 	ld (tfmstatus),a
 	ld a,(ix+GPSETTINGS.opmstatus)
 	ld (opmstatus),a
+	ld de,(ix+GPSETTINGS.framelength)
+	ld hl,-MIN_FRAME_LENGTH_FPGA
+	add hl,de
+	call nc,opndisableextradelay
 ;hardware detection is done when loading VGM
 	ld hl,initokstr
 	xor a
@@ -497,6 +501,8 @@ processdatablock
 	call memorystreamread4 ;adbc = data size
 	ld a,e
 	ld hl,bc
+;	cp 0x81
+;	jp z,opnaloaddatablock
 	cp 0x84
 	jp z,opl4loadromdatablock
 	cp 0x87
@@ -1151,12 +1157,12 @@ filedatapage=$+1
 	ret
 
 GzipThrowException
+GzipExitWithError
 	ld hl,gziperrorstr
 	ld (ERRORSTRINGADDR),hl
 GzipThrowExceptionNoError
 savedSP=$+1
 	ld sp,0
-GzipExitWithError
 	call memorystreamfree
 	call restoreappdata
 	call closestream_file

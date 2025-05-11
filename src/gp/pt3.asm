@@ -35,12 +35,22 @@ isfilesupported
 ;cde = file extension
 ;out: zf=1 if this player can handle the file and the sound hardware is available, zf=0 otherwise
 	call ismidfile
-	jr nz,.checkpt
+	jr nz,.checkts
 	ld hl,0
 	ld (MUSICTITLEADDR),hl
 	ld hl,musicprogress+1
 	ld (MUSICPROGRESSADDR),hl
 	jp initprogress
+.checkts
+	ld a,c
+	cp 't'
+	jr nz,.checkpt
+	ld a,d
+	cp 's'
+	jr nz,.checkpt
+	ld a,e
+	or a
+	jr z,.tsmodule
 .checkpt
 	ld a,c
 	cp 'p'
@@ -60,6 +70,7 @@ isfilesupported
 	cp '3'
 	ret nz
 ;prepare local variables
+.tsmodule
 	ld hl,0
 	ld (MUSICTITLEADDR),hl
 	ld hl,musicprogress+1
@@ -92,7 +103,7 @@ playerinit
 	call setuartdelay
 	ld a,(waitspincount)
 	or a
-	call z,initwaitspincount
+	call z,setautouartdelay
 	ld hl,initokstr
 	xor a
 	ret
@@ -121,6 +132,17 @@ setuartdelay
 	inc de
 	djnz .loop
 .done	ld a,c
+	ld (waitspincount),a
+	ret
+
+setautouartdelay
+;ix = GPSETTINGS
+	ld de,(ix+GPSETTINGS.framelength)
+	ld bc,CC2
+	call uintmul16
+	xor a
+	rl h
+	adc a,e
 	ld (waitspincount),a
 	ret
 
@@ -350,71 +372,6 @@ midsendbyte
 	ei
 	ret
 
-initwaitspincount
-	call swapinterrupthandler ;avoid OS while benchmarking
-	halt
-	ld hl,0
-	ld e,0
-	xor a
-	ld (.spincount),a
-	ld a,32
-	halt
-;--> 42 t-states loop start
-.loop	inc e
-	jp nz,$+4
-	inc hl
-	nop
-.spincount=$+1
-	ld bc,0
-	cp c
-	jp nc,.loop
-;<-- loop end
-	push de
-	push hl
-	call swapinterrupthandler ;restore OS handler
-	pop hl
-	pop de
-;hl = hle / 32
-	sla e : adc hl,hl
-	sla e : adc hl,hl
-	sla e : adc hl,hl
-	ld (framelength),hl
-	ex de,hl
-	ld bc,CC2
-	call uintmul16
-	xor a
-	rl h
-	adc a,e
-	ld (waitspincount),a
-	ret
-
-swapinterrupthandler
-	di
-	ld hl,.store
-	ld de,0x38
-	ld b,3
-.loop	ld a,(de)
-	ld c,(hl)
-	ld (hl),a
-	ld a,c
-	ld (de),a
-	inc hl
-	inc de
-	djnz .loop
-	ei
-	ret
-.store	jp lightweightinterrupthandler
-
-lightweightinterrupthandler
-	push af
-	push hl
-	ld hl,initwaitspincount.spincount
-	inc (hl)
-	pop hl
-	pop af
-	ei
-	ret
-
 midloadfile
 ;hl = input file name
 ;out: zf=1 if loaded, zf=0 otherwise
@@ -497,11 +454,9 @@ midloadtracks
 	ld hl,(memorystreamcurrentaddr)
 	call midreadvarint
 	ld (memorystreamcurrentaddr),hl
-	
 	ld b,0
-    sla de : rl bc
-    sla de : rl bc
-	
+	sla de : rl bc
+	sla de : rl bc
 	ld (ix+MIDTRACK.nexteventtick+0),de
 	ld (ix+MIDTRACK.nexteventtick+2),c
 	call memorystreamgetpos
@@ -800,7 +755,6 @@ end
 
 titlestr ds TITLELENGTH+1
 isplayingmidfile ds 1
-framelength ds 2
 waitspincount ds 1
 midplayer MIDPLAYER
 

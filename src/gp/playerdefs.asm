@@ -32,6 +32,7 @@ usemwm dw 0
 usept3 dw 0
 usevgm dw 0
 usemoonmod dw 0
+framelength dw 0 ;in 42 t-states units
 moonmoddefaultpanning dw 0
 midiuartdelayoverride dw 0
 moonsoundstatus ds 1 ; 0 - no device, 1 - BomgeMoon or MoonSound with old firmware (wave ports not working), 2 - MoonSound OK
@@ -61,3 +62,6 @@ DEVICE_MIDI_UART_MASK  = 1<<DEVICE_MIDI_UART_BIT
 DEVICE_OPM_MASK        = 1<<DEVICE_OPM_BIT
 DEVICE_DUAL_OPM_MASK   = 1<<DEVICE_DUAL_OPM_BIT
 DEVICE_OPNA_MASK       = 1<<DEVICE_OPNA_BIT
+
+MIN_FRAME_LENGTH_FPGA  = 18000000/49/42
+MIN_FRAME_LENGTH_ZXEVO = 10000000/49/42
