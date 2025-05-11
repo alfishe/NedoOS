@@ -76,8 +76,8 @@ init_resident
 ;di ;сейчас мы в стеке чужой задачи, т.к. свою ещё не включили!!! можем запороть чужой стек!!!
 ;bc=memport0000
 ;d=pgmain
-       ei ;for YIELD: interrupt will be enabled after the following command (31 t-states di:out:ei:out, normal INT len = 32 t)
-       nop
+        nop
+        ei ;for YIELD: interrupt will be enabled after the following command (31 t-states di:out:ei:out, normal INT len = 32 t)
 ;for normal exit
         out (c),d ;may switch this code page
 curpg16k=$+1
