@@ -1,5 +1,5 @@
         DEVICE ZXSPECTRUM48
-        include "../_sdk/sys_h.asm"
+        include "../../_sdk/sys_h.asm"
 
 
         macro BRIGHTBYTE x
@@ -1294,7 +1294,7 @@ intro      db "intro.bin",0
 txt_memoryerror:    db 0x0A,"Memory allocation error!",0x0D,0x0A,0
 txt_dircherror:     db 0x0A,"Cannot change directory: ",0
 txt_nl:             db 0x0D,0x0A,0
-        include "../_sdk/file.asm"
+        include "../../_sdk/file.asm"
 
 page_switch_table
         dw setpage0
