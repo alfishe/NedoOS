@@ -33,7 +33,7 @@ struct window
 } curWin;
 
 int procnum, prccount;
-unsigned char c1, c2, pgbak, freemem, sysmem, usedmem, curpos;
+unsigned char c1, pgbak, freemem, sysmem, usedmem, curpos;
 unsigned char procname;
 union APP_PAGES main_pg;
 
@@ -96,19 +96,19 @@ void redraw(void)
 }
 void filltable(void)
 {
-    unsigned char c3, c4;
+    unsigned char c3;
+    unsigned int c2;
     main_pg.l = OS_GETMAINPAGES();
     pgbak = main_pg.pgs.window_3;
     prccount = 0;
     for (c3 = 0; c3 < 16; c3++)
     {
-        c4 = c3 + 1;
-        main_pg.l = OS_GETAPPMAINPAGES(c4);
+        main_pg.l = OS_GETAPPMAINPAGES(c3 + 1);
 
         if (errno == 0)
         {
 
-            table[prccount].nomer = c4;
+            table[prccount].nomer = c3 + 1;
             table[c3].nomer2 = prccount;
             table[prccount].window_0 = main_pg.pgs.window_0;
             table[prccount].window_1 = main_pg.pgs.window_1;
@@ -130,7 +130,7 @@ void filltable(void)
     freemem = 0;
     sysmem = 0;
     usedmem = 0;
-    for (c2 = 0; c2 < 255; c2++)
+    for (c2 = 0; c2 < 256; c2++)
     {
         unsigned char owner;
         owner = OS_GETPAGEOWNER(c2);
@@ -154,7 +154,7 @@ void filltable(void)
 
 C_task main(void)
 {
-    unsigned long oldTime, newTime, counter;
+    unsigned long oldTime;
 
     OS_HIDEFROMPARENT();
     OS_SETGFX(0x86);
