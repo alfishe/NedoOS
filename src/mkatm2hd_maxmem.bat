@@ -15,7 +15,7 @@ echo  define FREEPG0 >> _sdk\syssets.asm
 echo  define FREEPG2 >> _sdk\syssets.asm
 echo  define FREEPG6 >> _sdk\syssets.asm
 set makeall=1
-FOR /F "tokens=1 delims=: " %%i IN ('svnversion -n') DO echo  define SVNREVISION %%i >> _sdk\syssets.asm
+FOR /F "tokens=1 delims=:MSP " %%i IN ('svnversion -n') DO echo  define SVNREVISION %%i >> _sdk\syssets.asm
 call make.bat
 nedotrd test.trd -eh code.$C
 nedotrd test.trd -a code.$C

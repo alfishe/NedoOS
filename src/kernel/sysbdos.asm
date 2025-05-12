@@ -3037,13 +3037,13 @@ BDOS_get_config
     ld a,(sys_pgdos)
     ld d,a
     ld e,pgsys
-;	ifdef SVNREVISION
-;		ld ix,(SVNREVISION + 1 >> 16) & 0xffff
-;		ld bc,(SVNREVISION + 1) & 0xffff
-;	else
-		ld ix,0
-		ld bc,0
-;	endif
+        ifdef SVNREVISION
+                ld ix,((SVNREVISION+1) >> 16) & 0xffff
+                ld bc,(SVNREVISION+1) & 0xffff
+        else
+                ld ix,0
+                ld bc,0
+        endif
 ;H=system drive, L= 1-Evo 2-ATM2 3-ATM3 6-p2.666
 ;E=pgsys(system page) D= TR-DOS page
     ret
