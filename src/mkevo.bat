@@ -9,7 +9,7 @@ echo PS2KBD=0x01 >> _sdk\syssets.asm
 echo  define NGSSD >> _sdk\syssets.asm
 echo  define ATMRESIDENT >> _sdk\syssets.asm
 set makeall=1
-FOR /F "tokens=1 delims=:MSP " %%i IN ('svnversion -n') DO echo  define SVNREVISION %%i >> _sdk\syssets.asm
+FOR /F "tokens=1 delims=:MSPUnversiodcty " %%i IN ('svnversion -n') DO echo  define SVNREVISION %%i >> _sdk\syssets.asm
 call make.bat noneedtrd
 cd  kernel
 ..\..\tools\sjasmplus --nologo --msg=war hobeta.asm > nul
