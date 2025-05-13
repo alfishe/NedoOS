@@ -274,35 +274,27 @@ void uart_flush(void)
 	uart_setrts(0);
 }
 
-char getdataEsp(unsigned int counted)
+void getdataEsp(unsigned int counted)
 {
 	unsigned int counter;
-	unsigned long timeOut;
 	switch (comType)
 	{
 	case 0: // Kondratyev  NO AFC
 		for (counter = 0; counter < counted; counter++)
 		{
-			timeOut = 80000;
 			while ((1 & input(LSR)) == 0)
 			{
 				disable_interrupt();
 				output(MCR, 2);
 				output(MCR, 0);
 				enable_interrupt();
-				timeOut--;
-				if (timeOut == 0)
-				{
-					return counter;
-				}
 			}
 			netbuf[counter] = input(RBR_THR);
 		}
-		return false;
+		return;
 	case 1: // ATM2 COM port
 		for (counter = 0; counter < counted; counter++)
 		{
-			timeOut = 80000;
 			while (uart_hasByte() == 0)
 			{
 				disable_interrupt();
@@ -313,37 +305,25 @@ char getdataEsp(unsigned int counted)
 				input(0x43fe); // Команда установить статус
 				input(0x00fe); // Снимаем готовность DTR и RTS
 				enable_interrupt();
-				timeOut--;
-				if (timeOut == 0)
-				{
-					return counter;
-				}
 			}
 			disable_interrupt();
 			input(0x55fe);					 // Переход в режим команд
 			netbuf[counter] = input(0x02fe); // Команда прочесть из порта
 			enable_interrupt();
 		}
-		return false;
+		return;
 	case 2: // Kondratyev AFC
 		for (counter = 0; counter < counted; counter++)
 		{
-			timeOut = 80000;
 			while ((1 & input(LSR)) == 0)
 			{
-				timeOut--;
-				if (timeOut == 0)
-				{
-					return counter;
-				}
 			}
 			netbuf[counter] = input(RBR_THR);
 		}
-		return false;
+		return;
 	case 3: // ATM2IOESP
 		for (counter = 0; counter < counted; counter++)
 		{
-			timeOut = 80000;
 			disable_interrupt();
 			do
 			{
@@ -355,19 +335,13 @@ char getdataEsp(unsigned int counted)
 				output(0xfb, MCR);
 				output(0xfa, 2);
 				output(0xfa, 0);
-				timeOut--;
-				if (timeOut == 0)
-				{
-					return counter;
-				}
 			} while (42);
 			output(0xfb, RBR_THR);
 			netbuf[counter] = input(0xfa);
 			enable_interrupt();
 		}
-		return false;
+		return;
 	}
-	return true;
 }
 void sendcommand(const char *commandline)
 {
