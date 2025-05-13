@@ -9,7 +9,7 @@
 #include <intrz80.h>
 #include <ctype.h>
 #include <math.h>
-//
+////
 #define true 1
 #define false 0
 
@@ -26,7 +26,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "1.1";
+unsigned char uVer[] = "1.1TO";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -404,7 +404,7 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 {
 	int todo;
 	char socket, firstPacket;
-	unsigned int fileSize1;
+	unsigned int fileSize1, result;
 	unsigned long downloaded = 0;
 	unsigned int down;
 	unsigned int counter;
@@ -516,7 +516,15 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 		{
 			headlng = 0;
 			todo = recvHead();
-			getdataEsp(todo); // Requested size
+			result = getdataEsp(todo);
+			if (result != 0) // Requested size
+			{
+				clearStatus();
+				printf("Мы не повисли, просто у нас таймаут в getDataEsp(), но в данной ситуации мы сло что можем[%u]", result);
+				getchar();
+				exit(0);
+			}
+
 			if (firstPacket)
 			{
 				todo = cutHeader(todo);
