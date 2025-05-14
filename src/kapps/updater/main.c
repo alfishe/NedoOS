@@ -516,7 +516,7 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 		{
 			headlng = 0;
 			todo = recvHead();
-			result = getdataEsp(todo);
+			result = getdataEspTO(todo);
 			if (result != 0) // Requested size
 			{
 				clearStatus();
