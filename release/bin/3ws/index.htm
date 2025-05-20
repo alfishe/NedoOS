@@ -4,9 +4,11 @@
 <HEAD>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 	<meta http-equiv="Cache-Control" content="no-cache">
+	<meta name="viewport" content="width=device-width,minimum-scale=1.0">
 	<title>ZX-filemanager</title>
 	<link rel="icon" type="image/ico" href="favicon.ico">
 	<style>
+		body{font-family:lucida console;}
 		a.nubex {
 			color: #fff;
 			border-radius: 2px;
@@ -25,10 +27,9 @@
 			background-color: #f97f2e;
 		}
 
-		#divlog {
+		#divdir {
 			border: 2px dashed #ccc;
 			border-radius: 20px;
-			width: 480px;
 			font-family: sans-serif;
 			padding: 20px;
 			text-align: left
@@ -47,7 +48,7 @@
 				<input type="text" id="dirName">
 				<a class="nubex" href="javascript:mkdir()">MakeDir</a>
 			</td>
-			<td style="text-align:right"><a class="nubex" href="?x=1">stop daemon</a></td>
+			<td style="text-align:right"><a class="nubex" href="javascript:myGet('?x=1','')">stop daemon</a>
 		</tr>
 	</TABLE>
 	<br><br>

@@ -63,19 +63,22 @@ function rddir(dirPath){
 		}
 		window.s+=dirPath.substring(i);
 	}
-	window.s+='<br><table>';
+	window.s+='<br><table  id="divdir">';
 	j=JSON.parse(myGet('?d=', dirPath));
 	j.fno.sort(compareFileInfo);
 	j.fno.forEach(function(item, i, arr) {
 		var n,pn;
 		if(item.isdir==1){
 			n=item.fn;
+			var dt_opt = { year: 'numeric', month: 'numeric', day: 'numeric',
+			  hour: 'numeric', minute: 'numeric'};
+			dt = new Date((item.dt>>9)+1980, (item.dt>>5)%16-1, item.dt%32, (item.tm>>11)%32, (item.tm>>5)%64, (item.tm%32)*2, 0);
 			if(n=='..')pn=dirPath.substr(0,dirPath.lastIndexOf('/'));
 			else pn=((dirPath=='')?(''):(dirPath+'/'))+n;
 			if(n!="."){
 				window.s+='<tr>';
 				
-				window.s+='<td><a href="javascript:rddir(\''+pn+'\')">'+n+'</a></td><td></td><td></td><td>';
+				window.s+='<td><a href="javascript:rddir(\''+pn+'\')">'+n+'</a></td><td></td><td>'+ dt.toLocaleString("ru", dt_opt) +'</td><td></td><td>';
 				
 				window.s+='</td><td><a href="javascript:unlink(\''+n+'\')">Remove</a><td>';
 				window.s+='</tr>';
@@ -85,11 +88,16 @@ function rddir(dirPath){
 	j.fno.forEach(function(item, i, arr) {
 		var n,pn,iof;
 		if(item.isdir==0){
+			
+			var dt_opt = { year: 'numeric', month: 'numeric', day: 'numeric',
+			  hour: 'numeric', minute: 'numeric'};
+			dt = new Date((item.dt>>9)+1980, (item.dt>>5)%16-1, item.dt%32, (item.tm>>11)%32, (item.tm>>5)%64, (item.tm%32)*2, 0);
+
 			n=item.fn;
 			pn=((dirPath=='/')?(''):(dirPath+'/'))+n;
 			window.s+='<tr>';
-			
-			window.s+='<td>'+n+'</td><td>'+item.sz+'B </td><td>'+'<a href="?g='+encodeURIComponent(pn)+'">Download</a></td>';
+			window.s+='<td>'+n+'</td><td>'+item.sz+'B </td><td>'+ dt.toLocaleString("ru", dt_opt) 
+				+'</td><td>'+'<a href="?g='+encodeURIComponent(pn)+'">Download</a></td>';
 			iof=n.lastIndexOf('.');
 			if(iof != -1){
 				switch(n.toLowerCase().substring(iof)){
@@ -153,7 +161,7 @@ function rddir(dirPath){
 						break;
 					case '.bmp':
 						window.s+='<td><a href="javascript:runprog(\'bin/scratch.com%20/'+pn+'\')">View</a></td>';
-						break;			
+						break;	
 					default:
 						window.s+='<td></td>';
 						break;
