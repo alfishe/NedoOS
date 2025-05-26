@@ -87,13 +87,14 @@ musicload
 	push hl
 	set_timer waittimer50hz,882
 	ld hl,0
-	ld (waitcounter),hl
+	ld (waitcounterlo),hl
 	ld (samplecounterlo),hl
 	ld (dataoffsetlo),hl
 	ld (dataoffsethi),hl
 	ld (devicemask),hl
 	ld a,l
 	ld (samplecounterhi),a
+	ld (waitcounterhi),a
 	ld (vgmheadercopy),a
 	ld a,e
 	pop de
@@ -346,15 +347,18 @@ musicplay
 waittimercallback=$+1
 	call 0
 playloop
-waitcounter=$+1
+waitcounterlo=$+1
 	ld hl,0
+waitcounterhi=$+1
+	ld a,0
 waittimerstep=$+1
 	ld bc,0
 	sub hl,bc
+	ld d,0
+	sbc a,d
 	jr nc,exitplayloop
 ;read command
 	memory_stream_read_1 e
-	ld d,0
 	ld hl,cmdtable
 	add hl,de
 	ld e,(hl)
@@ -365,14 +369,15 @@ waittimerstep=$+1
 	ex hl,de
 	jp (hl)
 exitplayloop
-	ld (waitcounter),hl
+	ld (waitcounterlo),hl
+	ld (waitcounterhi),a
 ;update progress
 samplecounterlo=$+1
 	ld hl,0
 samplecounterhi=$+1
 	ld a,0
 	add hl,bc
-	adc a,0
+	adc a,d
 	jr nc,$+4
 	ld a,255
 	ld (samplecounterlo),hl
@@ -382,42 +387,63 @@ samplecounterhi=$+1
 	or 1
 	ret
 
-wait1	ld hl,(waitcounter)
+wait1	ld hl,waitcounterlo
+	inc (hl)
+	ret nz
 	inc hl
-	ld (waitcounter),hl
+	inc (hl)
+	ret nz
+	ld hl,waitcounterhi
+	inc (hl)
 	ret
 
-waitn	memory_stream_read_2 e,d
-	ld hl,(waitcounter)
+wait2	ld a,2
+waitn	ld hl,waitcounterlo
+	add a,(hl)
+	ld (hl),a
+	ret nc
+	inc hl
+	inc (hl)
+	ret nz
+	ld hl,waitcounterhi
+	inc (hl)
+	ret
+
+wait3	ld a,3  : jp waitn
+wait4	ld a,4  : jp waitn
+wait5	ld a,5  : jp waitn
+wait6	ld a,6  : jp waitn
+wait7	ld a,7  : jp waitn
+wait8	ld a,8  : jp waitn
+wait9	ld a,9  : jp waitn
+wait10	ld a,10 : jp waitn
+wait11	ld a,11 : jp waitn
+wait12	ld a,12 : jp waitn
+wait13	ld a,13 : jp waitn
+wait14	ld a,14 : jp waitn
+wait15	ld a,15 : jp waitn
+wait16	ld a,16 : jp waitn
+
+wait735	ld de,735
+waitnn	ld hl,(waitcounterlo)
 	add hl,de
-	ld (waitcounter),hl
+	ld (waitcounterlo),hl
+	ret nc
+	ld hl,waitcounterhi
+	inc (hl)
 	ret
 
-	macro wait_n n
-	ld hl,(waitcounter)
-	ld de,n
+wait882	ld de,882
+	jp waitnn
+
+waitvar	memory_stream_read_2 e,d
+	ld hl,(waitcounterlo)
 	add hl,de
-	ld (waitcounter),hl
+	ld (waitcounterlo),hl
+	ret nc
+	ld hl,waitcounterhi
+	inc (hl)
 	ret
-	endm
-
-wait2	wait_n 2
-wait3	wait_n 3
-wait4	wait_n 4
-wait5	wait_n 5
-wait6	wait_n 6
-wait7	wait_n 7
-wait8	wait_n 8
-wait9	wait_n 9
-wait10	wait_n 10
-wait11	wait_n 11
-wait12	wait_n 12
-wait13	wait_n 13
-wait14	wait_n 14
-wait15	wait_n 15
-wait16	wait_n 16
-wait735	wait_n 735
-wait882	wait_n 882
 
 	macro skip_n n
 	ld b,n
@@ -703,7 +729,7 @@ cmdtable
 	db cmdYMF262p0     %256 ; 5E
 	db cmdYMF262p1     %256 ; 5F
 	db cmdunsupported  %256 ; 60
-	db waitn           %256 ; 61
+	db waitvar         %256 ; 61
 	db wait735         %256 ; 62
 	db wait882         %256 ; 63
 	db cmdunsupported  %256 ; 64
@@ -959,7 +985,7 @@ cmdtable
 	db cmdYMF262p0     /256 ; 5E
 	db cmdYMF262p1     /256 ; 5F
 	db cmdunsupported  /256 ; 60
-	db waitn           /256 ; 61
+	db waitvar         /256 ; 61
 	db wait735         /256 ; 62
 	db wait882         /256 ; 63
 	db cmdunsupported  /256 ; 64
