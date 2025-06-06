@@ -76,7 +76,7 @@ PROC rdch()
 //добавляет cnext в tword
 //и читает всю группу диерезисов + символ как один символ cnext
 {
-  IF ((BYTE)_lentword < _BYTESTRMAX) {
+  IF ((BYTE)_lentword != _BYTESTRMAX) {
     _tword[_lentword] = _cnext;
     INC _lentword;
   };
@@ -105,7 +105,7 @@ PROC rdchcmt()
 //добавляет cnext в tword
 //и читает всю группу диерезисов + символ как один символ cnext
 {
-  IF ((BYTE)_lentword < _BYTESTRMAX) {
+  IF ((BYTE)_lentword != _BYTESTRMAX) {
     _tword[_lentword] = _cnext;
     INC _lentword;
   };
@@ -139,7 +139,7 @@ PROC rdaddword() //подклеить следующую команду к текущей
   _curlnbeg = _curline;
   IF (_isalphanum[(BYTE)_cnext] ) {
     loop1: //ждём нецифробукву (EOF не цифробуква)
-      IF ((BYTE)_lentword < _BYTESTRMAX) {
+      IF ((BYTE)_lentword != _BYTESTRMAX) {
         _tword[_lentword] = _cnext;
         INC _lentword;
       };

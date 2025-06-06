@@ -906,3 +906,7 @@ VAR PBYTE ad
 VAR BYTE i
 call (mas[i]);
 call (ad);
+
+VAR UINT u;
+u = ~(u+4);
+i = i-0x05;

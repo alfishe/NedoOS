@@ -34,6 +34,10 @@ EXPORT VAR UINT  _lenname;
 EXPORT VAR PCHAR _joined; //автометка
 EXPORT VAR UINT  _lenjoined;
 
+EXPORT VAR BOOL _wascall; //0=не отложен, 1=отложен call _callee2
+EXPORT VAR PCHAR _callee2; //название вызываемой процедуры - отложенное
+EXPORT VAR UINT  _lencallee2;
+
 #ifdef TARGET_THUMB
 #include "codearm.c"
 #else
@@ -1279,4 +1283,5 @@ EXPORT PROC initcmd()
   _const  = (PCHAR)_sc;
   //_wastword  = (PCHAR)_sw;
   _wasconst = +FALSE;
+  _wascall = +FALSE;
 }

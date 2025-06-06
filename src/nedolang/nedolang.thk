@@ -6,6 +6,65 @@ Now the _isaddr flag is set if another address was used in a calculation, and re
 
 add(mul(px,px),add(mul(py,py),mul(pz,pz))) - ГЛЮК (первый add получает первый параметр уже затёртым), и при глубинных вызовах тоже
 
+PROC flushcall()
+{
+  if (_wascall) {
+    asmstr( "\tCALL " ); asmstr( _callee2 ); endasm();
+    _wascall = +FALSE;
+  }; //если убрать эту точку с запятой, то вместо asm_comma генерируется flushcall.asm_comma
+}
+PROC asm_comma()
+{
+  asmc(',');
+}
+
+
+IF (_token==+_ERRCLOSE) {errstr("need \')\'/\']\' \""); goto err;
+}
+компилируется в
+_IL.
+	LD A,[_token]
+	SUB _ERRCLOSE
+	JP NZ,_IN.
+	LD HL,fsm.L.
+	LD [errstr.A.],HL
+	CALL errstr
+	JP fsm.err
+	JP _IO.
+получается лишний jp после goto
+
+как оптимизировать?
+	LD [_token],A
+	LD A,[_token] 
+или
+	LD [_token],A
+	LD HL,fsm.J
+	LD A,[_token] 
+
+как оптимизировать?
+	LD A,[_t]
+	LD L,A
+	LD H,0
+	LD [erruint.A.],HL 
+
+как оптимизировать?
+	LD A,[eatvar.A.]
+	LD E,TRUE
+	LD L,A
+	LD A,E
+	LD [eatvar.A.],A 
+особенно важно тут (IF ((BYTE)_lentword < _BYTESTRMAX))
+rdaddword.loop1
+	LD HL,[_lentword]
+	LD A,_BYTESTRMAX
+	LD E,A
+	LD A,L
+	SUB E
+	JP NC,_BM. 
+должно быть emitsubbflagsconst, которого нет (работает в командах типа i = i-0x05, ещё есть emitsubbzconst)
+или хотя бы emitsubbcyconst
+заменил на !=
+
 глюк в выражениях с тайпкастом:
 struct zzz{
   BYTE ba;

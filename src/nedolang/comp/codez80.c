@@ -122,6 +122,14 @@ EXPORT PROC var_alignwsz()
 {
 }
 
+PROC flushcall()
+{
+  if (_wascall) {
+    asmstr( "\tCALL " ); asmstr( _callee2 ); endasm();
+    _wascall = +FALSE;
+  };
+}
+
 PROC asm_comma()
 {
   asmc(',');
@@ -155,6 +163,26 @@ PROC asm_rlow(BYTE r)
 PROC asm_rhigh(BYTE r)
 {
   asmstr( _RHIGH[(UINT)r] );
+}
+
+PROC asm_rlow_rnew()
+{
+  asm_rlow(_rnew);
+}
+
+PROC asm_rhigh_rnew()
+{
+  asm_rhigh(_rnew);
+}
+
+PROC asm_rlow_rold()
+{
+  asm_rlow(_rold);
+}
+
+PROC asm_rhigh_rold()
+{
+  asm_rhigh(_rold);
 }
 
 PROC asm_close_eol()
@@ -204,78 +232,101 @@ EXPORT PROC var_ds() //доступно из compile!
 
 PROC asm_and()
 {
+  flushcall();
   asmstr( "\tAND " );
 }
 
 PROC asm_or()
 {
+  flushcall();
   asmstr( "\tOR " );
 }
 
 PROC asm_xor()
 {
+  flushcall();
   asmstr( "\tXOR " );
 }
 
 PROC asm_sub()
 {
+  flushcall();
   asmstr( "\tSUB " );
 }
 
 PROC asm_sbc()
 {
+  flushcall();
   asmstr( "\tSBC " );
 }
 
 PROC asm_add()
 {
+  flushcall();
   asmstr( "\tADD " );
 }
 
 PROC asm_adc()
 {
+  flushcall();
   asmstr( "\tADC " );
 }
 
 PROC asm_inc()
 {
+  flushcall();
   asmstr( "\tINC " );
 }
 
 PROC asm_dec()
 {
+  flushcall();
   asmstr( "\tDEC " );
 }
 
 PROC asm_ld()
 {
+  flushcall();
   asmstr( "\tLD " );
 }
 
 PROC asm_jp()
 {
+  flushcall();
   asmstr( "\tJP " );
 }
 
 PROC emitjrnz(CHAR c)
 {
-  asmstr("\tJR NZ,$+0x");
+  flushcall();
+  asmstr( "\tJR NZ,$+0x" );
+  asmc(c);
+  endasm();
+}
+
+PROC emitjrz(CHAR c)
+{
+  flushcall();
+  asmstr( "\tJR Z,$+0x" );
   asmc(c);
   endasm();
 }
 
 PROC asm_ex()
 {
+  flushcall();
   asmstr( "\tEX " );
 }
 
 PROC asm_push()
 {
+  flushcall();
   asmstr( "\tPUSH " );
 }
 
 PROC asm_pop()
 {
+  flushcall();
   asmstr( "\tPOP " );
 }
 
@@ -316,11 +367,25 @@ PROC emitexd()
 
 PROC emitccf()
 {
+  flushcall();
   asmstr( "\tCCF" ); endasm();
+}
+
+PROC emitrla()
+{
+  flushcall();
+  asmstr( "\tRLA" ); endasm();
+}
+
+PROC emitcpl()
+{
+  flushcall();
+  asmstr( "\tCPL" ); endasm();
 }
 
 PROC emitcall(PCHAR s)
 {
+  flushcall();
   asmstr( "\tCALL " ); asmstr( s ); endasm();
 }
 
@@ -381,11 +446,13 @@ PROC emitmovrg(BYTE rsrc, BYTE rdest) //не заказывает и не освобождает (см. emit
 
 EXPORT PROC emitasmlabel(PCHAR s)
 {
+  flushcall();
   asmstr(s); /**asmc( ':' );*/ endasm();
 }
 
 EXPORT PROC emitfunclabel(PCHAR s)
 {
+  flushcall();
   asmstr(s); /**asmc( ':' );*/ endasm();
 }
 
@@ -396,6 +463,7 @@ EXPORT PROC emitvarlabel(PCHAR s)
 
 EXPORT PROC emitexport(PCHAR s) //todo всегда _joined
 {
+  flushcall();
   asmstr("\tEXPORT "); asmstr(s); endasm();
 }
 
@@ -486,7 +554,13 @@ PROC emitjpiffalse()
 PROC emitret()
 {
   //unproxy();
-  asmstr( "\tRET" ); endasm();
+  if (_wascall) {
+    asmstr( "\tJP " ); asmstr(_callee2); endasm();
+    _wascall = +FALSE;
+  }else {
+    //flushcall();
+    asmstr( "\tRET" ); endasm();
+  }
 }
 
 PROC emitcall2rgs(PCHAR s)
@@ -523,7 +597,9 @@ PROC emitcall4rgs(PCHAR s) //todo проверить
 PROC emitcallproc()
 {
   //_jpflag = 0x00;
-  emitcall(_callee);
+  flushcall();
+  _lencallee2 = strcopy(_callee, _lencallee, _callee2);
+  _wascall = +TRUE;
 }
 
 PROC emitloadrg(BOOL high) //регистр уже занят через getrfree
@@ -551,7 +627,7 @@ PROC emitloadb() //аккумулятор уже занят через getfreea
     asm_lda_comma();
   }ELSE {
     asm_ld();
-    /**rganame*/asm_rlow(_rnew);
+    /**rganame*/asm_rlow_rnew();
     asm_comma();
   };
   asmstr(_const);
@@ -613,8 +689,9 @@ PROC emitshl1rg()
   IF ((_rnew == 0x01)||(_rnew == 0x04)) {
     asm_add(); asm_hl(); asm_comma(); asm_hl(); endasm();
   }ELSE {
-    asmstr( "\tSLA " ); asm_rlow(_rnew); endasm();
-    asmstr( "\tRL " ); asm_rhigh(_rnew); endasm();
+    flushcall();
+    asmstr( "\tSLA " ); asm_rlow_rnew(); endasm();
+    asmstr( "\tRL " ); asm_rhigh_rnew(); endasm();
   };
 }
 
@@ -624,57 +701,57 @@ PROC emitshl1b()
   //IF (_rproxy==_rnew) {
     asm_add(); asm_a(); asm_comma_a_eol();
   //}ELSE {
+  //  flushcall();
   //  asmstr( "\tSLA " ); /**rganame*/asm_rlow(anew); endasm();
   //};
 }
 /**
 PROC emitshr1rg(BYTE rnew)
 {
+  flushcall();
   asmstr( "\tSRL " ); asm_rhigh(rnew); endasm();
   asmstr( "\tRR " ); asm_rlow(rnew); endasm();
 }
 
 PROC emitshr1signedrg(BYTE rnew)
 {
+  flushcall();
   asmstr( "\tSRA " ); asm_rhigh(rnew); endasm();
   asmstr( "\tRR " ); asm_rlow(rnew); endasm();
 }
 */
 //PROC emitshr1b(BYTE anew)
 //{
+//  flushcall();
 //  asmstr( "\tSRL " ); /**rganame*/asm_rlow(anew] ); endasm();
 //}
 
 PROC emitinvb() //~A -> A
 {
   proxy(_rnew);
-  asmstr( "\tCPL" ); endasm();
+  emitcpl();
   _fused = +FALSE; //иначе глюк if (!(a||b))
 }
 
 PROC emitinvrg()
 {
   unproxy();
-  asm_lda_comma(); asm_rhigh(_rnew); endasm();
-  asmstr( "\tCPL" ); endasm();
-  asm_ld(); asm_rhigh(_rnew); asm_comma_a_eol();
-  emitinvb();
+  asm_lda_comma(); asm_rhigh_rnew(); endasm();
+  emitcpl();
+  asm_ld(); asm_rhigh_rnew(); asm_comma_a_eol();
+  emitinvb(); //_rlow
   unproxy(); //иначе глюк перед poke
-  //asm_lda_comma(); asm_rlow(_rnew); endasm();
-  //asmstr( "\tCPL" ); endasm();
-  //asm_ld(); asm_rlow(_rnew); asm_comma_a_eol();
-  //unreserverg( _RGA );
 }
 
 PROC emitnegrg()
 {
   unproxy();
   asm_xor(); asm_a(); endasm();
-  asm_sub(); asm_rlow(_rnew); endasm();
-  asm_ld(); asm_rlow(_rnew); asm_comma_a_eol();
-  asm_sbc(); asm_a(); asm_comma(); asm_rhigh(_rnew); endasm();
-  asm_sub(); asm_rlow(_rnew); endasm();
-  asm_ld(); asm_rhigh(_rnew); asm_comma_a_eol();
+  asm_sub(); asm_rlow_rnew(); endasm();
+  asm_ld(); asm_rlow_rnew(); asm_comma_a_eol();
+  asm_sbc(); asm_a(); asm_comma(); asm_rhigh_rnew(); endasm();
+  asm_sub(); asm_rlow_rnew(); endasm();
+  asm_ld(); asm_rhigh_rnew(); asm_comma_a_eol();
 }
 
 PROC emitztob()
@@ -688,10 +765,10 @@ PROC emitztob()
       _rproxy = _rnew;
       _azused = +FALSE;
     }ELSE {
-      asm_ld(); asm_rlow(_rnew); asm_comma(); asmc('0'); endasm();
+      asm_ld(); asm_rlow_rnew(); asm_comma(); asmc('0'); endasm();
       IF (_rnew != 0x04) {emitjrnz('3');
       }ELSE emitjrnz('4'); //ix
-      asm_dec(); asm_rlow(_rnew); endasm();
+      asm_dec(); asm_rlow_rnew(); endasm();
     };
     _fused = +FALSE; //иначе глюк при if ((a==b))
     //_jpflag = 0x00;
@@ -707,16 +784,15 @@ PROC emitinvztob()
   IF (_exprlvl != 0x01) { //if (a != b)
     IF (_azused) { //A содержит правильный 0/не0 после сравнения
       //unproxy();
-      asmstr("\tJR Z,$+4"); endasm();
+      emitjrz('4');
       asm_lda_comma(); asmstr("-1"); endasm();
       _rproxy = _rnew;
       _azused = +FALSE;
     }ELSE {
-      asm_ld(); asm_rlow(_rnew); asm_comma(); asmc('0'); endasm();
-      IF (_rnew != 0x04) {asmstr( "\tJR Z,$+3" );
-      }ELSE asmstr( "\tJR Z,$+4" ); //ix
-      endasm();
-      asm_dec(); asm_rlow(_rnew); endasm();
+      asm_ld(); asm_rlow_rnew(); asm_comma(); asmc('0'); endasm();
+      IF (_rnew != 0x04) {emitjrz('3');
+      }ELSE emitjrz('4'); //ix
+      asm_dec(); asm_rlow_rnew(); endasm();
     };
     _fused = +FALSE; //иначе глюк при if ((a!=b))? todo test //возможен глюк ifnot ((a!=b))
     //_jpflag = 0x00;
@@ -759,7 +835,7 @@ PROC emitinvcytob()
 
 PROC emitSxorVtob() //после subflags, разрезервирует A
 {
-  asmstr( "\tRLA" ); endasm(); //sign
+  emitrla(); //sign
   asm_jp(); asmstr( "PO,$+4" ); endasm();
   emitccf();
   emitcytob();
@@ -767,7 +843,7 @@ PROC emitSxorVtob() //после subflags, разрезервирует A
 
 PROC emitinvSxorVtob() //после subflags, разрезервирует A
 {
-  asmstr( "\tRLA" ); endasm(); //sign
+  emitrla(); //sign
   asm_jp(); asmstr( "PE,$+4" ); endasm();
   emitccf();
   emitcytob();
@@ -776,24 +852,24 @@ PROC emitinvSxorVtob() //после subflags, разрезервирует A
 PROC emitxorrg() //old^new => old
 {
   unproxy();
-  asm_lda_comma(); asm_rhigh(_rnew); endasm();
-  asm_xor(); asm_rhigh(_rold); endasm();
-  asm_ld(); asm_rhigh(_rold); asm_comma_a_eol();
-  asm_lda_comma(); asm_rlow(_rnew); endasm();
-  asm_xor(); asm_rlow(_rold); endasm();
-  asm_ld(); asm_rlow(_rold); asm_comma_a_eol();
+  asm_lda_comma(); asm_rhigh_rnew(); endasm();
+  asm_xor(); asm_rhigh_rold(); endasm();
+  asm_ld(); asm_rhigh_rold(); asm_comma_a_eol();
+  asm_lda_comma(); asm_rlow_rnew(); endasm();
+  asm_xor(); asm_rlow_rold(); endasm();
+  asm_ld(); asm_rlow_rold(); asm_comma_a_eol();
 }
 
 PROC getxorb() //RGA^RGA2 -> RGA
 {
   IF (_rproxy == _rnew) {
     asm_xor();
-    /**rganame*/asm_rlow(_rold);
+    /**rganame*/asm_rlow_rold();
     _rproxy = _rold;
   }ELSE {
     proxy(_rold);
     asm_xor();
-    /**rganame*/asm_rlow(_rnew);
+    /**rganame*/asm_rlow_rnew();
   };
    endasm();
   _fused = +TRUE; //^^
@@ -802,24 +878,24 @@ PROC getxorb() //RGA^RGA2 -> RGA
 PROC emitorrg() //old|new => old
 {
   unproxy();
-  asm_lda_comma(); asm_rhigh(_rnew); endasm();
-  asm_or(); asm_rhigh(_rold); endasm();
-  asm_ld(); asm_rhigh(_rold); asm_comma_a_eol();
-  asm_lda_comma(); asm_rlow(_rnew); endasm();
-  asm_or(); asm_rlow(_rold); endasm();
-  asm_ld(); asm_rlow(_rold); asm_comma_a_eol();
+  asm_lda_comma(); asm_rhigh_rnew(); endasm();
+  asm_or(); asm_rhigh_rold(); endasm();
+  asm_ld(); asm_rhigh_rold(); asm_comma_a_eol();
+  asm_lda_comma(); asm_rlow_rnew(); endasm();
+  asm_or(); asm_rlow_rold(); endasm();
+  asm_ld(); asm_rlow_rold(); asm_comma_a_eol();
 }
 
 PROC getorb() //RGA|RGA2 -> RGA
 {
   IF (_rproxy == _rnew) {
     asm_or();
-    /**rganame*/asm_rlow(_rold);
+    /**rganame*/asm_rlow_rold();
     _rproxy = _rold;
   }ELSE {
     proxy(_rold);
     asm_or();
-    /**rganame*/asm_rlow(_rnew);
+    /**rganame*/asm_rlow_rnew();
   };
   endasm();
   _fused = +TRUE; //||
@@ -828,24 +904,24 @@ PROC getorb() //RGA|RGA2 -> RGA
 PROC emitandrg() //old&new => old
 {
   unproxy();
-  asm_lda_comma(); asm_rhigh(_rnew); endasm();
-  asm_and(); asm_rhigh(_rold); endasm();
-  asm_ld(); asm_rhigh(_rold); asm_comma_a_eol();
-  asm_lda_comma(); asm_rlow(_rnew); endasm();
-  asm_and(); asm_rlow(_rold); endasm();
-  asm_ld(); asm_rlow(_rold); asm_comma_a_eol();
+  asm_lda_comma(); asm_rhigh_rnew(); endasm();
+  asm_and(); asm_rhigh_rold(); endasm();
+  asm_ld(); asm_rhigh_rold(); asm_comma_a_eol();
+  asm_lda_comma(); asm_rlow_rnew(); endasm();
+  asm_and(); asm_rlow_rold(); endasm();
+  asm_ld(); asm_rlow_rold(); asm_comma_a_eol();
 }
 
 PROC getandb() //RGA&RGA2 -> RGA
 {
   IF (_rproxy == _rnew) {
     asm_and();
-    /**rganame*/asm_rlow(_rold);
+    /**rganame*/asm_rlow_rold();
     _rproxy = _rold;
   }ELSE {
     proxy(_rold);
     asm_and();
-    /**rganame*/asm_rlow(_rnew);
+    /**rganame*/asm_rlow_rnew();
   };
   endasm();
   _fused = +TRUE; //&&
@@ -864,12 +940,12 @@ PROC emitaddrg() //old+new => old
     emitexd(); //todo через swaprgs?
   }ELSE {
     unproxy();
-    asm_lda_comma(); asm_rlow(_rold); endasm();
-    asm_add(); asm_a(); asm_comma(); asm_rlow(_rnew); endasm();
-    asm_ld(); asm_rlow(_rold); asm_comma_a_eol();
-    asm_lda_comma(); asm_rhigh(_rold); endasm();
-    asm_adc(); asm_a(); asm_comma(); asm_rhigh(_rnew); endasm();
-    asm_ld(); asm_rhigh(_rold); asm_comma_a_eol();
+    asm_lda_comma(); asm_rlow_rold(); endasm();
+    asm_add(); asm_a(); asm_comma(); asm_rlow_rnew(); endasm();
+    asm_ld(); asm_rlow_rold(); asm_comma_a_eol();
+    asm_lda_comma(); asm_rhigh_rold(); endasm();
+    asm_adc(); asm_a(); asm_comma(); asm_rhigh_rnew(); endasm();
+    asm_ld(); asm_rhigh_rold(); asm_comma_a_eol();
   };
 }
 
@@ -886,23 +962,23 @@ PROC emitadcrg() //old+new => old
     emitexd(); //todo через swaprgs?
   }ELSE {
     unproxy();
-    asm_lda_comma(); asm_rlow(_rold); endasm();
-    asm_adc(); asm_a(); asm_comma(); asm_rlow(_rnew); endasm();
-    asm_ld(); asm_rlow(_rold); asm_comma_a_eol();
-    asm_lda_comma(); asm_rhigh(_rold); endasm();
-    asm_adc(); asm_a(); asm_comma(); asm_rhigh(_rnew); endasm();
-    asm_ld(); asm_rhigh(_rold); asm_comma_a_eol();
+    asm_lda_comma(); asm_rlow_rold(); endasm();
+    asm_adc(); asm_a(); asm_comma(); asm_rlow_rnew(); endasm();
+    asm_ld(); asm_rlow_rold(); asm_comma_a_eol();
+    asm_lda_comma(); asm_rhigh_rold(); endasm();
+    asm_adc(); asm_a(); asm_comma(); asm_rhigh_rnew(); endasm();
+    asm_ld(); asm_rhigh_rold(); asm_comma_a_eol();
   };
 }
 
 PROC emitaddb() //old+new
 {
   IF (_rproxy == _rnew) {
-    asm_add(); asm_a(); asm_comma(); /**rganame*/asm_rlow(_rold); endasm();
+    asm_add(); asm_a(); asm_comma(); /**rganame*/asm_rlow_rold(); endasm();
     _rproxy = _rold;
   }ELSE {
     proxy(_rold);
-    asm_add(); asm_a(); asm_comma(); /**rganame*/asm_rlow(_rnew); endasm();
+    asm_add(); asm_a(); asm_comma(); /**rganame*/asm_rlow_rnew(); endasm();
   };
 }
 
@@ -920,12 +996,12 @@ PROC emitsubrg() //old-new => old
 //exd..exd невыгодно 27 тактов (если через перенумерацию регистров, то будет 23)
   }ELSE {
     unproxy();
-    asm_lda_comma(); asm_rlow(_rold); endasm();
-    asm_sub(); asm_rlow(_rnew); endasm();
-    asm_ld(); asm_rlow(_rold); asm_comma_a_eol();
-    asm_lda_comma(); asm_rhigh(_rold); endasm();
-    asm_sbc(); asm_a(); asm_comma(); asm_rhigh(_rnew); endasm();
-    asm_ld(); asm_rhigh(_rold); asm_comma_a_eol();
+    asm_lda_comma(); asm_rlow_rold(); endasm();
+    asm_sub(); asm_rlow_rnew(); endasm();
+    asm_ld(); asm_rlow_rold(); asm_comma_a_eol();
+    asm_lda_comma(); asm_rhigh_rold(); endasm();
+    asm_sbc(); asm_a(); asm_comma(); asm_rhigh_rnew(); endasm();
+    asm_ld(); asm_rhigh_rold(); asm_comma_a_eol();
   };
 }
 
@@ -942,19 +1018,19 @@ PROC emitsbcrg() //old-new => old
     emitexd(); //todo через swaprgs?
   }ELSE {
     unproxy();
-    asm_lda_comma(); asm_rlow(_rold); endasm();
-    asm_sbc(); asm_a(); asm_comma(); asm_rlow(_rnew); endasm();
-    asm_ld(); asm_rlow(_rold); asm_comma_a_eol();
-    asm_lda_comma(); asm_rhigh(_rold); endasm();
-    asm_sbc(); asm_a(); asm_comma(); asm_rhigh(_rnew); endasm();
-    asm_ld(); asm_rhigh(_rold); asm_comma_a_eol();
+    asm_lda_comma(); asm_rlow_rold(); endasm();
+    asm_sbc(); asm_a(); asm_comma(); asm_rlow_rnew(); endasm();
+    asm_ld(); asm_rlow_rold(); asm_comma_a_eol();
+    asm_lda_comma(); asm_rhigh_rold(); endasm();
+    asm_sbc(); asm_a(); asm_comma(); asm_rhigh_rnew(); endasm();
+    asm_ld(); asm_rhigh_rold(); asm_comma_a_eol();
   };
 }
 
 PROC emitsubb() //old-new
 {
   proxy(_rold);
-  asm_sub(); asm_rlow(_rnew); endasm();
+  asm_sub(); asm_rlow_rnew(); endasm();
 }
 
 PROC emitsubbconst() //new8-<const>
@@ -987,12 +1063,12 @@ PROC emitsubz() //old-new => Z
     emitsubrg();
   }ELSE {
     unproxy();
-    asm_lda_comma(); asm_rlow(_rold); endasm();
-    asm_sub(); asm_rlow(_rnew); endasm();
+    asm_lda_comma(); asm_rlow_rold(); endasm();
+    asm_sub(); asm_rlow_rnew(); endasm();
     IF ((_rold!=0x04)&&(_rnew!=0x04)) {emitjrnz('4');
     }ELSE emitjrnz('5'); //ix
-    asm_lda_comma(); asm_rhigh(_rold); endasm();
-    asm_sub(); asm_rhigh(_rnew); endasm();
+    asm_lda_comma(); asm_rhigh_rold(); endasm();
+    asm_sub(); asm_rhigh_rnew(); endasm();
     _azused = +TRUE; //A содержит правильный 0/не0 после сравнения
   };
   _fused = +TRUE;
@@ -1002,11 +1078,11 @@ PROC emitsubbz() //old-new => Z
 {
   IF (_rproxy == _rnew) {
     asm_sub();
-    /**rganame*/asm_rlow(_rold);
+    /**rganame*/asm_rlow_rold();
   }ELSE {
     proxy(_rold);
     asm_sub();
-    /**rganame*/asm_rlow(_rnew);
+    /**rganame*/asm_rlow_rnew();
   };
   endasm();
   _rproxy = 0x00;
@@ -1038,34 +1114,34 @@ PROC emitsublongz() //old2-new, old3-old => Z
 {
   unproxy();
   asm_lda_comma(); asm_rlow(_rold2); endasm();
-  asm_sub(); asm_rlow(_rnew); endasm();
+  asm_sub(); asm_rlow_rnew(); endasm();
   IF ((_rold3!=0x04)&&(_rold!=0x04)) {emitjrnz('d'); //5+4+4//ix в rold2 или rnew
   }ELSE emitjrnz('e'); //4+5+5//ix в rold3 или rold
   asm_lda_comma(); asm_rhigh(_rold2); endasm();
-  asm_sub(); asm_rhigh(_rnew); endasm();
+  asm_sub(); asm_rhigh_rnew(); endasm();
   IF ((_rold3!=0x04)&&(_rold!=0x04)) {emitjrnz('8');
   }ELSE emitjrnz('a'); //ix
   asm_lda_comma(); asm_rlow(_rold3); endasm();
-  asm_sub(); asm_rlow(_rold); endasm();
+  asm_sub(); asm_rlow_rold(); endasm();
   IF ((_rold3!=0x04)&&(_rold!=0x04)) {emitjrnz('4');
   }ELSE emitjrnz('5'); //ix
   asm_lda_comma(); asm_rhigh(_rold3); endasm();
-  asm_sub(); asm_rhigh(_rold); endasm();
+  asm_sub(); asm_rhigh_rold(); endasm();
   _fused = +TRUE;
 }
 
 PROC emitpokerg() //новое записываем в старую локацию памяти
 {
   IF ((_rold == 0x01)&&(_rnew!=0x04)) {
-    asm_ldmhl_comma(); asm_rlow(_rnew); endasm();
+    asm_ldmhl_comma(); asm_rlow_rnew(); endasm();
     emitinchl();
-    asm_ldmhl_comma(); asm_rhigh(_rnew); endasm();
+    asm_ldmhl_comma(); asm_rhigh_rnew(); endasm();
   }ELSE {
     unproxy();
-    asm_lda_comma(); asm_rlow(_rnew); endasm();
+    asm_lda_comma(); asm_rlow_rnew(); endasm();
     asm_ld(); asm_mrgname(_rold); asm_comma_a_eol();
     asm_inc(); asm_rname(_rold); endasm();
-    asm_lda_comma(); asm_rhigh(_rnew); endasm();
+    asm_lda_comma(); asm_rhigh_rnew(); endasm();
     asm_ld(); asm_mrgname(_rold); asm_comma_a_eol();
   };
   _fused = +FALSE; //конец вычисления
@@ -1075,7 +1151,7 @@ PROC emitpokeb() //новое записываем в старую локацию памяти
 //в rnew может не быть данных, если rproxy==rnew!!!
 {
   IF ((_rold==0x01) && (_rnew!=0x04) && (_rproxy!=_rnew)) {
-    asm_ld(); asm_mhl(); asm_comma(); asm_rlow(_rnew); endasm();
+    asm_ld(); asm_mhl(); asm_comma(); asm_rlow_rnew(); endasm();
   }ELSE {
     proxy(_rnew); //иначе нет команды ld [rp],rg
     asm_ld(); asm_mrgname(_rold); asm_comma_a_eol();
@@ -1087,25 +1163,25 @@ PROC emitpokeb() //новое записываем в старую локацию памяти
 PROC emitpokelong() //old2(addr), old(high), new(low)
 {
   IF ((_rold2==0x01)&&(_rnew!=0x04)) {
-    asm_ldmhl_comma(); asm_rlow(_rnew); endasm();
+    asm_ldmhl_comma(); asm_rlow_rnew(); endasm();
     emitinchl();
-    asm_ldmhl_comma(); asm_rhigh(_rnew); endasm();
+    asm_ldmhl_comma(); asm_rhigh_rnew(); endasm();
     emitinchl();
-    asm_ldmhl_comma(); asm_rlow(_rold); endasm();
+    asm_ldmhl_comma(); asm_rlow_rold(); endasm();
     emitinchl();
-    asm_ldmhl_comma(); asm_rhigh(_rold); endasm();
+    asm_ldmhl_comma(); asm_rhigh_rold(); endasm();
   }ELSE {
     unproxy();
-    asm_lda_comma(); asm_rlow(_rnew); endasm();
+    asm_lda_comma(); asm_rlow_rnew(); endasm();
     asm_ld(); asm_mrgname(_rold2); asm_comma_a_eol();
     asm_inc(); asm_rname(_rold2); endasm();
-    asm_lda_comma(); asm_rhigh(_rnew); endasm();
+    asm_lda_comma(); asm_rhigh_rnew(); endasm();
     asm_ld(); asm_mrgname(_rold2); asm_comma_a_eol();
     asm_inc(); asm_rname(_rold2); endasm();
-    asm_lda_comma(); asm_rlow(_rold); endasm();
+    asm_lda_comma(); asm_rlow_rold(); endasm();
     asm_ld(); asm_mrgname(_rold2); asm_comma_a_eol();
     asm_inc(); asm_rname(_rold2); endasm();
-    asm_lda_comma(); asm_rhigh(_rold); endasm();
+    asm_lda_comma(); asm_rhigh_rold(); endasm();
     asm_ld(); asm_mrgname(_rold2); asm_comma_a_eol();
   };
   _fused = +FALSE; //конец вычисления
@@ -1129,9 +1205,9 @@ PROC emitpeekrg() //[new] => new
     asm_inc(); asm_rname(_rnew); endasm();
     emitexa();
     asm_lda_mrgname_eol(_rnew);
-    asm_ld(); asm_rhigh(_rnew); asm_comma_a_eol();
+    asm_ld(); asm_rhigh_rnew(); asm_comma_a_eol();
     emitexa();
-    asm_ld(); asm_rlow(_rnew); asm_comma_a_eol();
+    asm_ld(); asm_rlow_rnew(); asm_comma_a_eol();
   };
 }
 
@@ -1150,9 +1226,9 @@ PROC emitpeeklong() //[old] => old(high),new(low)
 {
   unproxy();
   IF ((_rold==0x01)&&(_rnew!=0x04)) {
-    asm_ld(); asm_rlow(_rnew); asm_comma_mhl_eol();
+    asm_ld(); asm_rlow_rnew(); asm_comma_mhl_eol();
     emitinchl();
-    asm_ld(); asm_rhigh(_rnew); asm_comma_mhl_eol();
+    asm_ld(); asm_rhigh_rnew(); asm_comma_mhl_eol();
     emitinchl();
     asm_lda_comma(); asm_mhl(); endasm();
     emitinchl();
@@ -1161,17 +1237,17 @@ PROC emitpeeklong() //[old] => old(high),new(low)
   }ELSE {
     asm_lda_mrgname_eol(_rold);
     asm_inc(); asm_rname(_rold); endasm();
-    asm_ld(); asm_rlow(_rnew); asm_comma_a_eol();
+    asm_ld(); asm_rlow_rnew(); asm_comma_a_eol();
     asm_lda_mrgname_eol(_rold);
     asm_inc(); asm_rname(_rold); endasm();
-    asm_ld(); asm_rhigh(_rnew); asm_comma_a_eol();
+    asm_ld(); asm_rhigh_rnew(); asm_comma_a_eol();
     asm_lda_mrgname_eol(_rold);
     asm_inc(); asm_rname(_rold); endasm();
     emitexa();
     asm_lda_mrgname_eol(_rold);
-    asm_ld(); asm_rhigh(_rold); asm_comma_a_eol();
+    asm_ld(); asm_rhigh_rold(); asm_comma_a_eol();
     emitexa();
-    asm_ld(); asm_rlow(_rold); asm_comma_a_eol();
+    asm_ld(); asm_rlow_rold(); asm_comma_a_eol();
   };
 }
 
@@ -1182,7 +1258,7 @@ PROC emitrgtob() //нельзя убирать - специфично
 PROC emitbtorg()
 {
   unproxy();
-  asm_ld(); asm_rhigh(_rnew); asm_comma(); asmc('0'); endasm();
+  asm_ld(); asm_rhigh_rnew(); asm_comma(); asmc('0'); endasm();
 }
 
 PROC emitincrg_byname()
@@ -1251,29 +1327,29 @@ PROC emitdeclong() //todo
 PROC emitincrg_bypoi() //[old], new free
 {
   IF (_rold==0x01) {
-    asm_ld(); asm_rlow(_rnew); asm_comma_mhl_eol();
+    asm_ld(); asm_rlow_rnew(); asm_comma_mhl_eol();
     emitinchl();
-    asm_ld(); asm_rhigh(_rnew); asm_comma_mhl_eol();
+    asm_ld(); asm_rhigh_rnew(); asm_comma_mhl_eol();
 
     asm_inc(); asm_rname(_rnew); endasm();
 
-    asm_ld(); asm_mhl(); asm_comma(); asm_rhigh(_rnew); endasm();
+    asm_ld(); asm_mhl(); asm_comma(); asm_rhigh_rnew(); endasm();
     asm_dec(); asm_hl(); endasm();
-    asm_ld(); asm_mhl(); asm_comma(); asm_rlow(_rnew); endasm();
+    asm_ld(); asm_mhl(); asm_comma(); asm_rlow_rnew(); endasm();
   }ELSE {
     unproxy();
     asm_lda_mrgname_eol(_rold);
-    asm_ld(); asm_rlow(_rnew); asm_comma_a_eol();
+    asm_ld(); asm_rlow_rnew(); asm_comma_a_eol();
     asm_inc(); asm_rname(_rold); endasm();
     asm_lda_mrgname_eol(_rold);
-    asm_ld(); asm_rhigh(_rnew); asm_comma_a_eol();
+    asm_ld(); asm_rhigh_rnew(); asm_comma_a_eol();
 
     asm_inc(); asm_rname(_rnew); endasm();
 
-    asm_lda_comma(); asm_rhigh(_rnew); endasm();
+    asm_lda_comma(); asm_rhigh_rnew(); endasm();
     asm_ld(); asm_mrgname(_rold); asm_comma_a_eol();
     asm_dec(); asm_rname(_rold); endasm();
-    asm_lda_comma(); asm_rlow(_rnew); endasm();
+    asm_lda_comma(); asm_rlow_rnew(); endasm();
     asm_ld(); asm_mrgname(_rold); asm_comma_a_eol();
   };
   _fused = +FALSE; //конец вычисления
@@ -1282,29 +1358,29 @@ PROC emitincrg_bypoi() //[old], new free
 PROC emitdecrg_bypoi() //[old], new free
 {
   IF (_rold==0x01) {
-    asm_ld(); asm_rlow(_rnew); asm_comma_mhl_eol();
+    asm_ld(); asm_rlow_rnew(); asm_comma_mhl_eol();
     emitinchl();
-    asm_ld(); asm_rhigh(_rnew); asm_comma_mhl_eol();
+    asm_ld(); asm_rhigh_rnew(); asm_comma_mhl_eol();
 
     asm_dec(); asm_rname(_rnew); endasm();
 
-    asm_ld(); asm_mhl(); asm_comma(); asm_rhigh(_rnew); endasm();
+    asm_ld(); asm_mhl(); asm_comma(); asm_rhigh_rnew(); endasm();
     asm_dec(); asm_hl(); endasm();
-    asm_ld(); asm_mhl(); asm_comma(); asm_rlow(_rnew); endasm();
+    asm_ld(); asm_mhl(); asm_comma(); asm_rlow_rnew(); endasm();
   }ELSE {
     unproxy();
     asm_lda_mrgname_eol(_rold);
-    asm_ld(); asm_rlow(_rnew); asm_comma_a_eol();
+    asm_ld(); asm_rlow_rnew(); asm_comma_a_eol();
     asm_inc(); asm_rname(_rold); endasm();
     asm_lda_mrgname_eol(_rold);
-    asm_ld(); asm_rhigh(_rnew); asm_comma_a_eol();
+    asm_ld(); asm_rhigh_rnew(); asm_comma_a_eol();
 
     asm_dec(); asm_rname(_rnew); endasm();
 
-    asm_lda_comma(); asm_rhigh(_rnew); endasm();
+    asm_lda_comma(); asm_rhigh_rnew(); endasm();
     asm_ld(); asm_mrgname(_rold); asm_comma_a_eol();
     asm_dec(); asm_rname(_rold); endasm();
-    asm_lda_comma(); asm_rlow(_rnew); endasm();
+    asm_lda_comma(); asm_rlow_rnew(); endasm();
     asm_ld(); asm_mrgname(_rold); asm_comma_a_eol();
   };
   _fused = +FALSE; //конец вычисления

@@ -32,6 +32,8 @@ VAR PCHAR _title; //название текущей процедуры (с учётом модуля)
 VAR UINT  _lentitle;
 EXTERN PCHAR _callee; //название вызываемой процедуры (с учётом модуля)
 EXTERN UINT  _lencallee;
+EXTERN PCHAR _callee2; //название вызываемой процедуры - отложенное
+EXTERN UINT  _lencallee2;
 EXTERN PCHAR _name; //метка без префикса (для таблицы меток)
 EXTERN UINT  _lenname;
 EXTERN PCHAR _joined; //автометка
@@ -44,6 +46,7 @@ VAR CHAR  _s3[_STRLEN]; //название вызываемой процедуры (с учётом модуля)
 VAR CHAR  _s4[_STRLEN]; //метка без префикса (для таблицы меток)
 VAR CHAR  _s5[_STRLEN]; //автометка
 VAR CHAR  _s6[_STRLEN]; //число элементов
+VAR CHAR  _s7[_STRLEN]; //название вызываемой процедуры - отложенное
 
 EXTERN CHAR _cnext;
 EXTERN UINT _spcsize; //число пробелов после прочитанной команды
@@ -1362,7 +1365,7 @@ VAR TYPE t;
 ;;    hinttype("call",t);
 #endif
   IF (!isfunc) t = (t&_T_RECURSIVE)|_T_PROC; //чтобы можно было вызывать функции как процедуры
-  strpush(_callee,_lencallee); //на случай вложенных вызовов
+  strpush(_callee, _lencallee); //на случай вложенных вызовов
   _lencallee = strcopy(_joined, _lenjoined, _callee); //без точки
   jdot();
   rdword(); //'('
@@ -1856,6 +1859,7 @@ PROC compile(PCHAR fn)
   _name   = (PCHAR)_s4;
   _joined = (PCHAR)_s5;
   _ncells = (PCHAR)_s6;
+  _callee2= (PCHAR)_s7;
 
   _fn = (PCHAR)_m_fn;
   _lenfn = 0;

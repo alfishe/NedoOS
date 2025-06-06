@@ -269,8 +269,8 @@ void main(void)
 	//ld a, #6
 	//out(c), a
 	//__endasm;
-	set_screen_sync(1);
-	set_res(MODE320X240);
+	//set_screen_sync(1);
+	//set_res(MODE320X240);
 	pal_bright(BRIGHT_MID);
 sprites_start();
 /*
