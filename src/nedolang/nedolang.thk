@@ -36,7 +36,7 @@ _IL.
 как оптимизировать?
 	LD [_token],A
 	LD A,[_token] 
-или
+или (тут уже труднее, т.к. вклинился другой именованный адрес)
 	LD [_token],A
 	LD HL,fsm.J
 	LD A,[_token] 
@@ -64,7 +64,13 @@ rdaddword.loop1
 должно быть emitsubbflagsconst, которого нет (работает в командах типа i = i-0x05, ещё есть emitsubbzconst)
 или хотя бы emitsubbcyconst
 заменил на !=
-
+но получается
+	LD HL,[_lentword]
+	LD A,L
+	SUB _BYTESTRMAX
+	JP Z,_BM. 
+как оптимизировать?
+        
 глюк в выражениях с тайпкастом:
 struct zzz{
   BYTE ba;

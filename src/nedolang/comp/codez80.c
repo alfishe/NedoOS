@@ -130,6 +130,17 @@ PROC flushcall()
   };
 }
 
+PROC losea()
+{
+  _callee2[0] = '\0'; //_lencallee2 = 0; //забываем состояние A (запись в память не из A или вычисление)
+}
+
+PROC asmstr_joined()
+{
+  asmstr(_joined);
+  _lencallee2 = strcopy(_joined, _lenjoined, _callee2);
+}
+
 PROC asm_comma()
 {
   asmc(',');
@@ -234,54 +245,63 @@ PROC asm_and()
 {
   flushcall();
   asmstr( "\tAND " );
+  losea();
 }
 
 PROC asm_or()
 {
   flushcall();
   asmstr( "\tOR " );
+  losea();
 }
 
 PROC asm_xor()
 {
   flushcall();
   asmstr( "\tXOR " );
+  losea();
 }
 
 PROC asm_sub()
 {
   flushcall();
   asmstr( "\tSUB " );
+  losea();
 }
 
 PROC asm_sbc()
 {
   flushcall();
   asmstr( "\tSBC " );
+  losea();
 }
 
 PROC asm_add()
 {
   flushcall();
   asmstr( "\tADD " );
+  losea();
 }
 
 PROC asm_adc()
 {
   flushcall();
   asmstr( "\tADC " );
+  losea();
 }
 
 PROC asm_inc()
 {
   flushcall();
   asmstr( "\tINC " );
+  losea();
 }
 
 PROC asm_dec()
 {
   flushcall();
   asmstr( "\tDEC " );
+  losea();
 }
 
 PROC asm_ld()
@@ -333,6 +353,7 @@ PROC asm_pop()
 PROC asm_lda_comma()
 {
   asm_ld(); asm_a(); asm_comma();
+  losea();
 }
 
 PROC asm_ldmhl_comma()
@@ -375,12 +396,14 @@ PROC emitrla()
 {
   flushcall();
   asmstr( "\tRLA" ); endasm();
+  losea();
 }
 
 PROC emitcpl()
 {
   flushcall();
   asmstr( "\tCPL" ); endasm();
+  losea();
 }
 
 PROC emitcall(PCHAR s)
@@ -391,7 +414,7 @@ PROC emitcall(PCHAR s)
 
 ///////////////////////////////////
 //доступны из commands
-PROC unproxy()
+PROC unproxy() //A возвращает результат в регистр
 {
   IF (_rproxy != 0x00) { //в прокси что-то было
     asm_ld(); /**rganame*/asm_rlow(_rproxy); asm_comma_a_eol();
@@ -399,12 +422,13 @@ PROC unproxy()
   };
 }
 
-PROC proxy(BYTE r)
+PROC proxy(BYTE r) //A дублирует регистр
 {
   IF (_rproxy != r) {
     unproxy();
     asm_lda_comma(); /**rganame*/asm_rlow(r); endasm();
     _rproxy = r;
+    losea();
   };
 }
 
@@ -448,12 +472,14 @@ EXPORT PROC emitasmlabel(PCHAR s)
 {
   flushcall();
   asmstr(s); /**asmc( ':' );*/ endasm();
+  losea();
 }
 
 EXPORT PROC emitfunclabel(PCHAR s)
 {
   flushcall();
   asmstr(s); /**asmc( ':' );*/ endasm();
+  losea();
 }
 
 EXPORT PROC emitvarlabel(PCHAR s)
@@ -483,7 +509,7 @@ EXPORT PROC varequ(PCHAR s)
 EXPORT FUNC UINT varshift(UINT shift, UINT sz)
 {
   //IF (sz >= 4) shift = (shift+3)&(UINT)(-4);
-  //asmstr(_joined); asmc('='); asmuint(shift); endasm();
+  //asmstr_joined(); asmc('='); asmuint(shift); endasm();
   varequ(_joined); /**varstr(_joined); varc('=');*/ varuint(shift); endvar();
 RETURN shift;
 }
@@ -513,7 +539,7 @@ PROC emitjp()
   //(сейчас это получится автоматически, но без storergs и с резервированием регистров надо освобождать вручную)
   unproxy();
   getnothing(); //getnothingword();
-  asm_jp(); asmstr(_joined); endasm();
+  asm_jp(); asmstr_joined(); endasm();
 }
 
 PROC emitbtoz() //перед jp!
@@ -545,7 +571,7 @@ PROC emitjpiffalse()
   }ELSE                      {asmc('Z');
   };
   asm_comma();
-  asmstr(_joined);
+  asmstr_joined();
   endasm();
   _fused = +FALSE;
   _jpflag = 0x00;
@@ -560,7 +586,7 @@ PROC emitret()
   }else {
     //flushcall();
     asmstr( "\tRET" ); endasm();
-  }
+  };
 }
 
 PROC emitcall2rgs(PCHAR s)
@@ -641,7 +667,7 @@ PROC emitgetrg(BOOL high) //регистр уже занят через getrfree
   asm_rname(_rnew);
   asm_comma();
   asm_open();
-  asmstr(_joined);
+  asmstr(_joined); //не забываем содержимое A
   IF (high) {asmc('+'); asmc('2');
   };
   asm_close();
@@ -650,20 +676,23 @@ PROC emitgetrg(BOOL high) //регистр уже занят через getrfree
 
 PROC emitgetb() //аккумулятор уже занят через getfreea
 {
+//если аккумулятор не прокси? и недавно (до другого именованного обращения (сюда также входят вычисление и переход), метки) сохранялся в именованную ячейку через emitputb(), то ничего не делать
   unproxy();
   _rproxy = _rnew;
-  asm_lda_comma();
-  asm_open();
-  asmstr(_joined);
-  asm_close();
-  endasm();
+  if (!strcp(_joined, _callee2)) { //криво!
+    asm_lda_comma();
+    asm_open();
+    asmstr_joined();
+    asm_close();
+    endasm();
+  };
 }
 
 PROC emitputrg(BOOL high) //ld [],new
 {
   //_jpflag = 0x00;
   asm_ld(); asm_open();
-  asmstr(_joined);
+  asmstr_joined();
   IF (high) {asmc('+'); asmc('2'); //asmstr( "+2"/**WORDSIZE*/ );
   };
   asm_close(); asm_comma();
@@ -677,7 +706,7 @@ PROC emitputb()
   //_jpflag = 0x00;
   proxy(_rnew);
   asm_ld(); asm_open();
-  asmstr(_joined);
+  asmstr_joined();
   asm_close();
   asm_comma_a_eol();
   _rproxy = 0x00;
@@ -1145,6 +1174,7 @@ PROC emitpokerg() //новое записываем в старую локацию памяти
     asm_ld(); asm_mrgname(_rold); asm_comma_a_eol();
   };
   _fused = +FALSE; //конец вычисления
+  losea();
 }
 
 PROC emitpokeb() //новое записываем в старую локацию памяти
@@ -1158,6 +1188,7 @@ PROC emitpokeb() //новое записываем в старую локацию памяти
   };
   _rproxy = 0x00;
   _fused = +FALSE; //конец вычисления
+  losea();
 }
 
 PROC emitpokelong() //old2(addr), old(high), new(low)
@@ -1185,6 +1216,7 @@ PROC emitpokelong() //old2(addr), old(high), new(low)
     asm_ld(); asm_mrgname(_rold2); asm_comma_a_eol();
   };
   _fused = +FALSE; //конец вычисления
+  losea();
 }
 
 PROC asm_lda_mrgname_eol(BYTE r)
@@ -1284,6 +1316,7 @@ PROC emitincb_bypoi()
     asm_ld(); asm_open(); asm_rname(_rnew); asm_close(); asm_comma_a_eol();
   };
   _fused = +FALSE; //конец вычисления
+  losea();
 }
 /**
 PROC emitinclong() //todo
@@ -1315,6 +1348,7 @@ PROC emitdecb_bypoi()
     asm_ld(); asm_open(); asm_rname(_rnew); asm_close(); asm_comma_a_eol();
   };
   _fused = +FALSE; //конец вычисления
+  losea();
 }
 /**
 PROC emitdeclong() //todo
@@ -1353,6 +1387,7 @@ PROC emitincrg_bypoi() //[old], new free
     asm_ld(); asm_mrgname(_rold); asm_comma_a_eol();
   };
   _fused = +FALSE; //конец вычисления
+  losea();
 }
 
 PROC emitdecrg_bypoi() //[old], new free
@@ -1384,6 +1419,7 @@ PROC emitdecrg_bypoi() //[old], new free
     asm_ld(); asm_mrgname(_rold); asm_comma_a_eol();
   };
   _fused = +FALSE; //конец вычисления
+  losea();
 }
 
 /////////////
