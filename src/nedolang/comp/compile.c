@@ -163,6 +163,7 @@ VAR BYTE _namespclvl; //глубина вложенности пространства имён (число точек в пре
 
 VAR BOOL _isrecursive; //текущая объявляемая процедура рекурсивная
 VAR BOOL _wasreturn; //была команда return (после неё нельзя команды в рекурсивной функции) //сохраняются в func
+VAR BOOL _waswasreturn; //была команда return до }
 VAR TYPE _curfunct; //тип функции (для return) //сохраняются в func
 VAR BOOL _isexp; //текущая объявляемая переменная, константный массив/структура, процедура/функция экспортируется (но не константа, т.к. это не адрес и не нужно)
 
@@ -170,6 +171,7 @@ VAR CHAR _c0;
 VAR CHAR _c2;
 
 VAR UINT _parnum;
+VAR BYTE _pushlvl;
 
 VAR UINT _doskipcond;
 //_doskipcond в битовом виде помнит, сколько уровней активных ifdef и сколько уровней неактивных (кроме текущего)
@@ -196,9 +198,19 @@ VAR BYTE _nhinclfiles; //число открытых файлов
 ;;}
 #endif
 
+PROC err_type_enderr(UINT t)
+{
+  errstr(" type="); erruint(t); errstr(", but expr type="); erruint((UINT)_t); enderr();
+}
+
+PROC err_tword_enderr()
+{
+  errstr(" expected, but we have \'"); errstr(_tword); err('\''); enderr();
+}
+
 PROC err_tword(PCHAR s)
 {
-  errstr(s); errstr(" expected, but we have \'"); errstr(_tword); err('\''); enderr();
+  errstr(s); err_tword_enderr();
 }
 
 PROC doexp() //всегда _joined
@@ -209,7 +221,7 @@ PROC doexp() //всегда _joined
 PROC eat(CHAR c)
 {
   IF (*(PCHAR)_tword!=c) {
-    err(c); errstr(" expected, but we have \'"); errstr(_tword); err('\''); enderr();
+    err(c); err_tword_enderr();
   };
   rdword();
 }
@@ -297,7 +309,7 @@ PROC doprefix(BYTE nb) //склеить n слов типа 'word.' из title в prefix (name без
   };
   _prefix[_lenprefix] = '\0';
   _lenjoined = strcopy(_prefix, _lenprefix, _joined);
-  _lenjoined = strjoin(/**to=*/_joined, _lenjoined, _tword/**, _lentword*/);
+  _lenjoined = strjoin(/**to=*/_joined, _lenjoined, _tword);
   _joined[_lenjoined] = '\0';
 }
 
@@ -788,7 +800,7 @@ VAR TYPE t;
   rdword();
   eat('=');
   eatexpr();
-  IF (t != _t) {errstr("poke variable type="); erruint((UINT)t); errstr(", but expr type="); erruint((UINT)_t); enderr(); };
+  IF (t != _t) {errstr("poke var"); err_type_enderr((UINT)t); };
   cmdpoke();
 #ifdef USE_HINTS
 ;;  hintstr("//end poke"); endhint();
@@ -834,7 +846,7 @@ VAR BOOL ispoke;
   eatexpr(); //получает тип _t
  _lenjoined = strpop(_joined);
   IF (t!=_t) {
-    errstr("let variable type="); erruint((UINT)t); errstr(", but expr type="); erruint((UINT)_t); enderr();
+    errstr("let var"); err_type_enderr((UINT)t);
   };
   IF (ispoke) {
     cmdpoke();
@@ -961,7 +973,7 @@ PROC eatmodule RECURSIVE()
   _lentitle = strcopy(_prefix, _lenprefix, _title); //title = prefix //отрезаем добавленное слово
 }
 */
-PROC eatreturn() //todo inline
+PROC eatreturn()
 {
 //todo проверить isfunc (что мы в функции) для вывода ошибки
 #ifdef USE_HINTS
@@ -969,12 +981,15 @@ PROC eatreturn() //todo inline
 #endif
   _exprlvl = 0x01; //no jp optimization
   eatexpr(); //сравнения нельзя без скобок!!!
-  IF ( _t != (_curfunct&(~_T_RECURSIVE)) ) {errstr("return type="); erruint((UINT)_curfunct); errstr(", but expr type="); erruint((UINT)_t); enderr(); };
+  IF ( _t != (_curfunct&(~_T_RECURSIVE)) ) {errstr("return"); err_type_enderr((UINT)_curfunct); };
   cmdresult();
 #ifdef USE_HINTS
 ;;  hintstr("//end return"); endhint();
 #endif
-  _wasreturn = +TRUE; //установить проверку "оператор после return"
+  IF (_pushlvl != 0x00) {errstr("ret inside recursive func!"); enderr(); };
+  _t = _curfunct&(~_T_RECURSIVE);
+  cmdret(+TRUE);
+  _wasreturn = +TRUE;
 }
 
 PROC eatinc()
@@ -1072,13 +1087,13 @@ VAR TYPE t;
   IF (*(PCHAR)_tword == '[') {
     //t = t|_T_ARRAY; //уже в eatvarname
     //rdbrackets(); //_tword='[' //TODO evaluate expr (в нём нельзя переменные и вызовы, т.е. не запарывается joined?)
-    _lentword = 0; //strclear(_tword); //читаем с пустой строки
+    _lentword = 0; //читаем с пустой строки
     rdquotes(']');
     rdch(); //пропустить ']'
     //_lenncells = strcopy(_tword, _lentword, _ncells); //n = _tword;
   //}ELSE {
     //n ="1";
-    //_lenncells = stradd(_ncells, strclear(_ncells), '1'); //n = n + '1';
+    //_lenncells = stradd(_ncells, 0, '1'); //n = n + '1';
     //strclose(_ncells, _lenncells);
     rdword();
   };
@@ -1103,23 +1118,23 @@ VAR TYPE t;
     //t = t|_T_ARRAY; //уже в eatvarname
    //strpush(_joined,_lenjoined);
     //TODO evaluate expr (в нём нельзя переменные и вызовы, т.е. не запарывается joined?)
-    _lentword = 0; //strclear(_tword); //читаем с пустой строки
+    _lentword = 0; //читаем с пустой строки
     rdquotes(']');
    //_lenjoined = strpop(_joined);
     _lenncells = strcopy(_tword, _lentword, _ncells); //n = _tword;
     rdch(); //пропустить ']'
     rdword();
   }ELSE { //n = "1"
-    _lenncells = stradd(_ncells, 0/**strclear(_ncells)*/, '1'); //n = n + '1';
+    _lenncells = stradd(_ncells, 0, '1'); //n = n + '1';
     _ncells[_lenncells] = '\0'; //strclose(_ncells, _lenncells);
   };
-  IF (body) addlbl(t, /**isloc*/(_namespclvl!=0x00), (UINT)_typesz[t&_TYPEMASK]/**, _ncells, _lenncells*/); //(_name) //TODO размер массива или структуры!
+  IF (body) addlbl(t, /**isloc*/(_namespclvl!=0x00), (UINT)_typesz[t&_TYPEMASK]); //(_name) //TODO размер массива или структуры!
   IF (ispar) { //parameter of func/proc
     IF (body) {
       var_alignwsz_label(t);
       //emitvarlabel(_joined); //varstr(_joined); /**varc( ':' );*/ endvar();
     };
-    _lenjoined = strcopy(_prefix, _lenprefix, _joined); //_lenjoined = strjoin(/**to=*/_joined, 0/**strclear(_joined)*/, _prefix/**, _lenprefix*/); //prefix остался от doprefix/eatvarname выше
+    _lenjoined = strcopy(_prefix, _lenprefix, _joined); //_lenjoined = strjoin(/**to=*/_joined, 0, _prefix); //prefix остался от doprefix/eatvarname выше
     jautonum(_parnum);
     INC _parnum; //!!! todo написать почему
     INC _curlbl; //!!! todo написать почему
@@ -1144,13 +1159,13 @@ VAR TYPE t;
    strpush(_joined,_lenjoined);
     eatexpr();
    _lenjoined = strpop(_joined);
-    //IF ( (t!=_t) && !( ((t&_T_POI)!=(TYPE)0x00) && (/**(texpr==_T_UINT)||*/((_t&_T_POI)!=(TYPE)0x00)) ) ) {errstr("let variable="); errstr(_joined); errstr(" type="); erruint((UINT)t); errstr(", but expr type="); erruint((UINT)_t); enderr(); };
-    IF (t!=_t) {errstr("let variable="); errstr(_joined); errstr(" type="); erruint((UINT)t); errstr(", but expr type="); erruint((UINT)_t); enderr(); };
+    //IF ( (t!=_t) && !( ((t&_T_POI)!=(TYPE)0x00) && (/**(texpr==_T_UINT)||*/((_t&_T_POI)!=(TYPE)0x00)) ) ) {errstr("let var="); errstr(_joined); err_type_enderr((UINT)t); };
+    IF (t!=_t) {errstr("let var="); errstr(_joined); err_type_enderr((UINT)t); };
     cmdpopvar();
   };
   IF (_isrecursive && !ispar) { //local variable of recursive func/proc
     _t = t;
-    cmdpushpar(); //todo что делать с массивами?
+    cmdpushpar(); INC _pushlvl; //todo что делать с массивами?
    strpush(_joined,_lenjoined);
     WHILE (*(PCHAR)_tword==';') {
       rdword();
@@ -1158,7 +1173,7 @@ VAR TYPE t;
     eatcmd(); //recursive function body must be in {} after vars!
    _lenjoined = strpop(_joined);
     _t = t;
-    cmdpoppar(); //todo что делать с массивами?
+    cmdpoppar(); DEC _pushlvl; //todo что делать с массивами?
   };
 #ifdef USE_HINTS
 ;;  hintstr("//end var"); endhint();
@@ -1200,7 +1215,7 @@ VAR UINT i = 0;
   //_joined тоже содержит имя константы
   addlbl(t, /**isloc*/+FALSE, (UINT)_typesz[t&_TYPEMASK]/**, _ncells, _lenncells*/); //(_name) //TODO размер массива или структуры!
   WHILE (*(PCHAR)_tword == '[') { //[size]
-    _lentword = 0; //strclear(_tword); //читаем с пустой строки
+    _lentword = 0; //читаем с пустой строки
     rdquotes(']');
     rdch(); //пропустить ']'
     rdword();
@@ -1289,10 +1304,12 @@ VAR BOOL isforward;
   keepvars(); //нельзя перед параметрами, т.к. f.A. надо помнить после тела функции
 
   IF (!isforward) {
-    eatcmd(); //тело функции
+    eatcmd(); //тело функции (включая {})
+//eatreturn: _wasreturn = +TRUE
+//}: _waswasreturn = _wasreturn; _wasreturn = +FALSE (т.к. все return в ветках)
     _t = _curfunct&(~_T_RECURSIVE);
-    cmdret(isfunc);
-    IF (isfunc && !_wasreturn) {errstr("return expected"); enderr(); };
+    if (!isfunc) { cmdret(isfunc); };
+    IF (isfunc && !_waswasreturn) {errstr("return expected"); enderr(); };
 #ifdef USE_HINTS
 ;;    hintstr("/////end func"); endhint();
 #endif
@@ -1302,7 +1319,7 @@ VAR BOOL isforward;
 
   DEC _namespclvl; doprefix(_namespclvl); _lentitle=strcopy(_prefix,_lenprefix,_title);/**title =prefix;*/ //отрезаем добавленное слово
   _curfunct = oldfunct; //возвратить внешний тип функции
-  _wasreturn = oldwasreturn; //сбросить проверку "оператор после return"
+  _wasreturn = oldwasreturn; //состояние проверки "оператор после return" - как было (для вложенных определений функций?)
   _isexp = +FALSE;
 }
 
@@ -1322,26 +1339,26 @@ VAR TYPE t;
 ;;    cmtstr(";accesspar="); cmtstr(_joined); endcmt();
     _lenname = strcopy(_joined, _lenjoined, _name);
     t = lbltype(); //(_name)
-    IF ((funct&_T_RECURSIVE)!=(TYPE)0x00/**isstacked*/) {
+    IF ((funct&_T_RECURSIVE)!=(TYPE)0x00) {
       _t = t;
-      cmdpushpar(); //(_joined)
+      cmdpushpar(); INC _pushlvl; //(_joined)
     };
     strpush(_joined,_lenjoined);
     INC _exprlvl; //no jump optimization
     eatexpr(); //может рекурсивно вызвать do_call и затереть callee (если он глобальный)! //сравнения нельзя без скобок!!!
     DEC _exprlvl;
-    IF (t != _t) {errstr("callpar type="); erruint((UINT)t); errstr(", but expr type="); erruint((UINT)_t); enderr(); };
+    IF (t != _t) {errstr("callpar"); err_type_enderr((UINT)t); };
     _lenjoined = strpop(_joined);
     cmdpopvar(); //(_joined)
     IF (*(PCHAR)_tword == ',') rdword(); //parameter or ')'
     IF (parnum < _MAXPARS) {
       strpush(_joined,_lenjoined);
-      do_callpar(/**isfunc,*/ funct, /**isstacked,*/ parnum+1); //рекурсивно
+      do_callpar(/**isfunc,*/ funct, parnum+1); //рекурсивно
       _lenjoined = strpop(_joined);
-    }/**ELSE {errstr("too many parameters"); enderr(); }*/;
-    IF ((funct&_T_RECURSIVE)!=(TYPE)0x00/**isstacked*/) {
+    }/**ELSE {errstr("too many params"); enderr(); }*/;
+    IF ((funct&_T_RECURSIVE)!=(TYPE)0x00) {
       _t = t;
-      cmdpoppar(); //(_joined)
+      cmdpoppar(); DEC _pushlvl; //(_joined)
     };
   }ELSE {
     _t = funct&(~_T_RECURSIVE);
@@ -1360,7 +1377,7 @@ VAR TYPE t;
 {
   INC _exprlvl; //no jump optimization
   joinvarname(/**iscall*/+TRUE); t = _t; //t!!!
-  IF (t == _T_UNKNOWN) {errstr("unknown function "); errstr(_joined); enderr(); };
+  IF (t == _T_UNKNOWN) {errstr("unknown func "); errstr(_joined); enderr(); };
 #ifdef USE_HINTS
 ;;    hinttype("call",t);
 #endif
@@ -1373,8 +1390,9 @@ VAR TYPE t;
   do_callpar(t, /**parnum*/0); //сохранение [call]title, [сохранение переменной], присваивание, рекурсия, [восстановление переменной], восстановление [call]title
   _lencallee = strpop(_callee); //на случай вложенных вызовов
   DEC _exprlvl; //no jump optimization
-RETURN t&(~_T_RECURSIVE);
-}
+  _t = t&(~_T_RECURSIVE);
+} //pop old t
+RETURN _t;
 }
 
 PROC eatcallpoi()
@@ -1415,7 +1433,7 @@ PROC eatasm()
   //rdword(); //'('
   rdword(); //'\"'
   WHILE (!_waseof) {
-    _lentword = 0/**strclear(_tword)*/; //читаем с пустой строки
+    _lentword = 0; //читаем с пустой строки
     rdquotes('\"'/**, +FALSE*/);
     asmstr(_tword); endasm();
     rdch(); //пропустить закрывающую кавычку
@@ -1497,7 +1515,7 @@ VAR UINT shift = 0;
 VAR UINT varszaddr;
 VAR UINT i = 0;
 VAR UINT sz;
-  _lentitle = strjoin(/**to=*/_title, _lentitle, _tword/**, _lentword*/);
+  _lentitle = strjoin(/**to=*/_title, _lentitle, _tword);
   _title[_lentitle] = '\0'; //strclose(_title, _lentitle);
   //strpush(_title,_lentitle); //без точки
   _lenname = strcopy(_title, _lentitle, _name); //без точки
@@ -1611,6 +1629,8 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
   IF ((_c0=='}') || _waseof) {
     rdword();
     _morecmd = +FALSE;
+    _waswasreturn = _wasreturn;
+    _wasreturn = +FALSE;
   }ELSE {
 //    IF (_wasreturn) {
 //      IF (_c0!=';') {errstr("cmd after return!"); enderr(); };
@@ -1793,7 +1813,7 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
           };
           rdword();
         }ELSE {
-          errstr("WRONG COMMAND "); errstr(_tword); enderr();
+          errstr("WRONG CMD "); errstr(_tword); enderr();
           rdword();
         };
         };
@@ -1801,8 +1821,8 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
     }; //not a headless cmd
     _morecmd = +TRUE;
   }; //not '{'
-  RETURN _morecmd;
 }
+RETURN _morecmd;
 }
 
 PROC compfile RECURSIVE(PCHAR fn)
@@ -1903,7 +1923,7 @@ PROC compile(PCHAR fn)
   //_lenname = strcopy("PPROC", 5, _name);
   //addlbl(_T_TYPE + _T_POI + _T_PROC, +FALSE, (UINT)_typesz[_T_POI]);
 
-  _lentitle = 0/**strclear(_title)*/;
+  _lentitle = 0;
   POKE *(PCHAR)(_title) = '\0'; //strclose(_title, _lentitle);
   _namespclvl = 0x00;
   //_exprlvl = 0x00; //сейчас везде расставлено 0 (можно оптимизировать сравнения) или 1 (нельзя) или inc-dec (для вложенных вычислений тоже нельзя)
@@ -1911,16 +1931,17 @@ PROC compile(PCHAR fn)
  _addrexpr = +FALSE;
   _isexp = +FALSE;
   _curfunct = _T_UNKNOWN; //на всякий случай
-  _wasreturn = +FALSE; //сбросить проверку "оператор после return"
+  _pushlvl = 0x00;
+  _wasreturn = +FALSE;
 
    _lenjoined = strjoineollast(_joined, 0, fn, '.');
    _lenjoined = strjoin(_joined, _lenjoined, ".ast");
-   _joined[_lenjoined] = '\0'; //strclose(_joined, _lenjoined);
+   _joined[_lenjoined] = '\0';
   _fout = openwrite(_joined);
 
    _lenjoined = strjoineollast(_joined, 0, fn, '.');
    _lenjoined = strjoin(_joined, _lenjoined, ".var");
-   _joined[_lenjoined] = '\0'; //strclose(_joined, _lenjoined);
+   _joined[_lenjoined] = '\0';
   _fvar = openwrite(_joined);
 
   _nhinclfiles = 0x00;

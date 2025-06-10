@@ -58,189 +58,218 @@ FUNC BOOL tokexpr FORWARD(); //должен читать, но не съедать символ конца выражен
 FUNC BOOL tokexpr_close FORWARD(); //после него ничего больше нельзя проверять, т.к. курсор мог сдвинуться
 PROC asm_direct_expr_close_token FORWARD(BYTE token);
 
-////
-
+//// extra (BYTE) for C++ Builder
 FUNC BOOL matchnzzncc()
 {
-VAR BOOL ok;
-  IF       ((_lentword==2)&&(_c1small=='n')&&(_c2small=='z')) {asmtoken(+_ASMNZ); asmrdword_tokspc(); ok = +TRUE;
-  }ELSE IF ((_lentword==1)&&(_c1small=='z')                 ) {asmtoken(+_ASMZ); asmrdword_tokspc(); ok = +TRUE;
-  }ELSE IF ((_lentword==2)&&(_c1small=='n')&&(_c2small=='c')) {asmtoken(+_ASMNC); asmrdword_tokspc(); ok = +TRUE;
-  }ELSE IF ((_lentword==1)&&(_c1small=='c')                 ) {asmtoken(+_ASMC); asmrdword_tokspc(); ok = +TRUE;
-  }ELSE ok = +FALSE;
-  RETURN ok;
+  IF ((BYTE)_lentword==0x01) {
+    IF       (_c1small=='z') {asmtoken(+_ASMZ); asmrdword_tokspc(); RETURN +TRUE;
+    }ELSE IF (_c1small=='c') {asmtoken(+_ASMC); asmrdword_tokspc(); RETURN +TRUE;
+    };
+  }ELSE IF ((BYTE)_lentword==0x02) {
+    IF (_c1small=='n') {
+      IF       (_c2small=='z') {asmtoken(+_ASMNZ); asmrdword_tokspc(); RETURN +TRUE;
+      }ELSE IF (_c2small=='c') {asmtoken(+_ASMNC); asmrdword_tokspc(); RETURN +TRUE;
+      };
+    };
+  };
+RETURN +FALSE;
 }
 
 FUNC BOOL matchcc()
 {
-VAR BOOL ok;
-  IF (_lentword==1) {
-    IF       (_c1small=='z') {asmtoken(+_ASMZ); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF (_c1small=='c') {asmtoken(+_ASMC); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF (_c1small=='p') {asmtoken(+_ASMP); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF (_c1small=='m') {asmtoken(+_ASMM); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE ok = +FALSE;
-  }ELSE IF (_lentword==2) {
-    IF       ((_c1small=='n')&&(_c2small=='z')) {asmtoken(+_ASMNZ); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF ((_c1small=='n')&&(_c2small=='c')) {asmtoken(+_ASMNC); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF ((_c1small=='p')&&(_c2small=='o')) {asmtoken(+_ASMPO); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF ((_c1small=='p')&&(_c2small=='e')) {asmtoken(+_ASMPE); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE ok = +FALSE;
-  }ELSE ok = +FALSE;
-  RETURN ok;
+  IF ((BYTE)_lentword==0x01) {
+    IF       (_c1small=='z') {asmtoken(+_ASMZ); asmrdword_tokspc(); RETURN +TRUE;
+    }ELSE IF (_c1small=='c') {asmtoken(+_ASMC); asmrdword_tokspc(); RETURN +TRUE;
+    }ELSE IF (_c1small=='p') {asmtoken(+_ASMP); asmrdword_tokspc(); RETURN +TRUE;
+    }ELSE IF (_c1small=='m') {asmtoken(+_ASMM); asmrdword_tokspc(); RETURN +TRUE;
+    };
+  }ELSE IF ((BYTE)_lentword==0x02) {
+    IF (_c1small=='n') {
+      IF       (_c2small=='z') {asmtoken(+_ASMNZ); asmrdword_tokspc(); RETURN +TRUE;
+      }ELSE IF (_c2small=='c') {asmtoken(+_ASMNC); asmrdword_tokspc(); RETURN +TRUE;
+      };
+    }ELSE IF (_c1small=='p') {
+      IF       (_c2small=='o') {asmtoken(+_ASMPO); asmrdword_tokspc(); RETURN +TRUE;
+      }ELSE IF (_c2small=='e') {asmtoken(+_ASMPE); asmrdword_tokspc(); RETURN +TRUE;
+      };
+    };
+  };
+RETURN +FALSE;
 }
 
 FUNC BOOL matcha()
 {
-VAR BOOL ok;
-  IF ((_c1small=='a')&&(_lentword==1)) {
-    asmtoken(+_RG_A);  asmrdword_tokspc(); ok = +TRUE;
-  }ELSE ok = +FALSE;
-  RETURN ok;
+  IF (_c1small=='a') {
+    IF ((BYTE)_lentword==0x01) {
+      asmtoken(+_RG_A); asmrdword_tokspc(); RETURN +TRUE;
+    };
+  };
+RETURN +FALSE;
 }
 
 FUNC BOOL matchc()
 {
-VAR BOOL ok;
-  IF ((_c1small=='c')&&(_lentword==1)) {
-    asmtoken(+_RG_C); asmrdword_tokspc(); ok = +TRUE;
-  }ELSE ok = +FALSE;
-  RETURN ok;
+  IF (_c1small=='c') {
+    IF ((BYTE)_lentword==0x01) {
+      asmtoken(+_RG_C); asmrdword_tokspc(); RETURN +TRUE;
+    };
+  };
+RETURN +FALSE;
 }
 /**
 FUNC BOOL matchbc()
 {
-VAR BOOL ok;
-  IF ((_c1small=='b')&&(_c2small=='c')&&(_lentword==2)) {
-    asmtoken(+_RG_BC); asmrdword_tokspc(); ok = +TRUE;
-  }ELSE ok = +FALSE;
-  RETURN ok;
+  IF (_c1small=='b') {
+    IF (_c2small=='c') {
+      IF ((BYTE)_lentword==0x02) {
+        asmtoken(+_RG_BC); asmrdword_tokspc(); RETURN +TRUE;
+      };
+    };
+  };
+RETURN +FALSE;
 }
 */
 FUNC BOOL matchde()
 {
-VAR BOOL ok;
-  IF ((_c1small=='d')&&(_c2small=='e')&&(_lentword==2)) {
-    asmtoken(+_RG_DE); asmrdword_tokspc(); ok = +TRUE;
-  }ELSE ok = +FALSE;
-  RETURN ok;
+  IF (_c1small=='d') {
+    IF (_c2small=='e') {
+      IF ((BYTE)_lentword==0x02) {
+        asmtoken(+_RG_DE); asmrdword_tokspc(); RETURN +TRUE;
+      };
+    };
+  };
+RETURN +FALSE;
 }
 
 FUNC BOOL matchhl()
 {
-VAR BOOL ok;
-  IF ((_c1small=='h')&&(_c2small=='l')&&(_lentword==2)) {
-    asmtoken(+_RG_HL); asmrdword_tokspc(); ok = +TRUE;
-  }ELSE ok = +FALSE;
-  RETURN ok;
+  IF (_c1small=='h') {
+    IF (_c2small=='l') {
+      IF ((BYTE)_lentword==0x02) {
+        asmtoken(+_RG_HL); asmrdword_tokspc(); RETURN +TRUE;
+      };
+    };
+  };
+RETURN +FALSE;
 }
 
 FUNC BOOL matchsp()
 {
-VAR BOOL ok;
-  IF ((_c1small=='s')&&(_c2small=='p')&&(_lentword==2)) {
-    asmtoken(+_RG_SP); asmrdword_tokspc(); ok = +TRUE;
-  }ELSE ok = +FALSE;
-  RETURN ok;
+  IF (_c1small=='s') {
+    IF (_c2small=='p') {
+      IF ((BYTE)_lentword==0x02) {
+        asmtoken(+_RG_SP); asmrdword_tokspc(); RETURN +TRUE;
+      };
+    };
+  };
+RETURN +FALSE;
 }
 
 FUNC BOOL matchaf()
 {
-VAR BOOL ok;
-  IF ((_c1small=='a')&&(_c2small=='f')&&(_lentword==2)) {
-    asmtoken(+_RG_AF); asmrdword_tokspc(); ok = +TRUE;
-  }ELSE ok = +FALSE;
-  RETURN ok;
+  IF (_c1small=='a') {
+    IF (_c2small=='f') {
+      IF ((BYTE)_lentword==0x02) {
+        asmtoken(+_RG_AF); asmrdword_tokspc(); RETURN +TRUE;
+      };
+    };
+  };
+RETURN +FALSE;
 }
 
 FUNC BOOL matchixiy()
 {
-VAR BOOL ok;
-  IF (_lentword==2) {
-    IF       ((_c1small=='i')&&(_c2small=='x')) {
-      asmtoken(+_RG_IX); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF ((_c1small=='i')&&(_c2small=='y')) {
-      asmtoken(+_RG_IY); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE ok = +FALSE;
-  }ELSE ok = +FALSE;
-  RETURN ok;
+  IF ((BYTE)_lentword==0x02) {
+    IF (_c1small=='i') {
+      IF       (_c2small=='x') {
+        asmtoken(+_RG_IX); asmrdword_tokspc(); RETURN +TRUE;
+      }ELSE IF (_c2small=='y') {
+        asmtoken(+_RG_IY); asmrdword_tokspc(); RETURN +TRUE;
+      };
+    };
+  };
+RETURN +FALSE;
 }
 
 FUNC BOOL matchhlixiy()
 {
-VAR BOOL ok;
-  IF (_lentword==2) {
-    IF       ((_c1small=='h')&&(_c2small=='l')) {
-      asmtoken(+_RG_HL); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF ((_c1small=='i')&&(_c2small=='x')) {
-      asmtoken(+_RG_IX); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF ((_c1small=='i')&&(_c2small=='y')) {
-      asmtoken(+_RG_IY); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE ok = +FALSE;
-  }ELSE ok = +FALSE;
-  RETURN ok;
+  IF ((BYTE)_lentword==0x02) {
+    IF (_c1small=='h') {
+      IF (_c2small=='l') {
+        asmtoken(+_RG_HL); asmrdword_tokspc(); RETURN +TRUE;
+      };
+    }ELSE IF (_c1small=='i') {
+      IF       (_c2small=='x') {
+        asmtoken(+_RG_IX); asmrdword_tokspc(); RETURN +TRUE;
+      }ELSE IF (_c2small=='y') {
+        asmtoken(+_RG_IY); asmrdword_tokspc(); RETURN +TRUE;
+      };
+    };
+  };
+RETURN +FALSE;
 }
 
 FUNC BOOL matchir()
 {
-VAR BOOL ok;
-  IF (_lentword==1) {
+  IF ((BYTE)_lentword==0x01) {
     IF       (_c1small=='i') {
-      asmtoken(+_RG_I); asmrdword_tokspc(); ok = +TRUE;
+      asmtoken(+_RG_I); asmrdword_tokspc(); RETURN +TRUE;
     }ELSE IF (_c1small=='r') {
-      asmtoken(+_RG_R); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE ok = +FALSE;
-  }ELSE ok = +FALSE;
-  RETURN ok;
+      asmtoken(+_RG_R); asmrdword_tokspc(); RETURN +TRUE;
+    };
+  };
+RETURN +FALSE;
 }
 
 FUNC BOOL matchrp()
 {
-VAR BOOL ok;
-  IF (_lentword==2) {
-    IF       ((_c1small=='b')&&(_c2small=='c')) {asmtoken(+_RG_BC); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF ((_c1small=='d')&&(_c2small=='e')) {asmtoken(+_RG_DE); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF ((_c1small=='h')&&(_c2small=='l')) {asmtoken(+_RG_HL); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF ((_c1small=='s')&&(_c2small=='p')) {asmtoken(+_RG_SP); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF ((_c1small=='i')&&(_c2small=='x')) {asmtoken(+_RG_IX); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF ((_c1small=='i')&&(_c2small=='y')) {asmtoken(+_RG_IY); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF ((_c1small=='r')&&(_c2small=='p')) { //rp метка
-      asmrdword_tokspc();
-      asmtoken(+_RG_RPBYNAME);
-      toktext(); //генерирует <text>text<endtext>
-      asmrdword_tokspc();
-      ok = +TRUE;
-    }ELSE ok = +FALSE;
-  }ELSE ok = +FALSE;
-  RETURN ok;
+  IF ((BYTE)_lentword==0x02) {
+    IF       (_c1small=='h') {IF (_c2small=='l') {asmtoken(+_RG_HL); asmrdword_tokspc(); RETURN +TRUE; };
+    }ELSE IF (_c1small=='d') {IF (_c2small=='e') {asmtoken(+_RG_DE); asmrdword_tokspc(); RETURN +TRUE; };
+    }ELSE IF (_c1small=='b') {IF (_c2small=='c') {asmtoken(+_RG_BC); asmrdword_tokspc(); RETURN +TRUE; };
+    }ELSE IF (_c1small=='i') {
+      IF       (_c2small=='x') {asmtoken(+_RG_IX); asmrdword_tokspc(); RETURN +TRUE;
+      }ELSE IF (_c2small=='y') {asmtoken(+_RG_IY); asmrdword_tokspc(); RETURN +TRUE;
+      };
+    }ELSE IF (_c1small=='s') {IF (_c2small=='p') {asmtoken(+_RG_SP); asmrdword_tokspc(); RETURN +TRUE; };
+    }ELSE IF (_c1small=='r') {
+      IF (_c2small=='p') { //rp метка (unused in nedoasm)
+        asmrdword_tokspc();
+        asmtoken(+_RG_RPBYNAME);
+        toktext(); //генерирует <text>text<endtext>
+        asmrdword_tokspc();
+        RETURN +TRUE;
+      };
+    };
+  };
+RETURN +FALSE;
 }
 
 FUNC BOOL matchrb()
 {
-VAR BOOL ok;
-  IF (_lentword==1) {
-    IF       (_c1small=='b') {asmtoken(+_RG_B); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF (_c1small=='c') {asmtoken(+_RG_C); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF (_c1small=='d') {asmtoken(+_RG_D); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF (_c1small=='e') {asmtoken(+_RG_E); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF (_c1small=='h') {asmtoken(+_RG_H); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF (_c1small=='l') {asmtoken(+_RG_L); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF (_c1small=='a') {asmtoken(+_RG_A); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE ok = +FALSE;
-  }ELSE IF (_lentword==2) {
-    IF       ((_c1small=='h')&&(_c2small=='x')) {asmtoken(+_RG_HX); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF ((_c1small=='l')&&(_c2small=='x')) {asmtoken(+_RG_LX); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF ((_c1small=='h')&&(_c2small=='y')) {asmtoken(+_RG_HY); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF ((_c1small=='l')&&(_c2small=='y')) {asmtoken(+_RG_LY); asmrdword_tokspc(); ok = +TRUE;
-    }ELSE IF ((_c1small=='r')&&(_c2small=='b')) { //rb метка
+  IF ((BYTE)_lentword==0x01) {
+    IF       (_c1small=='a') {asmtoken(+_RG_A); asmrdword_tokspc(); RETURN +TRUE;
+    }ELSE IF (_c1small=='l') {asmtoken(+_RG_L); asmrdword_tokspc(); RETURN +TRUE;
+    }ELSE IF (_c1small=='e') {asmtoken(+_RG_E); asmrdword_tokspc(); RETURN +TRUE;
+    }ELSE IF (_c1small=='c') {asmtoken(+_RG_C); asmrdword_tokspc(); RETURN +TRUE;
+    }ELSE IF (_c1small=='h') {asmtoken(+_RG_H); asmrdword_tokspc(); RETURN +TRUE;
+    }ELSE IF (_c1small=='d') {asmtoken(+_RG_D); asmrdword_tokspc(); RETURN +TRUE;
+    }ELSE IF (_c1small=='b') {asmtoken(+_RG_B); asmrdword_tokspc(); RETURN +TRUE;
+    };
+  }ELSE IF ((BYTE)_lentword==0x02) { //rare
+    IF       ((_c1small=='h')&&(_c2small=='x')) {asmtoken(+_RG_HX); asmrdword_tokspc(); RETURN +TRUE;
+    }ELSE IF ((_c1small=='l')&&(_c2small=='x')) {asmtoken(+_RG_LX); asmrdword_tokspc(); RETURN +TRUE;
+    }ELSE IF ((_c1small=='h')&&(_c2small=='y')) {asmtoken(+_RG_HY); asmrdword_tokspc(); RETURN +TRUE;
+    }ELSE IF ((_c1small=='l')&&(_c2small=='y')) {asmtoken(+_RG_LY); asmrdword_tokspc(); RETURN +TRUE;
+    }ELSE IF ((_c1small=='r')&&(_c2small=='b')) { //rb метка (unused in nedoasm)
       asmrdword_tokspc();
       asmtoken(+_RG_RBBYNAME);
       toktext(); //генерирует <text>text<endtext>
       asmrdword_tokspc();
-      ok = +TRUE;
-    }ELSE ok = +FALSE;
-  }ELSE ok = +FALSE;
-  RETURN ok;
+      RETURN +TRUE;
+    };
+  };
+RETURN +FALSE;
 }
 
 ////////////// машиннозависимые группы сравнений для парсинга частых параметров

@@ -6,7 +6,7 @@ assignment operators,
 commas,
 left parentheses,
 and the return keyword.
-Any constant expression that doesnТt follow one of the aforementioned keywords is guaranteed to not be simplified at compile-time.
+Any constant expression that doesn't follow one of the aforementioned keywords is guaranteed to not be simplified at compile-time.
 
 
 оптимизации размера бинарника:
@@ -155,7 +155,7 @@ POKE *(PUINT)(&_labelN[_LABELPAGEFREESTART]) = _plabel_index + 1/**flag*/ + _SIZ
 
 #
 	LD [_t.],A
-	LD A,[_t.]
+	LD A,[_t.] ;убрано
 	LD L,A
 	LD A,[_curfunct.]
 	LD C,_T_RECURSIVE.
@@ -285,8 +285,8 @@ IF ( (partype==_T_INT)||(partype==_T_UINT)||((partype&_T_POINTER)!=0x00) )
 - jp:jp (второй можно проверить по номеру строки последнего jp)
 - jp nz:jp - пустая ветка if или if()break или if()goto
 - ld (),reg:ld reg,() (номер строки последнего popvar (или put) и joined==wasjoined, надо ещё обратимо уничтожать регистр)
-- ld (),a:ld a,() (номер строки последнего popvar (или put) и joined==wasjoined, надо ещё обратимо уничтожать регистр и proxy) (или откладывать освобождение регистра и помнить wasput)
-- call:ret (тут надо предсказывать вперёд или вызывать генератор call на каждой команде)
+- СДЕЛАНО ld (),a:ld a,() (номер строки последнего popvar (или put) и joined==wasjoined, надо ещё обратимо уничтожать регистр и proxy) (или откладывать освобождение регистра и помнить wasput)
+- СДЕЛАНО call:ret (тут надо предсказывать вперёд или вызывать генератор call на каждой команде)
 - УБРАНО ld l,(hl):ld a,l - таких меньше половины всех ld l,(hl), но если посчитать которые оптимизируются при ld a,(hl), то (по всему compile):
 оптимизируются: iiiiiiiiiiiiiiiiiiiiiiiiiiiii
 ухудшатся:      iiiiii
@@ -339,7 +339,7 @@ SDCC 3.4.0 достаёт первый параметр через pop:pop:push:push, это выгодно при отсу
 написать весь модуль syscalls на ассемблере? но строки ещё используются в compiler (обкусывание title, запись/чтение меток)
 
 # SDCC и IAR оптимизируют CALL:RET до JP. как сделать так же?
-ленивый CALL? (не получится при CALL в локале - а без локала надо вернуть запись строк в стек!)
+ленивый CALL? (не получится при CALL в локале - а без локала надо вернуть запись строк в стек!) СДЕЛАНО
 SDCC 3.4.0 генерирует jr:ret (getnothingword), раньше был просто jr. В SDCC 3.6.0 исправлено.
 
 # SDCC 3.4.0 (3.6.0 при opt-size) считает REGNAME[rnew] по одному разу (умеет даже push-pop иногда, при --all-callee-saves чаще, других различий не видел). я так не смогу.

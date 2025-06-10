@@ -71,7 +71,7 @@ PROC rdaddwordall() //подклеить следующую команду к текущей
 
   IF (_isalphanum[(BYTE)_cnext] ) { //слово с цифробуквы
     REPEAT { //ждём нецифробукву (EOF не цифробуква)
-      IF (_lentword < _STRMAX) { //в асме из компилятора все слова короче, но не в ручном асме
+      IF ((BYTE)_lentword != (BYTE)_STRMAX) { //в асме из компилятора все слова короче, но не в ручном асме
         _tword[_lentword] = _cnext;
         INC _lentword;
       };
@@ -79,7 +79,7 @@ PROC rdaddwordall() //подклеить следующую команду к текущей
     }UNTIL (!_isalphanum[(BYTE)_cnext]/** || _waseof*/ );
   }ELSE { //слово из нецифробуквенного символа - читаем одну нецифробукву (иначе бы не читали)
     //rdch(); //читаем всю группу диерезисов + символ как один символ
-    IF (_lentword < _STRMAX) { //в асме из компилятора все слова короче, но не в ручном асме
+    IF ((BYTE)_lentword != (BYTE)_STRMAX) { //в асме из компилятора все слова короче, но не в ручном асме
       _tword[_lentword] = _cnext;
       INC _lentword;
     };
@@ -281,75 +281,68 @@ PROC tokaddlbl(PCHAR txt, PBYTE proc, BYTE data)
 
 FUNC BOOL matchdirect()
 {
-VAR BOOL ok;
   IF (*(PCHAR)_tword=='#') {
     asmtoken(+_TOKDIRECT);
     asmrdword_tokspc();
-    ok = +TRUE;
-  }ELSE ok = +FALSE;
-RETURN ok;
+    RETURN +TRUE;
+  };
+RETURN +FALSE;
 }
 
 FUNC BOOL matchcomma()
 {
-VAR BOOL ok;
   IF (*(PCHAR)_tword==',') {
     asmtoken(+_TOKCOMMA);
     asmrdword_tokspc();
-    ok = +TRUE;
-  }ELSE ok = +FALSE;
-RETURN ok;
+    RETURN +TRUE;
+  };
+RETURN +FALSE;
 }
 
 FUNC BOOL matchprime()
 {
-VAR BOOL ok;
   IF (*(PCHAR)_tword=='\'') {
     asmtoken(+_TOKPRIMESYM);
     asmrdword_tokspc();
-    ok = +TRUE;
-  }ELSE ok = +FALSE;
-RETURN ok;
+    RETURN +TRUE;
+  };
+RETURN +FALSE;
 }
 
 FUNC BOOL matchquote()
 {
-VAR BOOL ok;
   IF (*(PCHAR)_tword=='\"') {
     asmtoken(+_TOKDBLQUOTESYM);
     //asmrdword_tokspc();
-    ok = +TRUE;
-  }ELSE ok = +FALSE;
-RETURN ok;
+    RETURN +TRUE;
+  };
+RETURN +FALSE;
 }
 
 FUNC BOOL matchreequ()
 {
-VAR BOOL ok;
   IF ( (*(PCHAR)_tword=='=') || ((_c1small=='e')&&(_c2small=='q')) ) {
     asmtoken(+_TOKEQUAL/**'='*/);
     asmrdword_tokspc();
-    ok = +TRUE;
-  }ELSE ok = +FALSE;
-RETURN ok;
+    RETURN +TRUE;
+  };
+RETURN +FALSE;
 }
 
 FUNC BOOL matchopen()
 {
-VAR BOOL ok;
-  IF       (*(PCHAR)_tword=='(') {asmtoken(+_TOKOPEN); asmrdword_tokspc(); ok = +TRUE;
-  }ELSE IF (*(PCHAR)_tword=='[') {asmtoken(+_TOKOPENSQ); asmrdword_tokspc(); ok = +TRUE;
-  }ELSE ok = +FALSE;
-RETURN ok;
+  IF       (*(PCHAR)_tword=='(') {asmtoken(+_TOKOPEN); asmrdword_tokspc(); RETURN +TRUE;
+  }ELSE IF (*(PCHAR)_tword=='[') {asmtoken(+_TOKOPENSQ); asmrdword_tokspc(); RETURN +TRUE;
+  };
+RETURN +FALSE;
 }
 
 FUNC BOOL matchclose()
 {
-VAR BOOL ok;
-  IF       (*(PCHAR)_tword==')') {asmtoken(+_TOKCLOSE); asmrdword_tokspc(); ok = +TRUE;
-  }ELSE IF (*(PCHAR)_tword==']') {asmtoken(+_TOKCLOSESQ); asmrdword_tokspc(); ok = +TRUE;
-  }ELSE ok = +FALSE;
-RETURN ok;
+  IF       (*(PCHAR)_tword==')') {asmtoken(+_TOKCLOSE); asmrdword_tokspc(); RETURN +TRUE;
+  }ELSE IF (*(PCHAR)_tword==']') {asmtoken(+_TOKCLOSESQ); asmrdword_tokspc(); RETURN +TRUE;
+  };
+RETURN +FALSE;
 }
 
 //////////////////////////////////////
@@ -674,16 +667,14 @@ VAR BOOL dbl;
     }ELSE IF (opsym=='!') {eatnoteq();
     }ELSE BREAK;
   };
-  RETURN +TRUE; //ok; //todo err
 }
+RETURN +TRUE; //ok; //todo err
 }
 
 FUNC BOOL tokexpr_close() //после него ничего больше нельзя проверять, т.к. курсор мог сдвинуться
 {
-VAR BOOL ok;
-  ok = tokexpr();
-  IF (ok) ok = matchclose();
-  RETURN ok;
+  IF (tokexpr()) { RETURN matchclose(); };
+  RETURN +FALSE;
 }
 
 PROC asm_direct_expr_close_token(BYTE token)

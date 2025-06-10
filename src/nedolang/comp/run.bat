@@ -41,5 +41,4 @@ nedotrd test.trd -a lbltype.i
 nedotrd test.trd -a ..\_sdk\lib.i
 nedotrd test.trd -a ..\_sdk\str.i
 nedotrd test.trd -a ..\_sdk\iofast.i
-nedotrd test.trd -a ..\_sdk\io.c
 ..\..\..\us\emul.exe test.trd

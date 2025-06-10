@@ -1,6 +1,25 @@
 #include "../_sdk/io.h"
 #include "../_sdk/str.h"
 
+VAR UINT _lentword;
+VAR CHAR _c1small;
+VAR CHAR _c2small;
+
+FUNC BYTE aaa(BYTE b, BYTE c)
+{
+VAR UINT zxc;
+VAR UINT typeaddr; //для cast
+IF (+TRUE) {
+  IF (+FALSE) {
+    _lentword=1;
+    RETURN 0x00;
+  };
+};
+RETURN 0x00;
+}
+
+VAR BYTE bb = aaa(0x02);
+
 STRUCT FCB{
   CHAR mode; //0 = free, 'r' = read, 'w' = write
 //copy of TR-DOS descriptor
