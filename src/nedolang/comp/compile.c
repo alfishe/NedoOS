@@ -226,6 +226,16 @@ PROC eat(CHAR c)
   rdword();
 }
 
+PROC eatopen()
+{
+  eat('(');
+}
+
+PROC eatclose()
+{
+  eat(')');
+}
+
 PROC jdot()
 {
   _lenjoined = stradd(_joined, _lenjoined,'.');
@@ -430,31 +440,25 @@ FUNC TYPE idxarray RECURSIVE(TYPE t)
 RETURN t; //тип элемента массива
 }
 
-PROC numtype()
+FUNC TYPE numtype()
 {
   IF (_cnext == '.') { //дробное число (нельзя начинать с точки или заканчивать точкой)
     rdaddword(); //приклеить точку
     rdaddword(); //приклеить дробную часть
-    IF ( (_tword[_lentword-1]=='e') && (_cnext=='-') ) {
+    IF ( (_tword[(BYTE)_lentword-0x01]=='e') && (_cnext=='-') ) {
       rdaddword(); //приклеить '-' отрицательной экспоненты
       rdaddword(); //приклеить отрицательную экспоненту
     };
-    _t = _T_FLOAT;
+    RETURN _T_FLOAT;
   }ELSE IF (*(PCHAR)_tword == '-') { //в val уже есть, надо для define
-    _t = _T_INT;
-  }ELSE IF (_tword[_lentword-1]=='L') {
-    _t = _T_LONG;
+    RETURN _T_INT;
+  }ELSE IF (_tword[(BYTE)_lentword-0x01]=='L') {
+    RETURN _T_LONG;
   }ELSE IF ((BYTE)_tword[1] > (BYTE)'9') { //ускорение проверки числового формата
-    IF ((_lentword<=4)&&(_tword[1]=='x')) {
-      _t = _T_BYTE;
-    }ELSE IF ((_lentword<=10)&&(_tword[1]=='b')) {
-      _t = _T_BYTE;
-    }ELSE {
-      _t = _T_UINT;
-    };
-  }ELSE {
-    _t = _T_UINT;
+    IF ((BYTE)_lentword<=0x04) IF (_tword[1]=='x') RETURN _T_BYTE;
+    IF ((BYTE)_lentword<=0x0a) IF (_tword[1]=='b') RETURN _T_BYTE;
   };
+RETURN _T_UINT;
 }
 
 PROC val RECURSIVE()
@@ -542,7 +546,7 @@ VAR UINT typeaddr; //для cast
     }ELSE IF (_opsym!='(') { //+TRUE/+FALSE (BOOL) //+sizeof
       IF (_opsym=='s') { //+sizeof //TODO uppercase?
         rdword(); //использовали sizeof
-        eat('('/**, "\'(\'"*/);
+        eatopen();
         eattype();
 //        IF ((_t&_T_TYPE)!=0x00) {
           emitn(_varsz); //gettypesz();
@@ -569,7 +573,7 @@ VAR UINT typeaddr; //для cast
       cmdpushnum(); //(_joined) //type from left context!!!
     };
   }ELSE IF ((BYTE)((BYTE)_opsym - (BYTE)'0') < 0x0a) { //num //extra BYTE for C bug
-    numtype(); //_t
+    _t = numtype();
     twordtojoined();
     cmdpushnum();
   }ELSE IF (_opsym == '(') {
@@ -872,10 +876,10 @@ VAR UINT wasendlbl;
   beglbl = _jplbl; INC _jplbl;
   _tmpendlbl = _jplbl; INC _jplbl;
   genjplbl(beglbl); cmdlabel();
-  eat('(');
+  eatopen();
   eatexpr(); //parentheses not included
   genjplbl(_tmpendlbl); cmdjpiffalse();
-  eat(')');
+  eatclose();
   eatcmd(); //тело while
   genjplbl(beglbl); cmdjp();
   genjplbl(_tmpendlbl); cmdlabel();
@@ -902,10 +906,10 @@ VAR UINT wasendlbl;
   eatcmd(); //тело repeat
   IF ( (CHAR)((BYTE)(*(PCHAR)_tword)|0x20)!='u'/**"until"*/ ) err_tword("UNTIL");
   rdword();
-  eat('(');
+  eatopen();
   _exprlvl = 0x00; //jp optimization possible
   eatexpr(); //parentheses not included
-  eat(')');
+  eatclose();
   genjplbl(beglbl); cmdjpiffalse();
   genjplbl(_tmpendlbl); cmdlabel();
   _tmpendlbl = wasendlbl;
@@ -928,6 +932,7 @@ PROC eatif RECURSIVE()
 {
 VAR UINT elselbl;
 VAR UINT endiflbl;
+VAR BOOL doendif;
 {
 #ifdef USE_HINTS
 ;;  hintstr("//if"); endhint();
@@ -935,21 +940,22 @@ VAR UINT endiflbl;
   _exprlvl = 0x00; //jp optimization possible
   elselbl = _jplbl; INC _jplbl;
   endiflbl = _jplbl; INC _jplbl;
-  eat('(');
+  eatopen();
   eatexpr(); //parentheses not included
   genjplbl(elselbl); cmdjpiffalse();
-  eat(')');
+  eatclose();
   eatcmd(); //тело then
-  IF (*(PCHAR)_tword != ';'/**"endif"*/) {
+  IF (*(PCHAR)_tword != ';') {
     IF ( (CHAR)((BYTE)(*(PCHAR)_tword)|0x20)!='e'/**"else"*/ ) err_tword("ELSE or \';\'");
-    genjplbl(endiflbl); cmdjp();
+    doendif = !_waswasreturn;
+    IF (doendif) {genjplbl(endiflbl); cmdjp(); };
     genjplbl(elselbl); cmdlabel();
     rdword();
     eatcmd(); //тело else
-    genjplbl(endiflbl); cmdlabel();
-    IF (*(PCHAR)_tword != ';'/**"endif"*/) { errstr( "\';\' expected, but we have \'"); err(*(PCHAR)_tword); err('\''); enderr(); };
+    IF (doendif) {genjplbl(endiflbl); cmdlabel(); };
+    IF (*(PCHAR)_tword != ';') { errstr( "\';\' expected, but we have \'"); err(*(PCHAR)_tword); err('\''); enderr(); };
     //нельзя съедать ';', он нужен для вложенных if
-  }ELSE { //ожидаем 'endif' (если IF без ELSE)
+  }ELSE { //';' (IF без ELSE)
     genjplbl(elselbl); cmdlabel();
   };
 #ifdef USE_HINTS
@@ -1291,7 +1297,7 @@ VAR BOOL isforward;
   _lentitle = strcopy(_joined, _lenjoined, _title);
   INC _namespclvl; //добавляем слово к title
 
-  eat('(');
+  eatopen();
   _parnum = 0;
   WHILE (!_waseof) {
     IF (*(PCHAR)_tword == ')') BREAK;
@@ -1299,7 +1305,7 @@ VAR BOOL isforward;
     IF (*(PCHAR)_tword == ')') BREAK; //иначе ','
     rdword(); //type or ')'
   };
-  rdword();
+  rdword(); //eatclose();
 
   keepvars(); //нельзя перед параметрами, т.к. f.A. надо помнить после тела функции
 
@@ -1386,7 +1392,7 @@ VAR TYPE t;
   _lencallee = strcopy(_joined, _lenjoined, _callee); //без точки
   jdot();
   rdword(); //'('
-  eat('(');
+  eatopen();
   do_callpar(t, /**parnum*/0); //сохранение [call]title, [сохранение переменной], присваивание, рекурсия, [восстановление переменной], восстановление [call]title
   _lencallee = strpop(_callee); //на случай вложенных вызовов
   DEC _exprlvl; //no jump optimization
@@ -1401,10 +1407,10 @@ PROC eatcallpoi()
  //начальная часть имени переменной уже прочитана
   adddots(); //дочитать имя
   joinvarname(/**iscall*/+FALSE); //doprefix(_namespclvl); //prefix:=title[FIRST to...];
-  eat('(');
+  eatopen();
   eatexpr();
   //todo проверить pointer
-  eat(')');
+  eatclose();
   cmdcallval();
   rdword();
 }
@@ -1787,14 +1793,14 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
             twordtojoined(); //_lenjoined = strcopy(_tword, _lentword, _joined);
             rdword(); //значение или (
             IF (*(PCHAR)_tword == '(') { //TODO эту конструкцию применить и в const
-              rdword(); //eat('(');
+              rdword(); //eatopen();
               eattype();
-              eat(')');
+              eatclose();
               rdquotes(')');
               rdch(); //добавляем закрывающую скобку
               _tword[_lentword] = '\0'; //strclose(_tword, _lentword);
             }ELSE {
-              numtype(); //_t
+              _t = numtype();
             };
             _lenname = strcopy(_joined, _lenjoined, _name);
             addlbl(_t|_T_CONST, /**isloc*/+FALSE, (UINT)_typesz[_t/**&_TYPEMASK*/]/**, _ncells, _lenncells*/); //(_name) //TODO размер массива или структуры!

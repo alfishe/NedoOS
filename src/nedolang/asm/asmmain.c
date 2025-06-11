@@ -1,3 +1,4 @@
+//этот модуль не подключается на реале
 #include <stdio.h>
 
 #include "../_sdk/nedodefs.h" //C only

@@ -153,6 +153,7 @@
             fputs((PCHAR)_curlabeltext, _fdecl);
             decltoken(+_TOKENDTEXT);
             decltoken(+_TOKEQUAL/**'='*/);
+            decltoken(+_TOKEXPR);
             decltoken(+_TOKLABEL);
             decltoken(+_TOKTEXT);
             decltoken((BYTE)'_'); //todo <modname>?
@@ -163,7 +164,8 @@
             emitn(i-_curbegin/**_BASEADDR*/);
             fputs((PCHAR)_nbuf, _fdecl); //+_TOKENDTEXT==0
             decltoken(+_TOKENDTEXT);
-            decltoken(+_OPADD);
+            //decltoken(+_OPADD);
+            decltoken(+_TOKENDEXPR);
             decltoken(+_FMTREEQU);
             decltoken(+_TOKEOL);
           }; //
@@ -172,7 +174,10 @@
         goto loop;
       }
 
-      case _OPPUSH0: {asmpushvalue(0L); /**readfin();*/ goto loop;}
+      case _TOKEXPR: {doexpr(); goto loop;}
+      case _TOKENDEXPR: {goto loop;}
+/**
+      case _OPPUSH0: {asmpushvalue(0L); goto loop;}
 
       case _OPADD:   {                           asmpushvalue(asmpopvalue()+asmpopvalue()); goto loop;}
       case _OPSUB:   {tempvalue=asmpopvalue();   asmpushvalue(asmpopvalue()-tempvalue); goto loop;}
@@ -197,6 +202,7 @@
       //case _OPMORE:  {tempvalue=asmpopvalue();   asmpushbool((UINT)asmpopvalue() >  (UINT)tempvalue); goto loop;}
       //case _OPMOREEQ:{tempvalue=asmpopvalue();   asmpushbool((UINT)asmpopvalue() >= (UINT)tempvalue); goto loop;}
       case _OPINV:   {                           asmpushvalue(~asmpopvalue()); goto loop;} //==invbool
+*/
       //case _OPPEEK:{/**asmpopvalue();*/ errstr("PEEK not supported"); enderr(); goto loop;}
 
       case _TOKEOL: {INC _curlnbeg; goto loop;}
@@ -251,102 +257,7 @@
         goto loop;
       }
       case _TOKNUM: {
-        readfin(); //TOK_TEXT
-        _token = readfin(); //first digit or prefix (0x, 0b, 0)
-        tempvalue = 0L;
-        scale = 10;
-        IF ((CHAR)_token=='0'){
-          _token=readfin(); //'x' (hex), 'b' (bin), 'o' (oct), else oct with error
-          IF       ((CHAR)_token=='x') {
-            scale=16;
-            rdbase:
-            IF (_token!=+_TOKENDTEXT) _token=readfin(); //first digit
-          }ELSE IF ((CHAR)_token=='b') {
-            scale=2;
-            goto rdbase; //IF (_token!=+_TOKENDTEXT) _token=readfin(); //first digit
-          }ELSE IF ((CHAR)_token=='o') {
-            scale=8;
-            goto rdbase; //IF (_token!=+_TOKENDTEXT) _token=readfin(); //first digit
-          }ELSE IF ((CHAR)_token=='L') { //0L
-          }ELSE IF ((CHAR)_token=='.') { //0.
-          }ELSE IF (_token!=+_TOKENDTEXT) {
-            scale=8;
-            errstr("Use 0o oct"); enderr();
-          };
-        };
-        IF (_token!=+_TOKENDTEXT) {
-          rdnumloop: //WHILE (+TRUE)
-          { //первая цифра числа уже прочитана
-            IF ((_token==+_TOKENDTEXT)||_waseof) goto rdnumend; //BREAK;
-            //IF (_waseof) goto rdnumend; //BREAK; //на всякий случай
-            IF ((CHAR)_token!='L') {
-              IF (_token>=(BYTE)'a') {_token = _token - 0x27/**- (BYTE)'a' + 0x0a + (BYTE)'0'*/; //todo error
-              }ELSE IF (_token>=(BYTE)'A') {_token = _token - 0x07/**- (BYTE)'A' + 0x0a + (BYTE)'0'*/; //todo error
-#ifdef TARGET_SCRIPT
-              }ELSE IF (_token==(BYTE)'.') { //float
-                fexp = 0L;
-                fexpminus = +FALSE;
-                ffraction = 0L;
-                ffractionscale = 1L;
-                _token = readfin();
-                IF (_token!=+_TOKENDTEXT) {
-                  rdfloatloop:
-                  { //первая цифра числа уже прочитана
-                    //printf("ffraction = %lf\n",(double)ffraction);
-                    IF ((_token==+_TOKENDTEXT)||_waseof) goto rdfloatend; //BREAK;
-                    //IF (_waseof) goto rdfloatend; //BREAK; //на всякий случай
-                    IF ((CHAR)_token!='f') {
-                      IF (_token==(BYTE)'e') { //TODO e12/e-12
-                        _token = readfin();
-                        IF (_token==+_TOKENDTEXT) goto rdfloatend; //BREAK;
-                        IF (_token=='-') { //TODO
-                          fexpminus = +TRUE;
-                          _token = readfin();
-                        };
-                        //printf("fexp = %u, token = %c\n",(unsigned int)fexp, _token);
-                        IF (_token!=+_TOKENDTEXT) {
-                          rdexploop:
-                          { //первая цифра экспоненты уже прочитана
-                            //printf("fexp = %u\n",(unsigned int)fexp);
-                            IF ((_token==+_TOKENDTEXT)||_waseof) goto rdfloatend; //BREAK;
-                            fexp = fexp*10L + (LONG)(_token - (BYTE)'0');
-                            _token = readfin();
-                            goto rdexploop;
-                          }
-                        };
-                        goto rdfloatend; //BREAK;
-                      };
-                    };
-                    ffraction = ffraction*10L + (LONG)(_token - (BYTE)'0');
-                    ffractionscale = ffractionscale*10L;
-                    //ffraction += (float)(_token - (BYTE)'0')*ffractionscale;
-                    _token = readfin();
-                    goto rdfloatloop;
-                  };
-                };
-                rdfloatend:
-                fvalue = (double)tempvalue + (double)ffraction/(double)ffractionscale; //знак работает как операция, так что не учитываем
-                IF (fexpminus) {
-                  fvalue = fvalue/pow10(fexp);
-                }ELSE {
-                  fvalue = fvalue*pow10(fexp);
-                };
-                //fvalue = 0.1415926536;
-                //printf("%ld\n",fexp);
-                //printf("%20.20lf\n",fvalue);
-                //printf("%20.20lf\n",0.1415926536);
-                tempvalue = *(LONG*)(&fvalue);
-                goto rdnumend;
-#endif
-              };//ELSE _token = _token - (BYTE)'0';
-              tempvalue = (LONG)scale*tempvalue + (LONG)(_token - (BYTE)'0');
-            };
-            _token = readfin();
-            goto rdnumloop;
-          };
-          rdnumend:;
-        };
-        asmpushvalue(tempvalue);
+        rdnum();
         goto loop;
       }
       case _TOKLABEL: { //найти и прочитать метку

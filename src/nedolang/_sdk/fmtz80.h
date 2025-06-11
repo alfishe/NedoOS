@@ -739,8 +739,11 @@ _FMTINRBC,
 
 _FMTCMD, //в общей части
 //#define FMT_DIR        (FMTBASE+0x29)
-_FMTREEQU //в общей части
+_FMTREEQU, //в общей части
 //#define FMT_REEQU      (FMTBASE+0x2a) /*нельзя в FMT_DIR, потому что переопределение метки тоже с префиксом DIR_LABEL*/
 //max 0x2a
+
+_TOKEXPR,
+_TOKENDEXPR
 
 };

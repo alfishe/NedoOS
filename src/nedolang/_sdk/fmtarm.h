@@ -327,6 +327,9 @@ _FMTBLONGADDR,
 _FMTPUSHPOP,
 
 _FMTCMD,
-_FMTREEQU /**нельзя в FMT_DIR, потому что переопределение метки тоже с префиксом DIR_LABEL*/
+_FMTREEQU, /**нельзя в FMT_DIR, потому что переопределение метки тоже с префиксом DIR_LABEL*/
+
+_TOKEXPR,
+_TOKENDEXPR
 
 };

@@ -21,7 +21,7 @@ nedotrd test.trd -a ..\asm\asmj_z80.c
 nedotrd test.trd -a ..\asm\asm.s
 nedotrd test.trd -a ..\_sdk\lib.i
 nedotrd test.trd -a ..\_sdk\str.i
-nedotrd test.trd -a ..\_sdk\io.i
+rem nedotrd test.trd -a ..\_sdk\io.i
 nedotrd test.trd -a ..\_sdk\iofast.i
-nedotrd test.trd -a ..\_sdk\io.c
+rem nedotrd test.trd -a ..\_sdk\io.c
 nedotrd test.trd -a ..\asm\findlbl.i

@@ -1182,13 +1182,13 @@ PROC emitpokeb() //новое записываем в старую локацию памяти
 {
   IF ((_rold==0x01) && (_rnew!=0x04) && (_rproxy!=_rnew)) {
     asm_ld(); asm_mhl(); asm_comma(); asm_rlow_rnew(); endasm();
+    losea();
   }ELSE {
     proxy(_rnew); //иначе нет команды ld [rp],rg
     asm_ld(); asm_mrgname(_rold); asm_comma_a_eol();
   };
   _rproxy = 0x00;
   _fused = +FALSE; //конец вычисления
-  losea();
 }
 
 PROC emitpokelong() //old2(addr), old(high), new(low)

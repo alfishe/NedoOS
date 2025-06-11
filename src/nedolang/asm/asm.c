@@ -359,7 +359,7 @@ VAR BYTE labelflag;
       //пишем метку
       POKE *(PUINT)(plabel) = _labelshift[_hash]; //oldqueuestart_index; //старый указатель на начало цепочки
       plabel = &plabel[+sizeof(UINT)];
-      strcopy((PCHAR)_curlabeltext, _labellen /**-1*/, (PCHAR)plabel); //_labellen включая 0
+      strcopy((PCHAR)_curlabeltext, _labellen, (PCHAR)plabel); //_labellen включая 0
       plabel = &plabel[_labellen]; //включая 0
       POKE *(PBYTE)(plabel) = _ASMLABEL_DEFINED;
       _plabel_index = (UINT)(plabel - _labelN); //указатель на начало данных создаваемой метки
@@ -393,7 +393,7 @@ FUNC LONG getlabel() //вызывать непосредственно после findlabel!!!
 //VAR PBYTE _labelN; //указатель на текущую таблицу меток
 VAR PBYTE plabel;
 VAR BYTE labelflag;
-VAR LONG labelvalue; //=0L; //= 0xDEADBEEFL;
+//VAR LONG labelvalue; //=0L; //= 0xDEADBEEFL;
   _labelN = _labels0; //_labelpage[(UINT)(_hashhigh&_LABELPAGEMASK)]; //set page (todo как определить? системный макрос?)
   IF (_plabel_index!=_LABELPAGEEOF) { //метка есть
     plabel = &_labelN[_plabel_index];
@@ -402,18 +402,18 @@ VAR LONG labelvalue; //=0L; //= 0xDEADBEEFL;
 //      errstr("label=macro"); enderr();
 //    }ELSE {
       POKE *(PBYTE)(plabel) = labelflag|_ASMLABEL_ACCESSED;
-      labelvalue = *(PLONG)(&plabel[1]);
       _isaddr = labelflag&_ASMLABEL_ISADDR;
+      RETURN *(PLONG)(&plabel[1]);
 //    };
-  }ELSE {//метки нет: ошибка //todo post
+  };
+//метки нет: ошибка //todo post
     //asmwritestate();
     //todo записать в пост весь текст до конца команды
 
     //todo по формату команды определить, сколько байт пропустить
 
-    errstr("nolbl "); errstr((PCHAR)_curlabeltext); enderr();
-  };
-  RETURN labelvalue;
+  errstr("nolbl "); errstr((PCHAR)_curlabeltext); enderr();
+  RETURN 0L;//labelvalue;
 }
 
 PROC asmdir_label() //неизвестно, просто метка или reequ

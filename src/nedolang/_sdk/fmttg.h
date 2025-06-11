@@ -27,7 +27,7 @@
 //типичная строка:
 //<label><text>метка<endtext>
 //<inc><HL><asmfmt_incrp>
-//<comment><text>текст<endtext>
+//<comment><text>текст<endtext><endcomment>
 //<eol>
 
 //ASMCMD...TOK...FMT для нормальных команд

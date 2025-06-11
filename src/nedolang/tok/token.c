@@ -109,7 +109,7 @@ PROC rdwordall()
 //читаем слово _tword (из текста с диерезисами вместо пробелов, ентеров, табуляций)
 //слово заканчивается, когда диерезис или нецифробуквенный символ (он попадёт в cnext, а курсор в файле после него)
 {
-  _lentword = 0; //strclear(_tword); //todo нарушена парность clear..close
+  _lentword = 0;
   rdaddwordall();
 }
 */
@@ -139,7 +139,7 @@ PROC asmrdword_tokspc() //токенизирует пробелы после прошлой команды и читает но
   _asmspcsize = _spcsize; //число пробелов после прочитанной команды
   IF (_waseols==0) tokspc(); //токенизируем пробелы после прошлой команды (иначе откладываем на после eol)
   //rdwordall();
-  _lentword = 0/**strclear(_tword)*/; //todo нарушена парность clear..close
+  _lentword = 0;
   rdaddwordall();
   _c1small = (CHAR)((BYTE)(*(PCHAR)_tword)|0x20);
   _c2small = (CHAR)((BYTE)_tword[1]|0x20);
@@ -346,7 +346,7 @@ RETURN +FALSE;
 }
 
 //////////////////////////////////////
-FUNC BOOL tokexpr RECURSIVE FORWARD();
+FUNC BOOL eatexpr RECURSIVE FORWARD();
 
 PROC eatlabel(BYTE token)
 {
@@ -410,42 +410,42 @@ VAR CHAR opsym;
     }ELSE IF ( opsym=='(' ) {
       asmtoken(+_TOKOPEN);
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
-      tokexpr(); //рекурсия //на выходе из expr уже прочитана ')', но следующий символ или команда не прочитаны
+      eatexpr(); //рекурсия //на выходе из expr уже прочитана ')', но следующий символ или команда не прочитаны
       asmtoken(+_TOKCLOSE);
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
     }ELSE IF ( opsym=='\'' ) { //todo вставить TOK_TEXT...TOK_ENDTEXT
       asmtoken(+_TOKPRIME);
-      _lentword = 0/**strclear(_tword)*/; //читаем с пустой строки
+      _lentword = 0; //читаем с пустой строки
       rdquotes('\''/**, +FALSE*/);
       toktext(); //генерирует <text>text<endtext>
       rdch(); //пропустить закрывающую кавычку
       asmtoken(+_TOKPRIME);
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
     }ELSE IF ( opsym=='-' ) {
-      asmtoken(+_OPPUSH0); asmtoken(+_TOKMINUS/**'-'*/);
+      /**asmtoken(+_OPPUSH0);*/ asmtoken(+_TOKMINUS); //-
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
       eatval(); //рекурсивный вызов val
-      asmtoken(+_OPSUB);
+      //asmtoken(+_OPSUB);
     }ELSE IF ( opsym=='+' ) {
-      asmtoken(+_OPPUSH0); asmtoken(+_TOKPLUS/**'+'*/);
+      /**asmtoken(+_OPPUSH0);*/ /**зачем?*/ asmtoken(+_TOKPLUS); //+
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
       eatval(); //рекурсивный вызов val
-      asmtoken(+_OPADD);
-    }ELSE IF ( opsym=='*' ) {
-      asmtoken(+_OPPUSH0); asmtoken(+_TOKSTAR/**'*'*/);
+      //asmtoken(+_OPADD); /**зачем?*/
+    }ELSE IF ( opsym=='*' ) { //TODO поддержать PEEK в ассемблере
+      /**asmtoken(+_OPPUSH0);*/ /**зачем?*/ asmtoken(+_TOKSTAR); //*
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
       eatval(); //рекурсивный вызов val
-      asmtoken(+_OPPEEK);
+      //asmtoken(+_OPPEEK);
     }ELSE IF ( opsym=='~' ) {
-      asmtoken(+_OPPUSH0); asmtoken(+_TOKTILDE);
+      /**asmtoken(+_OPPUSH0);*/ /**зачем?*/ asmtoken(+_TOKTILDE);
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
       eatval(); //рекурсивный вызов val
-      asmtoken(+_OPINV);
+      //asmtoken(+_OPINV);
     }ELSE IF ( opsym=='!' ) {
-      asmtoken(+_OPPUSH0); asmtoken(+_TOKEXCL);
+      /**asmtoken(+_OPPUSH0);*/ /**зачем?*/ asmtoken(+_TOKEXCL);
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
       eatval(); //рекурсивный вызов val
-      asmtoken(+_OPINV); //todo BOOL
+      //asmtoken(+_OPINV); //todo BOOL
     }ELSE { tokerr(+_ERREXPR);/**errstr( ">>>WRONG PREFIX " ); err( opsym ); enderr();*/ };
   };
 }
@@ -456,7 +456,7 @@ PROC eatmul()
   /**asmtoken(_ASMOPPUSHSKIP1);*/ asmtoken(+_TOKSTAR/**'*'*/);
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatval(); //должен читать, но не съедать символ конца выражения
-  asmtoken(+_OPMUL);
+  //asmtoken(+_OPMUL);
 }
 
 PROC eatdiv()
@@ -464,7 +464,7 @@ PROC eatdiv()
   /**asmtoken(_ASMOPPUSHSKIP1);*/ asmtoken(+_TOKSLASH/**'/'*/);
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatval(); //должен читать, но не съедать символ конца выражения
-  asmtoken(+_OPDIV);
+  //asmtoken(+_OPDIV);
 }
 
 PROC eatand()
@@ -472,7 +472,7 @@ PROC eatand()
   /**asmtoken(_ASMOPPUSHSKIP1);*/ asmtoken(+_TOKAND/**'&'*/);
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatval(); //должен читать, но не съедать символ конца выражения
-  asmtoken(+_OPAND);
+  //asmtoken(+_OPAND);
 }
 
 PROC eatandbool()
@@ -480,7 +480,7 @@ PROC eatandbool()
   /**asmtoken(_ASMOPPUSHSKIP2);*/ asmtoken(+_TOKAND/**'&'*/); asmtoken(+_TOKAND/**'&'*/);
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatval(); //должен читать, но не съедать символ конца выражения
-  asmtoken(+_OPAND);
+  //asmtoken(+_OPAND);
 }
 
 PROC eatmulval RECURSIVE() //должен читать, но не съедать символ конца выражения (скобка, запятая, конец строки)
@@ -508,7 +508,7 @@ PROC eatadd()
   /**asmtoken(_ASMOPPUSHSKIP1);*/ asmtoken(+_TOKPLUS/**'+'*/);
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatmulval(); //должен читать, но не съедать символ конца выражения
-  asmtoken(+_OPADD);
+  //asmtoken(+_OPADD);
 }
 
 PROC eatsub()
@@ -516,7 +516,7 @@ PROC eatsub()
   /**asmtoken(_ASMOPPUSHSKIP1);*/ asmtoken(+_TOKMINUS/**'-'*/);
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatmulval(); //должен читать, но не съедать символ конца выражения
-  asmtoken(+_OPSUB);
+  //asmtoken(+_OPSUB);
 }
 
 PROC eator()
@@ -524,7 +524,7 @@ PROC eator()
   /**asmtoken(_ASMOPPUSHSKIP1);*/ asmtoken(+_TOKPIPE/**'|'*/);
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatmulval(); //должен читать, но не съедать символ конца выражения
-  asmtoken(+_OPOR);
+  //asmtoken(+_OPOR);
 }
 
 PROC eatorbool()
@@ -532,7 +532,7 @@ PROC eatorbool()
   /**asmtoken(_ASMOPPUSHSKIP2);*/ asmtoken(+_TOKPIPE/**'|'*/); asmtoken(+_TOKPIPE/**'|'*/);
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatmulval(); //должен читать, но не съедать символ конца выражения
-  asmtoken(+_OPOR);
+  //asmtoken(+_OPOR);
 }
 
 PROC eatxor()
@@ -540,7 +540,7 @@ PROC eatxor()
   /**asmtoken(_ASMOPPUSHSKIP1);*/ asmtoken(+_TOKCARON/**'^'*/);
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatmulval(); //должен читать, но не съедать символ конца выражения
-  asmtoken(+_OPXOR);
+  //asmtoken(+_OPXOR);
 }
 
 PROC eatxorbool()
@@ -548,7 +548,7 @@ PROC eatxorbool()
   /**asmtoken(_ASMOPPUSHSKIP2);*/ asmtoken(+_TOKCARON/**'^'*/); asmtoken(+_TOKCARON/**'^'*/);
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatmulval(); //должен читать, но не съедать символ конца выражения
-  asmtoken(+_OPXOR);
+  //asmtoken(+_OPXOR);
 }
 
 PROC eatsumval RECURSIVE() //должен читать, но не съедать символ конца выражения (скобка, запятая, конец строки)
@@ -579,7 +579,7 @@ PROC eatshl()
   /**asmtoken(_ASMOPPUSHSKIP2);*/ asmtoken(+_TOKLESS/**'<'*/); asmtoken(+_TOKLESS/**'<'*/);
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatsumval(); //должен читать, но не съедать символ конца выражения
-  asmtoken(+_OPSHL);
+  //asmtoken(+_OPSHL);
 }
 
 PROC eatshr()
@@ -587,7 +587,7 @@ PROC eatshr()
   /**asmtoken(_ASMOPPUSHSKIP2);*/ asmtoken(+_TOKMORE/**'>'*/); asmtoken(+_TOKMORE/**'>'*/);
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatsumval(); //должен читать, но не съедать символ конца выражения
-  asmtoken(+_OPSHR);
+  //asmtoken(+_OPSHR);
 }
 
 PROC eatless()
@@ -595,7 +595,7 @@ PROC eatless()
   asmtoken(+_TOKLESS);
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatsumval(); //должен читать, но не съедать символ конца выражения
-  asmtoken(+_OPLESS);
+  //asmtoken(+_OPLESS);
 }
 
 PROC eatlesseq()
@@ -603,7 +603,7 @@ PROC eatlesseq()
   asmtoken(+_TOKLESS); asmtoken(+_TOKEQUAL);
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatsumval(); //должен читать, но не съедать символ конца выражения
-  asmtoken(+_OPLESSEQ);
+  //asmtoken(+_OPLESSEQ);
 }
 
 PROC eatmore()
@@ -611,7 +611,7 @@ PROC eatmore()
   asmtoken(+_TOKMORE);
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatsumval(); //должен читать, но не съедать символ конца выражения
-  asmtoken(+_OPMORE);
+  //asmtoken(+_OPMORE);
 }
 
 PROC eatmoreeq()
@@ -619,7 +619,7 @@ PROC eatmoreeq()
   asmtoken(+_TOKMORE); asmtoken(+_TOKEQUAL);
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatsumval(); //должен читать, но не съедать символ конца выражения
-  asmtoken(+_OPMOREEQ);
+  //asmtoken(+_OPMOREEQ);
 }
 
 PROC eateq()
@@ -627,7 +627,7 @@ PROC eateq()
   asmtoken(+_TOKEQUAL); asmtoken(+_TOKEQUAL);
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatsumval(); //должен читать, но не съедать символ конца выражения
-  asmtoken(+_OPEQ);
+  //asmtoken(+_OPEQ);
 }
 
 PROC eatnoteq()
@@ -635,10 +635,10 @@ PROC eatnoteq()
   asmtoken(+_TOKEXCL); asmtoken(+_TOKEQUAL);
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatsumval(); //должен читать, но не съедать символ конца выражения
-  asmtoken(+_OPNOTEQ);
+  //asmtoken(+_OPNOTEQ);
 }
 
-FUNC BOOL tokexpr RECURSIVE() //должен читать, но не съедать символ конца выражения (скобка, запятая, конец строки)
+FUNC BOOL eatexpr RECURSIVE() //должен читать, но не съедать символ конца выражения (скобка, запятая, конец строки)
 { //команда уже прочитана
 VAR CHAR opsym;
 VAR BOOL modified;
@@ -671,6 +671,14 @@ VAR BOOL dbl;
 RETURN +TRUE; //ok; //todo err
 }
 
+FUNC BOOL tokexpr()
+{
+  asmtoken(+_TOKEXPR);
+  eatexpr();
+  asmtoken(+_TOKENDEXPR);
+RETURN +TRUE; //ok; //todo err
+}
+
 FUNC BOOL tokexpr_close() //после него ничего больше нельзя проверять, т.к. курсор мог сдвинуться
 {
   IF (tokexpr()) { RETURN matchclose(); };
@@ -690,7 +698,7 @@ PROC asm_direct_expr_close_token(BYTE token)
 PROC tokcomment()
 {
   asmtoken(+_TOKCOMMENT);
-  _lentword = 0/**strclear(_tword)*/; //читаем с пустой строки
+  _lentword = 0; //читаем с пустой строки
   IF (_waseols==0) { //обход на случай конечного ; перед командой
     WHILE (_spcsize != 0) { //добавить съеденные пробелы
       _lentword = stradd(_tword, _lentword, ' ');
@@ -821,7 +829,7 @@ PROC tokinclude()
   asmrdword_tokspc(); //съедаем команду
   IF (matchquote()) {
     //asmtoken(+_OPWRSTR);
-    _lentword = 0/**strclear(_tword)*/; //читаем с пустой строки
+    _lentword = 0; //читаем с пустой строки
     rdquotes('\"');
     toktext(); //генерирует <text>text<endtext>
     rdch(); //пропустить закрывающую кавычку
@@ -837,7 +845,7 @@ PROC tokincbin()
   asmrdword_tokspc(); //съедаем команду
   IF (matchquote()) {
     //asmtoken(+_OPWRSTR);
-    _lentword = 0/**strclear(_tword)*/; //читаем с пустой строки
+    _lentword = 0; //читаем с пустой строки
     rdquotes('\"');
     toktext(); //генерирует <text>text<endtext>
     rdch(); //пропустить закрывающую кавычку
@@ -855,7 +863,7 @@ PROC tokdb()
   REPEAT {
     IF (matchquote()) {
       asmtoken(+_OPWRSTR);
-      _lentword = 0/**strclear(_tword)*/; //читаем с пустой строки
+      _lentword = 0; //читаем с пустой строки
       rdquotes('\"');
       toktext(); //генерирует <text>text<endtext>
       rdch(); //пропустить закрывающую кавычку
