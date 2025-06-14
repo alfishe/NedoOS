@@ -33,7 +33,7 @@ unsigned int httpErr;
 
 unsigned char uVer[] = "0.1";
 unsigned char curPath[128];
-unsigned char cmd[128];
+unsigned char cmd[256];
 unsigned char search[256];
 unsigned char crlf[2] = {13, 10};
 const unsigned char gotWiFi[] = "WIFI GOT IP";
@@ -67,18 +67,18 @@ struct time
 
 struct linkStruct
 {
-	unsigned char host[64];
+	unsigned char host[128];
 	unsigned char path[512];
 	unsigned int port;
-	unsigned char fname[65];
+	unsigned char fname[256];
 } link;
 
 struct line
 {
 	unsigned long id;
-	unsigned char name[256];
-	unsigned char file[256];
-	unsigned char ext[4];
+	unsigned char name[512];
+	unsigned char file[512];
+	unsigned char ext[5];
 	unsigned long size;
 	unsigned char option;
 	unsigned int year;
@@ -90,6 +90,7 @@ struct limit
 	int second;
 	int total;
 	int curline;
+	int curOpt;
 } limiter;
 
 void spaces(unsigned char number)
@@ -207,7 +208,6 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 
 	if (operation == 01)
 	{
-		long fileSize;
 		fp2 = OS_OPENHANDLE(fileNamePtr, 0x80);
 		if (((int)fp2) & 0xff)
 		{
@@ -216,8 +216,7 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 			waitKey();
 			exit(0);
 		}
-		fileSize = OS_GETFILESIZE(fp2);
-		OS_SEEKHANDLE(fp2, fileSize);
+		OS_SEEKHANDLE(fp2, OS_GETFILESIZE(fp2));
 		OS_WRITEHANDLE(netbuf, fp2, sizeOfBuf);
 		OS_CLOSEHANDLE(fp2);
 		return 0;
@@ -252,7 +251,7 @@ char readParamFromIni(void)
 	FILE *fpini;
 	unsigned char *count1;
 	const char currentNetwork[] = "currentNetwork";
-	char curNet;
+	unsigned char curNet = 0;
 
 	OS_GETPATH((unsigned int)&curPath);
 	OS_SETSYSDRV();
@@ -274,7 +273,7 @@ char readParamFromIni(void)
 	count1 = strstr(netbuf, currentNetwork);
 	if (count1 != NULL)
 	{
-		sscanf(count1 + strlen(currentNetwork) + 1, "%d", &curNet);
+		sscanf(count1 + strlen(currentNetwork) + 1, "%u", &curNet);
 	}
 
 	OS_CHDIR(curPath);
@@ -292,15 +291,16 @@ void init(void)
 	targetadr.b4 = 0;
 	curHost = 0;
 	link.port = 80;
+	limiter.curOpt = 1;
 	get_dns();
 	loadEspConfig();
 	netDriver = readParamFromIni();
-	
+
 	OS_SETSYSDRV();
-	OS_MKDIR("../downloads");		 // Create if not exist
+	OS_MKDIR("../downloads");	   // Create if not exist
 	OS_MKDIR("../downloads/zxdb"); // Create if not exist
 	OS_CHDIR("../downloads/zxdb");
-	
+
 	strcpy(link.host, hosts[curHost]);
 	clock.oldMinutes = 255;
 }
@@ -580,6 +580,31 @@ void squeeze(char s[], int c)
 	s[j] = '\0';
 }
 
+char *insert_string(const char *original, const char *to_insert, unsigned int position)
+{
+	unsigned int original_len = strlen(original);
+	unsigned int insert_len = strlen(to_insert);
+	unsigned int new_len = original_len + insert_len;
+
+	char *new_string = (char *)malloc(new_len + 1); // +1 для \0
+	if (new_string == NULL)
+	{
+		return NULL; // Обработка ошибки выделения памяти
+	}
+
+	// Копирование части исходной строки до позиции вставки
+	strncpy(new_string, original, position);
+	new_string[position] = '\0';
+
+	// Вставка строки
+	strcat(new_string, to_insert);
+
+	// Добавление оставшейся части исходной строки
+	strcat(new_string, original + position);
+
+	return new_string;
+}
+
 int cutHeader(void)
 {
 	unsigned char *count1;
@@ -609,6 +634,7 @@ int cutHeader(void)
 	if (count1 != NULL)
 	{
 		strncpy(link.fname, count1 + 43, 64);
+		strcat(link.fname, "\0");
 		counter = 0;
 		while (link.fname[counter] != '\"')
 		{
@@ -618,8 +644,22 @@ int cutHeader(void)
 	}
 	else
 	{
-		strncpy(link.fname, table[limiter.curline].file, 64);
-		strcat(link.fname, "\0");
+		strncpy(link.fname, table[limiter.curline].file, 57);
+		strcat(link.fname, table[limiter.curline].ext);
+
+		counter = strlen(link.fname);
+		while (counter != 0)
+		{
+			counter--;
+			if (link.fname[counter] == '.' && table[limiter.curline].option > 1)
+			{
+				const char *new_string;
+				char temp[65];
+				sprintf(temp, "-%02d", limiter.curOpt);
+				new_string = insert_string(link.fname, temp, counter);
+				strcpy(link.fname, new_string);
+			}
+		}
 	}
 
 	count1 = strstr(netbuf, "\r\n\r\n");
@@ -717,8 +757,6 @@ char getFileNet(void)
 	unsigned long downloaded = 0;
 	unsigned int down;
 	unsigned int counter;
-	unsigned char byte;
-	const unsigned char *count1;
 
 	socket = OpenSock(AF_INET, SOCK_STREAM);
 	if (testOperation2("OS_NETSOCKET", socket) != 1)
@@ -744,6 +782,8 @@ char getFileNet(void)
 	firstPacket = true;
 	do
 	{
+		char temp[64];
+
 		todo = tcpRead(socket, 1);
 		testOperation("OS_WIZNETREAD", todo);
 		if (todo == 0)
@@ -756,17 +796,18 @@ char getFileNet(void)
 			fileSize1 = contLen / 1024;
 			curWin.w = 66;
 			curWin.x = 39 - curWin.w / 2;
-			curWin.y = 10;
+			curWin.y = 9;
 			curWin.h = 1;
 			curWin.text = 103;
 			curWin.back = 103;
+
 			strcpy(curWin.tittle, "Введите имя файла");
 			if (inputBox(curWin, link.fname))
 			{
-				strcpy(link.fname, cmd);
+				strncpy(link.fname, cmd, 64);
+				strcat(link.fname, "\0");
 			}
 
-			saveBuf(link.fname, 00, 0);
 			firstPacket = false;
 			counter = 0;
 			if (httpErr != 200)
@@ -774,19 +815,26 @@ char getFileNet(void)
 				netShutDown(socket, 0);
 				return false;
 			}
+			curWin.x = 30;
+			curWin.y = 10;
+			curWin.w = 21;
+			curWin.h = 4;
+			curWin.text = 223;
+			curWin.back = 223;
+			simpleBox(curWin);
+
+			saveBuf(link.fname, 00, 0);
 		}
 		downloaded = downloaded + todo;
 		down = downloaded / 1024;
 		counter++;
-		if (counter % 10 == 0)
-		{
-			printf("%u of %u kb   \r", down, fileSize1);
-		}
-
+		OS_SETXY(31, 11);
+		sprintf(temp, "%4u  of %4u  kb", down, fileSize1);
+		puts(temp);
 		saveBuf(link.fname, 01, todo);
 	} while (downloaded < contLen);
+
 	netShutDown(socket, 0);
-	saveBuf(link.fname, 02, 00);
 
 	if (downloaded != contLen)
 	{
@@ -802,25 +850,29 @@ char getFileNet(void)
 
 char getFile(unsigned char number)
 {
-	int result;
-	char option = 1;
-	sprintf(link.path, "GET /get/%lu/%u%s%s%s", table[number].id, option, userAgent1, link.host, userAgent2);
+	int result = 0;
+	unsigned char option = 1;
 
-	switch (netDriver)
+	for (option = 1; option <= table[number].option; option++)
 	{
-	case 0:
-		result = getFileNet();
-		break;
-	case 1:
-		do
+		sprintf(link.path, "GET /get/%lu/%u%s%s%s", table[number].id, option, userAgent1, link.host, userAgent2);
+		limiter.curOpt = option;
+		switch (netDriver)
 		{
-			result = getFileEsp();
-		} while (result == 0);
-		break;
+		case 0:
+			result = getFileNet();
+			break;
+		case 1:
+			do
+			{
+				result = getFileEsp();
+			} while (result == 0);
+			break;
 
-	default:
+		default:
 
-		break;
+			break;
+		}
 	}
 	return result;
 }
@@ -888,7 +940,7 @@ char makeRequestNet(void)
 
 		if (downloaded + todo > sizeof(buf))
 		{
-			printf("dataBuffer overrun... %u reached \n\r", downloaded + todo);
+			printf("dataBuffer overrun... %lu reached \n\r", downloaded + todo);
 			return false;
 		}
 		memcpy(buf + downloaded, netbuf + headlng, todo);
@@ -964,14 +1016,17 @@ void fillTable(void)
 		if (findLimiters(limiter.second) != -2)
 		{
 			strncpy(table[counter].name, buf + limiter.first, limiter.second - limiter.first + 1);
+			strcat(table[counter].name, "\0");
 			table[counter].name[limiter.second - limiter.first + 1] = 0;
 		}
 		if (findLimiters(limiter.second) != -2)
 		{
 			strncpy(table[counter].file, buf + limiter.first, limiter.second - limiter.first - 3);
+			strcat(table[counter].file, "\0");
 			table[counter].file[limiter.second - limiter.first - 3] = 0;
 			strncpy(table[counter].ext, buf + limiter.second - 2, 3);
-			table[counter].ext[3] = 0;
+			strcat(table[counter].ext, "\0");
+			// table[counter].ext[3] = 0;
 		}
 
 		if (findLimiters(limiter.second) != -2)
@@ -1026,7 +1081,7 @@ void renderResult(char currentLine)
 		OS_SETXY(2, line);
 		printf("%s ", table[counter].name);
 		OS_SETXY(48, line);
-		printf("%s  %06lu  %u  %04u", table[counter].ext, table[counter].size, table[counter].option, table[counter].year);
+		printf("%s  %6lu  %u  %4u", table[counter].ext, table[counter].size, table[counter].option, table[counter].year);
 		line++;
 		OS_SETXY(2, line);
 		spaces(76);
@@ -1051,7 +1106,7 @@ char getKey(void)
 	case 'ы':
 	case 'Ы':
 	case 'S':
-
+	fuckingoto:
 		limiter.total = 0;
 		limiter.curline = 0;
 		curWin.w = 40;
@@ -1061,13 +1116,13 @@ char getKey(void)
 		curWin.text = 103;
 		curWin.back = 103;
 		strcpy(curWin.tittle, "Введите поисковый запрос");
-		if (inputBox(curWin, "target renegade"))
+		if (inputBox(curWin, ""))
 		{
 			strcpy(search, cmd);
 		}
 		mainWinDraw();
 
-		if (!makeRequest(search))
+		if (makeRequest(search) < 2)
 		{
 			OS_SETXY(32, 11);
 			OS_SETCOLOR(206);
@@ -1086,6 +1141,8 @@ char getKey(void)
 	case 'H':
 	case 'р':
 	case 'Р':
+		limiter.total = 0;
+		limiter.curline = 0;
 		curHost++;
 		if (curHost > 2)
 		{
@@ -1133,6 +1190,10 @@ char getKey(void)
 		{
 			getFile(limiter.curline);
 		}
+		else
+		{
+			goto fuckingoto;
+		}
 		break;
 	default:
 		break;
@@ -1149,9 +1210,8 @@ char getKey(void)
 	return key;
 }
 
-C_task main(int argc, char *argv[])
+C_task main(int argc, const char *argv[])
 {
-	unsigned char keypress;
 	OS_HIDEFROMPARENT();
 	OS_SETGFX(0x86);
 	OS_CLS(0);

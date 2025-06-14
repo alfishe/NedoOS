@@ -353,7 +353,7 @@ char getdataEspTO(unsigned int counted)
 	case 0: // Kondratyev  NO AFC
 		for (counter = 0; counter < counted; counter++)
 		{
-			timeOut = 200000;
+			timeOut = 500000;
 			while ((1 & input(LSR)) == 0)
 			{
 				disable_interrupt();
@@ -361,6 +361,7 @@ char getdataEspTO(unsigned int counted)
 				output(MCR, 0);
 				enable_interrupt();
 				timeOut--;
+				
 				if (timeOut == 0)
 				{
 					return counter;
@@ -372,7 +373,7 @@ char getdataEspTO(unsigned int counted)
 	case 1: // ATM2 COM port
 		for (counter = 0; counter < counted; counter++)
 		{
-			timeOut = 200000;
+			timeOut = 500000;
 			while (uart_hasByte() == 0)
 			{
 				disable_interrupt();
@@ -384,6 +385,7 @@ char getdataEspTO(unsigned int counted)
 				input(0x00fe); // Снимаем готовность DTR и RTS
 				enable_interrupt();
 				timeOut--;
+				
 				if (timeOut == 0)
 				{
 					return counter;
@@ -398,9 +400,10 @@ char getdataEspTO(unsigned int counted)
 	case 2: // Kondratyev AFC
 		for (counter = 0; counter < counted; counter++)
 		{
-			timeOut = 200000;
+			timeOut = 500000;
 			while ((1 & input(LSR)) == 0)
 			{
+				
 				timeOut--;
 				if (timeOut == 0)
 				{
@@ -413,7 +416,7 @@ char getdataEspTO(unsigned int counted)
 	case 3: // ATM2IOESP
 		for (counter = 0; counter < counted; counter++)
 		{
-			timeOut = 200000;
+			timeOut = 500000;
 			disable_interrupt();
 			do
 			{
@@ -426,6 +429,7 @@ char getdataEspTO(unsigned int counted)
 				output(0xfa, 2);
 				output(0xfa, 0);
 				timeOut--;
+				
 				if (timeOut == 0)
 				{
 					return counter;
