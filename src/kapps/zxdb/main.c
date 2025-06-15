@@ -293,9 +293,13 @@ void init(void)
 	link.port = 80;
 	limiter.curOpt = 1;
 	get_dns();
-	loadEspConfig();
 	netDriver = readParamFromIni();
-
+	if (netDriver == 1)
+	{
+		loadEspConfig();
+		uart_init(divider);
+		espReBoot();
+	}
 	OS_SETSYSDRV();
 	OS_MKDIR("../downloads");	   // Create if not exist
 	OS_MKDIR("../downloads/zxdb"); // Create if not exist
@@ -614,7 +618,7 @@ int cutHeader(void)
 	if (httpError() != 200)
 	{
 		clearStatus();
-		printf("[cutHeader] HTTP response:[%u]", httpErr);
+		printf("HTTP response:[%u]", httpErr);
 		return 0;
 	}
 	count1 = strstr(netbuf, "Content-Length:");
@@ -677,74 +681,117 @@ int cutHeader(void)
 
 char getFileEsp(void)
 {
-	/*
-		int todo;
-		const unsigned char *count1;
-		unsigned char byte;
-		unsigned long downloaded = 0;
-		unsigned int count;
-		const unsigned char sendOk[] = "SEND OK";
+	int todo;
+	unsigned char byte, firstPacket;
+	unsigned long downloaded = 0;
+	unsigned int count, fileSize1, down;
+	const unsigned char sendOk[] = "SEND OK";
 
-		sprintf(cmd, "AT+CIPSTART=\"TCP\",\"%s\",%u", link.host, link.port);
-		sendcommand(cmd);
-		do
+	sprintf(cmd, "AT+CIPSTART=\"TCP\",\"%s\",%u", link.host, link.port);
+	sendcommand(cmd);
+
+	do
+	{
+		getAnswer2(); // CONNECT or ERROR or link is not valid
+
+		if (strstr(netbuf, "CONNECT") != NULL)
 		{
-			getAnswer2(); // CONNECT or ERROR or link is not valid
-			count1 = strstr(netbuf, "CONNECT");
+			break;
+		}
+		else
+		{
 			if (strstr(netbuf, "ERROR") != NULL)
 			{
 				return false;
 			}
-		} while (count1 == NULL);
+		}
+	} while (42); // Try until endo of the days recieve CONNECT or ERROR
 
-		getAnswer2(); // OK
+	getAnswer2(); // OK
 
-		sprintf(cmd, "AT+CIPSEND=%u", strlen(link.path)); // second CRLF in send command
-		sendcommand(cmd);
-		getAnswer2();
+	sprintf(cmd, "AT+CIPSEND=%u", strlen(link.path) + 2);
+	sendcommand(cmd);
+	getAnswer2();
 
-		do
+	do
+	{
+		byte = uart_readBlock();
+	} while (byte != '>');
+
+	// sendcommandNrn(link.path);
+	sendcommand(link.path);
+
+	count = 0;
+	do
+	{
+		byte = uart_readBlock();
+		if (byte == sendOk[count])
 		{
-			byte = uart_readBlock();
-		} while (byte != '>');
-
-		sendcommandNrn(link.path);
-
-		count = 0;
-		do
+			count++;
+			// putchar(byte);
+		}
+		else
 		{
-			byte = uart_readBlock();
-			if (byte == sendOk[count])
+			count = 0;
+		}
+	} while (count < strlen(sendOk));
+
+	uart_readBlock(); // CR
+	uart_readBlock(); // LF
+
+	firstPacket = true;
+	do
+	{
+		unsigned char temp[64];
+		todo = recvHead();
+		getdataEsp(todo); // Requested size
+		if (firstPacket)
+		{
+			firstPacket = false;
+			todo = todo - cutHeader();
+			fileSize1 = contLen / 1024;
+			curWin.w = 66;
+			curWin.x = 39 - curWin.w / 2;
+			curWin.y = 9;
+			curWin.h = 1;
+			curWin.text = 103;
+			curWin.back = 103;
+
+			strcpy(curWin.tittle, "Введите имя файла");
+			if (inputBox(curWin, link.fname))
 			{
-				count++;
-				// putchar(byte);
+				strncpy(link.fname, cmd, 64);
+				strcat(link.fname, "\0");
 			}
-			else
-			{
-				count = 0;
-			}
-		} while (count < strlen(sendOk));
 
-		uart_readBlock(); // CR
-		uart_readBlock(); // LF
-
-		OS_DELETE(fileNamePtr);
-		saveBuf(fileNamePtr, 00, 0);
-		clearStatus();
-		do
-		{
-			todo = recvHead();
-			downloaded = downloaded + todo;
-			if (downloaded == 0)
+			if (httpErr != 200)
 			{
+				sendcommand("AT+CIPCLOSE");
+				getAnswer2(); // CLOSED
+				getAnswer2(); // OK
 				return false;
 			}
-			getdataEsp(todo);
-			saveBuf(fileNamePtr, 01, todo);
-			printf("%lu kb  \r", downloaded / 1024);
-		} while (todo != 0);
-		link.size = downloaded;
-	*/
+			curWin.x = 30;
+			curWin.y = 10;
+			curWin.w = 21;
+			curWin.h = 4;
+			curWin.text = 223;
+			curWin.back = 223;
+			simpleBox(curWin);
+			saveBuf(link.fname, 00, 0);
+			OS_SETCOLOR(223);
+		}
+
+		OS_SETXY(31, 11);
+		sprintf(temp, "%4u  of %4u  kb", down, fileSize1);
+		puts(temp);
+		saveBuf(link.fname, 01, todo);
+		drawClock();
+	} while (downloaded < contLen);
+
+	sendcommand("AT+CIPCLOSE");
+	getAnswer2(); // CLOSED
+	getAnswer2(); // OK
 	return true;
 }
 
@@ -756,7 +803,6 @@ char getFileNet(void)
 	unsigned int fileSize1;
 	unsigned long downloaded = 0;
 	unsigned int down;
-	unsigned int counter;
 
 	socket = OpenSock(AF_INET, SOCK_STREAM);
 	if (testOperation2("OS_NETSOCKET", socket) != 1)
@@ -782,7 +828,7 @@ char getFileNet(void)
 	firstPacket = true;
 	do
 	{
-		char temp[64];
+		unsigned char temp[64];
 
 		todo = tcpRead(socket, 1);
 		testOperation("OS_WIZNETREAD", todo);
@@ -792,6 +838,7 @@ char getFileNet(void)
 		}
 		if (firstPacket)
 		{
+			firstPacket = false;
 			todo = todo - cutHeader();
 			fileSize1 = contLen / 1024;
 			curWin.w = 66;
@@ -808,8 +855,6 @@ char getFileNet(void)
 				strcat(link.fname, "\0");
 			}
 
-			firstPacket = false;
-			counter = 0;
 			if (httpErr != 200)
 			{
 				netShutDown(socket, 0);
@@ -822,16 +867,16 @@ char getFileNet(void)
 			curWin.text = 223;
 			curWin.back = 223;
 			simpleBox(curWin);
-
 			saveBuf(link.fname, 00, 0);
+			OS_SETCOLOR(223);
 		}
 		downloaded = downloaded + todo;
 		down = downloaded / 1024;
-		counter++;
 		OS_SETXY(31, 11);
 		sprintf(temp, "%4u  of %4u  kb", down, fileSize1);
 		puts(temp);
 		saveBuf(link.fname, 01, todo);
+		drawClock();
 	} while (downloaded < contLen);
 
 	netShutDown(socket, 0);
@@ -863,14 +908,9 @@ char getFile(unsigned char number)
 			result = getFileNet();
 			break;
 		case 1:
-			do
-			{
-				result = getFileEsp();
-			} while (result == 0);
+			result = getFileEsp();
 			break;
-
 		default:
-
 			break;
 		}
 	}
@@ -879,7 +919,99 @@ char getFile(unsigned char number)
 
 char makeRequestEsp(void)
 {
-	return true;
+
+	int todo;
+	unsigned char byte, firstPacket, headlng;
+	unsigned long downloaded = 0;
+	unsigned int count;
+	const unsigned char sendOk[] = "SEND OK";
+
+	sprintf(cmd, "AT+CIPSTART=\"TCP\",\"%s\",%u", link.host, link.port);
+	sendcommand(cmd);
+
+	do
+	{
+		getAnswer2(); // CONNECT or ERROR or link is not valid
+
+		if (strstr(netbuf, "CONNECT") != NULL)
+		{
+			break;
+		}
+		else
+		{
+			if (strstr(netbuf, "ERROR") != NULL)
+			{
+				return false;
+			}
+		}
+	} while (42); // Try until endo of the days recieve CONNECT or ERROR
+
+	getAnswer2(); // OK
+
+	sprintf(cmd, "AT+CIPSEND=%u", strlen(link.path) + 2);
+	sendcommand(cmd);
+	getAnswer2();
+
+	do
+	{
+		byte = uart_readBlock();
+	} while (byte != '>');
+
+	// sendcommandNrn(link.path);
+	sendcommand(link.path);
+
+	count = 0;
+	do
+	{
+		byte = uart_readBlock();
+		if (byte == sendOk[count])
+		{
+			count++;
+			// putchar(byte);
+		}
+		else
+		{
+			count = 0;
+		}
+	} while (count < strlen(sendOk));
+
+	uart_readBlock(); // CR
+	uart_readBlock(); // LF
+
+	firstPacket = true;
+	do
+	{
+		headlng = 0;
+		todo = recvHead();
+		getdataEsp(todo); // Requested size
+		if (firstPacket)
+		{
+			firstPacket = false;
+			headlng = cutHeader();
+			todo = todo - headlng;
+
+			if (httpErr != 200)
+			{
+				sendcommand("AT+CIPCLOSE");
+				getAnswer2(); // CLOSED
+				getAnswer2(); // OK
+				return false;
+			}
+		}
+		if (downloaded + todo > sizeof(buf))
+		{
+			printf("dataBuffer overrun... %lu reached \n\r", downloaded + todo);
+			return false;
+		}
+		memcpy(buf + downloaded, netbuf + headlng, todo);
+		downloaded = downloaded + todo;
+	} while (downloaded < contLen);
+
+	sendcommand("AT+CIPCLOSE");
+	getAnswer2(); // CLOSED
+	getAnswer2(); // OK
+	buf[downloaded + 1] = 0;
+	return downloaded;
 }
 
 char makeRequestNet(void)
@@ -928,9 +1060,10 @@ char makeRequestNet(void)
 
 		if (firstPacket)
 		{
+			firstPacket = false;
 			headlng = cutHeader();
 			todo = todo - headlng;
-			firstPacket = false;
+
 			if (httpErr != 200)
 			{
 				netShutDown(socket, 0);
@@ -945,7 +1078,7 @@ char makeRequestNet(void)
 		}
 		memcpy(buf + downloaded, netbuf + headlng, todo);
 		downloaded = downloaded + todo;
-	} while (downloaded != contLen);
+	} while (downloaded != contLen); // ref < лучше
 
 	netShutDown(socket, 0);
 	buf[downloaded + 1] = 0;
@@ -1116,9 +1249,20 @@ char getKey(void)
 		curWin.text = 103;
 		curWin.back = 103;
 		strcpy(curWin.tittle, "Введите поисковый запрос");
+
 		if (inputBox(curWin, ""))
 		{
 			strcpy(search, cmd);
+		}
+		else
+		{
+			mainWinDraw();
+			OS_SETXY(32, 11);
+			OS_SETCOLOR(206);
+			puts("No results found");
+			limiter.total = 0;
+			limiter.curline = 0;
+			break;
 		}
 		mainWinDraw();
 
