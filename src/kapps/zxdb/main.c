@@ -91,6 +91,7 @@ struct limit
 	int total;
 	int curline;
 	int curOpt;
+	int headLng;
 } limiter;
 
 void spaces(unsigned char number)
@@ -217,7 +218,7 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 			exit(0);
 		}
 		OS_SEEKHANDLE(fp2, OS_GETFILESIZE(fp2));
-		OS_WRITEHANDLE(netbuf, fp2, sizeOfBuf);
+		OS_WRITEHANDLE(netbuf + limiter.headLng, fp2, sizeOfBuf);
 		OS_CLOSEHANDLE(fp2);
 		return 0;
 	}
@@ -743,12 +744,14 @@ char getFileEsp(void)
 	do
 	{
 		unsigned char temp[64];
+		limiter.headLng = 0;
 		todo = recvHead();
 		getdataEsp(todo); // Requested size
 		if (firstPacket)
 		{
 			firstPacket = false;
-			todo = todo - cutHeader();
+			limiter.headLng = cutHeader();
+			todo = todo - limiter.headLng;
 			fileSize1 = contLen / 1024;
 			curWin.w = 66;
 			curWin.x = 39 - curWin.w / 2;
@@ -782,6 +785,7 @@ char getFileEsp(void)
 			OS_SETCOLOR(223);
 		}
 
+		down = downloaded / 1024;
 		OS_SETXY(31, 11);
 		sprintf(temp, "%4u  of %4u  kb", down, fileSize1);
 		puts(temp);
@@ -829,7 +833,7 @@ char getFileNet(void)
 	do
 	{
 		unsigned char temp[64];
-
+		limiter.headLng = 0;
 		todo = tcpRead(socket, 1);
 		testOperation("OS_WIZNETREAD", todo);
 		if (todo == 0)
@@ -839,7 +843,8 @@ char getFileNet(void)
 		if (firstPacket)
 		{
 			firstPacket = false;
-			todo = todo - cutHeader();
+			limiter.headLng = cutHeader();
+			todo = todo - limiter.headLng;
 			fileSize1 = contLen / 1024;
 			curWin.w = 66;
 			curWin.x = 39 - curWin.w / 2;
@@ -921,7 +926,7 @@ char makeRequestEsp(void)
 {
 
 	int todo;
-	unsigned char byte, firstPacket, headlng;
+	unsigned char byte, firstPacket;
 	unsigned long downloaded = 0;
 	unsigned int count;
 	const unsigned char sendOk[] = "SEND OK";
@@ -981,14 +986,14 @@ char makeRequestEsp(void)
 	firstPacket = true;
 	do
 	{
-		headlng = 0;
+		limiter.headLng = 0;
 		todo = recvHead();
 		getdataEsp(todo); // Requested size
 		if (firstPacket)
 		{
 			firstPacket = false;
-			headlng = cutHeader();
-			todo = todo - headlng;
+			limiter.headLng = cutHeader();
+			todo = todo - limiter.headLng;
 
 			if (httpErr != 200)
 			{
@@ -1003,7 +1008,7 @@ char makeRequestEsp(void)
 			printf("dataBuffer overrun... %lu reached \n\r", downloaded + todo);
 			return false;
 		}
-		memcpy(buf + downloaded, netbuf + headlng, todo);
+		memcpy(buf + downloaded, netbuf + limiter.headLng, todo);
 		downloaded = downloaded + todo;
 	} while (downloaded < contLen);
 
@@ -1016,7 +1021,7 @@ char makeRequestEsp(void)
 
 char makeRequestNet(void)
 {
-	int socket, todo, headlng;
+	int socket, todo;
 	char firstPacket;
 	unsigned long downloaded = 0;
 
@@ -1054,15 +1059,15 @@ char makeRequestNet(void)
 	firstPacket = true;
 	do
 	{
-		headlng = 0;
+		limiter.headLng = 0;
 		todo = tcpRead(socket, 1);
 		testOperation("OS_WIZNETREAD", todo); // Quit if too many retries
 
 		if (firstPacket)
 		{
 			firstPacket = false;
-			headlng = cutHeader();
-			todo = todo - headlng;
+			limiter.headLng = cutHeader();
+			todo = todo - limiter.headLng;
 
 			if (httpErr != 200)
 			{
@@ -1076,7 +1081,7 @@ char makeRequestNet(void)
 			printf("dataBuffer overrun... %lu reached \n\r", downloaded + todo);
 			return false;
 		}
-		memcpy(buf + downloaded, netbuf + headlng, todo);
+		memcpy(buf + downloaded, netbuf + limiter.headLng, todo);
 		downloaded = downloaded + todo;
 	} while (downloaded != contLen); // ref < «γηθ₯
 
