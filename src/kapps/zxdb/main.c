@@ -31,7 +31,7 @@ unsigned char curHost;
 unsigned long contLen;
 unsigned int httpErr;
 
-unsigned char uVer[] = "0.1";
+unsigned char uVer[] = "0.2";
 unsigned char curPath[128];
 unsigned char cmd[256];
 unsigned char search[256];
@@ -191,43 +191,41 @@ int testOperation2(const char *process, int socket)
 
 unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsigned int sizeOfBuf)
 {
-
 	FILE *fp2;
-	if (operation == 00)
+
+	switch (operation)
 	{
+	case 00:
 		fp2 = OS_CREATEHANDLE(fileNamePtr, 0x80);
 		if (((int)fp2) & 0xff)
 		{
 			clearStatus();
 			printf("%s  creating error.", fileNamePtr);
-			waitKey();
+			getchar();
 			exit(0);
 		}
 		OS_CLOSEHANDLE(fp2);
-		return 0;
-	}
-
-	if (operation == 01)
-	{
+		break;
+	case 01:
 		fp2 = OS_OPENHANDLE(fileNamePtr, 0x80);
 		if (((int)fp2) & 0xff)
 		{
 			clearStatus();
 			printf("%s opening error.\r\n ", fileNamePtr);
-			waitKey();
+			getchar();
 			exit(0);
 		}
 		OS_SEEKHANDLE(fp2, OS_GETFILESIZE(fp2));
 		OS_WRITEHANDLE(netbuf + limiter.headLng, fp2, sizeOfBuf);
 		OS_CLOSEHANDLE(fp2);
-		return 0;
+		break;
+	case 02:
+		OS_CLOSEHANDLE(fp2);
+		break;
+	default:
+		break;
 	}
 
-	if (operation == 02)
-	{
-		OS_CLOSEHANDLE(fp2);
-		return 0;
-	}
 	return 0;
 }
 
@@ -781,18 +779,18 @@ char getFileEsp(void)
 			curWin.text = 223;
 			curWin.back = 223;
 			simpleBox(curWin);
-			saveBuf(link.fname, 00, 0);
-			OS_SETCOLOR(223);
+			saveBuf(link.fname, 00, 0);	
 		}
 
+		downloaded = downloaded + todo;
 		down = downloaded / 1024;
 		OS_SETXY(31, 11);
+		OS_SETCOLOR(223);
 		sprintf(temp, "%4u  of %4u  kb", down, fileSize1);
 		puts(temp);
 		saveBuf(link.fname, 01, todo);
 		drawClock();
 	} while (downloaded < contLen);
-
 	sendcommand("AT+CIPCLOSE");
 	getAnswer2(); // CLOSED
 	getAnswer2(); // OK
@@ -1164,7 +1162,6 @@ void fillTable(void)
 			table[counter].file[limiter.second - limiter.first - 3] = 0;
 			strncpy(table[counter].ext, buf + limiter.second - 2, 3);
 			strcat(table[counter].ext, "\0");
-			// table[counter].ext[3] = 0;
 		}
 
 		if (findLimiters(limiter.second) != -2)
@@ -1283,7 +1280,6 @@ char getKey(void)
 
 		OS_SETXY(1, 2);
 		OS_SETCOLOR(206);
-
 		fillTable();
 		break;
 	case 'h':
@@ -1293,7 +1289,7 @@ char getKey(void)
 		limiter.total = 0;
 		limiter.curline = 0;
 		curHost++;
-		if (curHost > 2)
+		if (curHost > 1)
 		{
 			curHost = 0;
 		}
@@ -1338,6 +1334,7 @@ char getKey(void)
 		if (limiter.total != 0)
 		{
 			getFile(limiter.curline);
+			
 		}
 		else
 		{
