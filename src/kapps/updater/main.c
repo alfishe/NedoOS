@@ -26,7 +26,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "1.1";
+unsigned char uVer[] = "1.2";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -40,8 +40,6 @@ unsigned char status, curFormat;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 struct sockaddr_in dnsaddress;
-
-FILE *fp2;
 
 struct window
 {
@@ -319,48 +317,45 @@ unsigned char OS_SHELL(const unsigned char *command)
 
 unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsigned int sizeOfBuf)
 {
-	if (operation == 00)
+	FILE *fp2;
+
+	switch (operation)
 	{
+	case 00:
 		fp2 = OS_CREATEHANDLE(fileNamePtr, 0x80);
 		if (((int)fp2) & 0xff)
 		{
 			clearStatus();
-			AT(1, 24);
-			printf("%s", fileNamePtr);
-			printf(" creating error.");
+			printf("%s  creating error.", fileNamePtr);
+			getchar();
 			exit(0);
 		}
 		OS_CLOSEHANDLE(fp2);
-
+		break;
+	case 01:
 		fp2 = OS_OPENHANDLE(fileNamePtr, 0x80);
 		if (((int)fp2) & 0xff)
 		{
 			clearStatus();
-			AT(1, 24);
-			printf("%s", fileNamePtr);
-			printf(" opening error. ");
-
+			printf("%s opening error.\r\n ", fileNamePtr);
+			getchar();
 			exit(0);
 		}
-		AT(1, 24);
-		return 0;
-	}
-
-	if (operation == 01)
-	{
+		OS_SEEKHANDLE(fp2, OS_GETFILESIZE(fp2));
 		OS_WRITEHANDLE(netbuf + headlng, fp2, sizeOfBuf);
-		return 0;
+		OS_CLOSEHANDLE(fp2);
+		break;
+	case 02:
+		OS_CLOSEHANDLE(fp2);
+		break;
+	default:
+		break;
 	}
 
-	if (operation == 02)
-	{
-		OS_CLOSEHANDLE(fp2);
-		return 0;
-	}
 	return 0;
 }
 
-unsigned int cutHeader(unsigned int todo)
+unsigned int cutHeader(void)
 {
 	unsigned int err;
 	unsigned char *count1;
@@ -395,10 +390,9 @@ unsigned int cutHeader(unsigned int todo)
 	}
 	else
 	{
-		headlng = ((unsigned int)count1 - (unsigned int)netbuf + 4);
 		// printf("header %u bytes\r\n", headlng);
 	}
-	return todo - headlng;
+	return ((unsigned int)count1 - (unsigned int)netbuf + 4);
 }
 unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 {
@@ -407,14 +401,17 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 	unsigned int fileSize1;
 	unsigned long downloaded = 0;
 	unsigned int down;
-	unsigned int counter;
-	unsigned char sizeLink;
-	unsigned char byte, count, try;
-	const unsigned char *count1;
-
+	unsigned int sizeLink;
+	unsigned char byte, count;
+	// const unsigned char *count1;
+	unsigned char temp[64];
+	/*
 	strcpy(netbuf, "GET ");
 	strcat(netbuf, fileLink);
 	strcat(netbuf, cmdlist1);
+	*/
+	sprintf(netbuf, "GET %s%s", fileLink, cmdlist1);
+
 	clearStatus();
 	AT(1, 24);
 	printf("%s", fileNamePtr);
@@ -429,36 +426,36 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 
 		todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), 10);
 		testOperation("OS_WIZNETWRITE", todo);
+
 		firstPacket = true;
+		putchar('\r');
 		do
 		{
 			headlng = 0;
-			todo = tcpRead(socket, 10);
+			todo = tcpRead(socket, 1);
 			testOperation("OS_WIZNETREAD", todo);
-			if (todo == 0)
-			{
-				break;
-			}
+			/*
+						if (todo == 0)
+						{
+							break;
+						}
+			*/
 			if (firstPacket)
 			{
-				todo = cutHeader(todo);
+				firstPacket = false;
+				headlng = cutHeader();
+				todo = todo - headlng;
 				fileSize1 = contLen / 1024;
 				saveBuf(fileNamePtr, 00, 0);
-				firstPacket = false;
-				counter = 0;
-			}
-			downloaded = downloaded + todo;
-			down = downloaded / 1024;
-			counter++;
-			if (counter % 10 == 0)
-			{
-				printf("%u of %u kb   \r", down, fileSize1);
 			}
 
+			downloaded = downloaded + todo;
+			down = downloaded / 1024;
+			sprintf(temp, "%5u of %5u kb", down, fileSize1);
+			printf("%s\r", temp);
 			saveBuf(fileNamePtr, 01, todo);
 		} while (downloaded < contLen);
 		netShutDown(socket, 0);
-		saveBuf(fileNamePtr, 02, 00);
 
 		if (downloaded != contLen)
 		{
@@ -469,20 +466,11 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 	{
 		strcpy(link, netbuf);
 		sizeLink = strlen(link);
-		try = 0;
 		do
 		{
-			try++;
-			if (try > 1)
-			{
-				// clearStatus();
-				// printf("----->Retry:%u", try);
-				delay(500);
-			}
 			sendcommand("AT+CIPSTART=\"TCP\",\"nedoos.ru\",80");
 			getAnswer2(); // CONNECT or ERROR or link is not valid
-			count1 = strstr(netbuf, "CONNECT");
-		} while (count1 == NULL);
+		} while (strstr(netbuf, "CONNECT") == NULL);
 
 		getAnswer2(); // OK
 
@@ -511,31 +499,28 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 		} while (count < strlen(sendOk));
 		uart_readBlock(); // CR
 		uart_readBlock(); // LF
+
 		firstPacket = true;
+		putchar('\r');
 		do
 		{
-			headlng = 0;
+		headlng = 0;
 			todo = recvHead();
 			getdataEsp(todo); // Requested size
 			if (firstPacket)
 			{
-				todo = cutHeader(todo);
+				firstPacket = false;
+				headlng = cutHeader();
+				todo = todo - headlng;
 				fileSize1 = contLen / 1024;
 				saveBuf(fileNamePtr, 00, 0);
-				firstPacket = false;
-				counter = 0;
 			}
 			downloaded = downloaded + todo;
 			down = downloaded / 1024;
-			counter++;
-			if (counter % 5 == 0)
-			{
-				printf("%u of %u kb    \r", down, fileSize1);
-			}
-
+			sprintf(temp, "%5u of %5u kb", down, fileSize1);
+			printf("%s\r", temp);
 			saveBuf(fileNamePtr, 01, todo);
 		} while (downloaded < contLen);
-		saveBuf(fileNamePtr, 02, 00);
 		sendcommand("AT+CIPCLOSE");
 		getAnswer2(); // CLOSED
 		getAnswer2(); // OK
