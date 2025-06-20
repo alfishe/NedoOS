@@ -26,7 +26,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "1.2";
+unsigned char uVer[] = "1.4";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -421,10 +421,10 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 		socket = OpenSock(AF_INET, SOCK_STREAM);
 		testOperation("OS_NETSOCKET", socket);
 
-		todo = netConnect(socket, 10);
+		todo = netConnect(socket, 1);
 		testOperation("OS_NETCONNECT", todo);
 
-		todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), 10);
+		todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), 1);
 		testOperation("OS_WIZNETWRITE", todo);
 
 		firstPacket = true;
@@ -451,7 +451,7 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 
 			downloaded = downloaded + todo;
 			down = downloaded / 1024;
-			sprintf(temp, "%5u of %5u kb", down, fileSize1);
+			sprintf(temp, " %5u of %5u kb", down, fileSize1);
 			printf("%s\r", temp);
 			saveBuf(fileNamePtr, 01, todo);
 		} while (downloaded < contLen);
@@ -504,7 +504,7 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 		putchar('\r');
 		do
 		{
-		headlng = 0;
+			headlng = 0;
 			todo = recvHead();
 			getdataEsp(todo); // Requested size
 			if (firstPacket)
@@ -517,7 +517,7 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 			}
 			downloaded = downloaded + todo;
 			down = downloaded / 1024;
-			sprintf(temp, "%5u of %5u kb", down, fileSize1);
+			sprintf(temp, " %5u of %5u kb", down, fileSize1);
 			printf("%s\r", temp);
 			saveBuf(fileNamePtr, 01, todo);
 		} while (downloaded < contLen);
@@ -570,14 +570,14 @@ void getTools(void)
 {
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	getFile(wizNetLink, "bin/wizcfg.com");
+	getFile(wizNetLink, "bin.new/wizcfg.com");
 	getFile(newsLink, "updater.new");
-	getFile(pkunzipLink, "bin/pkunzip.com");
-	getFile(tarLink, "bin/tar.com");
-	getFile(cmdLink, "bin/cmd.com");
-	getFile(termLink, "bin/term.com");
-	getFile(updLink, "bin/updater.com");
-	getFile(netIniLink, "bin/net.ini");
+	getFile(pkunzipLink, "bin.new/pkunzip.com");
+	getFile(tarLink, "bin.new/tar.com");
+	getFile(cmdLink, "bin.new/cmd.com");
+	getFile(termLink, "bin.new/term.com");
+	getFile(updLink, "bin.new/updater.com");
+	getFile(netIniLink, "bin.new/net.ini");
 }
 
 unsigned char ren2old(unsigned char *name)
@@ -680,7 +680,7 @@ void fullUpdate(void)
 	cw.x = 20;
 	cw.y = 5;
 	cw.w = 40;
-	cw.h = 7;
+	cw.h = 10;
 	cw.text = 97;
 	cw.back = 45;
 
@@ -693,59 +693,59 @@ void fullUpdate(void)
 	strcat(cw.tittle, uVer);
 	getConfig();
 
-	errn = OS_CHDIR("/");
-
 	strcat(cw.tittle, " (");
 	strcat(cw.tittle, config.machineName);
 	strcat(cw.tittle, ")");
 	drawWindow(cw);
 
+	OS_CHDIR("/");
 	OS_DELETE("release.zip");
+	OS_SHELL("time2 >updlog.txt");
 
 	clearStatus();
 	AT(cw.x + 2, cw.y + 3);
-	printf("1.Downloading release.zip...");
+	printf("1. Downloading release.zip.");
 	YIELD();
 	errn = getFile(relLink, "release.zip"); //  Downloading the file
 
-	clearStatus();
 	AT(cw.x + 2, cw.y + 4);
-	printf("2.Backuping old system...\r\n");
+	printf("2. Downloading pkunzip.com.");
+	YIELD();
+	getFile(pkunzipLink, "pkunzip.com");
+	getFile(cmdLink, "cmd.com");
+	getFile(newsLink, "updater.new");
+	clearStatus();
+	AT(cw.x + 2, cw.y + 5);
+	printf("3. Backuping old system.");
 	YIELD();
 	oldBinExt = ren2old("bin");
 	ren2old("doc");
 	ren2old("ini");
 	ren2old("nedodemo");
 	ren2old("nedogame");
-
-	AT(cw.x + 2, cw.y + 5);
-	printf("3.Downloading tools...\r\n");
-
-	OS_MKDIR("bin");
-	YIELD();
-	getTools();
-
 	BOX(1, 1, 80, 25, 40, 32);
 	AT(1, 1);
-	printf("Depacking release. Its take about 5 hours. Please wait.\r\n");
-
+	printf("4. Unpacking release.zip. Its take about 5 hours. Please wait.\r\n");
 	printNews();
 	YIELD();
-
+	OS_MKDIR("bin");
+	OS_RENAME("cmd.com", "bin/cmd.com");
 	OS_SHELL("pkunzip.com release.zip");
 
 	BOX(1, 1, 80, 25, 40, 176);
 	drawWindow(cw);
+	clearStatus();
 	AT(cw.x + 2, cw.y + 3);
-	printf("1.Downloading release.zip...");
+	printf("1. Downloading release.zip.");
 	AT(cw.x + 2, cw.y + 4);
-	printf("2.Backuping old system...\r\n");
+	printf("2. Downloading pkunzip.com.");
 	AT(cw.x + 2, cw.y + 5);
-	printf("3.Downloading tools...\r\n");
+	printf("3. Backuping old system.");
 	AT(cw.x + 2, cw.y + 6);
-	ATRIB(cw.text);
-	ATRIB(cw.back);
-	printf("Restoring configs...");
+	printf("4. Unpacking release.zip.");
+	AT(cw.x + 2, cw.y + 7);
+	printf("5. Restoring configs.");
+	YIELD();
 }
 
 unsigned char testConect(void)
@@ -779,7 +779,7 @@ void binUpdate(void)
 	cw.x = 20;
 	cw.y = 5;
 	cw.w = 40;
-	cw.h = 11;
+	cw.h = 13;
 	cw.text = 97;
 	cw.back = 44;
 
@@ -796,49 +796,36 @@ void binUpdate(void)
 	strcat(cw.tittle, ")");
 	drawWindow(cw);
 
-	OS_CHDIR("/");
 	clearStatus();
 	AT(cw.x + 2, cw.y + 10);
 	printf(">To full update start 'updater.com F'<");
+	YIELD();
 
-	// OS_SHELL("time2 >updlog.txt");
+	OS_CHDIR("/");
+	if (OS_MKDIR("bin.new") != 0)
+	{
+		fatalError("Please delete 'bin.new' and try again");
+	}
+
+	OS_SHELL("time2 >updlog.txt");
 
 	AT(cw.x + 2, cw.y + 3);
-	printf("1.Downloading bin.zip...");
+	printf("1. Downloading bin.zip.");
 	YIELD();
-	getFile(binLink, "bin/bin.zip"); //  Downloading the file
+	getFile(binLink, "bin.new/bin.zip"); //  Downloading the file
 
 	clearStatus();
 	AT(cw.x + 2, cw.y + 4);
-	ATRIB(cw.text);
-	ATRIB(cw.back);
-	printf("2.Backuping bin to bin.old...");
-	YIELD();
-	oldBinExt = ren2old("bin");
-	OS_MKDIR("bin");
-
-	clearStatus();
-	AT(cw.x + 2, cw.y + 5);
-	printf("3.Downloading tools...");
+	printf("2. Downloading tools.");
 	getTools();
-
-	if (oldBinExt != 255)
-	{
-		sprintf(nameBuf, "bin.%u/bin.zip", oldBinExt);
-	}
-	else
-	{
-		sprintf(nameBuf, "bin.old/bin.zip");
-	}
-	errn = OS_RENAME((void *)nameBuf, "bin/bin.zip");
 
 	BOX(1, 1, 80, 25, 40, 32);
 	AT(1, 1);
-	printf("Depacking release. Its take about 10 minutes. Please wait...\r\n");
+	printf("3. Unpacking bin.zip. Its take about 10 minutes. Please wait.\r\n");
 	printNews();
 	YIELD();
 
-	OS_CHDIR("bin");
+	OS_CHDIR("bin.new");
 	OS_SHELL("pkunzip.com bin.zip");
 
 	BOX(1, 1, 80, 25, 40, 176);
@@ -851,19 +838,32 @@ void binUpdate(void)
 	ATRIB(cw.text);
 	ATRIB(cw.back);
 	AT(cw.x + 2, cw.y + 3);
-	printf("2.Downloading bin.zip...");
+	puts("1. Downloading bin.zip.");
 	AT(cw.x + 2, cw.y + 4);
-	printf("1.Backuping bin to bin.old...");
+	puts("2. Downloading tools.");
 	AT(cw.x + 2, cw.y + 5);
-	printf("3.Downloading tools...");
+	puts("3. Unpacking bin.zip.");
 	AT(cw.x + 2, cw.y + 6);
-	printf("4.Downloading kernel [%s]...", config.machineName);
+	puts("4. Backuping bin to bin.old.");
+	YIELD();
+	clearStatus();
+	OS_CHDIR("/");
+	oldBinExt = ren2old("bin");
+	AT(cw.x + 2, cw.y + 7);
+	puts("5. Renaming bin.new to bin.");
+	YIELD();
+	clearStatus();
+	OS_RENAME("bin.new", "bin");
+	YIELD();
+	clearStatus();
+	AT(cw.x + 2, cw.y + 8);
+	printf("6. Downloading kernel [%s].", config.machineName);
 	errn = OS_CHDIR("/");
 	errn = getFile(config.kernelLink, config.kernelName); //  Downloading the file
-	AT(cw.x + 2, cw.y + 7);
+	AT(cw.x + 2, cw.y + 9);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("5.Restoring configs...");
+	printf("7. Restoring configs."); // in main loop
 }
 
 C_task main(int argc, const char *argv[])
@@ -951,11 +951,13 @@ C_task main(int argc, const char *argv[])
 	}
 	restoreConfig(oldBinExt);
 	OS_DELETE("bin/bin.zip");
+	OS_DELETE("pkunzip.com");
 	clearStatus();
 	infoBox("System Updated successfully!");
+
 	delay(2000);
-	// OS_SHELL("time2 >>updlog.txt");
-	//  getchar();
+	OS_SHELL("time2 >>updlog.txt");
+	//getchar();
 	//  OS_DELETE("release.zip");
 	ATRIB(40);
 	ATRIB(32);
