@@ -434,12 +434,7 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 			headlng = 0;
 			todo = tcpRead(socket, 1);
 			testOperation("OS_WIZNETREAD", todo);
-			/*
-						if (todo == 0)
-						{
-							break;
-						}
-			*/
+
 			if (firstPacket)
 			{
 				firstPacket = false;
