@@ -28,7 +28,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "1.4";
+unsigned char uVer[] = "1.5";
 unsigned char curPath[128];
 unsigned char cmd[128];
 unsigned int pageOffsets[128];
@@ -176,6 +176,40 @@ void delay(unsigned long counter)
 #include <../common/esp-com.c>
 #include <../common/network.c>
 //////////////////////////
+
+char readParamFromIni(void)
+{
+	FILE *fpini;
+	unsigned char *count1;
+	const char currentNetwork[] = "currentNetwork";
+	unsigned char curNet = 0;
+
+	OS_GETPATH((unsigned int)&curPath);
+	OS_SETSYSDRV();
+	OS_CHDIR("/");
+	OS_CHDIR("ini");
+
+	fpini = OS_OPENHANDLE("network.ini", 0x80);
+	if (((int)fpini) & 0xff)
+	{
+		clearStatus();
+		printf("network.ini not found.\r\n");
+		getchar();
+		return false;
+	}
+
+	OS_READHANDLE(netbuf, fpini, sizeof(netbuf) - 1);
+	OS_CLOSEHANDLE(fpini);
+
+	count1 = strstr(netbuf, currentNetwork);
+	if (count1 != NULL)
+	{
+		sscanf(count1 + strlen(currentNetwork) + 1, "%u", &curNet);
+	}
+
+	OS_CHDIR(curPath);
+	return curNet;
+}
 
 void clearNetbuf(void)
 {
@@ -449,6 +483,14 @@ void init(void)
 	get_dns();
 	loadNVext();
 	loadEspConfig();
+	
+	netDriver = readParamFromIni();
+	if (netDriver == 1)
+	{
+		uart_init(divider);
+		espReBoot();
+	}
+	
 	initMouse();
 	clock.oldMinutes = 255;
 }
