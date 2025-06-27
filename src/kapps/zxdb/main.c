@@ -31,7 +31,7 @@ unsigned char curHost;
 unsigned long contLen;
 unsigned int httpErr;
 
-unsigned char uVer[] = "0.2";
+unsigned char uVer[] = "0.3";
 unsigned char curPath[128];
 unsigned char cmd[256];
 unsigned char search[256];
@@ -70,6 +70,7 @@ struct linkStruct
 	unsigned char host[128];
 	unsigned char path[512];
 	unsigned int port;
+	unsigned char hasName;
 	unsigned char fname[256];
 } link;
 
@@ -290,6 +291,7 @@ void init(void)
 	targetadr.b4 = 0;
 	curHost = 0;
 	link.port = 80;
+	link.hasName = false;
 	limiter.curOpt = 1;
 	get_dns();
 	netDriver = readParamFromIni();
@@ -644,10 +646,12 @@ int cutHeader(void)
 			counter++;
 		}
 		link.fname[counter] = 0;
+		link.hasName = true;
 	}
 	else
 	{
 		strncpy(link.fname, table[limiter.curline].file, 57);
+		strcat(link.fname, ".");
 		strcat(link.fname, table[limiter.curline].ext);
 
 		counter = strlen(link.fname);
@@ -663,6 +667,7 @@ int cutHeader(void)
 				strcpy(link.fname, new_string);
 			}
 		}
+		link.hasName = false;
 	}
 
 	count1 = strstr(netbuf, "\r\n\r\n");
@@ -676,6 +681,31 @@ int cutHeader(void)
 		// printf("header %u bytes\r\n", ((unsigned int)count1 - (unsigned int)netbuf + 4));
 	}
 	return ((unsigned int)count1 - (unsigned int)netbuf + 4);
+}
+
+void downDialog(void)
+{
+	unsigned int nameLong;
+
+	mainWinDraw();
+
+	nameLong = strlen(link.fname);
+	if (nameLong < 21)
+	{
+		curWin.w = 23;
+	}
+	else
+	{
+		curWin.w = nameLong + 4;
+	}
+	curWin.x = 39 - curWin.w / 2;
+	curWin.y = 10;
+	curWin.h = 4;
+	curWin.text = 223;
+	curWin.back = 223;
+	simpleBox(curWin);
+	OS_SETXY(38 - nameLong / 2, curWin.y);
+	printf("[%s]", link.fname);
 }
 
 char getFileEsp(void)
@@ -745,48 +775,47 @@ char getFileEsp(void)
 		limiter.headLng = 0;
 		todo = recvHead();
 		getdataEsp(todo); // Requested size
+
 		if (firstPacket)
 		{
 			firstPacket = false;
 			limiter.headLng = cutHeader();
 			todo = todo - limiter.headLng;
 			fileSize1 = contLen / 1024;
-			curWin.w = 66;
-			curWin.x = 39 - curWin.w / 2;
-			curWin.y = 9;
-			curWin.h = 1;
-			curWin.text = 103;
-			curWin.back = 103;
 
-			strcpy(curWin.tittle, "Введите имя файла");
-			if (inputBox(curWin, link.fname))
+			if (!link.hasName)
 			{
-				strncpy(link.fname, cmd, 64);
-				strcat(link.fname, "\0");
-			}
+				curWin.w = 66;
+				curWin.x = 39 - curWin.w / 2;
+				curWin.y = 9;
+				curWin.h = 1;
+				curWin.text = 103;
+				curWin.back = 103;
 
+				strcpy(curWin.tittle, "Введите имя файла");
+				if (inputBox(curWin, link.fname))
+				{
+					strncpy(link.fname, cmd, 64);
+					strcat(link.fname, "\0");
+				}
+			}
 			if (httpErr != 200)
 			{
 				sendcommand("AT+CIPCLOSE");
 				getAnswer2(); // CLOSED
 				getAnswer2(); // OK
+				mainWinDraw();
 				return false;
 			}
-			curWin.x = 30;
-			curWin.y = 10;
-			curWin.w = 21;
-			curWin.h = 4;
-			curWin.text = 223;
-			curWin.back = 223;
-			simpleBox(curWin);
-			saveBuf(link.fname, 00, 0);	
+			downDialog();
+			saveBuf(link.fname, 00, 0);
 		}
 
 		downloaded = downloaded + todo;
 		down = downloaded / 1024;
-		OS_SETXY(31, 11);
 		OS_SETCOLOR(223);
-		sprintf(temp, "%4u  of %4u  kb", down, fileSize1);
+		sprintf(temp, "%4u  of %4u kb", down, fileSize1);
+		OS_SETXY(38 - strlen(temp) / 2, 11);
 		puts(temp);
 		saveBuf(link.fname, 01, todo);
 		drawClock();
@@ -794,6 +823,7 @@ char getFileEsp(void)
 	sendcommand("AT+CIPCLOSE");
 	getAnswer2(); // CLOSED
 	getAnswer2(); // OK
+	mainWinDraw();
 	return true;
 }
 
@@ -844,39 +874,37 @@ char getFileNet(void)
 			limiter.headLng = cutHeader();
 			todo = todo - limiter.headLng;
 			fileSize1 = contLen / 1024;
-			curWin.w = 66;
-			curWin.x = 39 - curWin.w / 2;
-			curWin.y = 9;
-			curWin.h = 1;
-			curWin.text = 103;
-			curWin.back = 103;
 
-			strcpy(curWin.tittle, "Введите имя файла");
-			if (inputBox(curWin, link.fname))
+			if (!link.hasName)
 			{
-				strncpy(link.fname, cmd, 64);
-				strcat(link.fname, "\0");
-			}
+				curWin.w = 66;
+				curWin.x = 39 - curWin.w / 2;
+				curWin.y = 9;
+				curWin.h = 1;
+				curWin.text = 103;
+				curWin.back = 103;
 
+				strcpy(curWin.tittle, "Введите имя файла");
+				if (inputBox(curWin, link.fname))
+				{
+					strncpy(link.fname, cmd, 64);
+					strcat(link.fname, "\0");
+				}
+			}
 			if (httpErr != 200)
 			{
 				netShutDown(socket, 0);
+				mainWinDraw();
 				return false;
 			}
-			curWin.x = 30;
-			curWin.y = 10;
-			curWin.w = 21;
-			curWin.h = 4;
-			curWin.text = 223;
-			curWin.back = 223;
-			simpleBox(curWin);
+			downDialog();
 			saveBuf(link.fname, 00, 0);
-			OS_SETCOLOR(223);
 		}
 		downloaded = downloaded + todo;
 		down = downloaded / 1024;
-		OS_SETXY(31, 11);
-		sprintf(temp, "%4u  of %4u  kb", down, fileSize1);
+		OS_SETCOLOR(223);
+		sprintf(temp, "%4u  of %4u kb", down, fileSize1);
+		OS_SETXY(38 - strlen(temp) / 2, 11);
 		puts(temp);
 		saveBuf(link.fname, 01, todo);
 		drawClock();
@@ -892,7 +920,7 @@ char getFileNet(void)
 		puts("File download error!");
 		waitKey();
 	}
-
+	mainWinDraw();
 	return true;
 }
 
@@ -1334,7 +1362,6 @@ char getKey(void)
 		if (limiter.total != 0)
 		{
 			getFile(limiter.curline);
-			
 		}
 		else
 		{
