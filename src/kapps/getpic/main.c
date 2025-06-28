@@ -4,7 +4,7 @@
 #include <oscalls.h>
 #include <osfs.h>
 #include <intrz80.h>
-//#include <graphic.h>
+// #include <graphic.h>
 #include <../common/terminal.c>
 #include <tcp.h>
 //
@@ -25,6 +25,7 @@ unsigned int espType = 32;
 
 unsigned char picture[15000];
 unsigned char netbuf[6912];
+unsigned char curPath[128];
 
 unsigned char minRating[] = "0000000000";
 struct fileStruct
@@ -59,7 +60,7 @@ struct sockaddr_in dnsaddress;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 
-unsigned char ver[] = "4.2";
+unsigned char ver[] = "4.3";
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
@@ -1116,6 +1117,40 @@ void safeKeys(unsigned char keypress)
   }
 }
 
+char readParamFromIni(void)
+{
+  FILE *fpini;
+  unsigned char *count1;
+  const char currentNetwork[] = "currentNetwork";
+  unsigned char curNet = 0;
+
+  OS_GETPATH((unsigned int)&curPath);
+  OS_SETSYSDRV();
+  OS_CHDIR("/");
+  OS_CHDIR("ini");
+
+  fpini = OS_OPENHANDLE("network.ini", 0x80);
+  if (((int)fpini) & 0xff)
+  {
+    clearStatus();
+    printf("network.ini not found.\r\n");
+    getchar();
+    return false;
+  }
+
+  OS_READHANDLE(netbuf, fpini, sizeof(netbuf) - 1);
+  OS_CLOSEHANDLE(fpini);
+
+  count1 = strstr(netbuf, currentNetwork);
+  if (count1 != NULL)
+  {
+    sscanf(count1 + strlen(currentNetwork) + 1, "%u", &curNet);
+  }
+
+  OS_CHDIR(curPath);
+  return curNet;
+}
+
 void init(void)
 {
   OS_SETSYSDRV();
@@ -1127,7 +1162,6 @@ void init(void)
   verbose = 1;
   randomPic = 0;
   slideShow = 0;
-  netDriver = 0;
   strcpy(minRating, "4.0");
 
   targetadr.family = AF_INET;
@@ -1137,6 +1171,22 @@ void init(void)
   targetadr.b2 = 146; // 92
   targetadr.b3 = 69;  // 45
   targetadr.b4 = 13;  // 0D
+
+  netDriver = readParamFromIni();
+
+  if (netDriver == 0)
+  {
+    get_dns();
+    clearStatus();
+    dnsResolve("zxart.ee");
+  }
+
+  if (netDriver == 1)
+  {
+    loadEspConfig();
+    uart_init(divider);
+    espReBoot();
+  }
 }
 
 unsigned char viewScreen6912c(unsigned int bufAdr)
@@ -1172,14 +1222,6 @@ C_task main(void)
 
   printHelp();
   safeKeys(keypress);
-
-  if (netDriver == 0)
-  {
-
-    get_dns();
-    dnsResolve("zxart.ee");
-    printf("\r\n");
-  }
 
 start:
   keypress = 0;
