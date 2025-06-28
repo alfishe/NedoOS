@@ -34,7 +34,7 @@ unsigned char userQuery[256] = "/api/export:zxMusic/limit:10/filter:zxMusicId=44
 unsigned char fileName[] = "radio/player.ovl";
 unsigned char appCmd[128] = "player.com ";
 unsigned char curPath[128];
-unsigned char ver[] = "3.6";
+unsigned char ver[] = "3.7";
 
 unsigned char queryType[64];
 unsigned char netbuf[4096];
@@ -532,7 +532,7 @@ const char *parseJson(unsigned char *property)
   unsigned int w, lng, lngp1, findEnd, listPos;
   unsigned char terminator;
   int n;
-  //n = -1;
+  // n = -1;
   netbuf[0] = 0;
   n = pos(dataBuffer, property, 1, 0);
   if (n == -1)
@@ -1337,6 +1337,40 @@ void refreshQueryNames(int queryNum)
   }
 }
 
+char readParamFromIni(void)
+{
+  FILE *fpini;
+  unsigned char *count1;
+  const char currentNetwork[] = "currentNetwork";
+  unsigned char curNet = 0;
+
+  OS_GETPATH((unsigned int)&curPath);
+  OS_SETSYSDRV();
+  OS_CHDIR("/");
+  OS_CHDIR("ini");
+
+  fpini = OS_OPENHANDLE("network.ini", 0x80);
+  if (((int)fpini) & 0xff)
+  {
+    clearStatus();
+    printf("network.ini not found.\r\n");
+    getchar();
+    return false;
+  }
+
+  OS_READHANDLE(netbuf, fpini, sizeof(netbuf) - 1);
+  OS_CLOSEHANDLE(fpini);
+
+  count1 = strstr(netbuf, currentNetwork);
+  if (count1 != NULL)
+  {
+    sscanf(count1 + strlen(currentNetwork) + 1, "%u", &curNet);
+  }
+
+  OS_CHDIR(curPath);
+  return curNet;
+}
+
 C_task main(int argc, const char *argv[])
 {
   unsigned char errn, keypress, pId;
@@ -1354,7 +1388,7 @@ C_task main(int argc, const char *argv[])
   curFormat = 0;
   changedFormat = 0;
   rptFlag = 0;
-  netDriver = 0;
+  netDriver;
   strcpy(minRating, "4.0");
 
   targetadr.family = AF_INET;
@@ -1364,6 +1398,8 @@ C_task main(int argc, const char *argv[])
   targetadr.b2 = 146; // 92
   targetadr.b3 = 69;  // 45
   targetadr.b4 = 13;  // 0D
+
+  netDriver = readParamFromIni();
 
   if (argc > 1)
   {
@@ -1382,12 +1418,6 @@ C_task main(int argc, const char *argv[])
   }
 
   strcpy(queryType, "from newest to oldest");
-  OS_CLS(0);
-  OS_SETCOLOR(71);
-  OS_SETCOLOR(95);
-  printf("                           ZXART.EE radio for %s                           ", interfaces[netDriver]);
-  OS_SETCOLOR(6);
-  printStatus();
 
   if (netDriver == 0)
   {
@@ -1395,6 +1425,21 @@ C_task main(int argc, const char *argv[])
     clearStatus();
     dnsResolve("zxart.ee");
   }
+
+  if (netDriver == 1)
+  {
+    loadEspConfig();
+    uart_init(divider);
+    espReBoot();
+  }
+
+  OS_CLS(0);
+  OS_SETCOLOR(71);
+  OS_SETCOLOR(95);
+  printf("                           ZXART.EE radio for %s                           ", interfaces[netDriver]);
+  OS_SETCOLOR(6);
+  printStatus();
+
 start:
   OS_SETSYSDRV();
   printHelp();
@@ -1426,7 +1471,7 @@ start:
     goto rekey;
   }
 
- idkfa = processJson(atol(curFileStruct.authorIds), 0, 99); // Query for AuthorID
+  idkfa = processJson(atol(curFileStruct.authorIds), 0, 99); // Query for AuthorID
 
   if (idkfa < 0)
   {
