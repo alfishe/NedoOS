@@ -34,7 +34,7 @@ unsigned char userQuery[256] = "/api/export:zxMusic/limit:10/filter:zxMusicId=44
 unsigned char fileName[] = "radio/player.ovl";
 unsigned char appCmd[128] = "player.com ";
 unsigned char curPath[128];
-unsigned char ver[] = "3.7";
+unsigned char ver[] = "3.8";
 
 unsigned char queryType[64];
 unsigned char netbuf[4096];
@@ -668,13 +668,12 @@ void stringRepair(unsigned char *pfn, unsigned int tSize)
   str_replace(pfn, tSize, pfn, "&quot;", "\"");
   str_replace(pfn, tSize, pfn, "\\/", "/");
 }
-
 void ncReplace(void)
 {
   unsigned char len;
   for (len = 0; len < strlen(curFileStruct.afn); len++)
   {
-    if (curFileStruct.afn[len] < ' ')
+    if ((curFileStruct.afn[len] < ' ') || (curFileStruct.afn[len] > 0xf1) || (curFileStruct.afn[len] > 0xb0 && curFileStruct.afn[len] < 0xdf))
     {
       curFileStruct.afn[len] = '_';
     }
@@ -682,7 +681,7 @@ void ncReplace(void)
 
   for (len = 0; len < strlen(curFileStruct.tfn); len++)
   {
-    if (curFileStruct.tfn[len] < ' ')
+    if ((curFileStruct.tfn[len] < ' ') || (curFileStruct.tfn[len] > 0xef) || (curFileStruct.tfn[len] > 0xb0 && curFileStruct.tfn[len] < 0xdf))
     {
       curFileStruct.tfn[len] = '_';
     }
@@ -1388,7 +1387,6 @@ C_task main(int argc, const char *argv[])
   curFormat = 0;
   changedFormat = 0;
   rptFlag = 0;
-  netDriver;
   strcpy(minRating, "4.0");
 
   targetadr.family = AF_INET;
