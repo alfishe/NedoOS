@@ -60,7 +60,7 @@ struct sockaddr_in dnsaddress;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 
-unsigned char ver[] = "4.3";
+unsigned char ver[] = "4.4";
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
@@ -478,7 +478,7 @@ void ncReplace(void)
   unsigned char len;
   for (len = 0; len < strlen(curFileStruct.afn); len++)
   {
-    if ((curFileStruct.afn[len] < ' ') || (curFileStruct.afn[len] > 0xef) || (curFileStruct.afn[len] > 0x7e && curFileStruct.afn[len] < 0xb0))
+    if ((curFileStruct.afn[len] < ' ') || (curFileStruct.afn[len] > 0xf1) || (curFileStruct.afn[len] > 0xb0 && curFileStruct.afn[len] < 0xdf))
     {
       curFileStruct.afn[len] = '_';
     }
@@ -486,7 +486,7 @@ void ncReplace(void)
 
   for (len = 0; len < strlen(curFileStruct.pfn); len++)
   {
-    if ((curFileStruct.pfn[len] < ' ') || (curFileStruct.pfn[len] > 0xef) || (curFileStruct.pfn[len] > 0x7e && curFileStruct.pfn[len] < 0xb0))
+    if ((curFileStruct.pfn[len] < ' ') || (curFileStruct.pfn[len] > 0xef) || (curFileStruct.pfn[len] > 0xb0 && curFileStruct.pfn[len] < 0xdf))
     {
       curFileStruct.pfn[len] = '_';
     }
@@ -506,6 +506,7 @@ unsigned char savePic(unsigned long fileId)
 
   strcpy(curFileStruct.pfn, curFileStruct.picName);
   nameRepair(curFileStruct.pfn, tfnSize);
+
   ncReplace();
 
   sprintf(curFileStruct.fileName, "%s-%s-%ld.scr", curFileStruct.afn, curFileStruct.pfn, fileId);
@@ -769,7 +770,7 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     parseJson("\"authorIds\":[");
     strcpy(curFileStruct.authorIds, netbuf);
     break;
-  case 99:
+  case 99:  //Author info
     parseJson(",\"title\":\"");
     convert866();
     strcpy(curFileStruct.authorTitle, netbuf);
@@ -1186,6 +1187,7 @@ void init(void)
     loadEspConfig();
     uart_init(divider);
     espReBoot();
+    OS_CLS(0);
   }
 }
 
