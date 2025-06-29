@@ -28,9 +28,9 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "1.5";
+unsigned char uVer[] = "1.6";
 unsigned char curPath[128];
-unsigned char cmd[128];
+unsigned char cmd[512];
 unsigned int pageOffsets[128];
 unsigned long volumeOffsets[16];
 unsigned char crlf[2] = {13, 10};
@@ -338,6 +338,7 @@ unsigned char OS_SHELL(const char *command)
 	FILE *fp3;
 	main_pg.l = OS_GETMAINPAGES();
 	pgbak = main_pg.pgs.window_3;
+
 	OS_GETPATH((unsigned int)&curPath);
 	OS_SETSYSDRV();
 	strcat(appCmd, command);
@@ -346,12 +347,8 @@ unsigned char OS_SHELL(const char *command)
 	if (((int)fp3) & 0xff)
 	{
 		clearStatus();
-		printf("%s", fileName);
-		printf(" not found.");
-		do
-		{
-			YIELD();
-		} while (_low_level_get() == 0);
+		printf("%s not found.", fileName);
+		waitKey();
 		exit(0);
 	}
 
@@ -392,14 +389,14 @@ char loadPageFromDisk(unsigned char *filepath, unsigned int volume)
 		printf("%s opening error. ", filepath);
 		return false;
 	}
-
 	OS_SEEKHANDLE(fp1, volumeOffsets[volume]);
+
 	do
 	{
 		if ((sizeof(netbuf) - loaded) < 513)
 		{
-			// clearStatus();
-			// printf("Файл слишком большой, будет загружаться частями (%ld kb)...", link.size / 1024);
+			clearStatus();
+			printf("Файл слишком большой, будет загружаться частями (%ld kb)...", link.size / 1024);
 			break;
 		}
 
@@ -408,6 +405,7 @@ char loadPageFromDisk(unsigned char *filepath, unsigned int volume)
 
 	} while (todo != 0 && errno == 0);
 	OS_CLOSEHANDLE(fp1);
+
 	netbuf[loaded + 1] = 0;
 
 	if (todo == 0 && errno == 0)
@@ -416,13 +414,14 @@ char loadPageFromDisk(unsigned char *filepath, unsigned int volume)
 	}
 	volumeOffsets[volume + 1] = volumeOffsets[volume] + loaded;
 
+	/*
 	clean = loaded + 128;
 	do
 	{
 		netbuf[loaded] = 0;
 		loaded++;
 	} while (loaded < clean);
-
+*/
 	return true;
 }
 
@@ -483,14 +482,14 @@ void init(void)
 	get_dns();
 	loadNVext();
 	loadEspConfig();
-	
+
 	netDriver = readParamFromIni();
 	if (netDriver == 1)
 	{
 		uart_init(divider);
 		espReBoot();
 	}
-	
+
 	initMouse();
 	clock.oldMinutes = 255;
 }
@@ -559,6 +558,10 @@ void renderType(unsigned char linkType)
 		break;
 	case 's': // sound
 		putchar(14);
+		putchar(' ');
+		break;
+	case 'h': // html
+		putchar('H');
 		putchar(' ');
 		break;
 	default:
@@ -1003,7 +1006,6 @@ void errNoConnect(void)
 char getFileEsp(unsigned char *fileNamePtr)
 {
 	int todo;
-	const unsigned char *count1;
 	unsigned char byte;
 	unsigned long downloaded = 0;
 	unsigned int count;
@@ -1023,12 +1025,19 @@ char getFileEsp(unsigned char *fileNamePtr)
 	do
 	{
 		getAnswer2(); // CONNECT or ERROR or link is not valid
-		count1 = strstr(netbuf, "CONNECT");
-		if (strstr(netbuf, "ERROR") != NULL)
+
+		if (strstr(netbuf, "CONNECT") != NULL)
 		{
-			return false;
+			break;
 		}
-	} while (count1 == NULL);
+		else
+		{
+			if (strstr(netbuf, "ERROR") != NULL)
+			{
+				return false;
+			}
+		}
+	} while (42); // Try until endo of the days recieve CONNECT or ERROR
 
 	getAnswer2(); // OK
 
@@ -1134,7 +1143,7 @@ char getFileNet(unsigned char *fileNamePtr)
 		}
 
 		downloaded = downloaded + todo;
-		printf("%lu kb   \r", downloaded / 1024);
+		printf("%lu kb    \r", downloaded / 1024);
 		saveBuf(fileNamePtr, 01, todo);
 	} while (42);
 	clearStatus();
@@ -1378,7 +1387,7 @@ unsigned char mediaProcessorExt(void)
 	curPosition = 0;
 	do
 	{
-		//n = -1;
+		// n = -1;
 		n = pos(nvext, extLow, next, curPosition);
 		curPosition = n;
 		if (n == -1)
@@ -1440,6 +1449,7 @@ unsigned char mediaProcessorExt(void)
 
 void doLink(char backSpace)
 {
+	unsigned char *count1;
 	if (strcmp(link.host, "HOMEPAGE") == 0)
 	{
 		goHome(backSpace);
@@ -1560,6 +1570,26 @@ void doLink(char backSpace)
 			errNoConnect();
 		}
 		return;
+	case 'h': // html
+		clearStatus();
+
+		count1 = strstr(link.path, "http");
+		if (count1 == NULL)
+		{
+			count1 = strstr(link.path, "HTTP");
+			if (count1 == NULL)
+			{
+				clearStatus();
+				printf("Не удалось получить ссылку [%s]", link.path);
+				link.type = link.nexType;
+				return;
+			}
+		}
+		sprintf(cmd, "browser.com %s", count1);
+		OS_SHELL(cmd);
+		OS_SETSYSDRV();
+		link.type = '1';
+		break;
 	default:
 		clearStatus();
 		printf("Неизвестный селектор:[%u]lineselect[%u]linelast[%u]", link.type, navi.lineSelect, navi.lastLine);
@@ -1989,7 +2019,7 @@ unsigned char getMouse(void)
 	return mouseButtons >> 8;
 }
 
-C_task main(int argc, char *argv[])
+C_task main(int argc, const char *argv[])
 {
 	unsigned char keypress;
 	OS_HIDEFROMPARENT();
