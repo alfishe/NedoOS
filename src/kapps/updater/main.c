@@ -26,7 +26,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "1.4";
+unsigned char uVer[] = "1.5";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -446,7 +446,7 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 
 			downloaded = downloaded + todo;
 			down = downloaded / 1024;
-			sprintf(temp, " %5u of %5u kb", down, fileSize1);
+			sprintf(temp, " %5u of %5u kb     ", down, fileSize1);
 			printf("%s\r", temp);
 			saveBuf(fileNamePtr, 01, todo);
 		} while (downloaded < contLen);
@@ -501,7 +501,11 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 		{
 			headlng = 0;
 			todo = recvHead();
-			getdataEsp(todo); // Requested size
+			if (!getdataEsp(todo))
+			{
+				fatalError("[getdataEsp]Downloading timeout. Exit!");
+			}
+
 			if (firstPacket)
 			{
 				firstPacket = false;
@@ -512,7 +516,7 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 			}
 			downloaded = downloaded + todo;
 			down = downloaded / 1024;
-			sprintf(temp, " %5u of %5u kb", down, fileSize1);
+			sprintf(temp, " %5u of %5u kb     ", down, fileSize1);
 			printf("%s\r", temp);
 			saveBuf(fileNamePtr, 01, todo);
 		} while (downloaded < contLen);
@@ -702,7 +706,7 @@ void fullUpdate(void)
 	printf("1. Downloading release.zip.");
 	YIELD();
 	errn = getFile(relLink, "release.zip"); //  Downloading the file
-
+	OS_SHELL("time2 >>updlog.txt");
 	AT(cw.x + 2, cw.y + 4);
 	printf("2. Downloading pkunzip.com.");
 	YIELD();
@@ -797,6 +801,7 @@ void binUpdate(void)
 	YIELD();
 
 	OS_CHDIR("/");
+	OS_DELETE("bin.new");
 	if (OS_MKDIR("bin.new") != 0)
 	{
 		fatalError("Please delete 'bin.new' and try again");
@@ -808,7 +813,7 @@ void binUpdate(void)
 	printf("1. Downloading bin.zip.");
 	YIELD();
 	getFile(binLink, "bin.new/bin.zip"); //  Downloading the file
-
+	OS_SHELL("time2 >>updlog.txt");
 	clearStatus();
 	AT(cw.x + 2, cw.y + 4);
 	printf("2. Downloading tools.");
@@ -952,8 +957,8 @@ C_task main(int argc, const char *argv[])
 
 	delay(2000);
 	OS_SHELL("time2 >>updlog.txt");
-	//getchar();
-	//  OS_DELETE("release.zip");
+	// getchar();
+	//   OS_DELETE("release.zip");
 	ATRIB(40);
 	ATRIB(32);
 	AT(1, 25);

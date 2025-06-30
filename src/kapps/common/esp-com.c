@@ -274,29 +274,40 @@ void uart_flush(void)
 	uart_setrts(0);
 }
 
-void getdataEsp(unsigned int counted)
+char getdataEsp(unsigned int counted)
 {
-	unsigned int counter;
+	unsigned int counter, retry = 20000;
+	char status;
 	switch (comType)
 	{
 	case 0: // Kondratyev  NO AFC
 		for (counter = 0; counter < counted; counter++)
 		{
-			while ((1 & input(LSR)) == 0)
+			do
 			{
+				if (retry-- == 0)
+				{
+					return false;
+				}
 				disable_interrupt();
+				status = 1 & input(LSR);
 				output(MCR, 2);
 				output(MCR, 0);
 				enable_interrupt();
-			}
+
+			} while (!status);
 			netbuf[counter] = input(RBR_THR);
 		}
-		return;
+		break;
 	case 1: // ATM2 COM port
 		for (counter = 0; counter < counted; counter++)
 		{
 			while (uart_hasByte() == 0)
 			{
+				if (retry-- == 0)
+				{
+					return false;
+				}
 				disable_interrupt();
 				input(0x55fe); // Переход в режим команд
 				input(0x43fe); // Команда установить статус
@@ -311,22 +322,30 @@ void getdataEsp(unsigned int counted)
 			netbuf[counter] = input(0x02fe); // Команда прочесть из порта
 			enable_interrupt();
 		}
-		return;
+		break;
 	case 2: // Kondratyev AFC
 		for (counter = 0; counter < counted; counter++)
 		{
 			while ((1 & input(LSR)) == 0)
 			{
+				if (retry-- == 0)
+				{
+					return false;
+				}
 			}
 			netbuf[counter] = input(RBR_THR);
 		}
-		return;
+		break;
 	case 3: // ATM2IOESP
 		for (counter = 0; counter < counted; counter++)
 		{
 			disable_interrupt();
 			do
 			{
+				if (retry-- == 0)
+				{
+					return false;
+				}
 				output(0xfb, LSR);
 				if ((1 & input(0xfa)) != 0)
 				{
@@ -340,8 +359,9 @@ void getdataEsp(unsigned int counted)
 			netbuf[counter] = input(0xfa);
 			enable_interrupt();
 		}
-		return;
+		break;
 	}
+	return true;
 }
 
 void sendcommand(const char *commandline)
