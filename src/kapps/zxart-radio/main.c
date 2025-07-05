@@ -34,7 +34,7 @@ unsigned char userQuery[256] = "/api/export:zxMusic/limit:10/filter:zxMusicId=44
 unsigned char fileName[] = "radio/player.ovl";
 unsigned char appCmd[128] = "player.com ";
 unsigned char curPath[128];
-unsigned char ver[] = "3.8";
+unsigned char ver[] = "3.9";
 
 unsigned char queryType[64];
 unsigned char netbuf[4096];
@@ -128,6 +128,30 @@ void delay(unsigned long counter)
   {
     start = time();
   }
+}
+
+unsigned char delayLongKey(unsigned long counter)
+{
+  unsigned long start, finish, key;
+  counter = counter / 20;
+  if (counter < 1)
+  {
+    counter = 1;
+  }
+  start = time();
+  finish = start + counter;
+
+  while (start < finish)
+  {
+    start = time();
+    key = OS_GETKEY();
+    if (key != 0)
+    {
+      return key;
+    }
+    YIELD();
+  }
+  return 0;
 }
 
 void spaces(unsigned char number)
@@ -764,7 +788,7 @@ unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned in
   return 0;
 }
 
-char getDataNet(void)
+char getFileNet(void)
 {
   unsigned int todo, downloaded;
   unsigned char socket, firstPacket;
@@ -815,7 +839,7 @@ char getDataNet(void)
   return true;
 }
 
-unsigned int getDataEsp(void)
+unsigned int getFileEsp(void)
 {
   unsigned char firstPacket;
   unsigned long downloaded;
@@ -863,7 +887,15 @@ unsigned int getDataEsp(void)
   {
     headlng = 0;
     todo = recvHead();
-    getdataEsp(todo); // Requested size
+
+    if (!getdataEsp(todo))
+    {
+      OS_CLS(0);
+      puts("[getdataEsp]Downloading timeout. Exit!");
+      delayLongKey(5000);
+      exit(0);
+    }
+
     if (firstPacket)
     {
       todo = cutHeader(todo);
@@ -929,10 +961,10 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   switch (netDriver)
   {
   case 0:
-    result = getDataNet();
+    result = getFileNet();
     break;
   case 1:
-    result = getDataEsp();
+    result = getFileEsp();
     break;
   }
 

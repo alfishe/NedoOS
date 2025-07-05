@@ -270,7 +270,7 @@ unsigned char uart_readBlock(void)
 void uart_flush(void)
 {
 	uart_setrts(1);
-	delay(500);
+	delay(200);
 	uart_setrts(0);
 }
 
