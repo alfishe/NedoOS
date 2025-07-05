@@ -60,7 +60,7 @@ struct sockaddr_in dnsaddress;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 
-unsigned char ver[] = "4.4";
+unsigned char ver[] = "4.5";
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
@@ -353,7 +353,15 @@ char fillPictureEsp(void)
   {
     headlng = 0;
     todo = recvHead();
-    getdataEsp(todo); // Requested size
+
+    if (!getdataEsp(todo))
+    {
+      OS_CLS(0);
+      puts("[getdataEsp]Downloading timeout. Exit!");
+      delayLongKey(5000);
+      exit(0);
+    }
+
     if (firstPacket)
     {
       todo = cutHeader(todo);
@@ -770,7 +778,7 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     parseJson("\"authorIds\":[");
     strcpy(curFileStruct.authorIds, netbuf);
     break;
-  case 99:  //Author info
+  case 99: // Author info
     parseJson(",\"title\":\"");
     convert866();
     strcpy(curFileStruct.authorTitle, netbuf);
