@@ -80,7 +80,7 @@ const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char cmd[512];
 unsigned char link[512];
-unsigned char dataBuffer[4096];
+//unsigned char dataBuffer[4096];
 
 void clearStatus(void)
 {
@@ -120,6 +120,31 @@ void delay(unsigned long counter)
 		start = time();
 	}
 }
+
+unsigned char delayLongKey(unsigned long counter)
+{
+  unsigned long start, finish, key;
+  counter = counter / 20;
+  if (counter < 1)
+  {
+    counter = 1;
+  }
+  start = time();
+  finish = start + counter;
+
+  while (start < finish)
+  {
+    start = time();
+    key = OS_GETKEY();
+    if (key != 0)
+    {
+      return key;
+    }
+    YIELD();
+  }
+  return 0;
+}
+
 void printNews(void) // max 20 lines in total and 59 col.
 {
 	FILE *fpNews;
@@ -501,6 +526,7 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 		{
 			headlng = 0;
 			todo = recvHead();
+
 			if (!getdataEsp(todo))
 			{
 				fatalError("[getdataEsp]Downloading timeout. Exit!");
@@ -866,6 +892,40 @@ void binUpdate(void)
 	printf("7. Restoring configs."); // in main loop
 }
 
+char readParamFromIni(void)
+{
+	FILE *fpini;
+	unsigned char *count1;
+	const char currentNetwork[] = "currentNetwork";
+	unsigned char curNet = 0;
+
+	OS_GETPATH((unsigned int)&curPath);
+	OS_SETSYSDRV();
+	OS_CHDIR("/");
+	OS_CHDIR("ini");
+
+	fpini = OS_OPENHANDLE("network.ini", 0x80);
+	if (((int)fpini) & 0xff)
+	{
+		clearStatus();
+		printf("network.ini not found.\r\n");
+		getchar();
+		return false;
+	}
+
+	OS_READHANDLE(netbuf, fpini, sizeof(netbuf) - 1);
+	OS_CLOSEHANDLE(fpini);
+
+	count1 = strstr(netbuf, currentNetwork);
+	if (count1 != NULL)
+	{
+		sscanf(count1 + strlen(currentNetwork) + 1, "%u", &curNet);
+	}
+
+	OS_CHDIR(curPath);
+	return curNet;
+}
+
 C_task main(int argc, const char *argv[])
 {
 	unsigned char test;
@@ -878,6 +938,8 @@ C_task main(int argc, const char *argv[])
 	targetadr.b2 = 31;
 	targetadr.b3 = 65;
 	targetadr.b4 = 35;
+
+	netDriver = readParamFromIni();
 
 	clearStatus();
 
@@ -931,32 +993,38 @@ C_task main(int argc, const char *argv[])
 			//  printNews();
 			// getchar();
 			fatalError("Use 'F' key to FULL update");
-			exit(0);
 		}
 	}
 	else
 	{
-		netDriver = 0;
-		get_dns();
-		test = dnsResolve("nedoos.ru");
-		if (test)
-		{
-			binUpdate();
-		}
-	}
 
-	if (!test)
-	{
-		fatalError("Check connection to the server!");
+		if (netDriver == 0)
+		{
+			get_dns();
+			if (dnsResolve("nedoos.ru"))
+			{
+				binUpdate();
+			}
+			else
+			{
+				fatalError("Check connection to the nedoos.ru server!");
+			}
+		}
+
+		if (netDriver == 1)
+		{
+			loadEspConfig();
+			uart_init(divider);
+			espReBoot();
+		}
 	}
 	restoreConfig(oldBinExt);
 	OS_DELETE("bin/bin.zip");
 	OS_DELETE("pkunzip.com");
 	clearStatus();
 	infoBox("System Updated successfully!");
-
-	delay(2000);
 	OS_SHELL("time2 >>updlog.txt");
+	delayLongKey(5000);
 	// getchar();
 	//   OS_DELETE("release.zip");
 	ATRIB(40);
