@@ -26,7 +26,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "1.5";
+unsigned char uVer[] = "1.6";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -80,7 +80,6 @@ const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char cmd[512];
 unsigned char link[512];
-//unsigned char dataBuffer[4096];
 
 void clearStatus(void)
 {
@@ -123,26 +122,26 @@ void delay(unsigned long counter)
 
 unsigned char delayLongKey(unsigned long counter)
 {
-  unsigned long start, finish, key;
-  counter = counter / 20;
-  if (counter < 1)
-  {
-    counter = 1;
-  }
-  start = time();
-  finish = start + counter;
+	unsigned long start, finish, key;
+	counter = counter / 20;
+	if (counter < 1)
+	{
+		counter = 1;
+	}
+	start = time();
+	finish = start + counter;
 
-  while (start < finish)
-  {
-    start = time();
-    key = OS_GETKEY();
-    if (key != 0)
-    {
-      return key;
-    }
-    YIELD();
-  }
-  return 0;
+	while (start < finish)
+	{
+		start = time();
+		key = OS_GETKEY();
+		if (key != 0)
+		{
+			return key;
+		}
+		YIELD();
+	}
+	return 0;
 }
 
 void printNews(void) // max 20 lines in total and 59 col.
@@ -940,9 +939,9 @@ C_task main(int argc, const char *argv[])
 	targetadr.b4 = 35;
 
 	netDriver = readParamFromIni();
-
 	clearStatus();
-
+	//puts("network.ini loaded.");
+	//YIELD();
 	OS_GETPATH((unsigned int)&curPath);
 	curLetter = curPath[0];
 
@@ -1016,6 +1015,7 @@ C_task main(int argc, const char *argv[])
 			loadEspConfig();
 			uart_init(divider);
 			espReBoot();
+			binUpdate();
 		}
 	}
 	restoreConfig(oldBinExt);
