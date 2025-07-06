@@ -31,7 +31,7 @@ unsigned char curHost;
 unsigned long contLen;
 unsigned int httpErr;
 
-unsigned char uVer[] = "0.3";
+unsigned char uVer[] = "0.4";
 unsigned char curPath[128];
 unsigned char cmd[256];
 unsigned char search[256];
@@ -93,6 +93,7 @@ struct limit
 	int curline;
 	int curOpt;
 	int headLng;
+	int curPage;
 } limiter;
 
 void spaces(unsigned char number)
@@ -246,6 +247,13 @@ void drawClock(void)
 	}
 }
 
+void drawPage(void)
+{
+	OS_SETCOLOR(103);
+	OS_SETXY(64, 0);
+	printf("[Page:%2d]", limiter.curPage);
+}
+
 char readParamFromIni(void)
 {
 	FILE *fpini;
@@ -293,6 +301,7 @@ void init(void)
 	link.port = 80;
 	link.hasName = false;
 	limiter.curOpt = 1;
+	limiter.curPage = 0;
 	get_dns();
 	netDriver = readParamFromIni();
 	if (netDriver == 1)
@@ -434,6 +443,11 @@ unsigned char inputBox(struct window w, const char *prefilled)
 	do
 	{
 		byte = OS_GETKEY();
+		/*
+		clearStatus();
+		OS_SETCOLOR(103);
+		printf("key = %u", byte);
+		*/
 		if (byte != 0)
 		{
 			switch (byte)
@@ -475,6 +489,7 @@ unsigned char inputBox(struct window w, const char *prefilled)
 			case 27:
 				cmd[0] = 0;
 				return false;
+
 			default:
 				if (counter < w.w - 1)
 				{
@@ -498,7 +513,20 @@ unsigned char inputBox(struct window w, const char *prefilled)
 	return false;
 }
 
-void mainWinDraw(void)
+void sendReqdialog(void)
+{
+	curWin.w = 50;
+	curWin.x = 39 - curWin.w / 2;
+	curWin.y = 10;
+	curWin.h = 4;
+	curWin.text = 223;
+	curWin.back = 223;
+	simpleBox(curWin);
+	OS_SETXY(30, curWin.y + 1);
+	printf("Sending request...");
+}
+
+void tittleDraw(void)
 {
 	clock.oldMinutes = 255;
 	OS_SETCOLOR(103);
@@ -512,23 +540,41 @@ void mainWinDraw(void)
 	printf("%s", link.host);
 	OS_SETCOLOR(103);
 	printf("]");
+	drawPage();
 	drawClock();
+}
+void drawSearch(void)
+{
+	OS_SETCOLOR(207);
+	OS_SETXY(38 - strlen(search) / 2, 1);
+	putchar('[');
+	OS_SETCOLOR(71);
+	printf("%s", search);
+	OS_SETCOLOR(curWin.text);
+	OS_SETCOLOR(207);
+	putchar(']');
+}
+
+void mainWinDraw(void)
+{
+	tittleDraw();
 	OS_SETXY(0, 23);
 	OS_SETCOLOR(71);
 	printf("[");
 	OS_SETCOLOR(87);
 	printf("H");
 	OS_SETCOLOR(71);
-	printf("]change host   [");
+	printf("]change host       [");
 	OS_SETCOLOR(87);
 	printf("S");
 
 	OS_SETCOLOR(71);
-	printf("]Search item   [");
+	printf("]Search item        [");
 	OS_SETCOLOR(87);
 	printf("ENTER");
 	OS_SETCOLOR(71);
-	printf("]Download item   [");
+	printf("]Download item       [");
+	OS_SETCOLOR(87);
 	printf("ESC");
 	OS_SETCOLOR(71);
 	printf("]Exit   ");
@@ -540,12 +586,7 @@ void mainWinDraw(void)
 	curWin.text = 207;
 	curWin.back = 207;
 	simpleBox(curWin);
-	OS_SETXY(38 - strlen(search) / 2, 1);
-	putchar('[');
-	OS_SETCOLOR(71);
-	printf("%s", search);
-	OS_SETCOLOR(curWin.text);
-	putchar(']');
+	drawSearch();
 	clearStatus();
 }
 
@@ -808,6 +849,7 @@ char getFileEsp(void)
 				return false;
 			}
 			downDialog();
+			OS_DELETE(link.fname);
 			saveBuf(link.fname, 00, 0);
 		}
 
@@ -1121,6 +1163,9 @@ char makeRequest(const char *request)
 	char result;
 	unsigned int counter, len;
 	char tempreq[256];
+
+	sendReqdialog();
+
 	strcpy(tempreq, request);
 	len = strlen(tempreq);
 	for (counter = 0; counter < len; counter++)
@@ -1130,7 +1175,7 @@ char makeRequest(const char *request)
 			tempreq[counter] = '*';
 		}
 	}
-	sprintf(link.path, "GET /?s=%s%s%s%s", tempreq, userAgent1, link.host, userAgent2);
+	sprintf(link.path, "GET /?s=%s&p=%d%s%s%s", tempreq, limiter.curPage, userAgent1, link.host, userAgent2);
 
 	switch (netDriver)
 	{
@@ -1252,6 +1297,16 @@ void renderResult(char currentLine)
 		printf("%s ", table[counter].file);
 		line++;
 	}
+	OS_SETCOLOR(206);
+	for (counter = limiter.total; counter < 10; counter++)
+	{
+		OS_SETXY(2, line);
+		spaces(76);
+		line++;
+		OS_SETXY(2, line);
+		spaces(76);
+		line++;
+	}
 }
 
 char getKey(void)
@@ -1283,6 +1338,8 @@ char getKey(void)
 		if (inputBox(curWin, ""))
 		{
 			strcpy(search, cmd);
+			limiter.curPage = 0;
+			drawSearch();
 		}
 		else
 		{
@@ -1294,10 +1351,10 @@ char getKey(void)
 			limiter.curline = 0;
 			break;
 		}
-		mainWinDraw();
 
 		if (makeRequest(search) < 2)
 		{
+			mainWinDraw();
 			OS_SETXY(32, 11);
 			OS_SETCOLOR(206);
 			puts("No results found");
@@ -1356,6 +1413,46 @@ char getKey(void)
 			{
 				limiter.curline++;
 			}
+		}
+		break;
+	case 248: // left
+	case 'o':
+
+		if (limiter.curPage != 0 && limiter.total != 0)
+		{
+			limiter.curPage--;
+			mainWinDraw();
+			if (makeRequest(search) < 2)
+			{
+				OS_SETXY(32, 11);
+				OS_SETCOLOR(206);
+				puts("No results found");
+				limiter.total = 0;
+				limiter.curline = 0;
+				break;
+			}
+			// OS_SETXY(1, 2);
+			// OS_SETCOLOR(206);
+			fillTable();
+			limiter.curline = 0;
+		}
+		break;
+	case 251: // right
+	case 'p':
+		if (limiter.total != 0)
+		{
+			limiter.curPage++;
+			mainWinDraw();
+			if (makeRequest(search) < 2)
+			{
+				limiter.curPage--;
+				drawPage();
+				makeRequest(search);
+			}
+			// OS_SETXY(1, 2);
+			// OS_SETCOLOR(206);
+			fillTable();
+			limiter.curline = 0;
 		}
 		break;
 	case 13:
