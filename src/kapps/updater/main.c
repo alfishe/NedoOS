@@ -12,6 +12,7 @@
 //
 #define true 1
 #define false 0
+FILE *fp2; // must be global if savebuf may not to close file.
 
 unsigned int RBR_THR = 0xf8ef;
 unsigned int IER = 0xf9ef;
@@ -26,7 +27,7 @@ unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "1.6";
+unsigned char uVer[] = "1.7";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -341,44 +342,46 @@ unsigned char OS_SHELL(const unsigned char *command)
 
 unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsigned int sizeOfBuf)
 {
-	FILE *fp2;
-
-	switch (operation)
+	if (operation == 00)
 	{
-	case 00:
 		fp2 = OS_CREATEHANDLE(fileNamePtr, 0x80);
 		if (((int)fp2) & 0xff)
 		{
 			clearStatus();
-			printf("%s  creating error.", fileNamePtr);
-			getchar();
+			AT(1, 24);
+			printf("%s", fileNamePtr);
+			printf(" creating error.");
 			exit(0);
 		}
 		OS_CLOSEHANDLE(fp2);
-		break;
-	case 01:
+
 		fp2 = OS_OPENHANDLE(fileNamePtr, 0x80);
 		if (((int)fp2) & 0xff)
 		{
 			clearStatus();
-			printf("%s opening error.\r\n ", fileNamePtr);
-			getchar();
+			AT(1, 24);
+			printf("%s", fileNamePtr);
+			printf(" opening error. ");
+
 			exit(0);
 		}
-		OS_SEEKHANDLE(fp2, OS_GETFILESIZE(fp2));
-		OS_WRITEHANDLE(netbuf + headlng, fp2, sizeOfBuf);
-		OS_CLOSEHANDLE(fp2);
-		break;
-	case 02:
-		OS_CLOSEHANDLE(fp2);
-		break;
-	default:
-		break;
+		AT(1, 24);
+		return 0;
 	}
 
+	if (operation == 01)
+	{
+		OS_WRITEHANDLE(netbuf + headlng, fp2, sizeOfBuf);
+		return 0;
+	}
+
+	if (operation == 02)
+	{
+		OS_CLOSEHANDLE(fp2);
+		return 0;
+	}
 	return 0;
 }
-
 unsigned int cutHeader(void)
 {
 	unsigned int err;
@@ -475,6 +478,7 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 			saveBuf(fileNamePtr, 01, todo);
 		} while (downloaded < contLen);
 		netShutDown(socket, 0);
+		saveBuf(fileNamePtr, 02, 00);
 
 		if (downloaded != contLen)
 		{
@@ -545,6 +549,7 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 			printf("%s\r", temp);
 			saveBuf(fileNamePtr, 01, todo);
 		} while (downloaded < contLen);
+		saveBuf(fileNamePtr, 02, 00);
 		sendcommand("AT+CIPCLOSE");
 		getAnswer2(); // CLOSED
 		getAnswer2(); // OK
@@ -940,8 +945,8 @@ C_task main(int argc, const char *argv[])
 
 	netDriver = readParamFromIni();
 	clearStatus();
-	//puts("network.ini loaded.");
-	//YIELD();
+	// puts("network.ini loaded.");
+	// YIELD();
 	OS_GETPATH((unsigned int)&curPath);
 	curLetter = curPath[0];
 
@@ -1009,8 +1014,7 @@ C_task main(int argc, const char *argv[])
 				fatalError("Check connection to the nedoos.ru server!");
 			}
 		}
-
-		if (netDriver == 1)
+		else if (netDriver == 1)
 		{
 			loadEspConfig();
 			uart_init(divider);
