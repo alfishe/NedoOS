@@ -1,14 +1,10 @@
 @echo off
-if "%settedpath%"=="" call "..\_sdk\setpath.bat"
+if "%settedpath%"=="" call "..\..\_sdk\setpath.bat"
 nedotrd basics.trd -eb net-35.s
 nedotrd basics.trd -eb net-tort.s
 nedotrd basics.trd -eh NedoGift.$b
 call compile.bat
 md tmp
-copy *.ast tmp
-copy *.var tmp
-del *.ast
-del *.var
 copy *.A_ tmp
 copy *.V_ tmp
 copy *.S_ tmp

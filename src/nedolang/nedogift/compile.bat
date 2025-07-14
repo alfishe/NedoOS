@@ -8,7 +8,7 @@ rem nedodefb net-tort.s nettort.asm _nettort 6144 768
 nedopad net-tort.s nettort.bin 6144 768
 nedolang demo.c
 type err.f
-nedotok demo.s demoproc.s demo.ast demo.var ../_sdk/pt3play.i ../_sdk/lib.i
+nedotok demo.s demoproc.s ../_sdk/pt3play.i ../_sdk/lib.i
 nedoasm demo.S_
 type asmerr.f
 pause

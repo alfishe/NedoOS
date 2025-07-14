@@ -1,9 +1,5 @@
 call compile.bat
 md tmp
-copy *.ast tmp
-copy *.var tmp
-del *.ast
-del *.var
 copy *.A_ tmp
 copy *.V_ tmp
 copy *.S_ tmp
@@ -30,6 +26,8 @@ nedotrd test.trd -a sizesz80.h
 nedotrd test.trd -a ..\_sdk\emit.h
 nedotrd test.trd -a ..\_sdk\emit.c
 nedotrd test.trd -a ..\_sdk\read.c
+nedotrd test.trd -a ..\_sdk\fmttg.h
+nedotrd test.trd -a ..\_sdk\fmtz80.h
 nedotrd test.trd -a ..\_sdk\typecode.h
 nedotrd test.trd -a regs.c
 nedotrd test.trd -a codez80.c

@@ -123,7 +123,6 @@ void __fastcall TForm1::Button1Click(TObject *Sender)
   //setfout('fout'); //AssignFile(fout,'fout'); Rewrite(fout);
   //setfhint('fouthints'); //AssignFile(fhint,'fouthints'); Rewrite(fhint);
   //setferr('ferr'); //AssignFile(ferr,'ferr'); Rewrite(ferr);
-//  if (cbARM->Checked) {
   switch (rgTarget->ItemIndex) {
   case 0:
     s="..\\_sdk\\nedolang.exe";
@@ -142,6 +141,16 @@ void __fastcall TForm1::Button1Click(TObject *Sender)
   if(cbHints->Checked) s=s+" -H";
   s=s+" _test.c";
   system(s.c_str()); //compile();
+
+  switch (rgTarget->ItemIndex) {
+  case 0:
+  case 3:
+    s="..\\_sdk\\nedoexp.exe _test.A_";
+    system(s.c_str());
+    break;
+  default: ;
+  };
+
   //closeferr; //CloseFile(ferr);
   //closefhint; //CloseFile(fhint);
   //closefout; //CloseFile(fout);
@@ -150,7 +159,14 @@ void __fastcall TForm1::Button1Click(TObject *Sender)
   //memoOut->Hide();
 
   try {
-    memoOut->Lines->LoadFromFile("_test.ast");
+    switch (rgTarget->ItemIndex) {
+    case 0:
+    case 3:
+      memoOut->Lines->LoadFromFile("exp.f");
+      break;
+    default:
+      memoOut->Lines->LoadFromFile("_test.ast");
+    };
   } catch (Exception &e){
   };
 

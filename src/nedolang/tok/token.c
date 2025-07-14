@@ -124,10 +124,10 @@ PROC tokspc()
 {
 //IF (!_waseol) { //глюк на командах из одного слова
   WHILE (_asmspcsize > (UINT)_ASMMAXSPC) { //число пробелов после прочитанной команды
-    asmtoken(+_TOKSPC0+_ASMMAXSPC);
+    asmtoken(+_TOKSPC1-0x01+_ASMMAXSPC);
     _asmspcsize = _asmspcsize - (UINT)_ASMMAXSPC;
   };
-  IF (_asmspcsize!=0) asmtoken(+_TOKSPC0 + (BYTE)_asmspcsize);
+  IF (_asmspcsize!=0) asmtoken(+_TOKSPC1-0x01+(BYTE)_asmspcsize);
 //};
 }
 
@@ -270,6 +270,11 @@ PROC tokaddlbl(PCHAR txt, PBYTE proc, BYTE data)
   tokaddlbl1(txt_low, proc, data);
 }
 
+PROC tokaddlbl0(PCHAR txt, PBYTE proc)
+{
+  tokaddlbl(txt, proc, 0x00);
+}
+
 //////////////////////////////////////
 //если match сработал, то _tword съедается (читается следующая) и выводится соответствующий токен
 //если не сработал, то _tword не съедается, ошибка не выдаётся (только флаг +FALSE)
@@ -282,7 +287,7 @@ PROC tokaddlbl(PCHAR txt, PBYTE proc, BYTE data)
 FUNC BOOL matchdirect()
 {
   IF (*(PCHAR)_tword=='#') {
-    asmtoken(+_TOKDIRECT);
+    asmtoken((BYTE)'#');
     asmrdword_tokspc();
     RETURN +TRUE;
   };
@@ -302,7 +307,7 @@ RETURN +FALSE;
 FUNC BOOL matchprime()
 {
   IF (*(PCHAR)_tword=='\'') {
-    asmtoken(+_TOKPRIMESYM);
+    asmtoken(+_TOKPRIME);
     asmrdword_tokspc();
     RETURN +TRUE;
   };
@@ -312,7 +317,7 @@ RETURN +FALSE;
 FUNC BOOL matchquote()
 {
   IF (*(PCHAR)_tword=='\"') {
-    asmtoken(+_TOKDBLQUOTESYM);
+    asmtoken(+_TOKDBLQUOTE);
     //asmrdword_tokspc();
     RETURN +TRUE;
   };
@@ -348,7 +353,7 @@ RETURN +FALSE;
 //////////////////////////////////////
 FUNC BOOL eatexpr RECURSIVE FORWARD();
 
-PROC eatlabel(BYTE token)
+PROC eatlabel()
 {
   WHILE ((_cnext=='.')||(_cnext=='#')) {
     rdaddwordall(); //приклеить точку
@@ -358,10 +363,10 @@ PROC eatlabel(BYTE token)
           //IF (!_waseof)
             rdaddwordall(); //приклеить следующее слово
   };
-  asmtoken(token/**_TOKLABEL или _CMDLABEL*/);
-  asmtoken(+_TOKTEXT);
+  //asmtoken(token/**_TOKLABEL или _CMDLABEL*/);
+  //asmtoken(+_TOKTEXT);
   fputs(_tword, _fout);
-  asmtoken(+_TOKENDTEXT);
+  //asmtoken(+_TOKENDTEXT);
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   //если метка была последним словом в строке, тогда этой токенизацией мы забыли бы про ентер (он теперь в _asmwaseol)
 }
@@ -384,8 +389,8 @@ VAR CHAR opsym;
   opsym = *(PCHAR)_tword;
   IF (!_asmwaseof) { //защита от зацикливания в конце ошибочного файла
     IF ((BYTE)((BYTE)opsym - (BYTE)'0') < 0x0a) { //<num> //выдаёт <num><text>digits<endtext> //extra BYTE for C bug
-      asmtoken(+_TOKNUM);
-      asmtoken(+_TOKTEXT);
+      //asmtoken(+_TOKNUM);
+      //asmtoken(+_TOKTEXT);
 //for float:
       IF (_cnext=='.') {
         rdaddwordall(); //приклеить точку
@@ -399,13 +404,14 @@ VAR CHAR opsym;
         asmrdword_tokspc();*/ //todo e-12
       };
       fputs(_tword, _fout);
-      asmtoken(+_TOKENDTEXT);
+      //asmtoken(+_TOKENDTEXT);
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
       //если число было последним словом в строке, тогда этой токенизацией мы забыли бы про ентер (он теперь в _asmwaseol)
     }ELSE IF (_isalphanum[(BYTE)opsym] || (opsym=='.') ) { //todo убрать '.', если запретить начинать метки с точки //было isalpha
-      eatlabel(+_TOKLABEL);
+      //asmtoken(+_TOKLABEL);
+      eatlabel();
     }ELSE IF ( opsym=='$' ) {
-      asmtoken(+_TOKDOLLAR);
+      asmtoken((BYTE)'$');
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
     }ELSE IF ( opsym=='(' ) {
       asmtoken(+_TOKOPEN);
@@ -413,39 +419,34 @@ VAR CHAR opsym;
       eatexpr(); //рекурсия //на выходе из expr уже прочитана ')', но следующий символ или команда не прочитаны
       asmtoken(+_TOKCLOSE);
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
-    }ELSE IF ( opsym=='\'' ) { //todo вставить TOK_TEXT...TOK_ENDTEXT
+    }ELSE IF ( opsym=='\'' ) {
       asmtoken(+_TOKPRIME);
       _lentword = 0; //читаем с пустой строки
       rdquotes('\''/**, +FALSE*/);
-      toktext(); //генерирует <text>text<endtext>
+      fputs(_tword, _fout);
       rdch(); //пропустить закрывающую кавычку
       asmtoken(+_TOKPRIME);
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
     }ELSE IF ( opsym=='-' ) {
-      /**asmtoken(+_OPPUSH0);*/ asmtoken(+_TOKMINUS); //-
+      asmtoken((BYTE)'-');
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
       eatval(); //рекурсивный вызов val
-      //asmtoken(+_OPSUB);
     }ELSE IF ( opsym=='+' ) {
-      /**asmtoken(+_OPPUSH0);*/ /**зачем?*/ asmtoken(+_TOKPLUS); //+
+      asmtoken((BYTE)'+');
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
       eatval(); //рекурсивный вызов val
-      //asmtoken(+_OPADD); /**зачем?*/
     }ELSE IF ( opsym=='*' ) { //TODO поддержать PEEK в ассемблере
-      /**asmtoken(+_OPPUSH0);*/ /**зачем?*/ asmtoken(+_TOKSTAR); //*
+      asmtoken((BYTE)'*');
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
       eatval(); //рекурсивный вызов val
-      //asmtoken(+_OPPEEK);
     }ELSE IF ( opsym=='~' ) {
-      /**asmtoken(+_OPPUSH0);*/ /**зачем?*/ asmtoken(+_TOKTILDE);
+      asmtoken((BYTE)'~');
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
       eatval(); //рекурсивный вызов val
-      //asmtoken(+_OPINV);
     }ELSE IF ( opsym=='!' ) {
-      /**asmtoken(+_OPPUSH0);*/ /**зачем?*/ asmtoken(+_TOKEXCL);
+      asmtoken((BYTE)'!');
       asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
       eatval(); //рекурсивный вызов val
-      //asmtoken(+_OPINV); //todo BOOL
     }ELSE { tokerr(+_ERREXPR);/**errstr( ">>>WRONG PREFIX " ); err( opsym ); enderr();*/ };
   };
 }
@@ -453,34 +454,30 @@ VAR CHAR opsym;
 
 PROC eatmul()
 {
-  /**asmtoken(_ASMOPPUSHSKIP1);*/ asmtoken(+_TOKSTAR/**'*'*/);
+  asmtoken((BYTE)'*');
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatval(); //должен читать, но не съедать символ конца выражения
-  //asmtoken(+_OPMUL);
 }
 
 PROC eatdiv()
 {
-  /**asmtoken(_ASMOPPUSHSKIP1);*/ asmtoken(+_TOKSLASH/**'/'*/);
+  asmtoken((BYTE)'/');
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatval(); //должен читать, но не съедать символ конца выражения
-  //asmtoken(+_OPDIV);
 }
 
 PROC eatand()
 {
-  /**asmtoken(_ASMOPPUSHSKIP1);*/ asmtoken(+_TOKAND/**'&'*/);
+  asmtoken((BYTE)'&');
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatval(); //должен читать, но не съедать символ конца выражения
-  //asmtoken(+_OPAND);
 }
 
 PROC eatandbool()
 {
-  /**asmtoken(_ASMOPPUSHSKIP2);*/ asmtoken(+_TOKAND/**'&'*/); asmtoken(+_TOKAND/**'&'*/);
+  asmtoken((BYTE)'&'); asmtoken((BYTE)'&');
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatval(); //должен читать, но не съедать символ конца выражения
-  //asmtoken(+_OPAND);
 }
 
 PROC eatmulval RECURSIVE() //должен читать, но не съедать символ конца выражения (скобка, запятая, конец строки)
@@ -505,50 +502,44 @@ VAR BOOL dbl;
 
 PROC eatadd()
 {
-  /**asmtoken(_ASMOPPUSHSKIP1);*/ asmtoken(+_TOKPLUS/**'+'*/);
+  asmtoken((BYTE)'+');
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatmulval(); //должен читать, но не съедать символ конца выражения
-  //asmtoken(+_OPADD);
 }
 
 PROC eatsub()
 {
-  /**asmtoken(_ASMOPPUSHSKIP1);*/ asmtoken(+_TOKMINUS/**'-'*/);
+  asmtoken((BYTE)'-');
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatmulval(); //должен читать, но не съедать символ конца выражения
-  //asmtoken(+_OPSUB);
 }
 
 PROC eator()
 {
-  /**asmtoken(_ASMOPPUSHSKIP1);*/ asmtoken(+_TOKPIPE/**'|'*/);
+  asmtoken((BYTE)'|');
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatmulval(); //должен читать, но не съедать символ конца выражения
-  //asmtoken(+_OPOR);
 }
 
 PROC eatorbool()
 {
-  /**asmtoken(_ASMOPPUSHSKIP2);*/ asmtoken(+_TOKPIPE/**'|'*/); asmtoken(+_TOKPIPE/**'|'*/);
+  asmtoken((BYTE)'|'); asmtoken((BYTE)'|');
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatmulval(); //должен читать, но не съедать символ конца выражения
-  //asmtoken(+_OPOR);
 }
 
 PROC eatxor()
 {
-  /**asmtoken(_ASMOPPUSHSKIP1);*/ asmtoken(+_TOKCARON/**'^'*/);
+  asmtoken((BYTE)'^');
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatmulval(); //должен читать, но не съедать символ конца выражения
-  //asmtoken(+_OPXOR);
 }
 
 PROC eatxorbool()
 {
-  /**asmtoken(_ASMOPPUSHSKIP2);*/ asmtoken(+_TOKCARON/**'^'*/); asmtoken(+_TOKCARON/**'^'*/);
+  asmtoken((BYTE)'^'); asmtoken((BYTE)'^');
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatmulval(); //должен читать, но не съедать символ конца выражения
-  //asmtoken(+_OPXOR);
 }
 
 PROC eatsumval RECURSIVE() //должен читать, но не съедать символ конца выражения (скобка, запятая, конец строки)
@@ -576,66 +567,58 @@ VAR BOOL dbl;
 
 PROC eatshl()
 {
-  /**asmtoken(_ASMOPPUSHSKIP2);*/ asmtoken(+_TOKLESS/**'<'*/); asmtoken(+_TOKLESS/**'<'*/);
+  asmtoken((BYTE)'<'); asmtoken((BYTE)'<');
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatsumval(); //должен читать, но не съедать символ конца выражения
-  //asmtoken(+_OPSHL);
 }
 
 PROC eatshr()
 {
-  /**asmtoken(_ASMOPPUSHSKIP2);*/ asmtoken(+_TOKMORE/**'>'*/); asmtoken(+_TOKMORE/**'>'*/);
+  asmtoken((BYTE)'>'); asmtoken((BYTE)'>');
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatsumval(); //должен читать, но не съедать символ конца выражения
-  //asmtoken(+_OPSHR);
 }
 
 PROC eatless()
 {
-  asmtoken(+_TOKLESS);
+  asmtoken((BYTE)'<');
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatsumval(); //должен читать, но не съедать символ конца выражения
-  //asmtoken(+_OPLESS);
 }
 
 PROC eatlesseq()
 {
-  asmtoken(+_TOKLESS); asmtoken(+_TOKEQUAL);
+  asmtoken((BYTE)'<'); asmtoken((BYTE)'=');
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatsumval(); //должен читать, но не съедать символ конца выражения
-  //asmtoken(+_OPLESSEQ);
 }
 
 PROC eatmore()
 {
-  asmtoken(+_TOKMORE);
+  asmtoken((BYTE)'>');
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatsumval(); //должен читать, но не съедать символ конца выражения
-  //asmtoken(+_OPMORE);
 }
 
 PROC eatmoreeq()
 {
-  asmtoken(+_TOKMORE); asmtoken(+_TOKEQUAL);
+  asmtoken((BYTE)'>'); asmtoken((BYTE)'=');
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatsumval(); //должен читать, но не съедать символ конца выражения
-  //asmtoken(+_OPMOREEQ);
 }
 
 PROC eateq()
 {
-  asmtoken(+_TOKEQUAL); asmtoken(+_TOKEQUAL);
+  asmtoken((BYTE)'='); asmtoken((BYTE)'=');
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatsumval(); //должен читать, но не съедать символ конца выражения
-  //asmtoken(+_OPEQ);
 }
 
 PROC eatnoteq()
 {
-  asmtoken(+_TOKEXCL); asmtoken(+_TOKEQUAL);
+  asmtoken((BYTE)'!'); asmtoken((BYTE)'=');
   asmrdword_tokspc(); //токенизирует пробелы после прошлой (обработанной) команды и читает новую
   eatsumval(); //должен читать, но не съедать символ конца выражения
-  //asmtoken(+_OPNOTEQ);
 }
 
 FUNC BOOL eatexpr RECURSIVE() //должен читать, но не съедать символ конца выражения (скобка, запятая, конец строки)
@@ -709,8 +692,8 @@ PROC tokcomment()
     };
   };
   _tword[_lentword] = '\0';
-  toktext(); //генерирует <text>text<endtext>
-  asmtoken(+_TOKENDCOMMENT);
+  fputs(_tword, _fout); //toktext(); //генерирует <text>text<endtext>
+  //asmtoken(+_TOKENDCOMMENT);
   IF ((BYTE)_cnext < (BYTE)'!') {
     IF (_cnext == '\t') {
       _spcsize = _spcsize + 8;
@@ -790,7 +773,8 @@ PROC tokexport()
 {
   asmtoken(+_CMDEXPORT);
   asmrdword_tokspc(); //съедаем call
-  eatlabel(+_TOKLABEL);
+  asmtoken(+_TOKLABEL);
+  eatlabel();
   //asmmtoken(+_TOKTEXT);
   //fputs(_tword, _fout);
   //asmtoken(+_TOKENDTEXT);
@@ -833,7 +817,7 @@ PROC tokinclude()
     rdquotes('\"');
     toktext(); //генерирует <text>text<endtext>
     rdch(); //пропустить закрывающую кавычку
-    asmtoken(+_TOKDBLQUOTESYM);
+    asmtoken(+_TOKDBLQUOTE);
     asmrdword_tokspc();
   }ELSE tokerr(+_ERREXPR);
   //asmtoken(+_FMTCMD); //todo?
@@ -849,7 +833,7 @@ PROC tokincbin()
     rdquotes('\"');
     toktext(); //генерирует <text>text<endtext>
     rdch(); //пропустить закрывающую кавычку
-    asmtoken(+_TOKDBLQUOTESYM);
+    asmtoken(+_TOKDBLQUOTE);
     asmrdword_tokspc();
   }ELSE tokerr(+_ERREXPR);
   //todo параметры (пропуск, длина)
@@ -867,7 +851,7 @@ PROC tokdb()
       rdquotes('\"');
       toktext(); //генерирует <text>text<endtext>
       rdch(); //пропустить закрывающую кавычку
-      asmtoken(+_TOKDBLQUOTESYM);
+      asmtoken(+_TOKDBLQUOTE);
       asmrdword_tokspc();
     }ELSE IF (tokexpr()) {
       asmtoken(+_OPWRVAL);
@@ -960,7 +944,8 @@ PROC tokcmd()
     };*/
   }ELSE { //<label> или <label>=<expr>
     //asmtoken(0xff);
-    eatlabel(+_CMDLABEL); //съедаем метку
+    asmtoken(+_CMDLABEL);
+    eatlabel(); //съедаем метку
     IF (matchreequ()) { //<label>=<expr>
       IF (tokexpr()) {
         asmtoken(+_FMTREEQU);

@@ -1,18 +1,18 @@
 @echo off
 if "%settedpath%"=="" call "..\..\_sdk\setpath.bat"
-nedolang ../_sdk/emit.c commands.c
+nedolang ../_sdk/emit.c ../_sdk/fmttg.h commands.c
 type err.f
-nedotok compcode.s ../_sdk/emit.ast ../_sdk/emit.var commands.ast commands.var ../_sdk/lib.i ../_sdk/iofast.i ../_sdk/str.i lbltype.i
-nedodel emit.ast
-nedodel emit.var
-nedodel commands.ast
-nedodel commands.var
-movedisk
+nedotok compcode.s ../_sdk/lib.i ../_sdk/iofast.i ../_sdk/str.i lbltype.i
 nedoasm compcode.S_
 type asmerr.f
 nedodel compcode.A_
 nedodel emit.A_
 nedodel emit.V_
+del *.ast
+nedoexp commands.A_
+ren exp.f commands.ast
+nedoexp compile.A_
+ren exp.f compile.ast
 nedodel commands.A_
 nedodel commands.V_
 nedodel lib.I_
@@ -22,7 +22,7 @@ movedisk
 pause
 nedolang ../_sdk/read.c compile.c
 type err.f
-nedotok comp.s ../_sdk/read.ast ../_sdk/read.var compile.ast compile.var
+nedotok comp.s
 nedoasm comp.S_
 type asmerr.f
 diff nedolang comp.bin

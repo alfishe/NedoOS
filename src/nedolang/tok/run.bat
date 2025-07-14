@@ -1,10 +1,6 @@
-if "%settedpath%"=="" call "..\_sdk\setpath.bat"
+rem if "%settedpath%"=="" call "..\_sdk\setpath.bat"
 call compile.bat
 md tmp
-copy *.ast tmp
-copy *.var tmp
-del *.ast
-del *.var
 copy *.A_ tmp
 copy *.V_ tmp
 copy *.S_ tmp
@@ -33,6 +29,5 @@ nedotrd test.trd -a tokenz80.c
 nedotrd test.trd -a tok.s
 nedotrd test.trd -a ..\_sdk\lib.i
 nedotrd test.trd -a ..\_sdk\str.i
-nedotrd test.trd -a ..\_sdk\io.i
-nedotrd test.trd -a ..\_sdk\io.c
+nedotrd test.trd -a ..\_sdk\iofast.i
 ..\..\..\us\emul.exe test.trd

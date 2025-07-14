@@ -163,14 +163,94 @@ PROC asm_close_eol()
   asm_close(); endasm();
 }
 
+EXPORT PROC asm_label()
+{
+  //asmc(+_CMDLABEL); //TODO определять по первой букве команды?
+}
+
+EXPORT PROC asm_equal()
+{
+  asmc((BYTE)'='); //asmc(+_TOKEXPR); //TODO без _TOKEXPR? (убрать в саму обработку _CMDLABEL) (усложнит экспорт)
+}
+
+EXPORT PROC endasm_label()
+{
+  /**asmc(+_FMTCMD);*/ endasm(); //там только проверка переопределённости, TODO убрать в саму обработку _CMDLABEL
+}
+
+EXPORT PROC endasm_reequ()
+{
+  /**asmc(+_TOKENDEXPR); asmc(+_FMTREEQU);*/ endasm(); //TODO убрать
+}
+
+EXPORT PROC var_label()
+{
+  //varc(+_CMDLABEL); //TODO определять по первой букве команды?
+}
+
+EXPORT PROC endvar_label()
+{
+  /**varc(+_FMTCMD);*/ endvar(); //там только проверка переопределённости, TODO убрать в саму обработку _CMDLABEL
+}
+
+EXPORT PROC endvar_reequ()
+{
+  /**varc(+_TOKENDEXPR); varc(+_FMTREEQU);*/ endvar(); //TODO убрать
+}
+
+EXPORT PROC endasm_db()
+{
+  /**asmc(+_TOKENDEXPR); asmc(+_OPWRVAL); asmc(+_FMTCMD);*/ endasm(); //TODO убрать
+}
+
+EXPORT PROC endasm_dbstr()
+{
+  /**asmc(+_TOKENDTEXT);*/ asmc((BYTE)'\"'); /**asmc(+_FMTCMD);*/ endasm(); //TODO убрать
+}
+
+EXPORT PROC endvar_db()
+{
+  /**varc(+_TOKENDEXPR); varc(+_OPWRVAL); varc(+_FMTCMD);*/ endvar(); //TODO убрать
+}
+
+EXPORT PROC endvar_dbstr()
+{
+  /**varc(+_TOKENDTEXT);*/ varc((BYTE)'\"'); /**varc(+_FMTCMD);*/ endvar(); //TODO убрать
+}
+
+EXPORT PROC endvar_dw()
+{
+  /**varc(+_TOKENDEXPR); varc(+_OPWRVAL); varc(+_FMTCMD);*/ endvar(); //TODO убрать
+}
+
+EXPORT PROC endvar_dl()
+{
+  /**varc(+_TOKENDEXPR); varc(+_OPWRVAL); varc(+_FMTCMD);*/ endvar(); //TODO убрать
+}
+
+EXPORT PROC endvar_ds()
+{
+  /**varc(+_TOKENDEXPR); varc(+_FMTCMD);*/ endvar();
+}
+
 EXPORT PROC var_db() //доступно из compile!
 {
   varstr( "\tDB " );
 }
 
+EXPORT PROC var_dbstr() //доступно из compile!
+{
+  varstr( "\tDB \"" );
+}
+
 EXPORT PROC asm_db() //костыль для константных массивов строк TODO
 {
   asmstr( "\tDB " );
+}
+
+EXPORT PROC asm_dbstr() //костыль для константных массивов строк TODO
+{
+  asmstr( "\tDB \"" );
 }
 
 EXPORT PROC var_dw() //доступно из compile!

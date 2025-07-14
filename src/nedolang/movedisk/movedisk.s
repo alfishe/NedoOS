@@ -20,9 +20,9 @@ DOSBUF=0xff00 ;aligned
 
 	include "movedisk.asm"
 	include "../_sdk/lib.i"
-	include "../_sdk/str.i"
-	include "../_sdk/io.i"
-	include "../_sdk/io.asm"
+	include "../_sdk/str.i" ;for memcopy
+	include "../_sdk/iofast.i"
+	;include "../_sdk/io.asm"
 
-	include "../_sdk/io.var"
+	;include "../_sdk/io.var"
 	include "movedisk.var"

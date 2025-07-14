@@ -69,18 +69,26 @@ EXTERN BYTE _isaddr; //маска "в выражении использовался адрес"
 
 EXTERN UINT _plabel_index; //после findlabel содержит указатель на начало данных метки
 
+#ifdef TARGET_SCRIPT
+VAR double fvalue;
+VAR LONG fexp;
+VAR BOOL fexpminus;
+VAR LONG ffraction;
+VAR LONG ffractionscale;
+#endif
+
 #ifdef TARGET_THUMB
 #include "asmf_arm.c" //// машиннозависимые процедуры и объявления
 #else
 #include "asmf_z80.c" //// машиннозависимые процедуры и объявления
 #endif
 
-PROC rdnum()
+PROC rdnum_()
 {
 VAR LONG tempvalue; //значение, считанное по popvalue и которое пишем по pushvalue
 VAR UINT scale; //показатель системы счисления
-        readfin(); //TOK_TEXT
-        _token = readfin(); //first digit or prefix (0x, 0b, 0)
+        //readfin(); //_TOKTEXT (TODO до входа)
+        //_token = readfin(); //first digit or prefix (0x, 0b, 0)
         tempvalue = 0L;
         scale = 10;
         IF ((CHAR)_token=='0'){
@@ -88,70 +96,82 @@ VAR UINT scale; //показатель системы счисления
           IF       ((CHAR)_token=='x') {
             scale=16;
             rdbase:
-            IF (_token!=+_TOKENDTEXT) _token=readfin(); //first digit
+            /**IF (_token!=+_TOKENDTEXT)*/ _token=readfin(); //first digit
           }ELSE IF ((CHAR)_token=='b') {
             scale=2;
             goto rdbase; //IF (_token!=+_TOKENDTEXT) _token=readfin(); //first digit
           }ELSE IF ((CHAR)_token=='o') {
             scale=8;
             goto rdbase; //IF (_token!=+_TOKENDTEXT) _token=readfin(); //first digit
-          }ELSE IF ((CHAR)_token=='L') { //0L
-          }ELSE IF ((CHAR)_token=='.') { //0.
-          }ELSE IF (_token!=+_TOKENDTEXT) {
+          //}ELSE IF ((CHAR)_token=='L') { //0L
+          //}ELSE IF ((CHAR)_token=='.') { //0.
+          }ELSE IF ((BYTE)((BYTE)_token - (BYTE)'0') < 0x0a) { //0..9
             scale=8;
             errstr("Use 0o oct"); enderr();
           };
         };
-        IF (_token!=+_TOKENDTEXT) {
+        //IF (_token!=+_TOKENDTEXT) { //TODO 0..9a..f (L обслужить вне цикла)
           rdnumloop: //WHILE (+TRUE)
-          { //первая цифра числа уже прочитана
-            IF ((_token==+_TOKENDTEXT)||_waseof) goto rdnumend; //BREAK;
-            //IF (_waseof) goto rdnumend; //BREAK; //на всякий случай
-            IF ((CHAR)_token!='L') {
-              IF (_token>=(BYTE)'a') {_token = _token - 0x27/**- (BYTE)'a' + 0x0a + (BYTE)'0'*/; //todo error
-              }ELSE IF (_token>=(BYTE)'A') {_token = _token - 0x07/**- (BYTE)'A' + 0x0a + (BYTE)'0'*/; //todo error
+          //{ //первая цифра числа уже прочитана
+            //IF ((_token==+_TOKENDTEXT)||_waseof) goto rdnumend; //BREAK;
+            IF (_waseof) goto rdnumend; //BREAK; //на всякий случай
+            IF ((CHAR)_token!='L')
+            {
+              IF ((BYTE)((BYTE)_token - (BYTE)'0') < 0x0a) {_token = _token - 0x30;
+              }ELSE IF ((BYTE)(((BYTE)_token|0x20) - (BYTE)'a') < 0x06) {_token = (_token|0x20) - 0x57;
+//              IF ((_token>=0x30)&&(_token<0x3a)) {_token = _token - 0x30;
+//              }ELSE IF ((_token>=(BYTE)'a')&&(_token<0x7b)) {_token = _token - 0x57;
+//              }ELSE IF ((_token>=(BYTE)'A')&&(_token<0x5b)) {_token = _token - 0x37;
 #ifdef TARGET_SCRIPT
               }ELSE IF (_token==(BYTE)'.') { //float
+            //printf("float %d",_token);
                 fexp = 0L;
                 fexpminus = +FALSE;
                 ffraction = 0L;
                 ffractionscale = 1L;
                 _token = readfin();
-                IF (_token!=+_TOKENDTEXT) {
+                //IF (_token!=+_TOKENDTEXT) { //TODO 0..9a..f
+                IF ((BYTE)((BYTE)_token - (BYTE)'0') < 0x0a) {
                   rdfloatloop:
-                  { //первая цифра числа уже прочитана
+            //printf("float: %d",_token);
+                  //{ //первая цифра числа уже прочитана
                     //printf("ffraction = %lf\n",(double)ffraction);
-                    IF ((_token==+_TOKENDTEXT)||_waseof) goto rdfloatend; //BREAK;
-                    //IF (_waseof) goto rdfloatend; //BREAK; //на всякий случай
-                    IF ((CHAR)_token!='f') {
+                    //IF ((_token==+_TOKENDTEXT)||_waseof) goto rdfloatend; //BREAK; //TODO 0..9
+                    IF (_waseof) goto rdfloatend; //BREAK; //на всякий случай
+                    //IF ((CHAR)_token!='f') { //???
                       IF (_token==(BYTE)'e') { //TODO e12/e-12
                         _token = readfin();
-                        IF (_token==+_TOKENDTEXT) goto rdfloatend; //BREAK;
+                        //IF (_token==+_TOKENDTEXT) goto rdfloatend; //BREAK; //TODO 0..9, +-
+                        IF (_waseof) goto rdfloatend; //BREAK; //на всякий случай
                         IF (_token=='-') { //TODO
                           fexpminus = +TRUE;
                           _token = readfin();
                         };
                         //printf("fexp = %u, token = %c\n",(unsigned int)fexp, _token);
-                        IF (_token!=+_TOKENDTEXT) {
+                        //IF (_token!=+_TOKENDTEXT) { //TODO 0..9
                           rdexploop:
-                          { //первая цифра экспоненты уже прочитана
+                          //{ //первая цифра экспоненты уже прочитана
                             //printf("fexp = %u\n",(unsigned int)fexp);
-                            IF ((_token==+_TOKENDTEXT)||_waseof) goto rdfloatend; //BREAK;
+                            //IF ((_token==+_TOKENDTEXT)||_waseof) goto rdfloatend; //BREAK;
+                            IF (_waseof) goto rdfloatend; //BREAK; //на всякий случай
+                            IF ((BYTE)((BYTE)_token - (BYTE)'0') >= 0x0a) goto rdfloatend; //BREAK;
                             fexp = fexp*10L + (LONG)(_token - (BYTE)'0');
                             _token = readfin();
                             goto rdexploop;
-                          }
-                        };
+                          //}
+                        //};
+                        goto rdfloatend; //BREAK;
+                      }ELSE IF ((BYTE)((BYTE)_token - (BYTE)'0') >= 0x0a) {
                         goto rdfloatend; //BREAK;
                       };
-                    };
+                    //}; //!='f'
                     ffraction = ffraction*10L + (LONG)(_token - (BYTE)'0');
                     ffractionscale = ffractionscale*10L;
                     //ffraction += (float)(_token - (BYTE)'0')*ffractionscale;
                     _token = readfin();
                     goto rdfloatloop;
-                  };
-                };
+                  //};
+                }; //0..9
                 rdfloatend:
                 fvalue = (double)tempvalue + (double)ffraction/(double)ffractionscale; //знак работает как операция, так что не учитываем
                 IF (fexpminus) {
@@ -166,171 +186,196 @@ VAR UINT scale; //показатель системы счисления
                 tempvalue = *(LONG*)(&fvalue);
                 goto rdnumend;
 #endif
-              };//ELSE _token = _token - (BYTE)'0';
-              tempvalue = (LONG)scale*tempvalue + (LONG)(_token - (BYTE)'0');
-            };
+              }ELSE { //не цифра и не .
+                goto rdnumend;
+              };
+              //tempvalue = (LONG)scale*tempvalue + (LONG)(_token - (BYTE)'0');
+              tempvalue = (LONG)scale*tempvalue + (LONG)_token;
+            }; //IF ((CHAR)_token!='L')
             _token = readfin();
             goto rdnumloop;
-          };
+          //};
           rdnumend:;
-        };
+        //};
+        //IF ((CHAR)_token=='L') {_token = readfin();}; //так не работает (почему?)
         asmpushvalue(tempvalue);
 }
 
-PROC doexpr RECURSIVE FORWARD();
+PROC doexpr_ RECURSIVE FORWARD();
 
-PROC doval RECURSIVE() //читаем значение (число или метку, или TODO выражение в скобках)
+PROC doval_ RECURSIVE() //читаем значение (число или метку, или TODO выражение в скобках)
 {
 VAR LONG tempvalue; //значение, считанное по popvalue и которое пишем по pushvalue
 {
 //;;printf("doval\n");
 dovalloop:
-  _token = readfin();
-//  IF ((_token==+_TOKENDEXPR/**TODO _TOKENDTEXT*/)||_waseof) goto dovalq; //BREAK;
-  IF (_token==+_TOKNUM) {
-//;;printf("valTOKNUM\n");
-        rdnum();
-        //goto doexprlooptok;
-  }ELSE IF (_token==+_TOKLABEL) {
-//;;printf("valTOKLABEL\n");
-        readlabel();
-        _plabel_index = findlabel(_curlabeltext);
-        asmpushvalue(getlabel());
-        //goto doexprlooptok;
-  }ELSE IF (_token==+_TOKMINUS) {
+  IF (_token==(BYTE)'-') {
 //;;printf("valTOKMINUS\n");
-        doval();
+        _token = readfin(); //(до входа)
+        doval_();
         //asmpushvalue(0L-asmpopvalue()); //BUG!!! TODO fix!
         //asmpushvalue(-asmpopvalue()); //BUG!!! TODO fix!
         tempvalue=asmpopvalue(); asmpushvalue(0L-tempvalue);
         //asmpushvalue(0L); tempvalue=asmpopvalue(); asmpushvalue(asmpopvalue()-tempvalue);
-  }ELSE IF (_token==+_TOKPLUS) {
+  }ELSE IF (_token==(BYTE)'+') {
 //;;printf("valTOKPLUS\n");
-        //doval();
+        _token = readfin(); //(до входа)
         goto dovalloop;
-  }ELSE IF (_token==+_TOKDOLLAR) {
+  }ELSE IF (_token==(BYTE)'$') {
 //;;printf("valTOKDOLLAR\n");
         asmpushvalue((LONG)(_curaddr+_curshift)); _isaddr = +_ASMLABEL_ISADDR;
+        _token = readfin(); //(до входа)
   }ELSE IF (_token==+_TOKPRIME) {
 //;;printf("valTOKPRIME\n");
-        readfin(); //text
         asmreadprefixed(); //читаем через readfin, раскрываем \n \r \t \0
         asmpushvalue((LONG)_prefixedtoken);
-        readfin(); //endtext
         readfin(); //закрывающий апостроф
+        _token = readfin(); //(до входа)
   }ELSE IF (_token==+_TOKOPEN) {
 //;;printf("valTOKOPEN\n");
-        doexpr();
-  }ELSE IF (_token==+_TOKTILDE) {
+        _token = readfin(); //(до входа)
+        doexpr_();
+        _token = readfin(); //(после скобки)
+  }ELSE IF (_token==(BYTE)'~') {
 //;;printf("valTOKTILDE\n");
-//TODO _TOKEXCL
-//TODO _TOKSTAR (PEEK)
-        doval();
+        _token = readfin(); //(до входа)
+        doval_();
         asmpushvalue(~asmpopvalue());
-  }ELSE {
-;;printf("?valTOK %d\n",(UINT)_token);
+  }ELSE IF (_token==(BYTE)'!') {
+//;;printf("valTOKEXCL\n");
+//TODO _TOKSTAR (PEEK)
+        _token = readfin(); //(до входа)
+        doval_();
+        asmpushvalue(!asmpopvalue());
+/**  }ELSE IF (_token==+_TOKNUM) { //TODO убрать
+        _token = readfin(); //(до входа)
         goto dovalloop;
-  };
+  }ELSE IF (_token==+_TOKTEXT) { //TODO убрать
+        _token = readfin(); //(до входа)
+        goto dovalloop;*/
+  }ELSE IF ((BYTE)((BYTE)_token - (BYTE)'0') < 0x0a) {
+//;;printf("valTOKNUM\n");
+        //readfin(); //_TOKTEXT (до входа)
+        rdnum_();
+        //goto doexprlooptok;
+  }ELSE IF (_token==+_TOKDIRECT) { //for ARM
+        _token = readfin(); //(до входа)
+        goto dovalloop;
+  }ELSE /**IF (_token==+_TOKLABEL)*/ {
+//;;printf("valTOKLABEL\n");
+        readlabel();
+        _plabel_index = findlabel(_curlabeltext);
+        asmpushvalue(getlabel());
+  }/**ELSE {
+;;printf("?valTOK %d\n",(UINT)_token);
+;;printf("addr=%d\n",_curaddr);
+        _token = readfin(); //(до входа)
+        goto dovalloop;
+  }*/;
 //;;printf("dovalq\n");
 }
 }
 
-PROC doexpr RECURSIVE()
+PROC doexpr_ RECURSIVE()
 {
 VAR LONG tempvalue; //значение, считанное по popvalue и которое пишем по pushvalue
 {
-  //goto doexprq;
 //читаем до _TOKENDEXPR
 //в первой версии считаем слева направо
+//TODO switch? или при нескольких уровнях вложенности останется в каждом мало
 
 //пробелы игнорируем (TODO откуда они в конце выражения перед комментарием?): +_TOKSPC0 ... +_TOKSPC0+_ASMMAXSPC-1
-//скобки игнорируем: +_TOKOPEN, +_TOKCLOSE
-//игнорируем операции: +_OPADD, +_OPSUB, +_OPMUL...
-//число: +_TOKNUM, +_TOKTEXT, <данные>, +_TOKENDTEXT
-//метка: +_TOKLABEL, +_TOKTEXT, <данные>, +_TOKENDTEXT
+//число: <данные>
+//метка: <данные>
 //закавыченный байт: +_TOKPRIME, <данные>, +_TOKPRIME
 //$: +_TOKDOLLAR
 //+: _TOKPLUS
 //-: _TOKMINUS
 //*: +_TOKSTAR
-  //_token = readfin(); //_TOKTEXT //в будущем TODO
 //;;printf("doexpr addr=%d\n",_curaddr);
-  doval(); //первый параметр
+  doval_(); //первый параметр
 doexprloop:
-  _token = readfin(); //операция или конец
+//;;printf("exprTOK %d\n",(UINT)_token);
   IF ((_token==+_TOKENDEXPR/**TODO _TOKENDTEXT*/)||(_token==+_TOKCLOSE)||_waseof) goto doexprq; //BREAK;
-  IF (_token==+_TOKPLUS) {
+  IF (_token==(BYTE)'+') {
 //;;printf("TOKPLUS\n");
-        doval();
+        _token = readfin(); //(до входа)
+        doval_();
         asmpushvalue(asmpopvalue()+asmpopvalue());
-  }ELSE IF (_token==+_TOKMINUS) {
+  }ELSE IF (_token==(BYTE)'-') {
 //;;printf("TOKMINUS\n");
-        doval();
+        _token = readfin(); //(до входа)
+        doval_();
         tempvalue=asmpopvalue(); asmpushvalue(asmpopvalue()-tempvalue);
-  }ELSE IF (_token==+_TOKSTAR) {
+  }ELSE IF (_token==(BYTE)'*') {
 //;;printf("TOKSTAR\n");
-        doval();
+        _token = readfin(); //(до входа)
+        doval_();
         asmpushvalue(asmpopvalue()*asmpopvalue()); _isaddr = 0x00;
-  }ELSE IF (_token==+_TOKSLASH) {
+  }ELSE IF (_token==(BYTE)'/') {
 //;;printf("TOKSLASH\n");
-        doval();
+        _token = readfin(); //(до входа)
+        doval_();
         tempvalue=asmpopvalue();
         {
         ;;IF (tempvalue!=0L)
           asmpushvalue(asmpopvalue()/tempvalue);
         }
-  }ELSE IF (_token==+_TOKMORE) {
+  }ELSE IF (_token==(BYTE)'>') {
 //;;printf("TOKMORE\n");
         readfin(); //+_TOKMORE (2-й)
 //TODO >, >=
-        doval();
+        _token = readfin(); //(до входа)
+        doval_();
         tempvalue=asmpopvalue(); asmpushvalue(asmpopvalue()>>tempvalue);
-  }ELSE IF (_token==+_TOKLESS) {
+  }ELSE IF (_token==(BYTE)'<') {
 //;;printf("TOKLESS\n");
 //TODO <, <=
 //TODO _TOKEQUAL, _TOKEXPL (!=)
         readfin(); //+_TOKLESS (2-й)
-        doval();
+        _token = readfin(); //(до входа)
+        doval_();
         tempvalue=asmpopvalue(); asmpushvalue(asmpopvalue()<<tempvalue);
-  }ELSE IF (_token==+_TOKAND) {
+  }ELSE IF (_token==(BYTE)'&') {
 //;;printf("TOKAND\n");
 //TODO также двойные
-        doval();
+        _token = readfin(); //(до входа)
+        doval_();
         asmpushvalue(asmpopvalue()&asmpopvalue());
-  }ELSE IF (_token==+_TOKPIPE) {
+  }ELSE IF (_token==(BYTE)'|') {
 //;;printf("TOKPIPE\n");
 //TODO также двойные
-        doval();
+        _token = readfin(); //(до входа)
+        doval_();
         asmpushvalue(asmpopvalue()|asmpopvalue());
-  }ELSE IF (_token==+_TOKCARON) {
+  }ELSE IF (_token==(BYTE)'^') {
 //;;printf("TOKCARON\n");
 //TODO также двойные
-        doval();
+        _token = readfin(); //(до входа)
+        doval_();
         asmpushvalue(asmpopvalue()^asmpopvalue());
-  }ELSE IF (_token==+_TOKSPC1) {
+  }ELSE IF ((_token-+_TOKSPC1) < 0x08) {
 //;;printf("TOKSPC1\n",_curaddr);
+        _token = readfin(); //(до входа)
   }ELSE {
+//TODO ==, !=
 ;;printf("?TOK %d\n",(UINT)_token);
+;;printf("addr=%d\n",_curaddr);
+        _token = readfin(); //(до входа)
   };
   goto doexprloop;
 doexprq:
-//TODO в следующей версии все _TOK... выкинуть из выражения, оставить +_TOKEXPR, +_TOKTEXT(сейчас нет), <данные>, +_TOKENDTEXT(сейчас нет, только _TOKENDEXPR)
+//;;printf("doexprq\n");
 }
 }
 
 PROC fsm()
 {
-#ifdef TARGET_SCRIPT
-VAR double fvalue;
-VAR LONG ffraction;
-VAR LONG ffractionscale;
-VAR LONG fexp;
-VAR BOOL fexpminus;
-#endif
 VAR LONG tempvalue; //значение, считанное по popvalue и которое пишем по pushvalue
 VAR UINT i;
   loop:
     _token = readfin();
+  looptok:
     switch (_token) {
 
 #include "asmj.c" //// стандартные ветки

@@ -57,6 +57,8 @@ EXTERN UINT _waseols; //сколько было EOL с прошлого раза
 
 EXTERN UINT _typeaddr;
 
+PROC joinedadd FORWARD(CHAR c);
+
 PROC rdch FORWARD();
 PROC rdchcmt FORWARD();
 PROC rdquotes FORWARD(CHAR eol);
@@ -129,11 +131,25 @@ PROC emitvarlabel FORWARD(PCHAR s);
 PROC emitexport FORWARD(PCHAR s);
 PROC emitvarpreequ FORWARD(PCHAR s);
 PROC emitvarpostequ FORWARD();
+PROC asm_label FORWARD();
+PROC var_label FORWARD();
+PROC asm_equal FORWARD();
+PROC endasm_reequ FORWARD();
+PROC endvar_reequ FORWARD();
+PROC endvar_label FORWARD();
 PROC varequ FORWARD(PCHAR s);
 PROC asm_db FORWARD(); //костыль для константных массивов строк TODO
+PROC asm_dbstr FORWARD(); //костыль для константных массивов строк TODO
 PROC var_db FORWARD();
+PROC var_dbstr FORWARD();
 PROC var_dw FORWARD();
 PROC var_ds FORWARD();
+PROC endasm_db FORWARD(); //костыль для константных массивов строк TODO
+PROC endasm_dbstr FORWARD(); //костыль для константных массивов строк TODO
+PROC endvar_db FORWARD();
+PROC endvar_dbstr FORWARD();
+PROC endvar_dw FORWARD();
+PROC endvar_ds FORWARD();
 FUNC UINT varshift FORWARD(UINT shift, UINT sz);
 
 FUNC UINT gettypename FORWARD(PCHAR s); //взять название типа структуры в s (сразу после lbltype)
@@ -194,7 +210,7 @@ VAR BYTE _nhinclfiles; //число открытых файлов
 
 #ifdef USE_HINTS
 ;;PROC hint_tword() {
-;;  hintstr("//_tword=\""); hintstr(_tword); hintstr("\", cnext=\""); hint(_cnext); hint('\"'); endhint();
+;;  hintstr(";//_tword=\""); hintstr(_tword); hintstr("\", cnext=\""); hint(_cnext); hint('\"'); endhint();
 ;;}
 #endif
 
@@ -236,10 +252,12 @@ PROC eatclose()
   eat(')');
 }
 
+PROC joinedclose() {_joined[_lenjoined] = '\0'; }
+
 PROC jdot()
 {
   _lenjoined = stradd(_joined, _lenjoined,'.');
-  _joined[_lenjoined] = '\0';
+  joinedclose();
 }
 
 VAR UINT _genn;
@@ -281,7 +299,7 @@ PROC jtitletword()
 {
   _lenjoined = strcopy(_title, _lentitle, _joined);
   _lenjoined = strjoin(/**to=*/_joined, _lenjoined, _tword);
-  _joined[_lenjoined] = '\0';
+  joinedclose();
 }
 
 PROC do_type()
@@ -320,17 +338,17 @@ PROC doprefix(BYTE nb) //склеить n слов типа 'word.' из title в prefix (name без
   _prefix[_lenprefix] = '\0';
   _lenjoined = strcopy(_prefix, _lenprefix, _joined);
   _lenjoined = strjoin(/**to=*/_joined, _lenjoined, _tword);
-  _joined[_lenjoined] = '\0';
+  joinedclose();
 }
-
+/**
 PROC adddots()
 {
-/**  WHILE (_cnext == '.') {
+  WHILE (_cnext == '.') {
     rdaddword(); //приклеить точку
     rdaddword(); //приклеить следующее слово
-  };*/
+  };
 }
-
+*/
 PROC twordtojoined()
 {
   _lenjoined = strcopy(_tword, _lentword, _joined);
@@ -356,7 +374,7 @@ VAR BYTE lvl;
 PROC eatvarname() //для создания меток
 {
   eattype(); //t = _t; //тип был уже прочитан
-  adddots();
+  //adddots();
   _lenname = strcopy(_tword, _lentword, _name);
   doprefix(_namespclvl); //склеить n слов типа 'word.' из title в prefix (name без префикса)
   rdword(); //'['
@@ -371,7 +389,7 @@ PROC getstructfield() //возвращает _t = тип поля
   eat('>'); //use '>'
   jdot();
   _lenjoined = strjoin(/**to=*/_joined, _lenjoined, _tword); //structname.structfield
-  _joined[_lenjoined] = '\0';
+  joinedclose();
   cmdpushnum(); //structname.structfield
   cmdadd();
   _lenname = strcopy(/**from=*/_joined, _lenjoined, _name); //structname.structfield
@@ -391,28 +409,30 @@ PROC varstrz() //для строковых констант в выражениях
 {
   emitvarlabel(_joined);
   WHILE (+TRUE) {
+    _lentword = 0;
     rdquotes('\"');
-    rdch(); //добавляем закрывающую кавычку
     _tword[_lentword] = '\0';
-    var_db(); varstr(_tword); endvar();
+    var_dbstr(); varstr(_tword); endvar_dbstr();
+    rdch(); //не добавляем закрывающую кавычку
     IF (_cnext != '\"') BREAK;
     rdword(); //открывающая кавычка приклеенной строки
   };
-  var_db(); varc('0'); endvar();
+  var_db(); varc((BYTE)'0'); endvar_db();
 }
 
 PROC asmstrz() //все CONST строки теперь в коде (раньше было только для константных массивов строк)
 {
   emitasmlabel(_joined);
   WHILE (+TRUE) {
+    _lentword = 0;
     rdquotes('\"');
-    rdch(); //добавляем закрывающую кавычку
     _tword[_lentword] = '\0';
-    asm_db(); asmstr(_tword); endasm();
+    asm_dbstr(); asmstr(_tword); endasm_dbstr();
+    rdch(); //не добавляем закрывающую кавычку
     IF (_cnext != '\"') BREAK;
     rdword(); //открывающая кавычка приклеенной строки
   };
-  asm_db(); asmc('0'); endasm();
+  asm_db(); asmc((BYTE)'0'); endasm_db();
 }
 
 PROC eatidx() //для idxarray и switch
@@ -485,7 +505,7 @@ VAR UINT typeaddr; //для cast
 //|&<var> //адрес переменной
  //команда уже прочитана
 #ifdef USE_HINTS
-;;  hintstr("//val: word=\""); hintstr(_tword); hintstr("\", cnext=\""); hint(_cnext); hint('\"'); endhint();
+;;  hintstr(";//val: word=\""); hintstr(_tword); hintstr("\", cnext=\""); hint(_cnext); hint('\"'); endhint();
 #endif
   _opsym = *(PCHAR)_tword;
   IF (_opsym == '~') {
@@ -493,7 +513,7 @@ VAR UINT typeaddr; //для cast
     IF (!_waseof) val(); //рекурсивный вызов val
     cmdinv();
   }ELSE IF ((BYTE)_opsym >= 0x41) { //<var>
-    adddots();
+    //adddots();
    //если вызов функции, то do_variable надо делать с namespclvl-1!!!
     IF (_cnext == '(') { //call
       _t = do_call(+TRUE); //isfunc
@@ -536,7 +556,7 @@ VAR UINT typeaddr; //для cast
     _opsym = *(PCHAR)_tword;
     IF (_opsym=='_') { //+_CONSTANT
       //начальная часть имени константы уже прочитана
-      adddots();
+      //adddots();
       joinvarname(/**iscall*/+FALSE);
       _lenjoined = strcopy(_name, _lenname, _joined); //глобальная
       _t = _T_BYTE; cmdpushnum();
@@ -617,7 +637,7 @@ VAR UINT typeaddr; //для cast
       _t = _t|_T_POI;
     }ELSE {
       rdword();
-      adddots();
+      //adddots();
       joinvarname(/**iscall*/+FALSE);
       IF (_cnext == '[') { //&<varname>[<idx>]
         rdword(); //'['
@@ -650,12 +670,12 @@ VAR TYPE t1;
 //заканчивается по символу любой неописанной операции (например, ')' или ';')
  //команда уже прочитана
 #ifdef USE_HINTS
-;;  hintstr("//mulval"); endhint();
+;;  hintstr(";//mulval"); endhint();
 #endif
   val();
   rdword();
 #ifdef USE_HINTS
-;;  hintstr("//mulval after val"); hint_tword();
+;;  hintstr(";//mulval after val"); hint_tword();
 #endif
   REPEAT {
     opsym = *(PCHAR)_tword;
@@ -672,7 +692,7 @@ VAR TYPE t1;
     _t = _t&_TYPEMASK; //&(~_T_CONST);
     rdword();
 #ifdef USE_HINTS
-;;    hintstr("//mulval after val2"); hint_tword();
+;;    hintstr(";//mulval after val2"); hint_tword();
 #endif
     IF (t1 != _t) {errstr("opsym "); err(opsym); errstr(" type "); erruint((UINT)t1); errstr("!="); erruint((UINT)_t); enderr(); };
     IF       (opsym=='&') {cmdand();
@@ -694,7 +714,7 @@ VAR TYPE t1;
 //<mulval>[<+|-><mulval>...] => push[push<+|->...]
  //команда уже прочитана
 #ifdef USE_HINTS
-;;  hintstr("//sumval"); endhint();
+;;  hintstr(";//sumval"); endhint();
 #endif
   eatmulval();
   REPEAT {
@@ -743,7 +763,7 @@ VAR BOOL dbl;
 //<sumval>[<=><sumval>...]
  //команда уже прочитана (нужно для do_call_par)
 #ifdef USE_HINTS
-;;  hintstr("//expr"); endhint();
+;;  hintstr(";//expr"); endhint();
 #endif
   INC _exprlvl;
   eatsumval();
@@ -796,7 +816,7 @@ PROC eatpoke()
 {
 VAR TYPE t;
 #ifdef USE_HINTS
-;;  hintstr("//poke"); endhint();
+;;  hintstr(";//poke"); endhint();
 #endif
   _exprlvl = 0x01; //no jump optimization
   eat('*');
@@ -807,7 +827,7 @@ VAR TYPE t;
   IF (t != _t) {errstr("poke var"); err_type_enderr((UINT)t); };
   cmdpoke();
 #ifdef USE_HINTS
-;;  hintstr("//end poke"); endhint();
+;;  hintstr(";//end poke"); endhint();
 #endif
 }
 
@@ -818,7 +838,7 @@ PROC eatlet()
 VAR TYPE t;
 VAR BOOL ispoke;
 #ifdef USE_HINTS
-;;  hintstr("//let"); endhint();
+;;  hintstr(";//let"); endhint();
 #endif
   _exprlvl = 0x01; //no jp optimization
   joinvarname(/**iscall*/+FALSE); t = _t; //t!!!
@@ -858,7 +878,7 @@ VAR BOOL ispoke;
     cmdpopvar();
   };
 #ifdef USE_HINTS
-;;  hintstr("//end let"); hint_tword();
+;;  hintstr(";//end let"); hint_tword();
 #endif
 }
 
@@ -869,7 +889,7 @@ VAR UINT beglbl;
 VAR UINT wasendlbl;
 {
 #ifdef USE_HINTS
-;;  hintstr("//while"); endhint();
+;;  hintstr(";//while"); endhint();
 #endif
   _exprlvl = 0x00; //jp optimization possible
   wasendlbl = _tmpendlbl;
@@ -885,7 +905,7 @@ VAR UINT wasendlbl;
   genjplbl(_tmpendlbl); cmdlabel();
   _tmpendlbl = wasendlbl;
 #ifdef USE_HINTS
-;;  hintstr("//end while"); endhint();
+;;  hintstr(";//end while"); endhint();
 #endif
 }
 }
@@ -897,7 +917,7 @@ VAR UINT beglbl;
 VAR UINT wasendlbl;
 {
 #ifdef USE_HINTS
-;;  hintstr("//repeat"); endhint();
+;;  hintstr(";//repeat"); endhint();
 #endif
   wasendlbl = _tmpendlbl;
   beglbl = _jplbl; INC _jplbl;
@@ -914,7 +934,7 @@ VAR UINT wasendlbl;
   genjplbl(_tmpendlbl); cmdlabel();
   _tmpendlbl = wasendlbl;
 #ifdef USE_HINTS
-;;  hintstr("//end repeat"); endhint();
+;;  hintstr(";//end repeat"); endhint();
 #endif
 }
 }
@@ -935,7 +955,7 @@ VAR UINT endiflbl;
 VAR BOOL doendif;
 {
 #ifdef USE_HINTS
-;;  hintstr("//if"); endhint();
+;;  hintstr(";//if"); endhint();
 #endif
   _exprlvl = 0x00; //jp optimization possible
   elselbl = _jplbl; INC _jplbl;
@@ -959,7 +979,7 @@ VAR BOOL doendif;
     genjplbl(elselbl); cmdlabel();
   };
 #ifdef USE_HINTS
-;;  hintstr("//end if"); endhint();
+;;  hintstr(";//end if"); endhint();
 #endif
 }
 }
@@ -983,14 +1003,14 @@ PROC eatreturn()
 {
 //todo проверить isfunc (что мы в функции) для вывода ошибки
 #ifdef USE_HINTS
-;;  hintstr("//return"); endhint();
+;;  hintstr(";//return"); endhint();
 #endif
   _exprlvl = 0x01; //no jp optimization
   eatexpr(); //сравнения нельзя без скобок!!!
   IF ( _t != (_curfunct&(~_T_RECURSIVE)) ) {errstr("return"); err_type_enderr((UINT)_curfunct); };
   cmdresult();
 #ifdef USE_HINTS
-;;  hintstr("//end return"); endhint();
+;;  hintstr(";//end return"); endhint();
 #endif
   IF (_pushlvl != 0x00) {errstr("ret inside recursive func!"); enderr(); };
   _t = _curfunct&(~_T_RECURSIVE);
@@ -1001,7 +1021,7 @@ PROC eatreturn()
 PROC eatinc()
 {
 #ifdef USE_HINTS
-;;  hintstr("//inc"); endhint();
+;;  hintstr(";//inc"); endhint();
 #endif
   IF (*(PCHAR)_tword == '*') {
     rdword(); //'('
@@ -1010,7 +1030,7 @@ PROC eatinc()
     cmdincbyaddr();
   }ELSE {
     //начальная часть имени переменной уже прочитана
-    adddots(); //дочитать имя
+    //adddots(); //дочитать имя
     joinvarname(/**iscall*/+FALSE); //doprefix(_namespclvl); //prefix:=title[FIRST to...];
     cmdinc();
     rdword();
@@ -1020,7 +1040,7 @@ PROC eatinc()
 PROC eatdec()
 {
 #ifdef USE_HINTS
-;;  hintstr("//dec"); endhint();
+;;  hintstr(";//dec"); endhint();
 #endif
   IF (*(PCHAR)_tword == '*') {
     rdword(); //'('
@@ -1029,7 +1049,7 @@ PROC eatdec()
     cmddecbyaddr();
   }ELSE {
     //начальная часть имени переменной уже прочитана
-    adddots(); //дочитать имя
+    //adddots(); //дочитать имя
     joinvarname(/**iscall*/+FALSE); //doprefix(_namespclvl); //prefix:=title[FIRST to...];
     cmddec();
     rdword();
@@ -1042,11 +1062,11 @@ VAR TYPE tmasked = t&(~_T_ARRAY);
 /**  IF ( (t&_T_POI)!=(TYPE)0x00 ) { //используется для строк (нельзя equ)
     varstr_tword(); //DB "str"
   }ELSE*/ IF ( (t&_T_CONST)!=(TYPE)0x00 ) {
-    varequ(_title); /**varstr(_title); varc( '=' );*/ varstr(s); endvar();
+    varequ(_title); /**varstr(_title); varc( '=' );*/ varstr(s); endvar_reequ();
   }ELSE {
     IF (t==tmasked/**(t&_T_ARRAY)==(TYPE)0x00*/) {
       var_alignwsz_label(t);
-      //emitvarlabel(_joined); //varstr(_joined); /**varc( ':' );*/ endvar();
+      //emitvarlabel(_joined); //varstr(_joined); /**varc( ':' );*/ endvar_label();
     };
     var_def(tmasked, s);
   };
@@ -1065,14 +1085,14 @@ PROC do_const_num(TYPE t)
     var_num(t, _tword);
   }ELSE IF (*(PCHAR)_tword == '&') { //&<var>, &<func>, &<structinstance>
     rdword(); //использовать &, прочитать начало имени
-    adddots(); //дочитать имя
+    //adddots(); //дочитать имя
     var_num(_T_ARRAY|_T_UINT, _tword); //_T_ARRAY не даёт создать метку
   }ELSE IF (*(PCHAR)_tword == '\"') {
     _lenjoined = strcopy(_title, _lentitle, _joined);
     IF ((t&_T_ARRAY)!=(TYPE)0x00) { //строка внутри массива
       jdot();
       jautonum(_curlbl); INC _curlbl;
-      //_joined[_lenjoined] = '\0'; //strclose(_joined, _lenjoined);
+      //joinedclose(); //strclose(_joined, _lenjoined);
       var_num(_T_ARRAY|_T_UINT, _joined); //_T_ARRAY не даёт создать метку
       asmstrz(); //с меткой _joined //костыль вместо varstrz //todo целиком заполнить указатели, потом генерировать строки? (нельзя будет &str в const pchar arr[]?)
     }ELSE {
@@ -1086,7 +1106,7 @@ PROC eatextern()
 {
 VAR TYPE t;
 #ifdef USE_HINTS
-;;  hintstr("//extern"); endhint();
+;;  hintstr(";//extern"); endhint();
 #endif
   _exprlvl = 0x01; //no jump optimization
   eatvarname(); t = _t; //без срубания вложенностей по _ (создаёт _name)
@@ -1105,7 +1125,7 @@ VAR TYPE t;
   };
   addlbl(t, /**isloc*/+FALSE, (UINT)_typesz[t&_TYPEMASK]/**, _ncells, _lenncells*/); //(_name) //TODO размер массива (структуры не бывают extern?)!
 #ifdef USE_HINTS
-;;  hintstr("//end extern"); endhint();
+;;  hintstr(";//end extern"); endhint();
 #endif
 }
 
@@ -1116,7 +1136,7 @@ PROC eatvar RECURSIVE(BOOL ispar, BOOL body) //если var, то body==+TRUE, иначе b
 VAR TYPE t;
 {
 #ifdef USE_HINTS
-;;  hintstr("//var"); endhint();
+;;  hintstr(";//var"); endhint();
 #endif
   _exprlvl = 0x01; //no jump optimization
   eatvarname(); t = _t; //без срубания вложенностей по _ (создаёт _name)
@@ -1138,13 +1158,13 @@ VAR TYPE t;
   IF (ispar) { //parameter of func/proc
     IF (body) {
       var_alignwsz_label(t);
-      //emitvarlabel(_joined); //varstr(_joined); /**varc( ':' );*/ endvar();
+      //emitvarlabel(_joined); //varstr(_joined); /**varc( ':' );*/ endvar_label();
     };
     _lenjoined = strcopy(_prefix, _lenprefix, _joined); //_lenjoined = strjoin(/**to=*/_joined, 0, _prefix); //prefix остался от doprefix/eatvarname выше
     jautonum(_parnum);
     INC _parnum; //!!! todo написать почему
     INC _curlbl; //!!! todo написать почему
-    //_joined[_lenjoined] = '\0'; //strclose(_joined, _lenjoined);
+    //joinedclose(); //strclose(_joined, _lenjoined);
     _lenname = strcopy(_joined, _lenjoined, _name);
     addlbl(t, /**isloc*/+FALSE, (UINT)_typesz[t&_TYPEMASK]/**, "0", _lenncells*/); //отметили в таблице, что не выделять память //(_name) //TODO размер массива или структуры!
   };
@@ -1152,8 +1172,8 @@ VAR TYPE t;
   IF (body) {
     IF ((t&_T_ARRAY)!=(TYPE)0x00) {
       var_alignwsz_label(t);
-      //emitvarlabel(_joined); //varstr(_joined); /**varc( ':' );*/ endvar();
-      var_ds(); /**varstr( "\tDS " );*/ varuint((UINT)_typesz[t&_TYPEMASK]); varc('*'); varstr(_ncells); endvar(); //todo рассчитать размер уже в addlbl, тогда можно будет делать +sizeof(<array>)
+      //emitvarlabel(_joined); //varstr(_joined); /**varc( ':' );*/ endvar_label();
+      var_ds(); /**varstr( "\tDS " );*/ varuint((UINT)_typesz[t&_TYPEMASK]); varc((BYTE)'*'); varstr(_ncells); endvar_ds(); //todo рассчитать размер уже в addlbl, тогда можно будет делать +sizeof(<array>)
       //printf("%s ds \n",_joined);
     }ELSE {
       var_num(t, "0");
@@ -1182,7 +1202,7 @@ VAR TYPE t;
     cmdpoppar(); DEC _pushlvl; //todo что делать с массивами?
   };
 #ifdef USE_HINTS
-;;  hintstr("//end var"); endhint();
+;;  hintstr(";//end var"); endhint();
 #endif
 }
 }
@@ -1197,11 +1217,11 @@ PROC eatconst()
 VAR TYPE t;
 VAR UINT i = 0;
 #ifdef USE_HINTS
-;;  hintstr("//const"); endhint();
+;;  hintstr(";//const"); endhint();
 #endif
   _exprlvl = 0x01; //no jump optimization
   eattype(); t = _t|_T_CONST; //тип был уже прочитан
-  adddots();
+  //adddots();
   doprefix(_namespclvl); //склеить n слов типа 'word.' из title в prefix (name без префикса)
   rdword(); //'['
   IF (*(PCHAR)_tword == '[') {
@@ -1259,7 +1279,7 @@ VAR UINT i = 0;
   //_isexp = +FALSE; //надо ли экспортировать константы? только константные массивы/структуры
 
 #ifdef USE_HINTS
-;;  hintstr("//end const"); endhint();
+;;  hintstr(";//end const"); endhint();
 #endif
 }
 
@@ -1273,7 +1293,7 @@ VAR BOOL isforward;
     eattype(); _curfunct = _t;
   }ELSE _curfunct = _T_PROC;
 #ifdef USE_HINTS
-;;    hintstr("//func "); hinttype(_title,_curfunct);
+;;    hintstr(";//func "); hinttype(_title,_curfunct);
 #endif
   _lenname = strcopy(_tword, _lentword, _name);
   jtitletword();
@@ -1317,7 +1337,7 @@ VAR BOOL isforward;
     if (!isfunc) { cmdret(isfunc); };
     IF (isfunc && !_waswasreturn) {errstr("return expected"); enderr(); };
 #ifdef USE_HINTS
-;;    hintstr("/////end func"); endhint();
+;;    hintstr(";/////end func"); endhint();
 #endif
   };
 
@@ -1334,14 +1354,14 @@ PROC do_callpar RECURSIVE(TYPE funct, UINT parnum)
 VAR TYPE t;
 {
 #ifdef USE_HINTS
-;;  hintstr("//call_par"); endhint();
+;;  hintstr(";//call_par"); endhint();
 #endif
   IF ( (*(PCHAR)_tword!=')') && !_waseof ) {
     _lenjoined = strcopy(_callee, _lencallee, _joined);
     jdot();
     jautonum(parnum);
     //INC _curlbl; //не нужно, т.к. это вызов (т.е. другой префикс)
-    //_joined[_lenjoined] = '\0'; //strclose(_joined, _lenjoined);
+    //joinedclose(); //strclose(_joined, _lenjoined);
 ;;    cmtstr(";accesspar="); cmtstr(_joined); endcmt();
     _lenname = strcopy(_joined, _lenjoined, _name);
     t = lbltype(); //(_name)
@@ -1371,7 +1391,7 @@ VAR TYPE t;
     cmdcall();
   };
 #ifdef USE_HINTS
-;;  hintstr("//end call_par"); endhint();
+;;  hintstr(";//end call_par"); endhint();
 #endif
 }
 }
@@ -1405,7 +1425,7 @@ PROC eatcallpoi()
 //call(<poi>)
 {
  //начальная часть имени переменной уже прочитана
-  adddots(); //дочитать имя
+  //adddots(); //дочитать имя
   joinvarname(/**iscall*/+FALSE); //doprefix(_namespclvl); //prefix:=title[FIRST to...];
   eatopen();
   eatexpr();
@@ -1432,7 +1452,7 @@ PROC eatgoto() //переход только внутри текущей процедуры //todo inline
   cmdjp();
   rdword();
 }
-
+/**
 PROC eatasm()
 //asm("asmtext")
 {
@@ -1440,8 +1460,8 @@ PROC eatasm()
   rdword(); //'\"'
   WHILE (!_waseof) {
     _lentword = 0; //читаем с пустой строки
-    rdquotes('\"'/**, +FALSE*/);
-    asmstr(_tword); endasm();
+    rdquotes('\"');
+    asm_label(); asmstr(_tword); endasm_label();
     rdch(); //пропустить закрывающую кавычку
     IF (_cnext != '\"') BREAK;
     rdword(); //'\"' открывающая кавычка приклеенной строки
@@ -1449,7 +1469,7 @@ PROC eatasm()
   rdword(); //')'
   rdword();
 }
-
+*/
 PROC eatenum()
 //enum{<constname0>[=<num>],<constname1>...[,]}
 {
@@ -1472,10 +1492,10 @@ _lenncells = strcopy("-1", 2, _ncells);
       //rdword(); //',' или '}'
       varstr(_tword);
     }ELSE {
-      varstr(_ncells); varc('+'); varc('1'); /**varuint(i);*/
+      varstr(_ncells); varc((BYTE)'+'); varc((BYTE)'1'); /**varuint(i);*/
     };
 _lenncells = strcopy(_tword, _lentword, _ncells);
-    endvar();
+    endvar_reequ();
     rdword(); //',' или '}'
     IF (*(PCHAR)_tword!=',') BREAK; //}
   };
@@ -1504,10 +1524,10 @@ _lenncells = strcopy("-1", 2, _ncells);
       //rdword(); //',' или '}'
       varstr(_tword);
     }ELSE {
-      varstr(_ncells); varc('+'); varc('1'); /**varuint(i);*/
+      varstr(_ncells); varc((BYTE)'+'); varc((BYTE)'1'); /**varuint(i);*/
     };
 _lenncells = strcopy(_tword, _lentword, _ncells);
-    endvar();
+    endvar_reequ();
     rdword(); //',' или '}'
     IF (*(PCHAR)_tword!=',') BREAK; //}
   };
@@ -1583,7 +1603,7 @@ VAR UINT wastmpendlbl;
   //pushvar <title>.J
   _lenjoined = strcopy(_title, _lentitle, _joined);
   _lenjoined = stradd(_joined, _lenjoined, 'J');
-  _joined[_lenjoined] = '\0'; //strclose(_joined , _lenjoined);
+  joinedclose(); //strclose(_joined , _lenjoined);
   _t = _T_UINT|_T_POI;
   cmdpushnum(); //использование указателя в качестве массива - читаем его значение
 
@@ -1598,11 +1618,11 @@ VAR UINT wastmpendlbl;
   //procname.aab.<num> = procname.aab.default (пока без aab TODO)
   //генерировать таблицу переходов, заполненную нумерованными метками перехода
   //DW procname.aab.1 (пока без aab TODO)
-  varstr(_title); varc('J'); endvar();
+  var_label(); varstr(_title); varc((BYTE)'J'); endvar_label();
   ib = 0x00;
   REPEAT {
-    asmstr(_title); asmuint((UINT)ib); asmc('='); asmstr(_title); asmstr("default"); endasm(); //до кода! поэтому asm
-    var_dw(); varstr(_title); varuint((UINT)ib); endvar(); //TODO "DP", т.е. на ширину POINTER?
+    asm_label(); asmstr(_title); asmuint((UINT)ib); asm_equal(); asmstr(_title); asmstr("default"); endasm_reequ(); //до кода! поэтому asm
+    var_dw(); varstr(_title); varuint((UINT)ib); endvar_dw(); //TODO "DP", т.е. на ширину POINTER?
     INC ib;
   }UNTIL (ib == 0x00);
 
@@ -1619,7 +1639,7 @@ PROC eatcase()
 
   //заполнить нумерованную метку перехода
   //procname.aab.#<_tword> = $ (пока без aab TODO)
-  asmstr(_title); asmc('#'); asmstr(_tword); asmc('='); asmc('$'); endasm();
+  asm_label(); asmstr(_title); asmc((BYTE)'#'); asmstr(_tword); asm_equal(); asmc((BYTE)'$'); endasm_reequ();
 
   rdword(); //skip ':' for C compatibility
   rdword(); //нужно!
@@ -1629,7 +1649,7 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
 {
 {
  //начальная часть имени переменной уже прочитана
-  adddots(); //дочитать имя
+  //adddots(); //дочитать имя
 //чтобы реализовать объявления без VAR и FUNC, надо уже сейчас проверить тип метки TODO FAST!!!
   _c0 = *(PCHAR)_tword;
   IF ((_c0=='}') || _waseof) {
@@ -1647,7 +1667,7 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
       do_call(/**isfunc*/+FALSE); rdword();
     }ELSE IF (_cnext=='[') { //let []
       eatlet();
-    }ELSE IF ( _cnext==':' ) { //lbl
+    }ELSE IF (_cnext==':') { //lbl
       eatlbl();
     }ELSE IF (_cnext=='-') { //let ->
       eatlet();
@@ -1663,9 +1683,9 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
           _isexp = +FALSE; //нельзя внутрь, иначе не экспортируются параметры процедуры
         }ELSE IF (_c0=='f') { //func
           rdword(); eatfunc(+TRUE, _curfunct, _wasreturn);
-        }ELSE IF ( _c0=='w' ) { //while
+        }ELSE IF (_c0=='w') { //while
           rdword(); eatwhile();
-        }ELSE IF ( _c0=='b' ) { //break
+        }ELSE IF (_c0=='b') { //break
           rdword(); eatbreak(); //no parameters (rds nothing)
         }ELSE {
         _c2 = (CHAR)((BYTE)_tword[2]|0x20);
@@ -1709,8 +1729,8 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
           };
         }ELSE IF ( _c0=='g' ) { //goto
           rdword(); eatgoto();
-        }ELSE IF ( _c0=='a' ) { //asm
-          rdword(); eatasm();
+//        }ELSE IF ( _c0=='a' ) { //asm
+//          rdword(); eatasm();
         }ELSE IF ( _c0=='s' ) { //struct //switch
           IF (_c2=='r') { //struct
             rdword(); eatstruct();
@@ -1805,7 +1825,7 @@ FUNC BOOL eatcmd RECURSIVE() //возвращает +FALSE, если конец блока
             _lenname = strcopy(_joined, _lenjoined, _name);
             addlbl(_t|_T_CONST, /**isloc*/+FALSE, (UINT)_typesz[_t/**&_TYPEMASK*/]/**, _ncells, _lenncells*/); //(_name) //TODO размер массива или структуры!
             emitvarpreequ(_name);
-            varequ(_name); /**varstr(_name); varc( '=' );*/ varstr(_tword); endvar();
+            varequ(_name); /**varstr(_name); varc( '=' );*/ varstr(_tword); endvar_reequ();
             emitvarpostequ();
           };
 
@@ -1874,6 +1894,27 @@ VAR CHAR c;
 RETURN last; //после последнего терминатора
 }
 
+PROC setname(PCHAR s)
+{
+  _lenname = 0;
+  WHILE (s[_lenname] != '\0') {
+    INC _lenname;
+  };
+  _lenname = strcopy(s, _lenname, _name);
+}
+
+PROC setlblt(PCHAR s, TYPE t)
+{
+  setname(s);
+  addlbl(_T_TYPE + t, +FALSE, (UINT)_typesz[t]);
+}
+
+PROC setlblp(PCHAR s, TYPE t)
+{
+  setname(s);
+  addlbl(_T_TYPE + _T_POI + t, +FALSE, (UINT)_typesz[_T_POI]);
+}
+
 PROC compile(PCHAR fn)
 {
   //_jplbl = 0; //не сбрасываем нумерацию автометок переходов (без префикса), т.к. может быть несколько файлов
@@ -1896,38 +1937,22 @@ PROC compile(PCHAR fn)
 
   initlblbuf();
 
-  _lenname = strcopy("INT", 3, _name);
-  addlbl(_T_TYPE + _T_INT, +FALSE, (UINT)_typesz[_T_INT]);
-  _lenname = strcopy("UINT", 4, _name);
-  addlbl(_T_TYPE + _T_UINT, +FALSE, (UINT)_typesz[_T_UINT]);
-  _lenname = strcopy("BYTE", 4, _name);
-  addlbl(_T_TYPE + _T_BYTE, +FALSE, (UINT)_typesz[_T_BYTE]);
-  _lenname = strcopy("BOOL", 4, _name);
-  addlbl(_T_TYPE + _T_BOOL, +FALSE, (UINT)_typesz[_T_BOOL]);
-  _lenname = strcopy("LONG", 4, _name);
-  addlbl(_T_TYPE + _T_LONG, +FALSE, (UINT)_typesz[_T_LONG]);
-  _lenname = strcopy("CHAR", 4, _name);
-  addlbl(_T_TYPE + _T_CHAR, +FALSE, (UINT)_typesz[_T_CHAR]);
-  _lenname = strcopy("FLOAT", 5, _name);
-  addlbl(_T_TYPE + _T_FLOAT, +FALSE, (UINT)_typesz[_T_FLOAT]);
-  _lenname = strcopy("STRUCT", 6, _name);
-  addlbl(_T_TYPE + _T_STRUCTWORD, +FALSE, (UINT)_typesz[_T_STRUCT]);
-  _lenname = strcopy("PINT", 4, _name);
-  addlbl(_T_TYPE + _T_POI + _T_INT, +FALSE, (UINT)_typesz[_T_POI]);
-  _lenname = strcopy("PUINT", 5, _name);
-  addlbl(_T_TYPE + _T_POI + _T_UINT, +FALSE, (UINT)_typesz[_T_POI]);
-  _lenname = strcopy("PBYTE", 5, _name);
-  addlbl(_T_TYPE + _T_POI + _T_BYTE, +FALSE, (UINT)_typesz[_T_POI]);
-  _lenname = strcopy("PBOOL", 5, _name);
-  addlbl(_T_TYPE + _T_POI + _T_BOOL, +FALSE, (UINT)_typesz[_T_POI]);
-  _lenname = strcopy("PLONG", 5, _name);
-  addlbl(_T_TYPE + _T_POI + _T_LONG, +FALSE, (UINT)_typesz[_T_POI]);
-  _lenname = strcopy("PCHAR", 5, _name);
-  addlbl(_T_TYPE + _T_POI + _T_CHAR, +FALSE, (UINT)_typesz[_T_POI]);
-  _lenname = strcopy("PFLOAT", 6, _name);
-  addlbl(_T_TYPE + _T_POI + _T_FLOAT, +FALSE, (UINT)_typesz[_T_POI]);
-  //_lenname = strcopy("PPROC", 5, _name);
-  //addlbl(_T_TYPE + _T_POI + _T_PROC, +FALSE, (UINT)_typesz[_T_POI]);
+  setlblt("INT", _T_INT);
+  setlblt("UINT", _T_UINT);
+  setlblt("BYTE", _T_BYTE);
+  setlblt("BOOL", _T_BOOL);
+  setlblt("LONG", _T_LONG);
+  setlblt("CHAR", _T_CHAR);
+  setlblt("FLOAT", _T_FLOAT);
+  setname("STRUCT"); addlbl(_T_TYPE + _T_STRUCTWORD, +FALSE, (UINT)_typesz[_T_STRUCT]);
+  setlblp("PINT", _T_INT);
+  setlblp("PUINT", _T_UINT);
+  setlblp("PBYTE", _T_BYTE);
+  setlblp("PBOOL", _T_BOOL);
+  setlblp("PLONG", _T_LONG);
+  setlblp("PCHAR", _T_CHAR);
+  setlblp("PFLOAT", _T_FLOAT);
+  //setlblp("PPROC", _T_PROC);
 
   _lentitle = 0;
   POKE *(PCHAR)(_title) = '\0'; //strclose(_title, _lentitle);
@@ -1941,13 +1966,29 @@ PROC compile(PCHAR fn)
   _wasreturn = +FALSE;
 
    _lenjoined = strjoineollast(_joined, 0, fn, '.');
+#ifdef TARGET_THUMB
    _lenjoined = strjoin(_joined, _lenjoined, ".ast");
-   _joined[_lenjoined] = '\0';
+#else
+#ifdef TARGET_386
+   _lenjoined = strjoin(_joined, _lenjoined, ".ast");
+#else
+   _lenjoined = strjoin(_joined, _lenjoined, ".A_");
+#endif
+#endif
+   joinedclose();
   _fout = openwrite(_joined);
 
    _lenjoined = strjoineollast(_joined, 0, fn, '.');
+#ifdef TARGET_THUMB
    _lenjoined = strjoin(_joined, _lenjoined, ".var");
-   _joined[_lenjoined] = '\0';
+#else
+#ifdef TARGET_386
+   _lenjoined = strjoin(_joined, _lenjoined, ".var");
+#else
+   _lenjoined = strjoin(_joined, _lenjoined, ".V_");
+#endif
+#endif
+   joinedclose();
   _fvar = openwrite(_joined);
 
   _nhinclfiles = 0x00;

@@ -9,8 +9,6 @@
 
 #include "../_sdk/read.c" //нужно для compile и token
 
-//#include "codetg.c"
-//#include "regs.c"
 #include "commands.c"
 #include "compile.c"
 

@@ -254,72 +254,67 @@ PROC clearlabels(UINT labelblock, PBYTE labelpointer)
   _labelpagefreestart = 0;
 }
 
+CONST BOOL _isalphand[256]={ //включая точку (в отличие от read.c/_isalphanum)
+  +FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE, +FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE, //0X
+  +FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE, +FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE, //1X
+  +FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE, +FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+TRUE/**FALSE*/,+FALSE, //2X
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE, //3X
+  +FALSE,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , //4X
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+FALSE,+FALSE,+FALSE,+FALSE,+TRUE , //5X
+  +FALSE,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , //6X
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE, //7X
+
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , //8X..FX
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , //8X..FX
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , //8X..FX
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , //8X..FX
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , //8X..FX
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , //8X..FX
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , //8X..FX
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE   //8X..FX
+};
+
 PROC readlabel()
 {
-VAR PBYTE pevalstr; //метка в строке заканчивается TOK_ENDTEXT
-VAR BYTE cstr; //символ из строки
+VAR PBYTE pevalstr; //метка в строке заканчивается неалфавитноцифровым символом (=, tab, eol, символ операции, скобка)
 VAR UINT labellen;
-  _token = readfin(); //TOK_TEXT
+  //_token = readfin(); //TOK_TEXT
   labellen = 0;
-  REPEAT {
-    cstr = readfin();
-    IF ((CHAR)cstr == '#') { //evallabelname=123:labelname#evallabelname должно давать labelname123
+  //_token = readfin(); //первый символ метки
+  /**REPEAT*/ {
+loop:
+    _curlabeltext[labellen] = _token;
+    INC labellen; //TODO проверять переполнение длины
+    _token = readfin();
+    IF (_isalphand[_token]) goto loop;
+  }//UNTIL (cstr == +_TOKENDTEXT);
+  IF ((CHAR)_token == '#') { //evallabelname=123:labelname#evallabelname должно давать labelname123
       //с постами работать не будет!!!
       //прочитать evallabel в _evallabeltext - TODO fgets
       pevalstr = (PBYTE)_evallabeltext;
-      REPEAT {
-        cstr = readfin();
-        POKE *(PBYTE)(pevalstr) = cstr; //метка в строке заканчивается TOK_ENDTEXT
+      _token = readfin();
+      /**REPEAT*/ {
+hloop:
+        POKE *(PBYTE)(pevalstr) = _token;
         INC pevalstr;
-      }UNTIL (cstr == +_TOKENDTEXT);
-      ;;_labellen = (UINT)(pevalstr - _evallabeltext); //включая 0
+        _token = readfin();
+        IF (_isalphand[_token]) goto hloop;
+      }//UNTIL (cstr == +_TOKENDTEXT);
+      POKE *(PBYTE)(pevalstr) = 0x00;
+      INC pevalstr;
+      ;;_labellen = (UINT)(pevalstr - _evallabeltext); //включая 0 (для findlabel, не используется в асмоверсии findlabel)
       //вычислить evallabel
       //errstr("readevallabel "); errstr(_evallabeltext); enderr();
       _plabel_index = findlabel(_evallabeltext);
       emitn((UINT)getlabel());
-      labellen = strjoin((PCHAR)_curlabeltext, labellen, _nbuf); //глобальная
-      //cstr == +_TOKENDTEXT
-    };
-    _curlabeltext[labellen] = cstr;
-    INC labellen; //TODO проверять переполнение длины
-  }UNTIL (cstr == +_TOKENDTEXT);
-  _labellen = labellen; //включая +_TOKENDTEXT
+      labellen = strjoin((PCHAR)_curlabeltext, labellen, _nbuf); //глобальная (терминатор не копируется)
+  };
+  _curlabeltext[labellen] = 0x00;
+  INC labellen; //TODO проверять переполнение длины
+  _labellen = labellen; //включая 0 (для addlabel)
   //errstr("readlabel "); errstr(_curlabeltext); enderr();
 }
-/**
-FUNC UINT findlabel(PBYTE labeltext)
-{
-//VAR PBYTE _labelN; //указатель на текущую таблицу меток
-VAR PBYTE plabel; //метка в таблице заканчивается нулём
-//VAR PBYTE pstr; //метка в строке заканчивается TOK_ENDTEXT
-//VAR BYTE cstr; //символ из строки
-//VAR BYTE clabel; //символ из таблицы меток
-//VAR UINT pnext_index; //адрес следующей метки в таблице
-//VAR UINT plabelqueuestart_index; //в (_labelN+plabelqueuestart_index) хранится адрес начала цепочки для метки
-  _hash = hash(labeltext)&0x3ff;
 
-  _labelN = _labels0; //_labelpage[(UINT)(_hashhigh&_LABELPAGEMASK)]; //set page (todo как определить? системный макрос?)
-  //plabelqueuestart_index = ((UINT)(_hash))<<1; //todo разная разрядность UINT
-  _plabel_index = _labelshift[_hash];
-  //todo как сделать набор массивов в разных страничках? сдвиг индекса в одном массиве внизу?
-  //_labelflag = 0x00; //"label not found"
-  WHILE (_plabel_index != _LABELPAGEEOF) { //пока цепочка меток не закончилась
-    plabel = &_labelN[_plabel_index]; //(PBYTE)((POINTER)_labelN + (POINTER)_plabel_index);
-    _plabel_index = *(PUINT)(plabel);
-    plabel = &plabel[+sizeof(UINT)]; //(PBYTE)((POINTER)plabel + (POINTER)2);
-    IF (strcp((PCHAR)labeltext, (PCHAR)plabel)) { //метка найдена
-      //plabel = (PBYTE)((POINTER)plabel + (POINTER)_labellen); //включая 0
-        //errstr("found label "); errstr(labeltext); enderr();
-      _plabel_index = (UINT)(plabel - _labelN) + _labellen; //включая 0 //указатель на начало данных создаваемой метки (надо обязательно запомнить!)
-      //_labelflag = *(PBYTE)(plabel);
-      //_labelvalue = *(PLONG)((POINTER)plabel + (POINTER)1);
-      BREAK; //помнит _plabel_index начала данных найденной метки
-    };
-    //_plabel_index = pnext_index;
-  }; //если не найдено, то _plabel_index==_LABELPAGEEOF
-RETURN _plabel_index;
-}
-*/
 PROC addlabel(LONG labelvalue) //вызывать непосредственно после findlabel!!!
 {
 //VAR PBYTE _labelN; //указатель на текущую таблицу меток
@@ -418,6 +413,7 @@ VAR BYTE labelflag;
 
 PROC asmdir_label() //неизвестно, просто метка или reequ
 {
+  _token=readfin(); //первый символ метки
   readlabel();
   _plabel_index = findlabel(_curlabeltext);
   //нельзя сейчас переопределять! иначе нельзя label=label+1

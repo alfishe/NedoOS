@@ -5,8 +5,8 @@ DOSBUF=0xfe00 ;aligned
 ;COMMANDLINE=0x0080
 ;COMMANDLINE_sz=0x0080
 ;PROGSTART=0x0100
-_STRLEN=80
-_STRMAX=(_STRLEN-1)
+;_STRLEN=80
+;_STRMAX=(_STRLEN-1)
 	org PROGSTART
         ld hl,0xe800 ;FCB1
         ld de,0xe801
@@ -138,7 +138,7 @@ writesectors.C.=$+2 ;count
 
 	include "movedisk.ast"
 	include "../_sdk/lib.i"
-	include "../_sdk/str.i"
+	include "../_sdk/str.i" ;for memcopy
 	include "../_sdk/io_os.i"
 
 fn_os.

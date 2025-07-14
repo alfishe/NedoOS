@@ -1,10 +1,6 @@
 if "%settedpath%"=="" call "..\..\_sdk\setpath.bat"
 call compile.bat
 md tmp
-copy *.ast tmp
-copy *.var tmp
-del *.ast
-del *.var
 del tok.f
 copy export.A_ tok.f
 copy *.A_ tmp

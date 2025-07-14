@@ -3,7 +3,7 @@
 /*FUNC UINT strlen(PCHAR s)
 { 
 VAR UINT len = 0;
-  WHILE (s[len] != 0x00) {
+  WHILE (s[len] != '\0') {
     INC len;
   };
   RETURN len;
@@ -161,8 +161,8 @@ VAR BOOL ok;
   REPEAT { //проверяем все символы первой строки, кроме терминатора
     c1 = s1[i/**+_FIRST*/];
     c2 = s2[i/**+_FIRST*/];
-    IF ((+(BYTE)c1>=+(BYTE)'A') && (+(BYTE)c1<=+(BYTE)'Z')) c1 = +(CHAR)(+(BYTE)c1 | 0x20);
-    IF ((+(BYTE)c2>=+(BYTE)'A') && (+(BYTE)c2<=+(BYTE)'Z')) c2 = +(CHAR)(+(BYTE)c2 | 0x20);
+    IF (((BYTE)c1>=(BYTE)'A') && ((BYTE)c1<=(BYTE)'Z')) c1 = (CHAR)((BYTE)c1 | 0x20);
+    IF (((BYTE)c2>=(BYTE)'A') && ((BYTE)c2<=(BYTE)'Z')) c2 = (CHAR)((BYTE)c2 | 0x20);
     IF (c1 != c2) {ok = +FALSE; BREAK; }; //символ не совпал или одна из строк кончилась
     //IF (c1 == '\0') BREAK; //обе строки кончились
     //IF (c2 == '\0') {result = +FALSE; BREAK; }; //вторая строка рано кончилась
@@ -179,10 +179,10 @@ VAR BYTE c;
   hash = 0x0000;
   c = 0x00;
   REPEAT {
-    c = c^(+(BYTE)hash);
+    c = c^(BYTE)hash;
     hash = hash + hash;
-    c = c+(+(BYTE)hash);
-    hash = (hash&0xff00) + +(UINT)c;
+    c = c+(BYTE)hash;
+    hash = (hash&0xff00) + (UINT)c;
     c = *(PBYTE)(pstr); //метка в строке заканчивается 0x00
     INC pstr;
   }UNTIL (c == 0x00);

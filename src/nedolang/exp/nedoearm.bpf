@@ -1,4 +1,4 @@
-USEUNIT("z80main.c");
+USEUNIT("armmain.c");
 //---------------------------------------------------------------------------
 This file is used by the project manager only and should be treated like the project file
 

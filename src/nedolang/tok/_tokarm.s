@@ -392,13 +392,13 @@ writesectors__C__
 readsectors__TRDBUF__
 	DCD TRDBUF
 
-	include "../_sdk/read.asm"
-	include "token.asm"
-	include "tokenz80.asm"
+	include "../_sdk/read.ast"
+	include "token.ast"
+	include "tokenz80.ast"
 	;include "../_sdk/lib.i"
 	;include "../_sdk/io.i"
-	include "../_sdk/str.asm"
-	include "../_sdk/io.asm"
+	include "../_sdk/str.ast"
+	include "../_sdk/io.ast"
 
 	;AREA    HEAP, DATA, READWRITE
 

@@ -3,8 +3,6 @@
 
 //для script надо в ассемблере по команде DW писать uint64_t в файл, но указатель инкрементировать только на 1
 
-//#include "sizesz80.h"
-
 //везде, где нужен строковый параметр, используется _joined
 //(кроме call - там _callee, и кроме loadrg/b - там _const)
 //в конце любого вычисления (put, call, jpiffalse) делал _jpflag = 0x00 (иначе предыдущее "оптимизированное" сравнение может испортить новый условный переход)
@@ -44,26 +42,26 @@ CONST BYTE _RMAIN2= 0x02; /**DE*/ /**регистр второго слова результата и второго 
 CONST BYTE _RMAIN3= 0x03;
 CONST BYTE _RMAIN4= 0x04;
 
-CONST PCHAR _RNAME[_RGBUFSZ] = {
-  "", //0 пустой
-  "HL",
-  "DE",
-  "BC",
-  "IX"
+CONST BYTE _RNAME[_RGBUFSZ] = {
+  0x00, //0 пустой
+  +_RG_HL,
+  +_RG_DE,
+  +_RG_BC,
+  +_RG_IX
 };
-CONST PCHAR _RHIGH[_RGBUFSZ] = {
-  "", //0 пустой
-  "H",
-  "D",
-  "B",
-  "HX"
+CONST BYTE _RHIGH[_RGBUFSZ] = {
+  0x00, //0 пустой
+  +_RG_H,
+  +_RG_D,
+  +_RG_B,
+  +_RG_HX
 };
-CONST PCHAR _RLOW[_RGBUFSZ] = {
-  "", //0 пустой
-  "L",
-  "E",
-  "C",
-  "LX"
+CONST BYTE _RLOW[_RGBUFSZ] = {
+  0x00, //0 пустой
+  +_RG_L,
+  +_RG_E,
+  +_RG_C,
+  +_RG_LX
 };
 
 VAR BYTE _rproxy;
@@ -118,245 +116,374 @@ CONST BYTE _typeshift[32] = { //log размер типа (n для 2^n байт) для таргета //з
 
 PROC initrgs FORWARD(); //очистить состояния регистров и байтов (используется в cemitfunc)
 
+EXPORT PROC asm_label()
+{
+  asmc(+_CMDLABEL); //TODO определять по первой букве команды?
+}
+
+EXPORT PROC asm_equal()
+{
+  asmc((BYTE)'='); asmc(+_TOKEXPR); //TODO без _TOKEXPR? (убрать в саму обработку _CMDLABEL) (усложнит экспорт)
+}
+
+EXPORT PROC endasm_label()
+{
+  asmc(+_FMTCMD); endasm(); //там только проверка переопределённости, TODO убрать в саму обработку _CMDLABEL
+}
+
+EXPORT PROC endasm_reequ()
+{
+  asmc(+_TOKENDEXPR); asmc(+_FMTREEQU); endasm(); //TODO убрать
+}
+
+EXPORT PROC var_label()
+{
+  varc(+_CMDLABEL); //TODO определять по первой букве команды?
+}
+
+EXPORT PROC endvar_label()
+{
+  varc(+_FMTCMD); endvar(); //там только проверка переопределённости, TODO убрать в саму обработку _CMDLABEL
+}
+
+EXPORT PROC varequ(PCHAR s)
+{
+  varc(+_CMDLABEL); varstr(s); varc((BYTE)'='); varc(+_TOKEXPR); //TODO без _TOKEXPR? (убрать в саму обработку _CMDLABEL) (усложнит экспорт)
+}
+
+EXPORT PROC endvar_reequ()
+{
+  varc(+_TOKENDEXPR); varc(+_FMTREEQU); endvar(); //TODO убрать
+}
+
+EXPORT PROC endasm_db()
+{
+  asmc(+_TOKENDEXPR); asmc(+_OPWRVAL); asmc(+_FMTCMD); endasm(); //TODO убрать
+}
+
+PROC enddw()
+{
+  asmc(+_TOKENDEXPR); asmc(+_OPWRVAL); asmc(+_FMTCMD); endasm(); //TODO убрать
+}
+
+EXPORT PROC endasm_dbstr()
+{
+  asmc(+_TOKENDTEXT); asmc((BYTE)'\"'); asmc(+_FMTCMD); endasm(); //TODO убрать
+}
+
+EXPORT PROC endvar_db()
+{
+  varc(+_TOKENDEXPR); varc(+_OPWRVAL); varc(+_FMTCMD); endvar(); //TODO убрать
+}
+
+EXPORT PROC endvar_dbstr()
+{
+  varc(+_TOKENDTEXT); varc((BYTE)'\"'); varc(+_FMTCMD); endvar(); //TODO убрать
+}
+
+EXPORT PROC endvar_dw()
+{
+  varc(+_TOKENDEXPR); varc(+_OPWRVAL); varc(+_FMTCMD); endvar(); //TODO убрать
+}
+
+EXPORT PROC endvar_dl()
+{
+  varc(+_TOKENDEXPR); varc(+_OPWRVAL); varc(+_FMTCMD); endvar(); //TODO убрать
+}
+
+EXPORT PROC endvar_ds()
+{
+  varc(+_TOKENDEXPR); varc(+_FMTCMD); endvar();
+}
+
+PROC asmexprstr(PCHAR s)
+{
+  asmc(+_TOKEXPR); asmstr(s); asmc(+_TOKENDEXPR);
+}
+
+PROC asmcmd(BYTE c)
+{
+  asmc(+_TOKSPC8); asmc(c); asmc(+_TOKSPC1);
+}
+
+PROC asmcmdfull(BYTE c)
+{
+  asmc(+_TOKSPC8); asmc(c); asmc(+_FMTXX); endasm(); //TODO писать код в самих командах
+}
+
 //////////// мелкие процедуры для сокращения числа констант
 
 EXPORT PROC var_alignwsz()
 {
 }
 
-EXPORT PROC var_db() //доступно из compile для строк!
-{
-  varstr( "\tDB " );
-}
-
 EXPORT PROC asm_db() //костыль для константных массивов строк TODO
 {
-  asmstr( "\tDB " );
+  asmc(+_TOKSPC8); asmc(+_CMDDB); asmc(+_TOKSPC1); asmc(+_TOKEXPR); //TODO без _TOKEXPR? (убрать в саму обработку команды) (усложнит экспорт)
+}
+
+EXPORT PROC asm_dbstr() //костыль для константных массивов строк TODO
+{
+  asmc(+_TOKSPC8); asmc(+_CMDDB); asmc(+_TOKSPC1); asmc((BYTE)'\"'); asmc(+_OPWRSTR); asmc(+_TOKTEXT); //TODO убрать в саму обработку команды (усложнит экспорт)
+}
+
+EXPORT PROC var_db() //доступно из compile!
+{
+  varc(+_TOKSPC8); varc(+_CMDDB); varc(+_TOKSPC1); varc(+_TOKEXPR); //TODO без _TOKEXPR? (убрать в саму обработку команды) (усложнит экспорт)
+}
+
+EXPORT PROC var_dbstr()
+{
+  varc(+_TOKSPC8); varc(+_CMDDB); varc(+_TOKSPC1); varc((BYTE)'\"'); varc(+_OPWRSTR); varc(+_TOKTEXT); //TODO убрать в саму обработку команды (усложнит экспорт)
 }
 
 EXPORT PROC var_dw() //доступно из compile!
 {
-  varstr( "\tDW " );
+  varc(+_TOKSPC8); varc(+_CMDDW); varc(+_TOKSPC1); varc(+_TOKEXPR); //TODO без _TOKEXPR? (убрать в саму обработку команды) (усложнит экспорт)
 }
 
 PROC var_dl()
 {
-  varstr( "\tDL " );
+  varc(+_TOKSPC8); varc(+_CMDDL); varc(+_TOKSPC1); varc(+_TOKEXPR); //TODO без _TOKEXPR? (убрать в саму обработку команды) (усложнит экспорт)
 }
 
 EXPORT PROC var_ds() //доступно из compile!
 {
-  varstr( "\tDS " );
+  varc(+_TOKSPC8); varc(+_CMDDS); varc(+_TOKSPC1); varc(+_TOKEXPR); //TODO без _TOKEXPR? (убрать в саму обработку команды) (усложнит экспорт)
+}
+
+PROC emitdw(PCHAR s)
+{
+  asmc(+_TOKSPC8); asmc(+_CMDDW); asmc(+_TOKSPC1);
+  asmexprstr(s);
+  asmc(+_OPWRVAL);
+  asmc(+_FMTCMD);
+  endasm();
+}
+
+PROC asmdwcomma(PCHAR s)
+{
+  asmc(+_TOKSPC8); asmc(+_CMDDW); asmc(+_TOKSPC1);
+  asmexprstr(s);
+  asmc(+_OPWRVAL);
+  asmc(+_TOKCOMMA);
+  asmc(+_TOKEXPR);
+//...
+  //asmc(+_TOKENDEXPR);
+  //varc(+_FMTCMD);
+  //endasm();
 }
 
 PROC asm_add_eol()
 {
-  asmstr( "\tDW CMD_ADD" ); endasm();
+  emitdw( "CMD_ADD" );
 }
 
 PROC asm_sub_eol()
 {
-  asmstr( "\tDW CMD_SUB" ); endasm();
+  emitdw( "CMD_SUB" );
 }
 
 PROC asm_mul_eol()
 {
-  asmstr( "\tDW CMD_MUL" ); endasm();
+  emitdw( "CMD_MUL" );
 }
 
 PROC asm_div_eol()
 {
-  asmstr( "\tDW CMD_DIV" ); endasm();
+  emitdw( "CMD_DIV" );
 }
 
 PROC asm_addfloat_eol()
 {
-  asmstr( "\tDW CMD_ADDFLOAT" ); endasm();
+  emitdw( "CMD_ADDFLOAT" );
 }
 
 PROC asm_subfloat_eol()
 {
-  asmstr( "\tDW CMD_SUBFLOAT" ); endasm();
+  emitdw( "CMD_SUBFLOAT" );
 }
 
 PROC asm_mulfloat_eol()
 {
-  asmstr( "\tDW CMD_MULFLOAT" ); endasm();
+  emitdw( "CMD_MULFLOAT" );
 }
 
 PROC asm_divfloat_eol()
 {
-  asmstr( "\tDW CMD_DIVFLOAT" ); endasm();
+  emitdw( "CMD_DIVFLOAT" );
 }
 
 PROC asm_divsigned_eol()
 {
-  asmstr( "\tDW CMD_DIVSIGNED" ); endasm();
+  emitdw( "CMD_DIVSIGNED" );
 }
 
 PROC asm_negfloat_eol()
 {
-  asmstr( "\tDW CMD_NEGFLOAT" ); endasm();
+  emitdw( "CMD_NEGFLOAT" );
 }
 
 PROC asm_if0goto()
 {
-  asmstr( "\tDW CMD_IF0GOTO," );
+  asmdwcomma( "CMD_IF0GOTO" );
 }
 
 PROC asm_goto()
 {
-  asmstr( "\tDW CMD_GOTO," );
+  asmdwcomma( "CMD_GOTO" );
 }
 
 PROC asm_dup_eol()
 {
-  asmstr( "\tDW CMD_DUP" ); endasm();
+  emitdw( "CMD_DUP" );
 }
 
 PROC asm_drop_eol()
 {
-  asmstr( "\tDW CMD_DROP" ); endasm();
+  emitdw( "CMD_DROP" );
 }
 
 PROC asm_swap_eol()
 {
-  asmstr( "\tDW CMD_SWAP" ); endasm();
+  emitdw( "CMD_SWAP" );
 }
 
 PROC asm_readvar_eol()
 {
-  asmstr( "\tDW CMD_READVAR" ); endasm();
+  emitdw( "CMD_READVAR" );
 }
 
 PROC asm_writevar_eol()
 {
-  asmstr( "\tDW CMD_WRITEVAR" ); endasm();
+  emitdw( "CMD_WRITEVAR" );
 }
 
 PROC asm_const()
 {
-  asmstr( "\tDW CMD_CONST," );
+  asmdwcomma( "CMD_CONST" );
 }
 
 PROC asm_ret_eol()
 {
-  asmstr( "\tDW CMD_RET" ); endasm();
+  emitdw( "CMD_RET" );
 }
 
 PROC asm_call()
 {
-  asmstr( "\tDW CMD_CALL," );
+  asmdwcomma( "CMD_CALL" );
 }
 
 PROC asm_and_eol()
 {
-  asmstr( "\tDW CMD_AND" ); endasm();
+  emitdw( "CMD_AND" );
 }
 
 PROC asm_or_eol()
 {
-  asmstr( "\tDW CMD_OR" ); endasm();
+  emitdw( "CMD_OR" );
 }
 
 PROC asm_xor_eol()
 {
-  asmstr( "\tDW CMD_XOR" ); endasm();
+  emitdw( "CMD_XOR" );
 }
 
 PROC asm_eq_eol()
 {
-  asmstr( "\tDW CMD_EQ" ); endasm();
+  emitdw( "CMD_EQ" );;
 }
 
 PROC asm_moreeq_eol()
 {
-  asmstr( "\tDW CMD_MOREEQ" ); endasm();
+  emitdw( "CMD_MOREEQ" );
 }
 
 PROC asm_moreeqsigned_eol()
 {
-  asmstr( "\tDW CMD_MOREEQSIGNED" ); endasm();
+  emitdw( "CMD_MOREEQSIGNED" );
 }
 
 PROC asm_eqfloat_eol()
 {
-  asmstr( "\tDW CMD_EQFLOAT" ); endasm();
+  emitdw( "CMD_EQFLOAT" );
 }
 
 PROC asm_moreeqfloat_eol()
 {
-  asmstr( "\tDW CMD_MOREEQFLOAT" ); endasm();
+  emitdw( "CMD_MOREEQFLOAT" );
 }
 
 PROC asm_inv_eol()
 {
-  asmstr( "\tDW CMD_INV" ); endasm();
+  emitdw( "CMD_INV" );
 }
 
 PROC asm_rst()
 {
-  asmstr( "\tDW CMD_RST," );
+  asmdwcomma( "CMD_RST" );
 }
 
 PROC asm_shr_eol()
 {
-  asmstr( "\tDW CMD_SHR" ); endasm();
+  emitdw( "CMD_SHR" );
 }
 
 PROC asm_shrsigned_eol()
 {
-  asmstr( "\tDW CMD_SHRSIGNED" ); endasm();
+  emitdw( "CMD_SHRSIGNED" );
 }
 
 PROC asm_shl_eol()
 {
-  asmstr( "\tDW CMD_SHL" ); endasm();
+  emitdw( "CMD_SHL" );
 }
 
 PROC asm_mod_eol()
 {
-  asmstr( "\tDW CMD_MOD" ); endasm();
+  emitdw( "CMD_MOD" );
 }
 
 PROC asm_done_eol()
 {
-  asmstr( "\tDW CMD_DONE" ); endasm();
+  emitdw( "CMD_DONE" );
 }
 
 PROC asm_1_eol()
 {
-  asmstr( "\tDW CMD_CONST,1" ); endasm();
+  asmdwcomma( "CMD_CONST" );
+  asmc('1');
+  enddw();
 }
 
 PROC asm_floattoint_eol()
 {
-  asmstr( "\tDW CMD_FLOATTOINT" ); endasm();
+  emitdw( "CMD_FLOATTOINT" );
 }
 
 PROC asm_inttofloat_eol()
 {
-  asmstr( "\tDW CMD_INTTOFLOAT" ); endasm();
+  emitdw( "CMD_INTTOFLOAT" );
 }
 
 PROC asm_readconstvar()
 {
-  asmstr( "\tDW CMD_READCONSTVAR," );
+  asmdwcomma( "CMD_READCONSTVAR" );
 }
 
 PROC asm_writeconstvar()
 {
-  asmstr( "\tDW CMD_WRITECONSTVAR," );
+  asmdwcomma( "CMD_WRITECONSTVAR" );
 }
 
 PROC asm_incconstvar()
 {
-  asmstr( "\tDW CMD_INCCONSTVAR," );
+  asmdwcomma( "CMD_INCCONSTVAR" );
 }
 
 PROC asm_decconstvar()
 {
-  asmstr( "\tDW CMD_DECCONSTVAR," );
+  asmdwcomma( "CMD_DECCONSTVAR" );
 }
 
 PROC emitinc()
@@ -373,7 +500,7 @@ PROC emitdec()
 
 PROC emitcall(PCHAR s)
 {
-  asm_call(); asmstr( s ); endasm();
+  asm_call(); asmstr( s ); enddw();
 }
 
 ///////////////////////////////////
@@ -414,22 +541,22 @@ PROC emitmovrg(BYTE rsrc, BYTE rdest) //не заказывает и не освобождает (см. emit
 
 EXPORT PROC emitasmlabel(PCHAR s)
 {
-  asmstr(s); /**asmc( ':' );*/ endasm();
+  asm_label(); asmstr(s); /**asmc( ':' );*/ endasm_label();
 }
 
 EXPORT PROC emitfunclabel(PCHAR s)
 {
-  asmstr(s); /**asmc( ':' );*/ endasm();
+  asm_label(); asmstr(s); /**asmc( ':' );*/ endasm_label();
 }
 
 EXPORT PROC emitvarlabel(PCHAR s)
 {
-  varstr(s); /**varc( ':' );*/ endvar();
+  var_label(); varstr(s); /**varc( ':' );*/ endvar_label();
 }
 
 EXPORT PROC emitexport(PCHAR s) //todo всегда _joined
 {
-  asmstr("\tEXPORT "); asmstr(s); endasm();
+  asmcmd(+_CMDEXPORT); asmc(+_TOKLABEL); asmstr(s); asmc(+_FMTCMD); endasm(); //TODO убрать +_FMTCMD
 }
 
 EXPORT PROC emitvarpreequ(PCHAR s)
@@ -440,16 +567,11 @@ EXPORT PROC emitvarpostequ()
 {
 }
 
-EXPORT PROC varequ(PCHAR s)
-{
-  varstr(s); varc('=');
-}
-
 EXPORT FUNC UINT varshift(UINT shift, UINT sz)
 {
   //IF (sz >= 4) shift = (shift+3)&(UINT)(-4);
   //asmstr(_joined); asmc('='); asmuint(shift); endasm();
-  varequ(_joined); /**varstr(_joined); varc('=');*/ varuint(shift); endvar();
+  varequ(_joined); /**varstr(_joined); varc('=');*/ varuint(shift); endvar_reequ();
 RETURN shift;
 }
 
@@ -616,7 +738,7 @@ PROC emitjpiffalse()
   };
   asm_if0goto();
   asmstr(_joined);
-  endasm();
+  enddw();
   _fused = +FALSE;
   _jpflag = 0x00;
 }
@@ -722,18 +844,18 @@ PROC emitloadrg(BOOL high) //регистр уже занят через getrfree
   //IF (high) {asmstr( ">>32"/**WORDBITS*/ );
   //}ELSE {asmstr( "&0xffffffff"/**WORDMASK*/ );
   //};
-  endasm();
+  enddw();
   _fused = +FALSE; //конец вычисления
 }
 
 PROC emitloadrg0() //регистр уже занят через getrfree
 {
-  asm_const(); asmc('0'); endasm();
+  asm_const(); asmc('0'); enddw();
 }
 
 PROC emitloadb() //аккумулятор уже занят через getfreea
 {
-  asm_const(); asmstr(_const); endasm();
+  asm_const(); asmstr(_const); enddw();
   _fused = +FALSE; //конец вычисления
 }
 
@@ -742,18 +864,18 @@ PROC emitgetrg(BOOL high) //регистр уже занят через getrfree
 //  asm_const(); asmstr(_joined);
   //IF (high) {asmc('+'); asmc('1');
   //};
-//  endasm();
+//  enddw();
 //  asm_readvar_eol();
   asm_readconstvar();
-  asmstr(_joined); endasm();
+  asmstr(_joined); enddw();
 }
 
 PROC emitgetb() //аккумулятор уже занят через getfreea
 {
-//  asm_const(); asmstr(_joined); endasm();
+//  asm_const(); asmstr(_joined); enddw();
 //  asm_readvar_eol();
   asm_readconstvar();
-  asmstr(_joined); endasm();
+  asmstr(_joined); enddw();
 }
 
 PROC emitputrg(BOOL high) //ld [],new
@@ -762,22 +884,22 @@ PROC emitputrg(BOOL high) //ld [],new
 //  asm_const(); asmstr(_joined);
   //IF (high) {asmc('+'); asmc('1');
   //};
-//  endasm();
+//  enddw();
 //  asm_swap_eol();
 //  asm_writevar_eol();
   asm_writeconstvar();
-  asmstr(_joined); endasm();
+  asmstr(_joined); enddw();
   _fused = +FALSE; //конец вычисления
 }
 
 PROC emitputb()
 {
   //_jpflag = 0x00;
-//  asm_const(); asmstr(_joined); endasm();
+//  asm_const(); asmstr(_joined); enddw();
 //  asm_swap_eol();
 //  asm_writevar_eol();
   asm_writeconstvar();
-  asmstr(_joined); endasm();
+  asmstr(_joined); enddw();
   _fused = +FALSE; //конец вычисления
 }
 
@@ -1068,13 +1190,13 @@ PROC emitfloattoint()
 
 PROC emitincrg_byname()
 {
-//  asm_const(); asmstr(_joined); endasm();
+//  asm_const(); asmstr(_joined); enddw();
 //  asm_dup_eol();
 //  asm_readvar_eol();
 //  emitinc();
 //  asm_writevar_eol();
   asm_incconstvar();
-  asmstr(_joined); endasm();
+  asmstr(_joined); enddw();
   _fused = +FALSE; //конец вычисления
 }
 
@@ -1095,13 +1217,13 @@ PROC emitinclong() //todo
 */
 PROC emitdecrg_byname()
 {
-//  asm_const(); asmstr(_joined); endasm();
+//  asm_const(); asmstr(_joined); enddw();
 //  asm_dup_eol();
 //  asm_readvar_eol();
 //  emitdec();
 //  asm_writevar_eol();
   asm_decconstvar();
-  asmstr(_joined); endasm();
+  asmstr(_joined); enddw();
   _fused = +FALSE; //конец вычисления
 }
 
@@ -1116,7 +1238,7 @@ PROC emitdecb_bypoi()
 /**
 PROC emitdeclong() //todo
 {
-  asm_dec(); asm_open(); asm_rname(_rnew); asm_close(); endasm();
+  asm_dec(); asm_open(); asm_rname(_rnew); asm_close(); enddw();
   _fused = +FALSE; //конец вычисления
 }
 */
@@ -1147,6 +1269,8 @@ EXPORT PROC initcode()
 
 EXPORT PROC endcode()
 {
+  asmc(+_TOKEOF);
+  varc(+_TOKEOF);
 }
 
 PROC initrgs()

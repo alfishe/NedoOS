@@ -8,7 +8,11 @@
 
 #include "../_sdk/fmttg.h" //нужно для token, asm, export
 
+#ifdef TARGET_THUMB
+#include "exptgarm.c"
+#else
 #include "exporttg.c"
+#endif
 #include "export.c"
 
 int main(int argc,char* argv[])

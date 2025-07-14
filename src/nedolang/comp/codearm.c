@@ -255,6 +255,98 @@ PROC asmjpflushlabels()
   asm_endpc4();
 }
 
+EXPORT PROC asm_label()
+{
+  //asmc(+_CMDLABEL); //TODO определять по первой букве команды?
+}
+
+EXPORT PROC asm_equal()
+{
+  asmc((BYTE)'='); //asmc(+_TOKEXPR); //TODO без _TOKEXPR? (убрать в саму обработку _CMDLABEL) (усложнит экспорт)
+}
+
+EXPORT PROC endasm_label()
+{
+  /**asmc(+_FMTCMD);*/ endasm(); //там только проверка переопределённости, TODO убрать в саму обработку _CMDLABEL
+}
+
+EXPORT PROC endasm_reequ()
+{
+  /**asmc(+_TOKENDEXPR); asmc(+_FMTREEQU);*/ endasm(); //TODO убрать
+}
+
+EXPORT PROC var_label()
+{
+  //varc(+_CMDLABEL); //TODO определять по первой букве команды?
+}
+
+EXPORT PROC endvar_label()
+{
+  /**varc(+_FMTCMD);*/ endvar(); //там только проверка переопределённости, TODO убрать в саму обработку _CMDLABEL
+}
+
+EXPORT PROC varequ(PCHAR s)
+{
+  varmangledstr(s); varstr("\tEQU ");
+  //varc(+_CMDLABEL); varmangledstr(s); varc((BYTE)'='); varc(+_TOKEXPR); //TODO без _TOKEXPR? (убрать в саму обработку _CMDLABEL) (усложнит экспорт)
+}
+
+EXPORT PROC endvar_reequ()
+{
+  /**varc(+_TOKENDEXPR); varc(+_FMTREEQU);*/ endvar(); //TODO убрать
+}
+
+EXPORT PROC endasm_db()
+{
+  /**asmc(+_TOKENDEXPR); asmc(+_OPWRVAL); asmc(+_FMTCMD);*/ endasm(); //TODO убрать
+}
+
+EXPORT PROC endasm_dbstr()
+{
+  /**asmc(+_TOKENDTEXT);*/ asmc((BYTE)'\"'); /**asmc(+_FMTCMD);*/ endasm(); //TODO убрать
+}
+
+EXPORT PROC endvar_db()
+{
+  /**varc(+_TOKENDEXPR); varc(+_OPWRVAL); varc(+_FMTCMD);*/ endvar(); //TODO убрать
+}
+
+EXPORT PROC endvar_dbstr()
+{
+  /**varc(+_TOKENDTEXT);*/ varc((BYTE)'\"'); /**varc(+_FMTCMD);*/ endvar(); //TODO убрать
+}
+
+EXPORT PROC endvar_dw()
+{
+  /**varc(+_TOKENDEXPR); varc(+_OPWRVAL); varc(+_FMTCMD);*/ endvar(); //TODO убрать
+}
+
+EXPORT PROC endvar_dl()
+{
+  /**varc(+_TOKENDEXPR); varc(+_OPWRVAL); varc(+_FMTCMD);*/ endvar(); //TODO убрать
+}
+
+EXPORT PROC endvar_ds()
+{
+  /**varc(+_TOKENDEXPR); varc(+_FMTCMD);*/ endvar();
+}
+/**
+PROC asmexprstr(PCHAR s)
+{
+  asmc(+_TOKEXPR); asmstr(s); asmc(+_TOKENDEXPR);
+}
+*/
+/**
+PROC asmcmd(BYTE c)
+{
+  asmc(+_TOKSPC8); asmc(c); asmc(+_TOKSPC1);
+}
+
+PROC asmcmdfull(BYTE c)
+{
+  asmc(+_TOKSPC8); asmc(c); asmc(+_FMTXX); endasm(); //TODO писать код в самих командах
+}
+*/
 //////////// мелкие процедуры для сокращения числа констант
 
 PROC endasmcmd()
@@ -339,37 +431,55 @@ PROC var_alignwsz()
   varstr("\tALIGN 4"); endvar();
 }
 
-EXPORT PROC var_db() //доступно из compile!
+EXPORT PROC asm_dw() //костыль для автогенерируемых констант
 {
-  varstr( "\tDCB " );
+//  asm_align4b();
+  asmstr( "\tDCD " );
+//  asmc(+_TOKSPC8); asmc(+_CMDDW); asmc(+_TOKSPC1); asmc(+_TOKEXPR); //TODO без _TOKEXPR? (убрать в саму обработку команды) (усложнит экспорт)
 }
 
 EXPORT PROC asm_db() //костыль для константных массивов строк TODO
 {
   asmstr( "\tDCB " );
+//  asmc(+_TOKSPC8); asmc(+_CMDDB); asmc(+_TOKSPC1); asmc(+_TOKEXPR); //TODO без _TOKEXPR? (убрать в саму обработку команды) (усложнит экспорт)
+}
+
+EXPORT PROC asm_dbstr() //костыль для константных массивов строк TODO
+{
+  asm_db(); asmc((BYTE)'\"');
+//  asmc(+_TOKSPC8); asmc(+_CMDDB); asmc(+_TOKSPC1); asmc((BYTE)'\"'); asmc(+_OPWRSTR); asmc(+_TOKTEXT); //TODO убрать в саму обработку команды (усложнит экспорт)
+}
+
+EXPORT PROC var_db() //доступно из compile!
+{
+  varstr( "\tDCB " );
+//  varc(+_TOKSPC8); varc(+_CMDDB); varc(+_TOKSPC1); varc(+_TOKEXPR); //TODO без _TOKEXPR? (убрать в саму обработку команды) (усложнит экспорт)
+}
+
+EXPORT PROC var_dbstr()
+{
+  var_db(); varc((BYTE)'\"');
+//  varc(+_TOKSPC8); varc(+_CMDDB); varc(+_TOKSPC1); varc((BYTE)'\"'); varc(+_OPWRSTR); varc(+_TOKTEXT); //TODO убрать в саму обработку команды (усложнит экспорт)
 }
 
 EXPORT PROC var_dw() //доступно из compile!
 {
 //  var_align4b();
   varstr( "\tDCD " );
-}
-
-EXPORT PROC asm_dw() //костыль для автогенерируемых констант
-{
-//  asm_align4b();
-  asmstr( "\tDCD " );
+//  varc(+_TOKSPC8); varc(+_CMDDW); varc(+_TOKSPC1); varc(+_TOKEXPR); //TODO без _TOKEXPR? (убрать в саму обработку команды) (усложнит экспорт)
 }
 
 PROC var_dl()
 {
 //  var_align4b();
   varstr( "\tDCQ " );
+//  varc(+_TOKSPC8); varc(+_CMDDL); varc(+_TOKSPC1); varc(+_TOKEXPR); //TODO без _TOKEXPR? (убрать в саму обработку команды) (усложнит экспорт)
 }
 
 EXPORT PROC var_ds() //доступно из compile!
 {
   varstr( "\tSPACE " );
+//  varc(+_TOKSPC8); varc(+_CMDDS); varc(+_TOKSPC1); varc(+_TOKEXPR); //TODO без _TOKEXPR? (убрать в саму обработку команды) (усложнит экспорт)
 }
 
 PROC asm_ands() //с установкой флагов
@@ -582,6 +692,7 @@ PROC emitmovrg(BYTE rsrc, BYTE rdest) //не заказывает и не освобождает (см. emit
 EXPORT PROC emitexport(PCHAR s)
 {
   asmstr("\tEXPORT "); asmmangledstr(s); endasmcmd();
+//  asmcmd(+_CMDEXPORT); asmc(+_TOKLABEL); asmmangledstr(s); asmc(+_FMTCMD); endasm(); //TODO убрать +_FMTCMD
 }
 
 EXPORT PROC emitvarpreequ(PCHAR s)
@@ -592,11 +703,6 @@ EXPORT PROC emitvarpreequ(PCHAR s)
 EXPORT PROC emitvarpostequ()
 {
 //  varstr("\tENDIF"); endvar(); //todo убрать (Keil)
-}
-
-EXPORT PROC varequ(PCHAR s)
-{
-  varmangledstr(s); varstr("\tEQU ");
 }
 
 EXPORT FUNC UINT varshift(UINT shift, UINT sz)

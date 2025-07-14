@@ -40,16 +40,38 @@ l0.
 	ld (de),a ;'\0'
 	ret
 
+;from io.c:
+findlastslash
+findlastslash.A.=$+1
+	ld hl,0
+;hl = poi to filename in string
+findlastslashok.
+	ld d,h
+	ld e,l ;de = after last slash
+;find last slash
+findlastslash0.
+	ld a,[hl]
+	inc hl
+	or a
+	jr z,findlastslashq.
+	cp '/'
+	jr nz,findlastslash0.
+	jr findlastslashok.
+findlastslashq.
+	ex de,hl
+;hl = after last slash
+	ret 
+
 	include "del.ast"
 	include "../_sdk/lib.i"
 	include "../_sdk/str.i"
-	include "../_sdk/io.i"
-	include "../_sdk/io.ast"
+	include "../_sdk/iofast.i"
+	;include "../_sdk/io.ast"
 
 fn.
 	db "nedoasm"
 	db 0
         ds 50 ;for long filenames
 
-	include "../_sdk/io.var"
+	;include "../_sdk/io.var"
 	include "del.var"

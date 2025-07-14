@@ -18,17 +18,16 @@
 #endif
 #endif
 
+#include "../_sdk/fmttg.h" //нужно для token, asm, export
+
 CONST BYTE _typeshift[32]; //log размер типа (n для 2^n байт)
 CONST BYTE _typesz[32];
 
 CONST BYTE _RMAIN; //регистр результата и 1-го параметра стандартных функций
-//#endif
 
 EXPORT VAR TYPE _t; //текущий тип (для cmds)
 EXPORT VAR BOOL _isloc; //локальная ли прочитанная переменная
 
-//EXTERN PCHAR _tword; //текущее слово
-//EXTERN UINT _lentword;
 EXPORT VAR PCHAR _name; //метка без префикса (для таблицы меток)
 EXPORT VAR UINT  _lenname;
 EXPORT VAR PCHAR _joined; //автометка
@@ -37,6 +36,12 @@ EXPORT VAR UINT  _lenjoined;
 EXPORT VAR BOOL _wascall; //0=не отложен, 1=отложен call _callee2
 EXPORT VAR PCHAR _callee2; //название вызываемой процедуры - отложенное
 EXPORT VAR UINT  _lencallee2;
+
+EXPORT PROC joinedadd(CHAR c)
+{
+  _lenjoined = stradd(_joined, _lenjoined, c); //там защита
+  _joined[_lenjoined] = '\0';
+}
 
 #ifdef TARGET_THUMB
 #include "codearm.c"
@@ -71,7 +76,7 @@ EXPORT VAR UINT _lenstrstk;
 #ifdef BIGMEM
 #define _LBLBUFSZ 0xffff
 #else
-#define _LBLBUFSZ 0x2300 /**0x2100*/
+#define _LBLBUFSZ 0x2d00
 #endif
 VAR UINT _lblbuffreeidx; //[1];
 VAR UINT _oldlblbuffreeidx; //[1];
@@ -145,11 +150,11 @@ EXPORT PROC var_def(TYPE t, PCHAR s) //доступно из compile!
 {
 VAR BYTE sz = _typesz[t];
   IF (sz==_SZ_REG/**(tmasked==_T_INT)||(tmasked==_T_UINT)*/) {
-    var_dw(); varstr(s); endvar(); //ширина DW равна uint
+    var_dw(); varstr(s); endvar_dw(); //ширина DW равна uint
   }ELSE IF (sz==_SZ_BYTE/**(tmasked==_T_BYTE)||(tmasked==_T_CHAR)||(tmasked==_T_BOOL)*/) {
-    var_db(); varstr(s); endvar();
+    var_db(); varstr(s); endvar_db();
   }ELSE IF (sz==_SZ_LONG/**tmasked==_T_LONG*/) {
-    var_dl(); varstr(s); endvar();
+    var_dl(); varstr(s); endvar_dl();
   }ELSE { errstr( "const bad type " ); erruint((UINT)t); enderr(); };
 }
 
@@ -158,8 +163,6 @@ PROC pushconst() //сохраняет число, которое не сохранили при pushnum
 #ifdef USE_COMMENTS
 ;;  cmtstr( ";pushconst " ); cmtstr( _const ); endcmt();
 #endif
-  //_lenwastword = strcopy(_joined, _lenjoined, _wastword);
-  //_lenjoined = strcopy(_const, _lenconst, _joined);
   _sz = _typesz[_wast];
   IF (_sz==_SZ_BYTE) { //(_wast==_T_BYTE)||(_wast==_T_CHAR)||(_wast==_T_BOOL)
     getrfree(); //_rnew
@@ -173,7 +176,6 @@ PROC pushconst() //сохраняет число, которое не сохранили при pushnum
     getrfree(); //_rnew
     emitloadrg(+FALSE); //low
   }ELSE errtype("pushconst",_wast);
-  //_lenjoined = strcopy(_wastword, _lenwastword, _joined);
   _wasconst = +FALSE;
 }
 
@@ -817,6 +819,7 @@ EXPORT PROC cmdless() //старое меньше нового
     emitless();
   }ELSE IF (_t==_T_INT) {
     emitlesssigned();
+  }ELSE errtype("<",_t);
 #else
   IF (_t==_T_BYTE) {
     getrnew();
@@ -850,9 +853,9 @@ EXPORT PROC cmdless() //старое меньше нового
     getrfree(); //_rnew
     emitSxorVtob(); //S xor overflow
   //}ELSE IF (_t==_T_LONG) {
-#endif
   }ELSE errtype("<",_t);
   };
+#endif
   _t = _T_BOOL;
 }
 
@@ -1281,7 +1284,6 @@ EXPORT PROC cmdret(BOOL isfunc)
 EXPORT PROC initcmd()
 {
   _const  = (PCHAR)_sc;
-  //_wastword  = (PCHAR)_sw;
   _wasconst = +FALSE;
   _wascall = +FALSE;
 }

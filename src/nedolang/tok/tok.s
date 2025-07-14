@@ -54,15 +54,15 @@ l0.
 	include "token.ast"
 	include "tokenz80.ast"
 	include "../_sdk/lib.i"
-	include "../_sdk/io.i"
+	include "../_sdk/iofast.i"
 	include "../_sdk/str.i"
-	include "../_sdk/io.ast"
+	;include "../_sdk/io.ast"
 
 fnbuf.
 	db "12345678.123 "
 	ds 50 ;for long filenames
 
-	include "../_sdk/io.var"
+	;include "../_sdk/io.var"
 	include "../_sdk/read.var"
 	include "../_sdk/fmttg.var"
 	include "token.var"

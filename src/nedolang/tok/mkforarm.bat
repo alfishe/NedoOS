@@ -1,4 +1,4 @@
-if "%settedpath%"=="" call "..\_sdk\setpath.bat"
+if "%settedpath%"=="" call "..\..\_sdk\setpath.bat"
 nedolarm ../_sdk/read.c ../_sdk/fmttg.h token.c tokenz80.c ../_sdk/io.c ../_sdk/str.c
 type err.f
 rem not tested after change *.asm -> *.ast

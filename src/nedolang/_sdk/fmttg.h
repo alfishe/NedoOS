@@ -1,5 +1,5 @@
 //пытаемся решить одновременно следующие задачи:
-//- все токены (кроме text) без параметров, для простой печати
+//- все токены (кроме text, expr, label) без параметров, для простой печати
 //- быстрая компиляция частых команд
 //- разбор вручную - это плохо, т.к. выражение - набор токенов, да и вместо регистра может быть метка регистра (или параметр макроса?)
 //значит, надо в середине и конце команды ставить токены-подсказки и формат
@@ -16,7 +16,6 @@
 //ix может встретиться в команде два раза: add ix,ix, а add ix,iy должно вызывать ошибку (хотя второй параметр подменяемый!),
 //поэтому надо уже в формате проверять ix вручную и писать префикс.
 //- минимизация числа токенов (команды + регистры + форматы...)
-//- только один формат регистра
 //(отдельный токен добавления регистра в команду? на рисках три поля регистров, так что надо ещё токен(ы) сдвига)
 //(на рисках можно и в тексте работать (но тогда не универсально))
 //поэтому пусть comma двигает регистры reg->oldreg->veryoldreg
@@ -24,8 +23,7 @@
 
 //все команды, регистры, условия могут быть только маленькими буквами, иначе надо второй набор токенов (кроме форматов и обрывов)
 
-//типичная строка:
-//<label><text>метка<endtext>
+//<label>метка
 //<inc><HL><asmfmt_incrp>
 //<comment><text>текст<endtext><endcomment>
 //<eol>
@@ -36,35 +34,17 @@
 
 CONST BYTE _ASMMAXSPC = 0x08;
 
-//#define TOKBASE 0x40
-//#define ASMCCBASE    0x01 /*max 0x07*/
-//#define TOKBASE 0x10 /*max 0x0b*/
-//#define ASMOPBASE    0x1c /*max 0x02*/
-//#define ASMREGBASE   0x66 /*max 0x15*/ /*не затереть []^*/
-//#define DIRBASE   0x60 /*max 0x1c*/ /*не затереть |~*/
-//#define OPBASE 0x7f /*max 0x10*/
-//#define ASMCMDBASE   0x90 /*max 0x41*/
-//#define FMTBASE   0xd2 /*max 0x2a*/
-
 #ifdef TARGET_THUMB
 #include "../_sdk/fmtarm.h"
 #else
 #include "../_sdk/fmtz80.h"
 #endif
 
-/**ошибка <TOK_ERR><TOK_ERR...>, после неё блоки <text>text<endtext><space><text>text<endtext>... <enderr> - чтобы выводить ошибки токенизатора вместе с ошибками компиляции*/
+/**ошибка <TOK_ERR><TOK_ERRxxx>, после неё блоки <text>text<endtext><space><text>text<endtext>... <_TOKENDERR> - чтобы выводить ошибки токенизатора вместе с ошибками компиляции*/
 CONST BYTE _ERRCMD = 0x31;
-//#define _ERRCMD   '1' /*(TOKBASE+0x02)*/
 CONST BYTE _ERREXPR = 0x32;
-//#define _ERREXPR  '2' /*(TOKBASE+0x03)*/
 CONST BYTE _ERRCOMMA = 0x33;
-//#define _ERRCOMMA '3' /*(TOKBASE+0x04)*/
 CONST BYTE _ERRPAR = 0x34;
-//#define _ERRPAR   '4' /*(TOKBASE+0x05)*/
 CONST BYTE _ERROPEN = 0x35;
-//#define _ERROPEN  '5' /*(TOKBASE+0x06)*/
 CONST BYTE _ERRCLOSE = 0x36;
-//#define _ERRCLOSE '6' /*(TOKBASE+0x07)*/
 CONST BYTE _ERRREG = 0x37;
-//#define _ERRREG   '7' /*(TOKBASE+0x08)*/
-

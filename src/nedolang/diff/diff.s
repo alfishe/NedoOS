@@ -1,6 +1,8 @@
 ;startup
 FCB1=0x4800 ;aligned ;len=0x0200*files
 DOSBUF=0xff00 ;aligned
+;_STRLEN=80
+;_STRMAX=(_STRLEN-1)
 	org 0x6000
 	pop hl
 	push hl
@@ -46,9 +48,9 @@ l0.
 	include "diff.ast"
 	include "../_sdk/lib.i"
 	include "../_sdk/print.i"
-	include "../_sdk/str.i" ;for io
-	include "../_sdk/io.i"
-	include "../_sdk/io.ast"
+	;include "../_sdk/str.i" ;for io
+	include "../_sdk/iofast.i"
+	;include "../_sdk/io.ast"
 
 fn1.
 	db "nedoasm"
@@ -59,5 +61,5 @@ fn2.
 	db 0
         ds 50 ;for long filenames
 
-	include "../_sdk/io.var"
+	;include "../_sdk/io.var"
 	include "diff.var"

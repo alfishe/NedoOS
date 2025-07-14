@@ -1,12 +1,12 @@
 #include "../_sdk/io.h"
 #include "../_sdk/str.h"
 
-VAR BYTE psystrk[0x900];
-#define BUFSECTORS 0x10
+VAR PBYTE psystrk; //[0x900];
+#define BUFSECTORS 0x40
 #define BUFSIZE (UINT)(BUFSECTORS*0x100)
-VAR BYTE buf[BUFSIZE];
+VAR PBYTE buf; //[BUFSIZE]
 
-FUNC UINT copybody(UINT from, UINT to, BYTE count) // TODO копирование на то же место не делать, но для этого надо вычислить следующий сектор!
+FUNC UINT copybody(UINT from, UINT to, BYTE count)
 {
 VAR UINT nextrdsector;
 VAR UINT nextwrsector;
@@ -23,8 +23,8 @@ IF (from==to) {
     }ELSE {
       wrsectors = count;
     };
-    nextrdsector = readsectors((PBYTE)buf, nextrdsector, wrsectors);
-    nextwrsector = writesectors((PBYTE)buf, nextwrsector, wrsectors);
+    nextrdsector = readsectors(buf, nextrdsector, wrsectors);
+    nextwrsector = writesectors(buf, nextwrsector, wrsectors);
     count = count - wrsectors;
   };
 };
@@ -40,6 +40,9 @@ VAR PBYTE freefiledesc; //куда пишем дескриптор
 VAR UINT nfreesectors;
 VAR BYTE nfiles;
 VAR BYTE count;
+  buf = (PBYTE)0x8000;
+  psystrk = (PBYTE)0xc000;
+
   //читаем системную дорожку
   readsectors((PBYTE)psystrk, 0x0000, 0x09);
   nfiles = 0x00; //psystrk[0x8e4];

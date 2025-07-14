@@ -100,7 +100,7 @@ $(BCB)\Bin\bcb2kaxserver50.bpl=Borland C++Builder COM Server Components Sample P
 DebugSourceDirs=$(BCB)\source\vcl
 
 [Parameters]
-RunParams=-l 0x20100000 ..\_tokarm.bin -l 0x50000000 ..\testtrd.bin -r 0x20100001
+RunParams=-l 0x20100000 ..\_tokarm.bin -l 0x50000000 ..\test.trd -r 0x20100001
 HostApplication=
 RemoteHost=
 RemotePath=

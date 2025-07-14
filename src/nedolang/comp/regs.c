@@ -59,7 +59,7 @@ VAR BYTE _rold3;
 
 #ifdef USE_HINTS
 ;;PROC hintrg(PCHAR text, BYTE data) {
-;;  hintstr("//"); hintstr(text); hintuint(+(UINT)data);
+;;  hintstr(";//"); hintstr(text); hintuint(+(UINT)data);
 ;;}
 
 ;;PROC hintrgstate() {
@@ -106,7 +106,7 @@ PROC pushtailrg()
 VAR BYTE rnew;
 VAR BYTE i;
 #ifdef USE_HINTS
-;;  hintstr( "//pusholdestrg" ); endhint();
+;;  hintstr( ";//pusholdestrg" ); endhint();
 #endif
 ;;  IF (_usedrgs<0x01) { errstr( "pusholdestrg _usedrgs=" ); erruint(+(UINT)_usedrgs); enderr();
 ;;  }ELSE
@@ -181,7 +181,7 @@ PROC popgetrg(BYTE rnew) //userg + добавление в очередь _usedrg снизу + pop
 {
 VAR BYTE i;
 #ifdef USE_HINTS
-;;  hintstr( "//getoldestrg" ); endhint();
+;;  hintstr( ";//getoldestrg" ); endhint();
 #endif
   i = _usedrgs; //счётчик ещё не сдвинут //_NRGS-0x01;
   WHILE (i>0x00) {
@@ -227,7 +227,7 @@ PROC getrnew() //старается брать new=FASTRG
 //здесь нельзя делать getnothing (из-за bytetoint, inttobyte)
 {
 #ifdef USE_HINTS
-;;  hintstr( "//getrnew" ); endhint();
+;;  hintstr( ";//getrnew" ); endhint();
 #endif
   IF ( _usedrgs==0x00 ) popgetrg(0x01);
   _rnew = _usedrg[_usedrgs-0x01];
@@ -236,7 +236,7 @@ PROC getrnew() //старается брать new=FASTRG
 PROC getrold() //старается брать old=FASTRG (выгодно вызывать до getrnew для +,-)
 {
 #ifdef USE_HINTS
-;;  hintstr( "//getrold" ); endhint();
+;;  hintstr( ";//getrold" ); endhint();
 #endif
   IF ( _usedrgs==0x00 ) popgetrg(0x02);
   IF ( _usedrgs==0x01 ) popgetrg( findrfree() );
@@ -246,7 +246,7 @@ PROC getrold() //старается брать old=FASTRG (выгодно вызывать до getrnew для +,-
 PROC getrold2() //старается брать old2=FASTRG (выгодно вызывать до getrnew для +,-)
 {
 #ifdef USE_HINTS
-;;  hintstr( "//getrold2" ); endhint();
+;;  hintstr( ";//getrold2" ); endhint();
 #endif
   IF ( _usedrgs==0x00 ) popgetrg(0x03);
   IF ( _usedrgs==0x01 ) { //пытаемся взять old=_RFAST2
@@ -260,7 +260,7 @@ PROC getrold2() //старается брать old2=FASTRG (выгодно вызывать до getrnew для +
 PROC getrold3()
 {
 #ifdef USE_HINTS
-;;  hintstr( "//getrold3" ); endhint();
+;;  hintstr( ";//getrold3" ); endhint();
 #endif
   IF ( _usedrgs==0x00 ) popgetrg(0x03);
   IF ( _usedrgs==0x01 ) popgetrg( findrfree() );
@@ -272,7 +272,7 @@ PROC getrold3()
 PROC freernew() //освободить регистр с вершины стека
 {
 #ifdef USE_HINTS
-;;  hintstr( "//freernew" ); endhint();
+;;  hintstr( ";//freernew" ); endhint();
 ;;  hintrgstate();
 #endif
   getrnew(); //а то вдруг нет в регистрах
@@ -280,7 +280,7 @@ PROC freernew() //освободить регистр с вершины стека
   nouserg( _usedrg[_usedrgs-0x01] ); //только сбрасывает флаг использования регистра и двигает счётчик!
 #ifdef USE_HINTS
 ;;  hintrgstate();
-;;  hintstr( "//end freernew" ); endhint();
+;;  hintstr( ";//end freernew" ); endhint();
 #endif
 }
 
@@ -296,7 +296,7 @@ PROC getrfree() //занять свободный регистр и вернуть его код
 //здесь нельзя делать getnothing (из-за bytetoint, inttobyte)
 {
 #ifdef USE_HINTS
-;;  hintstr( "//getrfree" ); endhint();
+;;  hintstr( ";//getrfree" ); endhint();
 #endif
   _rnew = getrg(findrfree());
 }
@@ -304,21 +304,21 @@ PROC getrfree() //занять свободный регистр и вернуть его код
 PROC getmainrg() //взять RMAIN=new и освободить остальные регистры (todo если всё в регистрах, то вставить RMAIN в oldestrg)
 {
 #ifdef USE_HINTS
-;;  hintstr( "//getmainrg" ); endhint();
+;;  hintstr( ";//getmainrg" ); endhint();
 #endif
   IF ( _usedrgs==0x00 ) popgetrg( _RMAIN ); //emitpopoldestrg(RMAIN);
   WHILE ( _usedrgs>0x01 ) pushtailrg();
   //теперь занят ровно 1 регистр
   moverg( (0x00), _RMAIN ); //todo оптимизировать через ex de,hl
 #ifdef USE_HINTS
-;;  hintstr( "//end getmainrg" ); endhint();
+;;  hintstr( ";//end getmainrg" ); endhint();
 #endif
 }
 
 PROC getmain2rgs() //взять RMAIN=old, RMAIN2=new и освободить остальные регистры (todo если всё в регистрах, то вставить RMAIN, RMAIN2 в oldestrg)
 {
 #ifdef USE_HINTS
-;;  hintstr( "//getmain2rgs" ); endhint();
+;;  hintstr( ";//getmain2rgs" ); endhint();
 #endif
   IF ( _usedrgs==0x00 ) popgetrg( _RMAIN2 );
   IF ( _usedrgs==0x01 ) {
@@ -343,26 +343,26 @@ PROC getmain2rgs() //взять RMAIN=old, RMAIN2=new и освободить остальные регистры
   moverg( (0x00), _RMAIN ); //todo оптимизировать через ex de,hl
   moverg( (0x01), _RMAIN2 ); //todo оптимизировать через ex de,hl
 #ifdef USE_HINTS
-;;  hintstr( "//end getmain2rgs" ); endhint();
+;;  hintstr( ";//end getmain2rgs" ); endhint();
 #endif
 }
 /**
 PROC getmain3rgs()
 {
 #ifdef USE_HINTS
-;;  hintstr( "//getmain3rgs" ); endhint();
+;;  hintstr( ";//getmain3rgs" ); endhint();
 #endif
   getmain2rgs();
   getrold2();
 #ifdef USE_HINTS
-;;  hintstr( "//end getmain3rgs" ); endhint();
+;;  hintstr( ";//end getmain3rgs" ); endhint();
 #endif
 }
 */
 PROC getmain4rgs()
 {
 #ifdef USE_HINTS
-;;  hintstr( "//getmain4rgs" ); endhint();
+;;  hintstr( ";//getmain4rgs" ); endhint();
 #endif
   IF ( (_usedrgs!=0x04)
     || (_usedrg[0]!=_RMAIN)
@@ -377,7 +377,7 @@ PROC getmain4rgs()
     popgetrg(_RMAIN);
   };
 #ifdef USE_HINTS
-;;  hintstr( "//end getmain4rgs" ); endhint();
+;;  hintstr( ";//end getmain4rgs" ); endhint();
 #endif
 }
 

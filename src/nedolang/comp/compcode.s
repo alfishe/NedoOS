@@ -5,6 +5,7 @@ DOSBUF=0xff00 ;aligned
 ;code generator for compiler
 	org 0x6003
 	;EXPORT emitdig
+	include "../_sdk/fmttg.var"
 	include "../_sdk/emit.ast"
 	;include "regs.ast"
 	;include "codez80.ast"

@@ -9,44 +9,73 @@ PROC asmfilltokens FORWARD();
 
 ////
 
+CONST BOOL _isalphand[256]={ //включая точку (в отличие от read.c/_isalphanum)
+  +FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE, +FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE, //0X
+  +FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE, +FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE, //1X
+  +FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE, +FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+TRUE/**FALSE*/,+FALSE, //2X
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE, //3X
+  +FALSE,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , //4X
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+FALSE,+FALSE,+FALSE,+FALSE,+TRUE , //5X
+  +FALSE,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , //6X
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+FALSE,+FALSE,+FALSE,+FALSE,+FALSE, //7X
+
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , //8X..FX
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , //8X..FX
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , //8X..FX
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , //8X..FX
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , //8X..FX
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , //8X..FX
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , //8X..FX
+  +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE , +TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE ,+TRUE   //8X..FX
+};
+
 //перед EOF может быть/не быть EOL
 
 PROC asmexport_line()
 {
 VAR BYTE token;
-VAR CHAR c;
-//VAR PCHAR pin;
-//VAR PCHAR pout;
-VAR PCHAR pintoken;
+//VAR PCHAR pintoken;
 
   WHILE (+TRUE) {
-    //token=*pin;
-    //pin=pin+1;
     token = readfin();
+reinterpret:
     IF (_waseof) BREAK;
     IF (token == (BYTE)(+_TOKTEXT)) { //anytext
       WHILE (+TRUE) {
-        //c=*pin;
-        //pin=pin+1;
-        c = (CHAR)readfin();
-        IF (c == (CHAR)((BYTE)(+_TOKENDTEXT))) BREAK;
-        //*pout=c;
-        //pout=pout+1;
-        writefout((BYTE)c);
+        token = readfin();
+        IF (token == +_TOKENDTEXT) BREAK;
+        writefout(token);
       };
-    }ELSE {          //token
+    }ELSE IF (token == +_TOKEXPR) {
+      WHILE (+TRUE) {
+        token = readfin();
+        IF (token == +_TOKENDEXPR) BREAK;
+        writefout(token);
+      };
+    }ELSE IF ((token == +_TOKLABEL)||(token == +_CMDLABEL)) {
+      WHILE (+TRUE) {
+        token = readfin();
+        IF (!_isalphand[token]) goto reinterpret;
+        writefout(token);
+      };
+    }ELSE IF (token == +_TOKCOMMENT) {
+      writefout(token);
+      WHILE (+TRUE) {
+        token = readfin();
+        IF ((token == +_TOKEOL)||(token == +_TOKEOF)) goto reinterpret;
+        writefout(token);
+      };
+    }ELSE { //simple token
       fputs(_texttoken[token], _fout);
 /**      pintoken = _texttoken[token];
       WHILE (+TRUE) {
         c = *(PCHAR)(pintoken);
         IF (c == '\0') BREAK;
         INC pintoken;
-        //*pout=*pintoken;
-        //pout=pout+1;
         writebyte(_fexp, (BYTE)c);
       };*/
     };
-    IF (token == (BYTE)(+_TOKEOL)) BREAK;
+    IF (token == +_TOKEOL) BREAK;
   };
 }
 
@@ -64,8 +93,6 @@ VAR BYTE b;
   }UNTIL (b == 0x00);
 
   _texttoken[+_TOKEOL]="\n";
-  //_texttoken[+_TOKEOF]="";
-  //_texttoken[+_TOKSPC0]="";
   _texttoken[+_TOKSPC1]=" ";
   _texttoken[+_TOKSPC2]="  ";
   _texttoken[+_TOKSPC3]="   ";
@@ -81,36 +108,13 @@ VAR BYTE b;
   _texttoken[+_TOKCLOSE]=")";
   _texttoken[+_TOKCLOSESQ]="]";
   _texttoken[+_TOKCOLON]=":";
-  //_texttoken[+_TOKDIRECT]="#";
-  _texttoken[+_TOKPRIME]="\'";
-  _texttoken[+_TOKPRIMESYM]="\'"; //используется для символьных констант типа 'c'
-  _texttoken[+_TOKDBLQUOTESYM]="\"";
-  _texttoken[+_TOKDOLLAR]="$";
-  //_texttoken[+_TOKREEQU]="=";
-
-  _texttoken[+_TOKPLUS]="+";
-  _texttoken[+_TOKMINUS]="-";
-  _texttoken[+_TOKSTAR]="*";
-  _texttoken[+_TOKSLASH]="/";
-  _texttoken[+_TOKLESS]="<";
-  _texttoken[+_TOKMORE]=">";
+  _texttoken[+_TOKDIRECT]="#";
+  _texttoken[+_TOKPRIME]="\'"; //для af'
+  _texttoken[+_TOKDBLQUOTE]="\"";
   _texttoken[+_TOKEQUAL]="=";
-  _texttoken[+_TOKAND]="&";
-  _texttoken[+_TOKPIPE/**'|'*/]="|";
-  _texttoken[+_TOKCARON/**'^'*/]="^";
-  _texttoken[+_TOKTILDE/**'~'*/]="~";
-  _texttoken[+_TOKEXCL]="!";
 
-  //_texttoken[+_TOKTEXT]="";
-  //_texttoken[+_TOKENDTEXT]="";
   _texttoken[+_TOKCOMMENT]=";";
-  //_texttoken[+_TOKENDCOMMENT]="";
-  //_texttoken[+_TOKNUM]="";
-  //_texttoken[+_TOKLABEL]="";
-  //_texttoken[+_ERR_]="";
 
-  //_texttoken[+_CMDLABEL   ]="";
-  //_texttoken[+_CMDREEQU   ]="";
   _texttoken[+_CMDORG     ]="org";
   _texttoken[+_CMDALIGN   ]="align";
   _texttoken[+_CMDPAGE    ]="page";
@@ -121,7 +125,6 @@ VAR BYTE b;
   _texttoken[+_CMDEDUP    ]="edup";
   _texttoken[+_CMDMACRO   ]="macro";
   _texttoken[+_CMDENDM    ]="endm";
-  //_texttoken[+_CMDUSEMACRO]="usemacro";
   _texttoken[+_CMDEXPORT  ]="export";
   _texttoken[+_CMDLOCAL   ]="local";
   _texttoken[+_CMDENDL    ]="endl";
@@ -147,12 +150,9 @@ VAR BYTE b;
     _waseof = +FALSE;
     _fout = openwrite( "exp.f" );
 
-    //_waseof = +FALSE; //уже есть в setfin
-
     WHILE (!_waseof) {
       asmexport_line();
     };
-    //todo поддержать TOK_EOF
 
     fclose(_fout);
     fclose(_fin); //closefin();

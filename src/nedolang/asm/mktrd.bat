@@ -6,6 +6,8 @@ nedotrd test.trd -a ..\asm\compile.bat
 nedotrd test.trd -a ..\comp\nedolang
 nedotrd test.trd -a ..\tok\nedotok
 nedotrd test.trd -a ..\asm\nedoasm
+nedotrd test.trd -a ..\nedodel\nedodel
+nedotrd test.trd -a ..\movedisk\movedisk
 nedotrd test.trd -a ..\diff\diff
 nedotrd test.trd -a ..\_sdk\str.h
 nedotrd test.trd -a ..\_sdk\io.h

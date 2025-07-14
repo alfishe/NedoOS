@@ -1,8 +1,8 @@
 @echo off
 if "%settedpath%"=="" call "..\..\_sdk\setpath.bat"
-nedolang del.c ../_sdk/io.c
+nedolang del.c
 type err.f
-nedotok del.s del.ast del.var ../_sdk/lib.i ../_sdk/io.i ../_sdk/io.ast ../_sdk/io.var ../_sdk/str.i
+nedotok del.s ../_sdk/lib.i ../_sdk/iofast.i ../_sdk/str.i
 nedoasm del.S_
 type asmerr.f
 pause

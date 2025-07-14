@@ -1,9 +1,5 @@
 call compile.bat
 md tmp
-copy *.ast tmp
-copy *.var tmp
-del *.ast
-del *.var
 copy *.A_ tmp
 copy *.V_ tmp
 copy *.S_ tmp

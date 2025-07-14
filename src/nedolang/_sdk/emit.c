@@ -66,9 +66,9 @@ EXPORT PROC emituint(UINT i, PBYTE f)
 /////////////////////////////////////
 //процедуры низкого уровня, вызываемые кодогенератором
 
-EXPORT PROC asmc(CHAR c)
+EXPORT PROC asmc(BYTE c)
 {
-  writefout((BYTE)c);
+  writefout(c);
 }
 
 EXPORT PROC asmstr(PCHAR s)
@@ -161,9 +161,9 @@ EXPORT PROC enderr()
   };
 }
 
-EXPORT PROC varc(CHAR c)
+EXPORT PROC varc(BYTE c)
 {
-  writebyte(_fvar, (BYTE)c);
+  writebyte(_fvar, c);
 }
 
 EXPORT PROC varstr(PCHAR s)

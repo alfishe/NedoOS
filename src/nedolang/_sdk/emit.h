@@ -5,7 +5,7 @@ EXTERN PCHAR _fn;
 EXTERN UINT _lenfn;
 EXTERN CHAR _m_fn[_STRLEN];
 
-PROC varc FORWARD(CHAR c);
+PROC varc FORWARD(BYTE c);
 PROC varstr FORWARD(PCHAR s);
 PROC varuint FORWARD(UINT i);
 PROC endvar FORWARD();
@@ -17,7 +17,7 @@ EXTERN UINT _num;
 
 PROC emitn FORWARD(UINT i);
 PROC emituint FORWARD(UINT i, PBYTE f);
-PROC asmc FORWARD(CHAR c);
+PROC asmc FORWARD(BYTE c);
 PROC asmstr FORWARD(PCHAR s);
 PROC asmuint FORWARD(UINT i);
 PROC endasm FORWARD();

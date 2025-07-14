@@ -6,7 +6,8 @@ scrtop=scraddr+(scry*32)+scrx
 
 	org 0x6000
         jr startup
-        dw $ dw $
+        dw $
+        dw $
 startup
         ld hl,0x5800
         ld de,0x5801

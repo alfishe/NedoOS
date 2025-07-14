@@ -1,5 +1,6 @@
 //// imported
 PROC tokaddlbl FORWARD(PCHAR txt, PBYTE proc, BYTE data);
+PROC tokaddlbl0 FORWARD(PCHAR txt, PBYTE proc);
 
 EXTERN PCHAR _tword; //текущее слово
 EXTERN UINT _lentword;
@@ -700,32 +701,32 @@ PROC tokbitN()
 
 PROC tokpre()
 {
-  tokaddlbl("LD"  , (PBYTE)&tokld  , 0x00);
-  tokaddlbl("CALL", (PBYTE)&tokcall, 0x00);
-  tokaddlbl("JP"  , (PBYTE)&tokjp  , 0x00);
-  tokaddlbl("RET" , (PBYTE)&tokret , 0x00);
-  tokaddlbl("JR"  , (PBYTE)&tokjr  , 0x00);
+  tokaddlbl0("LD"  , (PBYTE)&tokld);
+  tokaddlbl0("CALL", (PBYTE)&tokcall);
+  tokaddlbl0("JP"  , (PBYTE)&tokjp);
+  tokaddlbl0("RET" , (PBYTE)&tokret);
+  tokaddlbl0("JR"  , (PBYTE)&tokjr);
 
-  tokaddlbl("DB"  , (PBYTE)&tokdb  , 0x00); //db ..., вместо defb - надо после каждого выражения формат writeN, разбирать вручную не получится из-за выражения
-  tokaddlbl("DW"  , (PBYTE)&tokdw  , 0x00); //dw ..., вместо defw - надо после каждого выражения формат writeNN
-  tokaddlbl("DL"  , (PBYTE)&tokdl  , 0x00); //dl ..., вместо defl - надо после каждого выражения формат writeNNNN
-  tokaddlbl("DS"  , (PBYTE)&tokds  , 0x00); //ds ..., вместо defs - надо формат writeds
+  tokaddlbl0("DB"  , (PBYTE)&tokdb); //db ..., вместо defb - надо после каждого выражения формат writeN, разбирать вручную не получится из-за выражения
+  tokaddlbl0("DW"  , (PBYTE)&tokdw); //dw ..., вместо defw - надо после каждого выражения формат writeNN
+  tokaddlbl0("DL"  , (PBYTE)&tokdl); //dl ..., вместо defl - надо после каждого выражения формат writeNNNN
+  tokaddlbl0("DS"  , (PBYTE)&tokds); //ds ..., вместо defs - надо формат writeds
 
-  tokaddlbl("POP" , (PBYTE)&tokpop , 0x00);
-  tokaddlbl("PUSH", (PBYTE)&tokpush, 0x00);
+  tokaddlbl0("POP" , (PBYTE)&tokpop);
+  tokaddlbl0("PUSH", (PBYTE)&tokpush);
 
-  tokaddlbl("ADD" , (PBYTE)&tokadd , 0x00);
-  tokaddlbl("ADC" , (PBYTE)&tokadc , 0x00);
+  tokaddlbl0("ADD" , (PBYTE)&tokadd);
+  tokaddlbl0("ADC" , (PBYTE)&tokadc);
   tokaddlbl("SUB" , (PBYTE)&tokalucmdN, +_ASMSUB);
-  tokaddlbl("SBC" , (PBYTE)&toksbc , 0x00);
+  tokaddlbl0("SBC" , (PBYTE)&toksbc);
   tokaddlbl("AND" , (PBYTE)&tokalucmdN, +_ASMAND);
   tokaddlbl("OR"  , (PBYTE)&tokalucmdN, +_ASMOR);
   tokaddlbl("XOR" , (PBYTE)&tokalucmdN, +_ASMXOR);
   tokaddlbl("CP"  , (PBYTE)&tokalucmdN, +_ASMCP);
-  tokaddlbl("INC" , (PBYTE)&tokinc , 0x00);
-  tokaddlbl("DEC" , (PBYTE)&tokdec , 0x00);
+  tokaddlbl0("INC" , (PBYTE)&tokinc);
+  tokaddlbl0("DEC" , (PBYTE)&tokdec);
 
-  tokaddlbl("EX"  , (PBYTE)&tokex  , 0x00);
+  tokaddlbl0("EX"  , (PBYTE)&tokex);
 
   tokaddlbl("RLC" , (PBYTE)&tokcbxxN, +_ASMRLC);
   tokaddlbl("RRC" , (PBYTE)&tokcbxxN, +_ASMRRC);
@@ -736,18 +737,18 @@ PROC tokpre()
   tokaddlbl("SLI" , (PBYTE)&tokcbxxN, +_ASMSLI);
   tokaddlbl("SRL" , (PBYTE)&tokcbxxN, +_ASMSRL);
 
-  tokaddlbl("DJNZ", (PBYTE)&tokdjnz, 0x00);
+  tokaddlbl0("DJNZ", (PBYTE)&tokdjnz);
 
-  tokaddlbl("RST" , (PBYTE)&tokrst , 0x00);
+  tokaddlbl0("RST" , (PBYTE)&tokrst);
 
-  tokaddlbl("OUT" , (PBYTE)&tokout , 0x00);
-  tokaddlbl("IN"  , (PBYTE)&tokin  , 0x00);
+  tokaddlbl0("OUT" , (PBYTE)&tokout);
+  tokaddlbl0("IN"  , (PBYTE)&tokin);
 
   tokaddlbl("BIT" , (PBYTE)&tokbitN, +_ASMBIT);
   tokaddlbl("RES" , (PBYTE)&tokbitN, +_ASMRES);
   tokaddlbl("SET" , (PBYTE)&tokbitN, +_ASMSET);
 
-  tokaddlbl("IM"  , (PBYTE)&tokim  , 0x00);
+  tokaddlbl0("IM"  , (PBYTE)&tokim);
 
   tokaddlbl("RLCA", (PBYTE)&tokxxN, +_ASMRLCA);
   tokaddlbl("RRCA", (PBYTE)&tokxxN, +_ASMRRCA);
@@ -787,31 +788,31 @@ PROC tokpre()
 
   tokaddlbl("NEG" , (PBYTE)&tokxxN, +_ASMNEG);
 
-  tokaddlbl("ORG" , (PBYTE)&tokorg , 0x00); /**org nn - надо формат writeorg, разбирать вручную не получится из-за выражения*/
+  tokaddlbl0("ORG" , (PBYTE)&tokorg); /**org nn - надо формат writeorg, разбирать вручную не получится из-за выражения*/
 
-//  tokaddlbl("ALIGN",(PBYTE)&tokalign,0x00); /**align nn - надо формат writealign, разбирать вручную не получится из-за выражения*/
-//  tokaddlbl("PAGE", (PBYTE)&tokpage, 0x00); /**page n - надо формат writepage, разбирать вручную не получится из-за выражения*/
-//  tokaddlbl("IF"  , (PBYTE)&tokif  , 0x00); /**if nn - надо формат writeif, разбирать вручную не получится из-за выражения*/
-//  tokaddlbl("ELSE", (PBYTE)&tokelse, 0x00); /**else*/
-//  tokaddlbl("ENDIF",(PBYTE)&tokendif,0x00); /**endif*/
-//  tokaddlbl("DUP" , (PBYTE)&tokdup , 0x00); /**dup nn - надо формат writedup, разбирать вручную не получится из-за выражения*/
-//  tokaddlbl("EDUP", (PBYTE)&tokedup, 0x00); /**edup*/
-//  tokaddlbl("MACRO",(PBYTE)&tokmacro,0x00); /**macro name - разбирать вручную?*/
-//  tokaddlbl("ENDM", (PBYTE)&tokendm, 0x00); /**endm*/
-  //tokaddlbl("USEMACRO",(PBYTE)&tokusemacro, 0x00); /**usemacro name ... - разбирать вручную?*/
-  tokaddlbl("EXPORT",(PBYTE)&tokexport, 0x00); /**export name - разбирать вручную?*/
-//  tokaddlbl("LOCAL",(PBYTE)&toklocal,0x00); /**local name - разбирать вручную?*/
-//  tokaddlbl("ENDL", (PBYTE)&tokendl, 0x00); /**endl*/
-//  tokaddlbl("DISP", (PBYTE)&tokdisp, 0x00); /**disp nn - надо формат writedisp*/
-//  tokaddlbl("ENT" , (PBYTE)&tokent , 0x00); /**ent*/
-  tokaddlbl("INCLUDE",(PBYTE)&tokinclude, 0x00); /**include "filename" - разбирать вручную?*/
-  tokaddlbl("INCBIN",(PBYTE)&tokincbin, 0x00); /**incbin "filename" - разбирать вручную?*/
-//  tokaddlbl("DISPLAY",(PBYTE)&tokdisplay, 0x00); /**display nn - форматы displaynum, displaystring - разбирать вручную не получится из-за выражений*/
-//  tokaddlbl("REPEAT",(PBYTE)&tokrepeat, 0x00); /**repeat*/
-//  tokaddlbl("UNTIL",(PBYTE)&tokuntil, 0x00); /**until nn - надо формат writeuntil*/
-//  tokaddlbl("STRUCT",(PBYTE)&tokstruct, 0x00); /**struct name - разбирать вручную?*/
-//  tokaddlbl("ENDSTRUCT",(PBYTE)&tokendstruct, 0x00); /**endstruct*/
+//  tokaddlbl0("ALIGN",(PBYTE)&tokalign); /**align nn - надо формат writealign, разбирать вручную не получится из-за выражения*/
+//  tokaddlbl0("PAGE", (PBYTE)&tokpage); /**page n - надо формат writepage, разбирать вручную не получится из-за выражения*/
+//  tokaddlbl0("IF"  , (PBYTE)&tokif); /**if nn - надо формат writeif, разбирать вручную не получится из-за выражения*/
+//  tokaddlbl0("ELSE", (PBYTE)&tokelse); /**else*/
+//  tokaddlbl0("ENDIF",(PBYTE)&tokendif); /**endif*/
+//  tokaddlbl0("DUP" , (PBYTE)&tokdup); /**dup nn - надо формат writedup, разбирать вручную не получится из-за выражения*/
+//  tokaddlbl0("EDUP", (PBYTE)&tokedup); /**edup*/
+//  tokaddlbl0("MACRO",(PBYTE)&tokmacro); /**macro name - разбирать вручную?*/
+//  tokaddlbl0("ENDM", (PBYTE)&tokendm); /**endm*/
+  //tokaddlbl0("USEMACRO",(PBYTE)&tokusemacro); /**usemacro name ... - разбирать вручную?*/
+  tokaddlbl0("EXPORT",(PBYTE)&tokexport); /**export name - разбирать вручную?*/
+//  tokaddlbl0("LOCAL",(PBYTE)&toklocal); /**local name - разбирать вручную?*/
+//  tokaddlbl0("ENDL", (PBYTE)&tokendl); /**endl*/
+//  tokaddlbl0("DISP", (PBYTE)&tokdisp); /**disp nn - надо формат writedisp*/
+//  tokaddlbl0("ENT" , (PBYTE)&tokent); /**ent*/
+  tokaddlbl0("INCLUDE",(PBYTE)&tokinclude); /**include "filename" - разбирать вручную?*/
+  tokaddlbl0("INCBIN",(PBYTE)&tokincbin); /**incbin "filename" - разбирать вручную?*/
+//  tokaddlbl0("DISPLAY",(PBYTE)&tokdisplay); /**display nn - форматы displaynum, displaystring - разбирать вручную не получится из-за выражений*/
+//  tokaddlbl0("REPEAT",(PBYTE)&tokrepeat); /**repeat*/
+//  tokaddlbl0("UNTIL",(PBYTE)&tokuntil); /**until nn - надо формат writeuntil*/
+//  tokaddlbl0("STRUCT",(PBYTE)&tokstruct); /**struct name - разбирать вручную?*/
+//  tokaddlbl0("ENDSTRUCT",(PBYTE)&tokendstruct); /**endstruct*/
 
-  tokaddlbl(":",(PBYTE)&tokcolon, 0x00);
-//  tokaddlbl(";",(PBYTE)&tokcomment, 0x00); //проверяется отдельно
+  tokaddlbl0(":",(PBYTE)&tokcolon);
+//  tokaddlbl0(";",(PBYTE)&tokcomment); //проверяется отдельно
 }

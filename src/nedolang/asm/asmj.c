@@ -7,8 +7,7 @@
         i = 0;
         readfin(); //tab
         readfin(); //"
-        //readfin(); //TOK_WRSTR
-        _token = readfin(); //TOK_TEXT
+        _token = readfin(); //_TOKTEXT
         inclfnloop:
           asmreadprefixed(); //читаем через readfin, раскрываем \n \r \t \0
           IF ((_token==+_TOKENDTEXT)||_waseof) goto inclfnq; //BREAK;
@@ -43,8 +42,7 @@
         _lenfn = 0;
         readfin(); //tab
         readfin(); //"
-        //readfin(); //TOK_WRSTR
-        _token = readfin(); //TOK_TEXT
+        _token = readfin(); //_TOKTEXT
         incbfnloop:
           asmreadprefixed(); //читаем через readfin, раскрываем \n \r \t \0
           IF ((_token==+_TOKENDTEXT)||_waseof) goto incbfnq; //BREAK;
@@ -75,14 +73,14 @@
         _isaddr = 0x00;
         _curdir = _token;
         asmdir_label(); //нельзя сейчас переопределять! иначе нельзя label=label+1
-        goto loop;
+        goto looptok; //readlabel прочитал следующий токен
       }
 
       case _CMDEXPORT: /**{
         _lenfn = 0;
         readfin(); //tab
         readfin(); //TOK_LABEL
-        _token = readfin(); //TOK_TEXT
+        _token = readfin(); //_TOKTEXT
         getexploop:
           asmreadprefixed(); //читаем через readfin, раскрываем \n \r \t \0
           IF ((_token==+_TOKENDTEXT)||_waseof) goto getexpq; //BREAK;
@@ -149,22 +147,15 @@
           i = (UINT)asmpopvalue();
           IF (_asms) { //сгенерировать <_curlabeltext>=<?modname?>+<i-?base?>
             decltoken(+_CMDLABEL);
-            decltoken(+_TOKTEXT);
+            //decltoken(+_TOKTEXT);
             fputs((PCHAR)_curlabeltext, _fdecl);
-            decltoken(+_TOKENDTEXT);
-            decltoken(+_TOKEQUAL/**'='*/);
+            //decltoken(+_TOKENDTEXT);
+            decltoken((BYTE)'=');
             decltoken(+_TOKEXPR);
-            decltoken(+_TOKLABEL);
-            decltoken(+_TOKTEXT);
             decltoken((BYTE)'_'); //todo <modname>?
-            decltoken(+_TOKENDTEXT);
-            decltoken(+_TOKPLUS/**'+'*/);
-            decltoken(+_TOKNUM);
-            decltoken(+_TOKTEXT);
+            decltoken((BYTE)'+');
             emitn(i-_curbegin/**_BASEADDR*/);
             fputs((PCHAR)_nbuf, _fdecl); //+_TOKENDTEXT==0
-            decltoken(+_TOKENDTEXT);
-            //decltoken(+_OPADD);
             decltoken(+_TOKENDEXPR);
             decltoken(+_FMTREEQU);
             decltoken(+_TOKEOL);
@@ -174,61 +165,27 @@
         goto loop;
       }
 
-      case _TOKEXPR: {doexpr(); goto loop;}
-      case _TOKENDEXPR: {goto loop;}
-/**
-      case _OPPUSH0: {asmpushvalue(0L); goto loop;}
-
-      case _OPADD:   {                           asmpushvalue(asmpopvalue()+asmpopvalue()); goto loop;}
-      case _OPSUB:   {tempvalue=asmpopvalue();   asmpushvalue(asmpopvalue()-tempvalue); goto loop;}
-      case _OPMUL:   {                           asmpushvalue(asmpopvalue()*asmpopvalue()); _isaddr = 0x00; goto loop;}
-      case _OPDIV:   {
-        tempvalue=asmpopvalue();
-        {
-        ;;IF (tempvalue!=0L)
-          asmpushvalue(asmpopvalue()/tempvalue);
-        }
+      case _TOKEXPR: {
+        _token = readfin(); //(до входа)
+        doexpr_();
         goto loop;
       }
-      case _OPAND:   {                           asmpushvalue(asmpopvalue()&asmpopvalue()); goto loop;}
-      case _OPOR:    {                           asmpushvalue(asmpopvalue()|asmpopvalue()); goto loop;}
-      case _OPXOR:   {                           asmpushvalue(asmpopvalue()^asmpopvalue()); goto loop;}
-      case _OPSHL:   {tempvalue=asmpopvalue();   asmpushvalue(asmpopvalue()<<tempvalue); goto loop;}
-      case _OPSHR:   {tempvalue=asmpopvalue();   asmpushvalue(asmpopvalue()>>tempvalue); goto loop;}
-      //case _OPEQ:    {                           asmpushbool((asmpopvalue()==asmpopvalue())); goto loop;} //иначе нельзя в лог.выражениях использовать константу TRUE (-1 или 1 непредсказуемо)
-      //case _OPNOTEQ: {                           asmpushbool((asmpopvalue()!=asmpopvalue())); goto loop;}
-      //case _OPLESS:  {tempvalue=asmpopvalue();   asmpushbool((UINT)asmpopvalue() <  (UINT)tempvalue); goto loop;}
-      //case _OPLESSEQ:{tempvalue=asmpopvalue();   asmpushbool((UINT)asmpopvalue() <= (UINT)tempvalue); goto loop;}
-      //case _OPMORE:  {tempvalue=asmpopvalue();   asmpushbool((UINT)asmpopvalue() >  (UINT)tempvalue); goto loop;}
-      //case _OPMOREEQ:{tempvalue=asmpopvalue();   asmpushbool((UINT)asmpopvalue() >= (UINT)tempvalue); goto loop;}
-      case _OPINV:   {                           asmpushvalue(~asmpopvalue()); goto loop;} //==invbool
-*/
+      case _TOKENDEXPR: {goto loop;}
+
       //case _OPPEEK:{/**asmpopvalue();*/ errstr("PEEK not supported"); enderr(); goto loop;}
 
       case _TOKEOL: {INC _curlnbeg; goto loop;}
       case _TOKEOF: {IF (_ninclfiles==0x00) {goto endloop;/**exit!!!*/}ELSE goto inclq;} //todo break
 
-      case _TOKPLUS/**'+'*/:
-      case _TOKMINUS/**'-'*/:
-      case _TOKSTAR/**'*'*/:
-      case _TOKSLASH/**'/'*/:
-      case _TOKLESS/**'<'*/:
-      case _TOKMORE/**'>'*/:
-      case _TOKEQUAL/**'='*/:
-      case _TOKAND/**'&'*/:
-      case _TOKPIPE/**'|'*/:
-      case _TOKCARON/**'^'*/:
-      case _TOKTILDE/**'~'*/:
-      case _TOKEXCL/**'!'*/:
-      case _TOKPRIMESYM:
-      case _TOKDBLQUOTESYM:
+      case _TOKEQUAL: //=
+      case _TOKPRIME:
+      case _TOKDBLQUOTE: //" //TODO зачем?
       case _TOKOPEN:
       case _TOKOPENSQ:
       case _TOKCLOSE:
       case _TOKCLOSESQ:
       case _TOKCOLON:
-      case _TOKDIRECT:
-      case _TOKSPC0:
+      case _TOKDIRECT: //#
       case _TOKSPC1:
       case _TOKSPC2:
       case _TOKSPC3:
@@ -240,31 +197,18 @@
 
         {goto loop;}
 
-      case _TOKPRIME: {
-        readfin(); //text
-        asmreadprefixed(); //читаем через readfin, раскрываем \n \r \t \0
-        asmpushvalue((LONG)_prefixedtoken);
-        readfin(); //endtext
-        readfin(); //закрывающий апостроф
-        goto loop;
-      }
-      case _TOKDOLLAR: {asmpushvalue((LONG)(_curaddr+_curshift)); _isaddr = +_ASMLABEL_ISADDR; goto loop;}
-
       case _TOKCOMMENT: { /**skip cmt text*/
         REPEAT {
           _token=readfin();
-        }UNTIL ((_token==+_TOKENDCOMMENT)||_waseof); /**токен, который не встречается в текстах*/
+        }UNTIL ((_token==+_TOKEOL/**_TOKENDCOMMENT*/)||(_token==+_TOKEOF)/**||_waseof*/); /**токен, который не встречается в текстах*/
         goto loop;
       }
-      case _TOKNUM: {
-        rdnum();
-        goto loop;
-      }
-      case _TOKLABEL: { //найти и прочитать метку
+      case _TOKLABEL: { //найти и прочитать метку //TODO убрать, но сейчас нужно!
+        _token=readfin(); //первый символ метки
         readlabel();
         _plabel_index = findlabel(_curlabeltext);
         asmpushvalue(getlabel());
-        goto loop;
+        goto looptok; //readlabel прочитал следующий токен
       }
       case _ERR: {
         _token=readfin();
@@ -282,7 +226,7 @@
 
       case _OPWRSTR: { //до него quotesymbol
         //записать строку внутри text...endtext
-        _token = readfin(); //TOK_TEXT
+        _token = readfin(); //_TOKTEXT
         writestringloop:
           asmreadprefixed(); //читаем через readfin, раскрываем \n \r \t \0
           IF ((_token==+_TOKENDTEXT)||_waseof) goto loop; //BREAK;

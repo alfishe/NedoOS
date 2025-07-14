@@ -3,8 +3,8 @@
 <PROJECT>
   <MACROS>
     <VERSION value="BCB.05.03"/>
-    <PROJECT value="..\_sdk\nedoexp.exe"/>
-    <OBJFILES value="z80main.obj"/>
+    <PROJECT value="..\_sdk\nedoearm.exe"/>
+    <OBJFILES value="armmain.obj"/>
     <RESFILES value=""/>
     <IDLFILES value=""/>
     <IDLGENFILES value=""/>
@@ -27,13 +27,13 @@
     <LINKER value="tlink32"/>
     <USERDEFINES value="_DEBUG"/>
     <SYSDEFINES value="NO_STRICT;_NO_VCL"/>
-    <MAINSOURCE value="nedoexp.bpf"/>
+    <MAINSOURCE value="nedoearm.bpf"/>
     <INCLUDEPATH value="$(BCB)\include;$(BCB)\include\vcl"/>
     <LIBPATH value="$(BCB)\lib\obj;$(BCB)\lib"/>
     <WARNINGS value="-w-8065 -w-par"/>
   </MACROS>
   <OPTIONS>
-    <IDLCFLAGS value="-src_suffix cpp -D_DEBUG -I$(BCB)\include -I$(BCB)\include\vcl -boa"/>
+    <IDLCFLAGS value="-I$(BCB)\include -I$(BCB)\include\vcl -src_suffix cpp -D_DEBUG -boa"/>
     <CFLAG1 value="-Od -Vx -Ve -X- -r- -a8 -b- -d -k -y -v -vi- -tWC -tWM- -c"/>
     <PFLAGS value="-$YD -$W -$O- -v -JPHNE -M"/>
     <RFLAGS value=""/>
@@ -77,7 +77,7 @@ Comments=
 $(BCB)\Bin\dcl31w50.bpl=Delphi 1.0 Compatibility Components
 $(BCB)\Bin\bcbsmp50.bpl=Borland C++ Sample Components
 $(BCB)\Bin\dclado50.bpl=Borland ADO DB Components
-C:\WINDOWS\system32\ibsmp50.bpl=Borland C++ InterBase Alerter Component
+C:\Windows\system32\ibsmp50.bpl=Borland C++ InterBase Alerter Component
 $(BCB)\Bin\dclbde50.bpl=Borland BDE DB Components
 $(BCB)\Bin\dclqrt50.bpl=QuickReport Components
 $(BCB)\Bin\dcltee50.bpl=TeeChart 5.0 Components
