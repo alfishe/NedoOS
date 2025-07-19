@@ -1903,7 +1903,7 @@ seldrv_mainloop_nokey
         call drawfilecursor_sizeb_colorhl ;remove cursor
         pop af
         cp key_redraw
-        jr z,seldrv_redraw_mainloop
+        jr z,seldrv_redraw_mainloop ;TODO redraw panels (nvfast)
         ld hl,seldrv_cury
         cp key_enter
         jr z,seldrv_selcursor
@@ -2020,6 +2020,9 @@ editcmd_menu
        endif
 
 editcmd_reprintall_keepcursor
+	xor a
+	ld (leftpanel+PANEL.drawtableunneeded),a
+	ld (rightpanel+PANEL.drawtableunneeded),a
 	call readpanels_reprint_keepcursor
         jp editcmd_readprompt_setendcmdx
 
@@ -2899,9 +2902,6 @@ reter
 editcmd_showscr
 	call nv_copyscreen1to0
 	YIELDGETKEYLOOP
-	xor a
-	ld (leftpanel+PANEL.drawtableunneeded),a
-	ld (rightpanel+PANEL.drawtableunneeded),a
 	jp editcmd_reprintall_keepcursor
        endif
 
