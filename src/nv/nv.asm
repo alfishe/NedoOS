@@ -1473,21 +1473,24 @@ loadandrun_waitpid
         call nv_setxy ;keeps de,hl,ix
         call clearrestofline
        else
-	call nv_copyscreen1to0
-        ld e,-1
-        OS_SETGFX ;disable gfx, give focus ;before RUNAPP!!!
+	;call nv_copyscreen1to0
+        ;ld e,-1
+        ;OS_SETGFX ;disable gfx, give focus ;before RUNAPP!!! (если убрать, то не получится ходить кнопками в view/play)
        endif
+       if PRSTDIO ;1==1
         ld ix,leftpanel
 	call strdelpages
         ld ix,rightpanel
 	call strdelpages
         call deletepages
+       endif
 ;loadandrun_waitpid_looploadandrun
 ;loadandrun_waitpid_string=$+1
 ;       ld hl,0
        pop hl ;hl=cmdbuf или cmdprompt
 	 ;call setcurpaneldir
         call loadandrun ;nz=error, e=id
+     if PRSTDIO ;1==1
         jp nz,execcmd_error
 ;команда scratch - реально cmd scratch в текущем терминале
         WAITPID
@@ -1523,11 +1526,12 @@ loadandrun_waitpid_looploadandrunq
        endif
 execcmd_error
         call assignpages
+     endif
        if PRSTDIO == 0
-        ld e,6 ;textmode
-        OS_SETGFX ;take focus (can be random after closing cmd)
-	call nv_copyscreen0to1
-	YIELDGETKEY ;key refresh
+        ;ld e,6 ;textmode
+        ;OS_SETGFX ;take focus (can be random after closing cmd)
+	;call nv_copyscreen0to1
+	;YIELDGETKEY ;key refresh
        endif
         xor a
         ld (cmdbuf),a
