@@ -21,7 +21,7 @@ scrbase=0x8000
 begin
         ld sp,STACK
         OS_HIDEFROMPARENT
-
+restart
         ld e,0+0x80
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
         
@@ -96,12 +96,12 @@ pauseq
 	call z,shut_b
 	cp '3'
 	call z,shut_c
-        ;cp NOKEY
-	;jr z,loop
-        cp key_esc
+    cp key_redraw
+	jp z, restart	
+
+    cp key_esc
 	jr nz,loop
-	
-        QUIT
+	QUIT
 	
 pause
 	ld hl,pause_on
