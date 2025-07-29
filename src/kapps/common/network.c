@@ -208,33 +208,33 @@ unsigned char dnsResolve(const char *domainName)
   unsigned char socket, retry;
   unsigned int todo, queryPos, queryType, domainLng, comaCount, reqSize;
   unsigned int loop;
-
+  unsigned char buf[128];
   unsigned char dnsQuery1[] = {0x11, 0x22, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
   unsigned char dnsQuery2[] = {0x00, 0x00, 0x01, 0x00, 0x01};
 
   domainLng = strlen(domainName);
   comaCount = 0;
   loop = domainLng;
-  cmd[loop + 1] = 0;
+  buf[loop + 1] = 0;
 
   do
   {
     if (domainName[loop - 1] == '.')
     {
-      cmd[loop] = comaCount;
+      buf[loop] = comaCount;
       comaCount = 0;
     }
     else
     {
-      cmd[loop] = domainName[loop - 1];
+      buf[loop] = domainName[loop - 1];
       comaCount++;
     }
     loop--;
   } while (loop != 0);
-  cmd[0] = comaCount;
+  buf[0] = comaCount;
 
   memcpy(netbuf, dnsQuery1, sizeof(dnsQuery1));
-  memcpy(netbuf + sizeof(dnsQuery1), cmd, domainLng + 1);
+  memcpy(netbuf + sizeof(dnsQuery1), buf, domainLng + 1);
   memcpy(netbuf + domainLng + sizeof(dnsQuery1) + 1, dnsQuery2, sizeof(dnsQuery2));
   reqSize = sizeof(dnsQuery1) + sizeof(dnsQuery2) + domainLng + 1;
 
@@ -295,7 +295,7 @@ unsigned char dnsResolve(const char *domainName)
   queryPos = queryPos + 7; // Skip to answer data
   do
   {
-  unsigned int queryLng;
+    unsigned int queryLng;
     if (queryPos > sizeof(netbuf) - 11)
     {
       // clearStatus();

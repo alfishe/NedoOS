@@ -276,8 +276,8 @@ void uart_flush(void)
 
 char getdataEsp(unsigned int counted)
 {
-	unsigned int counter, retry = 20000;
 	char status;
+	unsigned int counter;
 	switch (comType)
 	{
 	case 0: // Kondratyev  NO AFC
@@ -285,7 +285,7 @@ char getdataEsp(unsigned int counted)
 		{
 			do
 			{
-				if (retry-- == 0)
+				if (espRetry-- == 0)
 				{
 					return false;
 				}
@@ -304,7 +304,7 @@ char getdataEsp(unsigned int counted)
 		{
 			while (uart_hasByte() == 0)
 			{
-				if (retry-- == 0)
+				if (espRetry-- == 0)
 				{
 					return false;
 				}
@@ -328,7 +328,7 @@ char getdataEsp(unsigned int counted)
 		{
 			while ((1 & input(LSR)) == 0)
 			{
-				if (retry-- == 0)
+				if (espRetry-- == 0)
 				{
 					return false;
 				}
@@ -342,7 +342,7 @@ char getdataEsp(unsigned int counted)
 			disable_interrupt();
 			do
 			{
-				if (retry-- == 0)
+				if (espRetry-- == 0)
 				{
 					return false;
 				}
@@ -528,9 +528,8 @@ void loadEspConfig(void)
 	OS_READHANDLE(curParam, espcom, 250);
 	OS_CLOSEHANDLE(espcom);
 
-	res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u %u %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider, &comType, &espType);
+	res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u %u %u %lu", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider, &comType, &espType, &espRetry);
 	puts("Config loaded:");
-
 	if (comType == 1)
 	{
 		puts("     Controller IO port: 0x55fe");
@@ -540,23 +539,23 @@ void loadEspConfig(void)
 		printf("     RBR_THR:0x%4x     IER    :0x%4x\r\n     IIR_FCR:0x%4x     LCR    :0x%4x\r\n", RBR_THR, IER, IIR_FCR, LCR);
 		printf("     MCR    :0x%4x     LSR    :0x%4x\r\n     MSR    :0x%4x     SR     :0x%4x\r\n", MCR, LSR, MSR, SR);
 	}
-	printf("     DIV    :%u    TYPE    :%u    ESP    :%u ", divider, comType, espType);
+	printf("     DIV    :%u    TYPE    :%u    ESP    :%u    Retry  :%lu  \r\n", divider, comType, espType, espRetry);
 	switch (comType)
 	{
 	case 0:
-		puts("(16550 like w/o AFC)");
+		puts("     Port (16550 like w/o AFC)");
 		break;
 	case 1:
-		puts("(ATM Turbo 2+)");
+		puts("     Port (ATM Turbo 2+)");
 		break;
 	case 2:
-		puts("(16550 with AFC)");
+		puts("     Port (16550 with AFC)");
 		break;
 	case 3:
-		puts("(ATM2IOESP Card)");
+		puts("     Port (ATM2IOESP Card)");
 		break;
 	default:
-		puts("(Unknown type)");
+		puts("     Port (Unknown type)");
 		break;
 	}
 	puts(" ");
