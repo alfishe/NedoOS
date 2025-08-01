@@ -22,6 +22,7 @@ unsigned int SR = 0xffef;
 unsigned int divider = 1;
 unsigned char comType = 0;
 unsigned int espType = 32;
+unsigned int espRetry = 1024;
 
 unsigned char picture[15000];
 unsigned char netbuf[6912];
@@ -95,6 +96,14 @@ void emptyKeys(void)
     }
     loop++;
   } while (key != 0);
+}
+
+void waitKey(void)
+{
+	do
+	{
+		YIELD();
+	} while (OS_GETKEY() == 0);
 }
 
 unsigned char delayLongKey(unsigned long counter)
@@ -357,8 +366,8 @@ char fillPictureEsp(void)
     if (!getdataEsp(todo))
     {
       OS_CLS(0);
-      puts("[getdataEsp]Downloading timeout. Exit!");
-      delayLongKey(5000);
+      printf("[getdataEsp]Downloading timeout. Exit![%lu]\r\n", count);
+      waitKey();
       exit(0);
     }
 

@@ -278,23 +278,24 @@ char getdataEsp(unsigned int counted)
 {
 	char status;
 	unsigned int counter;
+	unsigned long timer;
 	switch (comType)
 	{
 	case 0: // Kondratyev  NO AFC
 		for (counter = 0; counter < counted; counter++)
 		{
+			timer = espRetry;
 			do
 			{
-				if (espRetry-- == 0)
+				if (timer-- == 0)
 				{
 					return false;
 				}
 				disable_interrupt();
-				status = 1 & input(LSR);
 				output(MCR, 2);
 				output(MCR, 0);
 				enable_interrupt();
-
+				status = 1 & input(LSR);
 			} while (!status);
 			netbuf[counter] = input(RBR_THR);
 		}
@@ -302,9 +303,10 @@ char getdataEsp(unsigned int counted)
 	case 1: // ATM2 COM port
 		for (counter = 0; counter < counted; counter++)
 		{
+			timer = espRetry;
 			while (uart_hasByte() == 0)
 			{
-				if (espRetry-- == 0)
+				if (timer-- == 0)
 				{
 					return false;
 				}
@@ -326,9 +328,10 @@ char getdataEsp(unsigned int counted)
 	case 2: // Kondratyev AFC
 		for (counter = 0; counter < counted; counter++)
 		{
+			timer = espRetry;
 			while ((1 & input(LSR)) == 0)
 			{
-				if (espRetry-- == 0)
+				if (timer-- == 0)
 				{
 					return false;
 				}
@@ -339,10 +342,11 @@ char getdataEsp(unsigned int counted)
 	case 3: // ATM2IOESP
 		for (counter = 0; counter < counted; counter++)
 		{
+			timer = espRetry;
 			disable_interrupt();
 			do
 			{
-				if (espRetry-- == 0)
+				if (timer-- == 0)
 				{
 					return false;
 				}

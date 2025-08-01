@@ -9,7 +9,7 @@
 #include <intrz80.h>
 #include <ctype.h>
 #include <math.h>
-//
+/////////
 #define true 1
 #define false 0
 FILE *fp2; // must be global if savebuf may not to close file.
@@ -25,9 +25,10 @@ unsigned int SR = 0xffef;
 unsigned int divider = 1;
 unsigned char comType = 0;
 unsigned int espType = 32;
+unsigned int espRetry = 1024;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "1.7";
+unsigned char uVer[] = "1.8";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
