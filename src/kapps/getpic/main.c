@@ -4,10 +4,9 @@
 #include <oscalls.h>
 #include <osfs.h>
 #include <intrz80.h>
-// #include <graphic.h>
 #include <../common/terminal.c>
 #include <tcp.h>
-//
+//////////
 #define true 1
 #define false 0
 
@@ -22,7 +21,8 @@ unsigned int SR = 0xffef;
 unsigned int divider = 1;
 unsigned char comType = 0;
 unsigned int espType = 32;
-unsigned int espRetry = 1024;
+unsigned int espRetry = 8192;
+unsigned long espRetryL;
 
 unsigned char picture[15000];
 unsigned char netbuf[6912];
@@ -35,6 +35,7 @@ struct fileStruct
   unsigned int picYear;
   unsigned long totalAmount;
   unsigned int httpErr;
+  unsigned int extStatus;
   unsigned char picRating[8];
   unsigned char picName[256];
   unsigned char picType[64];
@@ -61,7 +62,7 @@ struct sockaddr_in dnsaddress;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 
-unsigned char ver[] = "4.5";
+unsigned char ver[] = "4.6";
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
@@ -100,10 +101,10 @@ void emptyKeys(void)
 
 void waitKey(void)
 {
-	do
-	{
-		YIELD();
-	} while (OS_GETKEY() == 0);
+  do
+  {
+    YIELD();
+  } while (OS_GETKEY() == 0);
 }
 
 unsigned char delayLongKey(unsigned long counter)
@@ -256,7 +257,10 @@ int cutHeader(unsigned int todo)
   if (curFileStruct.httpErr != 200)
   {
     clearStatus();
-    printf("HTTP response:[%u]", curFileStruct.httpErr);
+    printf("HTTP response:[%u]\r\n", curFileStruct.httpErr);
+    puts(netbuf);
+    puts("---+++---");
+    waitKey();
     return 0;
   }
   count1 = strstr(netbuf, "Content-Length:");
@@ -377,9 +381,17 @@ char fillPictureEsp(void)
       firstPacket = false;
       if (curFileStruct.httpErr != 200)
       {
+        /*
+           puts("AT+CIPCLOSE");
+           sendcommand("AT+CIPCLOSE");
+           puts("CLOSED");
+           getAnswer2(); // CLOSED
+           puts("OK");
+           getAnswer2(); // OK
+           return false;
+         */
         sendcommand("AT+CIPCLOSE");
-        getAnswer2(); // CLOSED
-        getAnswer2(); // OK
+        uartFlush(100);
         return false;
       }
     }
@@ -1024,6 +1036,10 @@ void safeKeys(unsigned char keypress)
     if (inputBox(curWin, ""))
     {
       sscanf(cmd, "%u", &slideShowTime);
+      if (slideShowTime == 0)
+      {
+        slideShowTime = 1;
+      }
       OS_CLS(0);
       OS_SETCOLOR(70);
       printf("Slide duration set to %u ints.", slideShowTime);
@@ -1320,7 +1336,7 @@ review:
   keypress = viewScreen6912c((unsigned int)&picture);
   emptyKeys();
 
-  ///// Keys only for pictures
+  ////// Keys only for pictures
   if (keypress == 's' || keypress == 'S')
   {
     savePic(iddqd);
