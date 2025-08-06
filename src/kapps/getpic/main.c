@@ -6,7 +6,7 @@
 #include <intrz80.h>
 #include <../common/terminal.c>
 #include <tcp.h>
-//////////
+////////////
 #define true 1
 #define false 0
 
@@ -21,8 +21,7 @@ unsigned int SR = 0xffef;
 unsigned int divider = 1;
 unsigned char comType = 0;
 unsigned int espType = 32;
-unsigned int espRetry = 8192;
-unsigned long espRetryL;
+unsigned long espRetry = 500000;
 
 unsigned char picture[15000];
 unsigned char netbuf[6912];

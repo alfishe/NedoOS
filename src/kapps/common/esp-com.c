@@ -171,7 +171,7 @@ unsigned char uart_hasByte(void)
 	unsigned char queue;
 	switch (comType)
 	{
-	case 0:
+	case 0: // Kondratyev  NO AFC
 	case 2:
 		return (1 & input(LSR));
 	case 1:
@@ -193,7 +193,7 @@ unsigned char uart_read(void)
 	unsigned char data;
 	switch (comType)
 	{
-	case 0:
+	case 0: // Kondratyev  NO AFC
 	case 2:
 		return input(RBR_THR);
 	case 1:
@@ -217,15 +217,15 @@ unsigned char uart_readBlock(void)
 {
 	unsigned char data;
 	unsigned long timer;
-	timer = espRetryL;
+	timer = espRetry;
 	switch (comType)
 	{
-	case 0:
+	case 0: // Kondratyev  NO AFC
 		while ((1 & input(LSR)) == 0)
 		{
 			if (timer-- == 0)
 			{
-				puts("\r[uart_readBlock] timeout returning 0...");
+				puts("\r[uart_readBlock] receiving timeout. returning 0.");
 				return false;
 			}
 			disable_interrupt();
@@ -234,13 +234,12 @@ unsigned char uart_readBlock(void)
 			enable_interrupt();
 		}
 		return input(RBR_THR);
-	case 1:
+	case 1: // ATM2 COM port
 		while (uart_hasByte() == 0)
 		{
-		//printf("R %u r2 %lu t %lu\r\n", espRetry, espRetryL, timer);
 			if (timer-- == 0)
 			{
-				puts("\r[uart_readBlock] timeout returning 0...");
+				puts("\r[uart_readBlock] receiving timeout. returning 0.");
 				return false;
 			}
 			disable_interrupt();
@@ -257,34 +256,37 @@ unsigned char uart_readBlock(void)
 		data = input(0x02fe); // Команда прочесть из порта
 		enable_interrupt();
 		return data;
-	case 2:
+	case 2: // Kondratyev AFC
 		while ((1 & input(LSR)) == 0)
 		{
 			if (timer-- == 0)
 			{
-				puts("\r[uart_readBlock] timeout returning 0...");
+				puts("\r[uart_readBlock] receiving timeout. Returning 0.");
 				return false;
 			}
 		}
 		return input(RBR_THR);
-	case 3:
-		while ((1 & portInput(LSR)) == 0)
+	case 3: // ATM2IOESP
+		// disable_interrupt();
+		output(0xfb, LSR);
+		while ((1 & input(0xfa)) == 0)
 		{
 			if (timer-- == 0)
 			{
-				puts("\r[uart_readBlock] timeout returning 0...");
+				enable_interrupt();
+				puts("\r[uart_readBlock] receiving timeout. Returning 0.");
 				return false;
 			}
 			disable_interrupt();
 			output(0xfb, MCR);
 			output(0xfa, 2);
 			output(0xfa, 0);
+			output(0xfb, LSR);
 			enable_interrupt();
 		}
-		disable_interrupt();
 		output(0xfb, RBR_THR);
 		data = input(0xfa);
-		enable_interrupt();
+		// enable_interrupt();
 		return data;
 	}
 	return 255;
@@ -307,7 +309,7 @@ void uartFlush(unsigned int millis)
 char getdataEsp(unsigned int counted)
 {
 	unsigned int counter;
-	unsigned int timer;
+	unsigned long timer;
 	switch (comType)
 	{
 	case 0: // Kondratyev  NO AFC
@@ -371,26 +373,23 @@ char getdataEsp(unsigned int counted)
 		for (counter = 0; counter < counted; counter++)
 		{
 			timer = espRetry;
-			disable_interrupt();
-			do
+			output(0xfb, LSR);
+			while ((1 & input(0xfa)) == 0)
 			{
-				output(0xfb, LSR);
-				if ((1 & input(0xfa)) != 0)
-				{
-					break;
-				}
-				if (timer-- == 0)
-				{
-					return false;
-				}
+					if (timer-- == 0)
+					{
+						return false;
+					}
 
+				disable_interrupt();
 				output(0xfb, MCR);
 				output(0xfa, 2);
 				output(0xfa, 0);
-			} while (42);
+				output(0xfb, LSR);
+				enable_interrupt();
+			}
 			output(0xfb, RBR_THR);
 			netbuf[counter] = input(0xfa);
-			enable_interrupt();
 		}
 		break;
 	}
@@ -451,7 +450,7 @@ void espReBoot(void)
 	clearStatus();
 	printf("Resetting ESP...");
 
-	uart_flush();
+	uartFlush(200);
 
 	sendcommand("AT+RST");
 	count = 0;
@@ -561,14 +560,12 @@ void loadEspConfig(void)
 	OS_READHANDLE(curParam, espcom, 250);
 	OS_CLOSEHANDLE(espcom);
 
-	res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u %u %u %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider, &comType, &espType, &espRetry);
+	res = sscanf(curParam, "%x %x %x %x %x %x %x %x %u %u %u %lu", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider, &comType, &espType, &espRetry);
 
 	if (espRetry == 0)
 	{
-		espRetry = 8193;
+		espRetry = 500000;
 	}
-
-	espRetryL = (unsigned long)espRetry * (unsigned long)50;
 
 	puts("Config loaded:");
 	if (comType == 1)
@@ -580,7 +577,7 @@ void loadEspConfig(void)
 		printf("     RBR_THR:0x%4x     IER    :0x%4x\r\n     IIR_FCR:0x%4x     LCR    :0x%4x\r\n", RBR_THR, IER, IIR_FCR, LCR);
 		printf("     MCR    :0x%4x     LSR    :0x%4x\r\n     MSR    :0x%4x     SR     :0x%4x\r\n", MCR, LSR, MSR, SR);
 	}
-	printf("     DIV    :%u    TYPE    :%u    ESP    :%u    Retry  :%u/%lu  \r\n", divider, comType, espType, espRetry, espRetryL);
+	printf("     DIV    :%u    TYPE    :%u    ESP    :%u    Retry  :%lu  \r\n", divider, comType, espType, espRetry);
 	switch (comType)
 	{
 	case 0:
