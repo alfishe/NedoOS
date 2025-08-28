@@ -24,6 +24,7 @@ unsigned int SR = 0xffef;
 unsigned int divider = 1;
 unsigned char comType = 0;
 unsigned int espType = 32;
+unsigned int espRetry = 32000;
 
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";

@@ -9,7 +9,7 @@
 #include <intrz80.h>
 #include <ctype.h>
 #include <math.h>
-////////////////
+//////////////////
 #define true 1
 #define false 0
 FILE *fp2; // must be global if savebuf may not to close file.
@@ -25,10 +25,10 @@ unsigned int SR = 0xffef;
 unsigned int divider = 1;
 unsigned char comType = 0;
 unsigned int espType = 32;
-unsigned long espRetry = 256000;
+unsigned int espRetry = 32000;
 unsigned char netDriver = 0;
 
-unsigned char uVer[] = "1.8";
+unsigned char uVer[] = "1.9";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -144,6 +144,14 @@ unsigned char delayLongKey(unsigned long counter)
 		YIELD();
 	}
 	return 0;
+}
+
+void waitKey(void)
+{
+  do
+  {
+    YIELD();
+  } while (OS_GETKEY() == 0);
 }
 
 void printNews(void) // max 20 lines in total and 59 col.
@@ -428,9 +436,9 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 	char socket, firstPacket;
 	unsigned int fileSize1;
 	unsigned long downloaded = 0;
-	unsigned int down;
+	unsigned int down, byte;
 	unsigned int sizeLink;
-	unsigned char byte, count;
+	unsigned char count;
 	// const unsigned char *count1;
 	unsigned char temp[64];
 	/*
@@ -503,7 +511,7 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 		getAnswer2();
 		do
 		{
-			byte = uart_readBlock();
+			byte = uartReadBlock();
 			// putchar(byte);
 		} while (byte != '>');
 		sendcommand(link);
@@ -511,7 +519,7 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 
 		do
 		{
-			byte = uart_readBlock();
+			byte = uartReadBlock();
 			if (byte == sendOk[count])
 			{
 				count++;
@@ -521,8 +529,8 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 				count = 0;
 			}
 		} while (count < strlen(sendOk));
-		uart_readBlock(); // CR
-		uart_readBlock(); // LF
+		uartReadBlock(); // CR
+		uartReadBlock(); // LF
 
 		firstPacket = true;
 		putchar('\r');
@@ -717,8 +725,7 @@ void fullUpdate(void)
 	AT(1, 1);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("                   [FULL UPDATE - UPDATING ALL SYSTEM FILES]                    ");
-
+	printf("                   [FULL UPDATE - UPDATING ALL SYSTEM FILES]    [Build:%s]", __TIME__);
 	strcpy(cw.tittle, "nedoOS FULL updater ");
 	strcat(cw.tittle, uVer);
 	getConfig();
@@ -764,6 +771,7 @@ void fullUpdate(void)
 
 	BOX(1, 1, 80, 25, 40, 176);
 	drawWindow(cw);
+	printf("                   [FULL UPDATE - UPDATING ALL SYSTEM FILES]    [Build:%s]", __TIME__);
 	clearStatus();
 	AT(cw.x + 2, cw.y + 3);
 	printf("1. Downloading release.zip.");
@@ -816,8 +824,7 @@ void binUpdate(void)
 	AT(1, 1);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("                  [STANDART UPDATE - UPDATING ONLY BIN FOLDER]                  ");
-
+	printf("                  [STANDART UPDATE - UPDATING ONLY BIN FOLDER]  [Build:%s]", __TIME__);
 	strcpy(cw.tittle, "nedoOS BIN updater ");
 	strcat(cw.tittle, uVer);
 	getConfig();
@@ -863,7 +870,7 @@ void binUpdate(void)
 	AT(1, 1);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("                  [STANDART UPDATE - UPDATING ONLY BIN FOLDER]                  ");
+	printf("                  [STANDART UPDATE - UPDATING ONLY BIN FOLDER]  [Build:%s]", __TIME__);
 	drawWindow(cw);
 
 	ATRIB(cw.text);
