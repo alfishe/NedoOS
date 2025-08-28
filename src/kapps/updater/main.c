@@ -148,10 +148,10 @@ unsigned char delayLongKey(unsigned long counter)
 
 void waitKey(void)
 {
-  do
-  {
-    YIELD();
-  } while (OS_GETKEY() == 0);
+	do
+	{
+		YIELD();
+	} while (OS_GETKEY() == 0);
 }
 
 void printNews(void) // max 20 lines in total and 59 col.
@@ -798,8 +798,8 @@ unsigned char testConect(void)
 		YIELD();
 		uartFlush(200);
 
-		printf("%s\r\n------------------[netbuf]------------------", netbuf);
-		puts("[testConect(void)]\r\n[count1 == NULL]");
+		printf("\r\n%s\r\n------------------[netbuf]------------------", netbuf);
+		puts("[testConect(void)]");
 		return 0;
 	}
 	getAnswer2(); // OK
@@ -978,11 +978,15 @@ C_task main(int argc, const char *argv[])
 			loadEspConfig();
 			uart_init(divider);
 			espReBoot();
-			test = testConect();
-			if (test)
-			{
-				binUpdate();
-			}
+			// test = testConect();
+			// if (test)
+			//{
+			binUpdate();
+			//}
+			// else
+			//{
+			//	fatalError("Check connection to the nedoos.ru server!");
+			//}
 		}
 		else if (argv[1][0] == 'E')
 		{
@@ -992,11 +996,15 @@ C_task main(int argc, const char *argv[])
 			loadEspConfig();
 			uart_init(divider);
 			espReBoot();
-			test = testConect();
-			if (test)
-			{
-				fullUpdate();
-			}
+			// test = testConect();
+			// if (test)
+			//{
+			fullUpdate();
+			//}
+			// else
+			//{
+			//	fatalError("Check connection to the nedoos.ru server!");
+			//}
 		}
 		else
 		{
