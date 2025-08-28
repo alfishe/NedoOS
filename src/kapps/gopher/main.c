@@ -27,6 +27,7 @@ unsigned int divider = 1;
 unsigned char comType = 0;
 unsigned int espType = 32;
 unsigned char netDriver = 0;
+unsigned int espRetry = 50000;
 
 unsigned char uVer[] = "1.6";
 unsigned char curPath[128];
