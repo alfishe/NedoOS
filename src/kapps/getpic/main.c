@@ -21,10 +21,11 @@ unsigned int SR = 0xffef;
 unsigned int divider = 1;
 unsigned char comType = 0;
 unsigned int espType = 32;
-unsigned int espRetry = 50000;
+unsigned int espRetry = 5;
+unsigned long factor, timerok;
 
 unsigned char picture[15000];
-unsigned char netbuf[6912];
+unsigned char netbuf[5000];
 unsigned char curPath[128];
 
 unsigned char minRating[] = "0000000000";
@@ -82,6 +83,28 @@ unsigned char fileIdChar[10];
 
 void clearStatus(void)
 {
+}
+
+void writeLog(const char *logline, char *place)
+{
+  FILE *LogFile;
+  unsigned long fileSize;
+  unsigned char toLog[512];
+
+  LogFile = OS_OPENHANDLE("m:/getpic.log", 0x80);
+  if (((int)LogFile) & 0xff)
+  {
+    LogFile = OS_CREATEHANDLE("m:/getpic.log", 0x80);
+    OS_CLOSEHANDLE(LogFile);
+    LogFile = OS_OPENHANDLE("m:/getpic.log", 0x80);
+  }
+
+  fileSize = OS_GETFILESIZE(LogFile);
+  OS_SEEKHANDLE(LogFile, fileSize);
+
+  sprintf(toLog, "%6lu : %s : %s\r\n", time(), place, logline);
+  OS_WRITEHANDLE(toLog, LogFile, strlen(toLog));
+  OS_CLOSEHANDLE(LogFile);
 }
 
 void emptyKeys(void)
@@ -256,6 +279,11 @@ int cutHeader(unsigned int todo)
   if (curFileStruct.httpErr != 200)
   {
     clearStatus();
+
+    // writeLog("HTTP error ", "cutHeader      ");
+    // writeLog(netbuf, "cutHeader      ");
+    // writeLog("---+++---", "cutHeader      ");
+
     printf("HTTP response:[%u]\r\n", curFileStruct.httpErr);
     puts(netbuf);
     puts("---+++---");
@@ -321,33 +349,47 @@ char fillPictureEsp(void)
 {
   unsigned char sizeLink;
   unsigned long downloaded;
-  unsigned char byte, countl;
+  unsigned char countl;
   unsigned int todo;
   const unsigned char *count1;
   unsigned char firstPacket;
+  unsigned int byte;
   strcpy(link, netbuf);
   sizeLink = strlen(link);
   do
   {
     sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
-    getAnswer2(); // CONNECT or ERROR or link is not valid
+    getAnswer3(); // CONNECT or ERROR or link is not valid
     count1 = strstr(netbuf, "CONNECT");
   } while (count1 == NULL);
 
-  getAnswer2();                                   // OK
+  getAnswer3();                                   // OK
   sprintf(netbuf, "AT+CIPSEND=%u", sizeLink + 2); // second CRLF in send command
   sendcommand(netbuf);
-  getAnswer2();
+  getAnswer3();
   do
   {
-    byte = uart_readBlock();
+
+    byte = uartReadBlock();
+    if (byte > 255)
+    {
+      // writeLog("uartReadBlock(); receiving timeout [1]", "fillPictureEsp ");
+      return false;
+    }
+
     // putchar(byte);
   } while (byte != '>');
   sendcommand(link);
   countl = 0;
   do
   {
-    byte = uart_readBlock();
+    byte = uartReadBlock();
+    if (byte > 255)
+    {
+      // writeLog("uartReadBlock(); receiving timeout [2]", "fillPictureEsp ");
+      return false;
+    }
+
     if (byte == sendOk[countl])
     {
       countl++;
@@ -357,8 +399,19 @@ char fillPictureEsp(void)
       countl = 0;
     }
   } while (countl < strlen(sendOk));
-  uart_readBlock(); // CR
-  uart_readBlock(); // LF
+  // writeLog("sendOk - OK", "fillPictureEsp ");
+  byte = uartReadBlock(); // CR
+  if (byte > 255)
+  {
+    // writeLog("uartReadBlock(); receiving timeout  [3]", "fillPictureEsp ");
+    return false;
+  }
+  byte = uartReadBlock(); // LF
+  if (byte > 255)
+  {
+    // writeLog("uartReadBlock(); receiving timeout  [4]", "fillPictureEsp ");
+    return false;
+  }
   downloaded = 0;
   firstPacket = true;
   do
@@ -369,7 +422,7 @@ char fillPictureEsp(void)
     if (!getdataEsp(todo))
     {
       OS_CLS(0);
-      printf("[getdataEsp]Downloading timeout. Exit![%lu]\r\n", count);
+      printf("[getdataEsp] Downloading timeout. Exit![%lu]\r\n", count);
       waitKey();
       exit(0);
     }
@@ -380,17 +433,8 @@ char fillPictureEsp(void)
       firstPacket = false;
       if (curFileStruct.httpErr != 200)
       {
-        /*
-           puts("AT+CIPCLOSE");
-           sendcommand("AT+CIPCLOSE");
-           puts("CLOSED");
-           getAnswer2(); // CLOSED
-           puts("OK");
-           getAnswer2(); // OK
-           return false;
-         */
         sendcommand("AT+CIPCLOSE");
-        uartFlush(100);
+        uartFlush(200);
         return false;
       }
     }
@@ -404,12 +448,13 @@ char fillPictureEsp(void)
     downloaded = downloaded + todo;
   } while (downloaded < contLen);
   sendcommand("AT+CIPCLOSE");
-  getAnswer2(); // CLOSED or ERROR
+  getAnswer3(); // CLOSED or ERROR
   count1 = strstr(netbuf, "CLOSED");
   if (count1 != NULL)
   {
-    getAnswer2(); // OK
+    getAnswer3(); // OK
   }
+  // writeLog("Data downloaded", "fillPictureEsp ");
   return true;
 }
 
@@ -1320,7 +1365,7 @@ start:
     break;
   }
 
-  if (result == -1) // return HTTP error != 200
+  if (!result) // return HTTP error != 200
   {
     printf("[%u]Error getting pic. Next picture, please...\r\n", curFileStruct.httpErr);
     count++;

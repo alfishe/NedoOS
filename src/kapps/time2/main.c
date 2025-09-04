@@ -5,7 +5,7 @@
 #include <intrz80.h>
 #include <osfs.h>
 #include <stdlib.h>
-//
+////
 #define true 1
 #define false 0
 
@@ -17,11 +17,11 @@ unsigned int MCR = 0xfcef;
 unsigned int LSR = 0xfdef;
 unsigned int MSR = 0xfeef;
 unsigned int SR = 0xffef;
-unsigned int divider = 1;
+unsigned char divider = 1;
 unsigned char comType = 0;
 unsigned int espType = 32;
-unsigned int espRetry = 32000;
-
+unsigned int espRetry = 5;
+unsigned long factor, timerok;
 unsigned char cmd[512];
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
@@ -289,6 +289,7 @@ retryTime:
 		if (byte == timeUpdated[count])
 		{
 			count++;
+			putchar(byte);
 		}
 		else
 		{
@@ -477,6 +478,7 @@ C_task main(int argc, char *argv[])
 	unsigned char i = 1;
 	os_initstdio();
 	is_atm = (unsigned char)OS_GETCONFIG();
+	GMT = 3;
 
 	if (argc == 1)
 	{
@@ -539,12 +541,12 @@ C_task main(int argc, char *argv[])
 		set_datetime();
 		writecmos(0x06, weekday + 1);
 	}
-
 	if (espInet)
 	{
 		espntp_resolver();
 		set_datetime();
 		writecmos(0x06, weekday + 1);
+		uartFlush(200);
 	}
 	puts("Now time:");
 	printf("%02u-%02u-%04u ", day, month, year + 1900);

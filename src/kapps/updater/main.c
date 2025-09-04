@@ -25,8 +25,9 @@ unsigned int SR = 0xffef;
 unsigned int divider = 1;
 unsigned char comType = 0;
 unsigned int espType = 32;
-unsigned int espRetry = 32000;
 unsigned char netDriver = 0;
+unsigned int espRetry = 5;
+unsigned long factor, timerok;
 
 unsigned char uVer[] = "1.9";
 unsigned char curPath[128];
@@ -82,6 +83,15 @@ const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char cmd[512];
 unsigned char link[512];
+
+void clearNetBuf(void)
+{
+	unsigned int counter;
+	for (counter = 0; counter < sizeof(netbuf); counter++)
+	{
+		netbuf[counter] = 0;
+	}
+}
 
 void clearStatus(void)
 {
@@ -786,30 +796,6 @@ void fullUpdate(void)
 	YIELD();
 }
 
-unsigned char testConect(void)
-{
-	const unsigned char *count1;
-	sendcommand("AT+CIPSTART=\"TCP\",\"nedoos.ru\",80");
-	getAnswer2(); // CONNECT or ERROR or link is not valid
-	count1 = strstr(netbuf, "CONNECT");
-
-	if (count1 == NULL)
-	{
-		YIELD();
-		uartFlush(200);
-
-		printf("\r\n%s\r\n------------------[netbuf]------------------", netbuf);
-		puts("[testConect(void)]");
-		return 0;
-	}
-	getAnswer2(); // OK
-	sendcommand("AT+CIPCLOSE");
-	getAnswer2(); // CLOSED
-	getAnswer2(); // OK
-
-	return 1;
-}
-
 // Updating only BIN folders, where is OS lives.
 void binUpdate(void)
 {
@@ -978,15 +964,7 @@ C_task main(int argc, const char *argv[])
 			loadEspConfig();
 			uart_init(divider);
 			espReBoot();
-			// test = testConect();
-			// if (test)
-			//{
 			binUpdate();
-			//}
-			// else
-			//{
-			//	fatalError("Check connection to the nedoos.ru server!");
-			//}
 		}
 		else if (argv[1][0] == 'E')
 		{
@@ -996,15 +974,7 @@ C_task main(int argc, const char *argv[])
 			loadEspConfig();
 			uart_init(divider);
 			espReBoot();
-			// test = testConect();
-			// if (test)
-			//{
 			fullUpdate();
-			//}
-			// else
-			//{
-			//	fatalError("Check connection to the nedoos.ru server!");
-			//}
 		}
 		else
 		{
