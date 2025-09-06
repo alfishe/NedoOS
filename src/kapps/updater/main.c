@@ -23,9 +23,9 @@ unsigned int LSR = 0xfdef;
 unsigned int MSR = 0xfeef;
 unsigned int SR = 0xffef;
 unsigned int divider = 1;
-unsigned char comType = 0;
+unsigned int comType = 0;
 unsigned int espType = 32;
-unsigned char netDriver = 0;
+unsigned int netDriver = 0;
 unsigned int espRetry = 5;
 unsigned long factor, timerok;
 

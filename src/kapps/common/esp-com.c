@@ -220,7 +220,7 @@ unsigned char uart_readBlock(void)
 			if (timerok-- == 0)
 			{
 				// writeLog("receiving timeout. returning 0", "uart_readBlock ");
-				printf("\r[uart_readBlock] receiving timeout. returning 0. [%u]", timerok);
+				printf("\r[uart_readBlock] receiving timeout. returning 0. [%lu]", factor);
 				getchar();
 				return false;
 			}
@@ -235,7 +235,7 @@ unsigned char uart_readBlock(void)
 		{
 			if (timerok-- == 0)
 			{
-				printf("\r[uart_readBlock] receiving timeout. returning 0. [%u]", timerok);
+				printf("\r[uart_readBlock] receiving timeout. returning 0. [%lu]", factor);
 				return false;
 			}
 			disable_interrupt();
@@ -257,7 +257,7 @@ unsigned char uart_readBlock(void)
 		{
 			if (timerok-- == 0)
 			{
-				printf("\r[uart_readBlock] receiving timeout. returning 0. [%u]", timerok);
+				printf("\r[uart_readBlock] receiving timeout. returning 0. [%lu]", factor);
 				return false;
 			}
 		}
@@ -270,7 +270,7 @@ unsigned char uart_readBlock(void)
 			if (timerok-- == 0)
 			{
 				enable_interrupt();
-				printf("\r[uart_readBlock] receiving timeout. returning 0. [%u]", timerok);
+				printf("\r[uart_readBlock] receiving timeout. returning 0. [%lu]", timerok);
 				return false;
 			}
 			// disable_interrupt();
@@ -298,6 +298,7 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok-- == 0)
 			{
+				printf("\r[uartReadBlock NO AFC] receiving timeout. returning 0. [%lu]", timerok);
 				return 0xffff;
 			}
 			disable_interrupt();
@@ -312,7 +313,7 @@ unsigned int uartReadBlock(void)
 			if (timerok-- == 0)
 			{
 				enable_interrupt();
-				printf("\r[uartReadBlock] receiving timeout. returning 0. [%u]", timerok);
+				printf("\r[uartReadBlock ATM2 COM port] receiving timeout. returning 0. [%lu]", timerok);
 				return 0xffff;
 			}
 			disable_interrupt();
@@ -334,7 +335,7 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok-- == 0)
 			{
-				printf("\r[uartReadBlock] receiving timeout. returning 0. [%u]", timerok);
+				printf("\r[uartReadBlock Kondratyev AFC] receiving timeout. returning 0. [%lu]", factor);
 				return 0xffff;
 			}
 		}
@@ -347,7 +348,7 @@ unsigned int uartReadBlock(void)
 			if (timerok-- == 0)
 			{
 				enable_interrupt();
-				printf("\r[uartReadBlock] receiving timeout. returning 0. [%u]", timerok);
+				printf("\r[uartReadBlock ATM2IOESP] receiving timeout. returning 0. [%lu]", factor);
 				return 0xffff;
 			}
 			// disable_interrupt();
@@ -554,7 +555,7 @@ void sendcommand(const char *commandline)
 	uart_write('\r');
 	uart_write('\n');
 	// printf("Sended:[%s] \r\n", commandline);
-	// writeLog(commandline, "sendcommand    ");
+	//  writeLog(commandline, "sendcommand    ");
 }
 
 void sendcommandNrn(const char *commandline)
@@ -587,9 +588,9 @@ unsigned char getAnswer2(void)
 	} while (readbyte != 0x0d);
 	netbuf[curPos - 1] = 0;
 	uart_readBlock(); // 0xa
-	// printf("Answer:[%s]\r\n", netbuf);
-	// getchar();
-	// writeLog(netbuf, "getAnswer2     ");
+	// printf("Answer2:[%s]\r\n", netbuf);
+	//  getchar();
+	//  writeLog(netbuf, "getAnswer2     ");
 	return curPos;
 }
 
@@ -628,9 +629,9 @@ unsigned char getAnswer3(void)
 		// writeLog("getAnswer3(); receiving timeout [3]", "getAnswer3     ");
 		return false;
 	}
-	// printf("Answer:[%s]\r\n", netbuf);
-	// getchar();
-	// writeLog(netbuf, "getAnswer2     ");
+	// printf("Answer3:[%s]\r\n", netbuf);
+	//  getchar();
+	//  writeLog(netbuf, "getAnswer2     ");
 	return true;
 }
 
@@ -640,18 +641,22 @@ char espReBoot(void)
 	unsigned int byte;
 	unsigned long finish;
 	clearStatus();
-	printf("Benchmarking...");
+	printf("Benchmarking");
 	timerok = uartBench();
-	printf(" Reset ESP [delay:%lu]", timerok);
+	printf(". Loop:%lu. Resetting ESP", timerok);
 	sendcommand("AT+RST");
-	putchar('.');
 	count = 0;
-	finish = time() + 5 * 50;
+	finish = time();
+	finish = finish + 10 * 50;
+	// printf("Finish = %lu\r\n", finish);
 	do
 	{
 		byte = uartReadBlock();
+		// putchar(byte);
 		if (byte > 255)
 		{
+			// printf("Finish exit at  = %lu\r\n", time());
+			puts("uartReadBlock() timeout");
 			return false;
 		}
 
@@ -666,25 +671,18 @@ char espReBoot(void)
 
 		if (time() > finish)
 		{
+			// printf("Finish exit at  = %lu\r\n", time());
+			puts("espReBoot timeout");
 			return false;
 		}
 
 	} while (count < strlen(gotWiFi));
-	// uartReadBlock(); // CR
-	// uartReadBlock(); // LF
 	clearStatus();
-	printf(" Reset complete.\r\n");
+	printf("Reset complete.\r\n");
 
 	sendcommand("ATE0");
-	// do
-	//{
-	//	byte = uartReadBlock();
-	// } while (byte != 'K'); // OK
-	// uartReadBlock(); // CR
-	// uartReadBlock(); // LF
-	//  puts("ATE0 Answer:[OK]");
 
-	uartFlush(100);
+	uartFlush(200);
 
 	sendcommand("AT+CIPCLOSE");
 	getAnswer3();
@@ -696,7 +694,7 @@ char espReBoot(void)
 	getAnswer3();
 	sendcommand("AT+CIPRECVMODE=0");
 	getAnswer3();
-	uartFlush(500);
+	uartFlush(200);
 	return true;
 }
 

@@ -24,8 +24,10 @@ unsigned int LSR = 0xfdef;
 unsigned int MSR = 0xfeef;
 unsigned int SR = 0xffef;
 unsigned int divider = 1;
-unsigned char comType = 0;
+unsigned int comType = 0;
 unsigned int espType = 32;
+unsigned int espRetry = 5;
+unsigned long factor, timerok;
 unsigned char netDriver = 0;
 unsigned char curHost;
 unsigned long contLen;
@@ -40,7 +42,7 @@ const unsigned char gotWiFi[] = "WIFI GOT IP";
 char hosts[3][32] = {"next.zxart.ee", "zxdb.remysharp.com", "hood.speccy.cz"};
 unsigned char userAgent1[] = " HTTP/1.1\r\nHost: ";
 unsigned char userAgent2[] = "\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; ZXDB)\r\n\r\n\0";
-unsigned char netbuf[8192];
+unsigned char netbuf[4096];
 unsigned char buf[16384];
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
@@ -162,6 +164,30 @@ void delay(unsigned long counter)
 	{
 		start = time();
 	}
+}
+
+unsigned char delayLongKey(unsigned long counter)
+{
+  unsigned long start, finish, key;
+  counter = counter / 20;
+  if (counter < 1)
+  {
+    counter = 1;
+  }
+  start = time();
+  finish = start + counter;
+
+  while (start < finish)
+  {
+    start = time();
+    key = OS_GETKEY();
+    if (key != 0)
+    {
+      return key;
+    }
+    YIELD();
+  }
+  return 32;
 }
 
 ///////////////////////////
@@ -762,7 +788,7 @@ char getFileEsp(void)
 
 	do
 	{
-		getAnswer2(); // CONNECT or ERROR or link is not valid
+		getAnswer3(); // CONNECT or ERROR or link is not valid
 
 		if (strstr(netbuf, "CONNECT") != NULL)
 		{
@@ -777,11 +803,11 @@ char getFileEsp(void)
 		}
 	} while (42); // Try until endo of the days recieve CONNECT or ERROR
 
-	getAnswer2(); // OK
+	getAnswer3(); // OK
 
 	sprintf(cmd, "AT+CIPSEND=%u", strlen(link.path) + 2);
 	sendcommand(cmd);
-	getAnswer2();
+	getAnswer3();
 
 	do
 	{
@@ -815,7 +841,14 @@ char getFileEsp(void)
 		unsigned char temp[64];
 		limiter.headLng = 0;
 		todo = recvHead();
-		getdataEsp(todo); // Requested size
+		
+		if (!getdataEsp(todo))
+		{
+			OS_CLS(0);
+			puts("[getdataEsp]Downloading timeout. Exit!");
+			delayLongKey(5000);
+			exit(0);
+		}
 
 		if (firstPacket)
 		{
@@ -843,8 +876,8 @@ char getFileEsp(void)
 			if (httpErr != 200)
 			{
 				sendcommand("AT+CIPCLOSE");
-				getAnswer2(); // CLOSED
-				getAnswer2(); // OK
+				getAnswer3(); // CLOSED
+				getAnswer3(); // OK
 				mainWinDraw();
 				return false;
 			}
@@ -863,8 +896,8 @@ char getFileEsp(void)
 		drawClock();
 	} while (downloaded < contLen);
 	sendcommand("AT+CIPCLOSE");
-	getAnswer2(); // CLOSED
-	getAnswer2(); // OK
+	getAnswer3(); // CLOSED
+	getAnswer3(); // OK
 	mainWinDraw();
 	return true;
 }
@@ -1004,7 +1037,7 @@ char makeRequestEsp(void)
 
 	do
 	{
-		getAnswer2(); // CONNECT or ERROR or link is not valid
+		getAnswer3(); // CONNECT or ERROR or link is not valid
 
 		if (strstr(netbuf, "CONNECT") != NULL)
 		{
@@ -1019,11 +1052,11 @@ char makeRequestEsp(void)
 		}
 	} while (42); // Try until endo of the days recieve CONNECT or ERROR
 
-	getAnswer2(); // OK
+	getAnswer3(); // OK
 
 	sprintf(cmd, "AT+CIPSEND=%u", strlen(link.path) + 2);
 	sendcommand(cmd);
-	getAnswer2();
+	getAnswer3();
 
 	do
 	{
@@ -1066,8 +1099,8 @@ char makeRequestEsp(void)
 			if (httpErr != 200)
 			{
 				sendcommand("AT+CIPCLOSE");
-				getAnswer2(); // CLOSED
-				getAnswer2(); // OK
+				getAnswer3(); // CLOSED
+				getAnswer3(); // OK
 				return false;
 			}
 		}
@@ -1081,8 +1114,8 @@ char makeRequestEsp(void)
 	} while (downloaded < contLen);
 
 	sendcommand("AT+CIPCLOSE");
-	getAnswer2(); // CLOSED
-	getAnswer2(); // OK
+	getAnswer3(); // CLOSED
+	getAnswer3(); // OK
 	buf[downloaded + 1] = 0;
 	return downloaded;
 }

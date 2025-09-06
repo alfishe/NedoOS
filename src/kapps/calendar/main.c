@@ -58,9 +58,10 @@ unsigned int LSR = 0xfdef;
 unsigned int MSR = 0xfeef;
 unsigned int SR = 0xffef;
 unsigned int divider = 1;
-unsigned char comType = 0;
+unsigned int comType = 0;
 unsigned int espType = 32;
-unsigned int espRetry = 32000;
+unsigned int espRetry = 5;
+unsigned long factor, timerok;
 
 unsigned int odoa = 12;
 char foreColor;
@@ -809,7 +810,7 @@ unsigned char loadProdCalEsp(int year, const char *country)
 		try++;
 		if (try > 1)
 		{
-			printf("----->Retry:%u\r", try);
+			printf("----->Retry:%u\r\n", try);
 			delay(500);
 		}
 		sendcommand("AT+CIPSTART=\"TCP\",\"xmlcalendar.ru\",80");
