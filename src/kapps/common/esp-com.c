@@ -677,7 +677,6 @@ char espReBoot(void)
 	count = 0;
 	finish = time();
 	finish = finish + 10 * 50;
-	// printf("Finish = %lu\r\n", finish);
 	do
 	{
 		byte = uartReadBlock();
@@ -700,14 +699,14 @@ char espReBoot(void)
 
 		if (time() > finish)
 		{
-			// printf("Finish exit at  = %lu\r\n", time());
+			printf("Finish exit %lu > %lu\r\n", time(), finish);
 			puts("espReBoot timeout");
 			return false;
 		}
 
 	} while (count < strlen(gotWiFi));
 	clearStatus();
-	printf("Reset complete.\r\n");
+	printf(". Reset complete.\r\n");
 
 	sendcommand("ATE0");
 

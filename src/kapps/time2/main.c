@@ -5,7 +5,7 @@
 #include <intrz80.h>
 #include <osfs.h>
 #include <stdlib.h>
-//////
+///////
 #define true 1
 #define false 0
 
@@ -478,7 +478,6 @@ C_task main(int argc, char *argv[])
 	unsigned char i = 1;
 	os_initstdio();
 	is_atm = (unsigned char)OS_GETCONFIG();
-	GMT = 3;
 
 	if (argc == 1)
 	{

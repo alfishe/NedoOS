@@ -6,7 +6,7 @@
 #include <intrz80.h>
 #include <../common/terminal.c>
 #include <tcp.h>
-////////////
+/////////////
 #define true 1
 #define false 0
 

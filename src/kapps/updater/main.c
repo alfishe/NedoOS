@@ -9,7 +9,7 @@
 #include <intrz80.h>
 #include <ctype.h>
 #include <math.h>
-//////////////////
+///////////////////
 #define true 1
 #define false 0
 FILE *fp2; // must be global if savebuf may not to close file.

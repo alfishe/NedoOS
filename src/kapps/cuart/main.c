@@ -7,7 +7,7 @@
 #include <../common/terminal.c>
 #define true 1
 #define false 0
-
+//
 //const unsigned char ready[] = "ready";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 
