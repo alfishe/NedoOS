@@ -5,7 +5,9 @@
 #include <osfs.h>
 #include <intrz80.h>
 #include <../common/terminal.c>
-//
+#define true 1
+#define false 0
+
 //const unsigned char ready[] = "ready";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 
@@ -18,8 +20,10 @@ unsigned int LSR = 0xfdef;
 unsigned int MSR = 0xfeef;
 unsigned int SR = 0xffef;
 unsigned int divider = 1;
-unsigned char comType = 0;
+unsigned int comType = 0;
 unsigned int espType = 32;
+unsigned int espRetry = 5;
+unsigned long factor, timerok;
 unsigned char directMode = 0;
 
 unsigned char key;

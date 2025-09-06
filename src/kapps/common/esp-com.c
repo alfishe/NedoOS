@@ -1,4 +1,27 @@
 ////////////////////////ESP32 PROCEDURES//////////////////////
+/*
+void writeLog(const char *logline, char *place)
+{
+	FILE *LogFile;
+	unsigned long fileSize;
+	unsigned char toLog[512];
+
+	LogFile = OS_OPENHANDLE("m:/espcom.log", 0x80);
+	if (((int)LogFile) & 0xff)
+	{
+		LogFile = OS_CREATEHANDLE("m:/espcom.log", 0x80);
+		OS_CLOSEHANDLE(LogFile);
+		LogFile = OS_OPENHANDLE("m:/espcom.log", 0x80);
+	}
+
+	fileSize = OS_GETFILESIZE(LogFile);
+	OS_SEEKHANDLE(LogFile, fileSize);
+
+	sprintf(toLog, "%6lu : %s : %s\r\n", time(), place, logline);
+	OS_WRITEHANDLE(toLog, LogFile, strlen(toLog));
+	OS_CLOSEHANDLE(LogFile);
+}
+*/
 void portOutput(char port, char data)
 {
 	disable_interrupt();
@@ -219,7 +242,7 @@ unsigned char uart_readBlock(void)
 		{
 			if (timerok-- == 0)
 			{
-				// writeLog("receiving timeout. returning 0", "uart_readBlock ");
+				//writeLog("receiving timeout. returning 0", "uart_readBlock ");
 				printf("\r[uart_readBlock] receiving timeout. returning 0. [%lu]", factor);
 				getchar();
 				return false;
@@ -291,6 +314,8 @@ unsigned char uart_readBlock(void)
 unsigned int uartReadBlock(void)
 {
 	unsigned char data;
+	timerok = factor;
+	//writeLog("[uartReadBlock] start procedure.", "uartreadBlock ");
 	switch (comType)
 	{
 	case 0: // Kondratyev  NO AFC
@@ -298,6 +323,7 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok-- == 0)
 			{
+				//writeLog("[NO AFC] receiving timeout.", "uartreadBlock ");
 				printf("\r[uartReadBlock NO AFC] receiving timeout. returning 0. [%lu]", timerok);
 				return 0xffff;
 			}
@@ -313,6 +339,7 @@ unsigned int uartReadBlock(void)
 			if (timerok-- == 0)
 			{
 				enable_interrupt();
+				//writeLog("[ATM2 COM] receiving timeout.", "uartreadBlock ");
 				printf("\r[uartReadBlock ATM2 COM port] receiving timeout. returning 0. [%lu]", timerok);
 				return 0xffff;
 			}
@@ -335,6 +362,7 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok-- == 0)
 			{
+				//writeLog("[Kondratyev AFC] receiving timeout.", "uartreadBlock ");
 				printf("\r[uartReadBlock Kondratyev AFC] receiving timeout. returning 0. [%lu]", factor);
 				return 0xffff;
 			}
@@ -348,6 +376,7 @@ unsigned int uartReadBlock(void)
 			if (timerok-- == 0)
 			{
 				enable_interrupt();
+				//writeLog("[ATM2IOESP] receiving timeout.", "uartreadBlock ");
 				printf("\r[uartReadBlock ATM2IOESP] receiving timeout. returning 0. [%lu]", factor);
 				return 0xffff;
 			}
@@ -458,8 +487,8 @@ char getdataEsp(unsigned int counted)
 			{
 				if (timerok-- == 0)
 				{
-					// writeLog("receiving timeout. returning 0", "getdataEsp     ");
-					printf("\r[getdataEsp] receiving timeout. returning 0. %u ms", timerok);
+					//writeLog("receiving timeout. returning 0", "getdataEsp     ");
+					printf("\r[getdataEsp] receiving timeout. returning 0. Press any key. [%u]", factor);
 					getchar();
 					return false;
 				}
@@ -479,7 +508,7 @@ char getdataEsp(unsigned int counted)
 			{
 				if (timerok-- == 0)
 				{
-					printf("\r[getdataEsp] receiving timeout. returning 0. %u", timerok);
+					printf("\r[getdataEsp] receiving timeout. returning 0. Press any key. [%u]", factor);
 					getchar();
 					return false;
 				}
@@ -506,7 +535,7 @@ char getdataEsp(unsigned int counted)
 			{
 				if (timerok-- == 0)
 				{
-					printf("\r[getdataEsp] receiving timeout. returning 0. %u", timerok);
+					printf("\r[getdataEsp] receiving timeout. returning 0. Press any key. [%u]", factor);
 					getchar();
 					return false;
 				}
@@ -524,7 +553,7 @@ char getdataEsp(unsigned int counted)
 			{
 				if (timerok-- == 0)
 				{
-					printf("\r[getdataEsp] receiving timeout. returning 0. %u", timerok);
+					printf("\r[getdataEsp] receiving timeout. returning 0. Press any key. [%u]", factor);
 					getchar();
 					return false;
 				}
@@ -555,7 +584,7 @@ void sendcommand(const char *commandline)
 	uart_write('\r');
 	uart_write('\n');
 	// printf("Sended:[%s] \r\n", commandline);
-	//  writeLog(commandline, "sendcommand    ");
+	//writeLog(commandline, "sendcommand    ");
 }
 
 void sendcommandNrn(const char *commandline)
@@ -590,7 +619,7 @@ unsigned char getAnswer2(void)
 	uart_readBlock(); // 0xa
 	// printf("Answer2:[%s]\r\n", netbuf);
 	//  getchar();
-	//  writeLog(netbuf, "getAnswer2     ");
+	//writeLog(netbuf, "getAnswer2     ");
 	return curPos;
 }
 
@@ -603,7 +632,7 @@ unsigned char getAnswer3(void)
 		readbyte = uartReadBlock();
 		if (readbyte > 255)
 		{
-			// writeLog("getAnswer3(); receiving timeout [1]", "getAnswer3     ");
+			//writeLog("getAnswer3(); receiving timeout [1]", "getAnswer3     ");
 			return false;
 		}
 
@@ -616,7 +645,7 @@ unsigned char getAnswer3(void)
 		readbyte = uartReadBlock();
 		if (readbyte > 255)
 		{
-			// writeLog("getAnswer3(); receiving timeout [2]", "getAnswer3     ");
+			//writeLog("getAnswer3(); receiving timeout [2]", "getAnswer3     ");
 			return false;
 		}
 		netbuf[curPos] = readbyte;
@@ -626,12 +655,12 @@ unsigned char getAnswer3(void)
 	uartReadBlock(); // 0xa
 	if (readbyte > 255)
 	{
-		// writeLog("getAnswer3(); receiving timeout [3]", "getAnswer3     ");
+		//writeLog("getAnswer3(); receiving timeout [3]", "getAnswer3     ");
 		return false;
 	}
 	// printf("Answer3:[%s]\r\n", netbuf);
 	//  getchar();
-	//  writeLog(netbuf, "getAnswer2     ");
+	//writeLog(netbuf, "getAnswer2     ");
 	return true;
 }
 
