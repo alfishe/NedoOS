@@ -256,6 +256,7 @@ void espntp_resolver(void)
 	unsigned char retry, retryuart, count = 0;
 	unsigned int byte;
 	unsigned long finish;
+	unsigned char *count1;
 	loadEspConfig();
 	uart_init(divider);
 	if (!espReBoot())
@@ -277,6 +278,14 @@ void espntp_resolver(void)
 	sprintf(cmd, "AT+CIPSNTPCFG=1,%u,\"%s\",\"time.google.com\"", GMT, defntp);
 	sendcommand(cmd);
 	getAnswer3(); // OK
+
+	count1 = strstr(netbuf, "ERROR");
+	if (count1)
+	{
+		printf("Error. You may need to update your AT-Firmware, to a version that supports AT+CIPSNTPCFG");
+		exit(255);
+	}
+
 retryTime:
 	count = 0;
 	delay(300);
@@ -477,6 +486,7 @@ C_task main(int argc, char *argv[])
 {
 	unsigned char i = 1;
 	os_initstdio();
+	printf("[Build:%s  %s]", __DATE__, __TIME__);
 	is_atm = (unsigned char)OS_GETCONFIG();
 
 	if (argc == 1)
@@ -514,7 +524,7 @@ C_task main(int argc, char *argv[])
 			defntp = p + 2;
 			break;
 		case 'Z':
-		if (sscanf(p + 2, "%d", &GMT) != 1)
+			if (sscanf(p + 2, "%d", &GMT) != 1)
 			{
 				GMT = 3;
 			}

@@ -511,14 +511,14 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 		do
 		{
 			sendcommand("AT+CIPSTART=\"TCP\",\"nedoos.ru\",80");
-			getAnswer2(); // CONNECT or ERROR or link is not valid
+			getAnswer3(); // CONNECT or ERROR or link is not valid
 		} while (strstr(netbuf, "CONNECT") == NULL);
 
-		getAnswer2(); // OK
+		getAnswer3(); // OK
 
 		sprintf(cmd, "AT+CIPSEND=%u", sizeLink + 2); // second CRLF in send command
 		sendcommand(cmd);
-		getAnswer2();
+		getAnswer3();
 		do
 		{
 			byte = uartReadBlock();
@@ -570,8 +570,8 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 		} while (downloaded < contLen);
 		saveBuf(fileNamePtr, 02, 00);
 		sendcommand("AT+CIPCLOSE");
-		getAnswer2(); // CLOSED
-		getAnswer2(); // OK
+		getAnswer3(); // CLOSED
+		getAnswer3(); // OK
 	}
 	return 0;
 }

@@ -1026,7 +1026,7 @@ char getFileEsp(unsigned char *fileNamePtr)
 	sendcommand(cmd);
 	do
 	{
-		getAnswer2(); // CONNECT or ERROR or link is not valid
+		getAnswer3(); // CONNECT or ERROR or link is not valid
 
 		if (strstr(netbuf, "CONNECT") != NULL)
 		{
@@ -1041,15 +1041,15 @@ char getFileEsp(unsigned char *fileNamePtr)
 		}
 	} while (42); // Try until endo of the days recieve CONNECT or ERROR
 
-	getAnswer2(); // OK
+	getAnswer3(); // OK
 
 	sprintf(cmd, "AT+CIPSEND=%u", strlen(link.path)); // second CRLF in send command
 	sendcommand(cmd);
-	getAnswer2();
+	getAnswer3();
 
 	do
 	{
-		byte = uart_readBlock();
+		byte = uartReadBlock();
 	} while (byte != '>');
 
 	sendcommandNrn(link.path);
@@ -1057,7 +1057,7 @@ char getFileEsp(unsigned char *fileNamePtr)
 	count = 0;
 	do
 	{
-		byte = uart_readBlock();
+		byte = uartReadBlock();
 		if (byte == sendOk[count])
 		{
 			count++;
@@ -1069,8 +1069,8 @@ char getFileEsp(unsigned char *fileNamePtr)
 		}
 	} while (count < strlen(sendOk));
 
-	uart_readBlock(); // CR
-	uart_readBlock(); // LF
+	uartReadBlock(); // CR
+	uartReadBlock(); // LF
 
 	OS_DELETE(fileNamePtr);
 	saveBuf(fileNamePtr, 00, 0);

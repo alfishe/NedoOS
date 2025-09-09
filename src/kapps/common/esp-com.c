@@ -1,5 +1,5 @@
 ////////////////////////ESP32 PROCEDURES//////////////////////
-/*
+
 void writeLog(const char *logline, char *place)
 {
 	FILE *LogFile;
@@ -21,7 +21,7 @@ void writeLog(const char *logline, char *place)
 	OS_WRITEHANDLE(toLog, LogFile, strlen(toLog));
 	OS_CLOSEHANDLE(LogFile);
 }
-*/
+
 void portOutput(char port, char data)
 {
 	disable_interrupt();
@@ -230,7 +230,7 @@ unsigned char uart_read(void)
 	}
 	return 255;
 }
-
+/*
 unsigned char uart_readBlock(void)
 {
 	unsigned char data;
@@ -242,7 +242,7 @@ unsigned char uart_readBlock(void)
 		{
 			if (timerok-- == 0)
 			{
-				//writeLog("receiving timeout. returning 0", "uart_readBlock ");
+				////writeLog("receiving timeout. returning 0", "uart_readBlock ");
 				printf("\r[uart_readBlock] receiving timeout. returning 0. [%lu]", factor);
 				getchar();
 				return false;
@@ -310,12 +310,13 @@ unsigned char uart_readBlock(void)
 	}
 	return 255;
 }
-
+*/
 unsigned int uartReadBlock(void)
 {
 	unsigned char data;
 	timerok = factor;
-	//writeLog("[uartReadBlock] start procedure.", "uartreadBlock ");
+	// printf("[uartReadBlock] timerok %lu / factor %lu\r\n", timerok, factor);
+	//writeLog("Start procedure.", "uartreadBlock ");
 	switch (comType)
 	{
 	case 0: // Kondratyev  NO AFC
@@ -323,7 +324,7 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok-- == 0)
 			{
-				//writeLog("[NO AFC] receiving timeout.", "uartreadBlock ");
+				//writeLog("[NO AFC] receiving timeout.", "uartreadBlock  ");
 				printf("\r[uartReadBlock NO AFC] receiving timeout. returning 0. [%lu]", timerok);
 				return 0xffff;
 			}
@@ -362,7 +363,7 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok-- == 0)
 			{
-				//writeLog("[Kondratyev AFC] receiving timeout.", "uartreadBlock ");
+				//writeLog("[Kondratyev AFC] receiving timeout.", "uartreadBlock  ");
 				printf("\r[uartReadBlock Kondratyev AFC] receiving timeout. returning 0. [%lu]", factor);
 				return 0xffff;
 			}
@@ -376,7 +377,7 @@ unsigned int uartReadBlock(void)
 			if (timerok-- == 0)
 			{
 				enable_interrupt();
-				//writeLog("[ATM2IOESP] receiving timeout.", "uartreadBlock ");
+				//writeLog("[ATM2IOESP] receiving timeout.", "uartreadBlock  ");
 				printf("\r[uartReadBlock ATM2IOESP] receiving timeout. returning 0. [%lu]", factor);
 				return 0xffff;
 			}
@@ -392,6 +393,8 @@ unsigned int uartReadBlock(void)
 		enable_interrupt();
 		return data;
 	}
+	puts("Error, Unknown COM port");
+	getchar();
 	return 0xffff;
 }
 
@@ -407,7 +410,7 @@ void uartFlush(unsigned int millis)
 	uart_setrts(1);
 	delay(millis);
 	uart_setrts(0);
-	// writeLog("Flushed data", "uartFlush      ");
+	//writeLog("Flushed data", "uartFlush      ");
 }
 
 unsigned long uartBench(void)
@@ -477,6 +480,7 @@ unsigned long uartBench(void)
 char getdataEsp(unsigned int counted)
 {
 	unsigned int counter;
+	//writeLog("Start procedure.", "getdataEsp    ");
 	switch (comType)
 	{
 	case 0: // Kondratyev  NO AFC
@@ -487,7 +491,7 @@ char getdataEsp(unsigned int counted)
 			{
 				if (timerok-- == 0)
 				{
-					//writeLog("receiving timeout. returning 0", "getdataEsp     ");
+					//writeLog("Receiving timeout. returning 0", "getdataEsp     ");
 					printf("\r[getdataEsp] receiving timeout. returning 0. Press any key. [%u]", factor);
 					getchar();
 					return false;
@@ -499,6 +503,7 @@ char getdataEsp(unsigned int counted)
 			};
 			netbuf[counter] = input(RBR_THR);
 		}
+		//writeLog("Finish procedure.", "getdataEsp    ");
 		return true;
 	case 1: // ATM2 COM port
 		for (counter = 0; counter < counted; counter++)
@@ -508,6 +513,7 @@ char getdataEsp(unsigned int counted)
 			{
 				if (timerok-- == 0)
 				{
+					//writeLog("Receiving timeout. returning 0", "getdataEsp     ");
 					printf("\r[getdataEsp] receiving timeout. returning 0. Press any key. [%u]", factor);
 					getchar();
 					return false;
@@ -526,6 +532,7 @@ char getdataEsp(unsigned int counted)
 			netbuf[counter] = input(0x02fe); // Команда прочесть из порта
 			enable_interrupt();
 		}
+		//writeLog("Finish procedure.", "getdataEsp    ");
 		return true;
 	case 2: // Kondratyev AFC
 		for (counter = 0; counter < counted; counter++)
@@ -535,6 +542,7 @@ char getdataEsp(unsigned int counted)
 			{
 				if (timerok-- == 0)
 				{
+					//writeLog("Receiving timeout. returning 0", "getdataEsp     ");
 					printf("\r[getdataEsp] receiving timeout. returning 0. Press any key. [%u]", factor);
 					getchar();
 					return false;
@@ -542,6 +550,7 @@ char getdataEsp(unsigned int counted)
 			}
 			netbuf[counter] = input(RBR_THR);
 		}
+		//writeLog("Finish procedure.", "getdataEsp    ");
 		return true;
 	case 3: // ATM2IOESP
 		for (counter = 0; counter < counted; counter++)
@@ -570,6 +579,7 @@ char getdataEsp(unsigned int counted)
 			enable_interrupt();
 		}
 	}
+	//writeLog("Finish procedure.", "getdataEsp    ");
 	return true;
 }
 
@@ -584,7 +594,7 @@ void sendcommand(const char *commandline)
 	uart_write('\r');
 	uart_write('\n');
 	// printf("Sended:[%s] \r\n", commandline);
-	//writeLog(commandline, "sendcommand    ");
+	//writeLog(commandline, "sendcommand   ");
 }
 
 void sendcommandNrn(const char *commandline)
@@ -597,7 +607,7 @@ void sendcommandNrn(const char *commandline)
 	}
 	// printf("[Nrn]Sended:[%s] \r\n", commandline);
 }
-
+/*
 unsigned char getAnswer2(void)
 {
 	unsigned char readbyte;
@@ -619,20 +629,21 @@ unsigned char getAnswer2(void)
 	uart_readBlock(); // 0xa
 	// printf("Answer2:[%s]\r\n", netbuf);
 	//  getchar();
-	//writeLog(netbuf, "getAnswer2     ");
+	////writeLog(netbuf, "getAnswer2     ");
 	return curPos;
 }
-
+*/
 unsigned char getAnswer3(void)
 {
 	unsigned int readbyte;
 	unsigned int curPos = 0;
+	//writeLog("Start procedure", "getAnswer3    ");
 	do
 	{
 		readbyte = uartReadBlock();
 		if (readbyte > 255)
 		{
-			//writeLog("getAnswer3(); receiving timeout [1]", "getAnswer3     ");
+			//writeLog("getAnswer3(); receiving timeout [1]", "getAnswer3    ");
 			return false;
 		}
 
@@ -645,7 +656,7 @@ unsigned char getAnswer3(void)
 		readbyte = uartReadBlock();
 		if (readbyte > 255)
 		{
-			//writeLog("getAnswer3(); receiving timeout [2]", "getAnswer3     ");
+			//writeLog("getAnswer3(); receiving timeout [2]", "getAnswer3    ");
 			return false;
 		}
 		netbuf[curPos] = readbyte;
@@ -655,12 +666,12 @@ unsigned char getAnswer3(void)
 	uartReadBlock(); // 0xa
 	if (readbyte > 255)
 	{
-		//writeLog("getAnswer3(); receiving timeout [3]", "getAnswer3     ");
+		//writeLog("getAnswer3(); receiving timeout [3]", "getAnswer3    ");
 		return false;
 	}
 	// printf("Answer3:[%s]\r\n", netbuf);
 	//  getchar();
-	//writeLog(netbuf, "getAnswer2     ");
+	//writeLog(netbuf, "getAnswer3    ");
 	return true;
 }
 
@@ -669,10 +680,11 @@ char espReBoot(void)
 	unsigned char count;
 	unsigned int byte;
 	unsigned long finish;
+	//writeLog("Start procedure", "espReBoot     ");
 	clearStatus();
 	printf("Benchmarking");
 	timerok = uartBench();
-	printf(". Loop:%lu. Resetting ESP", timerok);
+	printf(". Loop:[%lu]. Resetting ESP", timerok);
 	sendcommand("AT+RST");
 	count = 0;
 	finish = time();
@@ -683,8 +695,8 @@ char espReBoot(void)
 		// putchar(byte);
 		if (byte > 255)
 		{
-			// printf("Finish exit at  = %lu\r\n", time());
-			puts("uartReadBlock() timeout");
+			clearStatus();
+			printf("uartReadBlock() timeout Finish exit %lu > %lu\r\n", time(), finish);
 			return false;
 		}
 
@@ -699,18 +711,23 @@ char espReBoot(void)
 
 		if (time() > finish)
 		{
-			printf("Finish exit %lu > %lu\r\n", time(), finish);
-			puts("espReBoot timeout");
+			clearStatus();
+			//writeLog("Common timeout.", "espReBoot      ");
+			printf("espReBoot timeout Finish exit %lu > %lu\r\n", time(), finish);
 			return false;
 		}
 
 	} while (count < strlen(gotWiFi));
-	clearStatus();
-	printf(". Reset complete.\r\n");
+	printf(". Reset complete.");
 
 	sendcommand("ATE0");
 
-	uartFlush(200);
+	do
+	{
+		byte = uartReadBlock();
+	} while (byte != 'K'); // OK
+	uartReadBlock(); // CR
+	uartReadBlock(); // LN
 
 	sendcommand("AT+CIPCLOSE");
 	getAnswer3();
@@ -723,6 +740,7 @@ char espReBoot(void)
 	sendcommand("AT+CIPRECVMODE=0");
 	getAnswer3();
 	uartFlush(200);
+	//writeLog("Finish procedure", "espReBoot      ");
 	return true;
 }
 
@@ -737,7 +755,7 @@ int recvHead(void)
 	dataRead = 0;
 	do
 	{
-		byte = uart_readBlock();
+		byte = uartReadBlock();
 		// printf("[%c]", byte);
 
 		if (byte == closed[count])
@@ -759,15 +777,15 @@ int recvHead(void)
 		}
 		if ((count == strlen(closed)) || (countErr == strlen(error)))
 		{
-			// uart_readBlock(); // CR
-			// uart_readBlock(); // LF
+			// uartReadBlock(); // CR
+			// uartReadBlock(); // LF
 			return todo;
 		}
 	} while (byte != ',');
 
 	do
 	{
-		byte = uart_readBlock();
+		byte = uartReadBlock();
 		netbuf[dataRead] = byte;
 		dataRead++;
 	} while (byte != ':');

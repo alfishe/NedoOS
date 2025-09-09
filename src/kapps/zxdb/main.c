@@ -168,26 +168,26 @@ void delay(unsigned long counter)
 
 unsigned char delayLongKey(unsigned long counter)
 {
-  unsigned long start, finish, key;
-  counter = counter / 20;
-  if (counter < 1)
-  {
-    counter = 1;
-  }
-  start = time();
-  finish = start + counter;
+	unsigned long start, finish, key;
+	counter = counter / 20;
+	if (counter < 1)
+	{
+		counter = 1;
+	}
+	start = time();
+	finish = start + counter;
 
-  while (start < finish)
-  {
-    start = time();
-    key = OS_GETKEY();
-    if (key != 0)
-    {
-      return key;
-    }
-    YIELD();
-  }
-  return 32;
+	while (start < finish)
+	{
+		start = time();
+		key = OS_GETKEY();
+		if (key != 0)
+		{
+			return key;
+		}
+		YIELD();
+	}
+	return 32;
 }
 
 ///////////////////////////
@@ -811,7 +811,7 @@ char getFileEsp(void)
 
 	do
 	{
-		byte = uart_readBlock();
+		byte = uartReadBlock();
 	} while (byte != '>');
 
 	// sendcommandNrn(link.path);
@@ -820,7 +820,7 @@ char getFileEsp(void)
 	count = 0;
 	do
 	{
-		byte = uart_readBlock();
+		byte = uartReadBlock();
 		if (byte == sendOk[count])
 		{
 			count++;
@@ -832,8 +832,8 @@ char getFileEsp(void)
 		}
 	} while (count < strlen(sendOk));
 
-	uart_readBlock(); // CR
-	uart_readBlock(); // LF
+	uartReadBlock(); // CR
+	uartReadBlock(); // LF
 
 	firstPacket = true;
 	do
@@ -841,7 +841,7 @@ char getFileEsp(void)
 		unsigned char temp[64];
 		limiter.headLng = 0;
 		todo = recvHead();
-		
+
 		if (!getdataEsp(todo))
 		{
 			OS_CLS(0);
@@ -1060,7 +1060,7 @@ char makeRequestEsp(void)
 
 	do
 	{
-		byte = uart_readBlock();
+		byte = uartReadBlock();
 	} while (byte != '>');
 
 	// sendcommandNrn(link.path);
@@ -1069,7 +1069,7 @@ char makeRequestEsp(void)
 	count = 0;
 	do
 	{
-		byte = uart_readBlock();
+		byte = uartReadBlock();
 		if (byte == sendOk[count])
 		{
 			count++;
@@ -1081,8 +1081,8 @@ char makeRequestEsp(void)
 		}
 	} while (count < strlen(sendOk));
 
-	uart_readBlock(); // CR
-	uart_readBlock(); // LF
+	uartReadBlock(); // CR
+	uartReadBlock(); // LF
 
 	firstPacket = true;
 	do
@@ -1519,6 +1519,7 @@ C_task main(int argc, const char *argv[])
 	OS_SETGFX(0x86);
 	OS_CLS(0);
 	OS_SETSYSDRV();
+	printf("[Build:%s  %s]", __DATE__, __TIME__);
 	init();
 	// printTable();
 	//  waitKey();

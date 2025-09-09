@@ -854,24 +854,24 @@ unsigned int getFileEsp(void)
   do
   {
     sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
-    getAnswer2(); // CONNECT or ERROR or link is not valid
+    getAnswer3(); // CONNECT or ERROR or link is not valid
     count1 = strstr(netbuf, "CONNECT");
   } while (count1 == NULL);
 
-  getAnswer2();                                   // OK
+  getAnswer3();                                   // OK
   sprintf(netbuf, "AT+CIPSEND=%u", sizeLink + 2); // second CRLF in send command
   sendcommand(netbuf);
-  getAnswer2();
+  getAnswer3();
   do
   {
-    byte = uart_readBlock();
+    byte = uartReadBlock();
     // putchar(byte);
   } while (byte != '>');
   sendcommand(link);
   countl = 0;
   do
   {
-    byte = uart_readBlock();
+    byte = uartReadBlock();
     if (byte == sendOk[countl])
     {
       countl++;
@@ -881,8 +881,8 @@ unsigned int getFileEsp(void)
       countl = 0;
     }
   } while (countl < strlen(sendOk));
-  uart_readBlock(); // CR
-  uart_readBlock(); // LF
+  uartReadBlock(); // CR
+  uartReadBlock(); // LF
   downloaded = 0;
   firstPacket = true;
   do
@@ -905,8 +905,8 @@ unsigned int getFileEsp(void)
       if (curFileStruct.httpErr != 200)
       {
         sendcommand("AT+CIPCLOSE");
-        getAnswer2(); // CLOSED
-        getAnswer2(); // OK
+        getAnswer3(); // CLOSED
+        getAnswer3(); // OK
         return false;
       }
     }
@@ -914,8 +914,8 @@ unsigned int getFileEsp(void)
     downloaded = downloaded + todo;
   } while (downloaded < contLen);
   sendcommand("AT+CIPCLOSE");
-  getAnswer2(); // CLOSED
-  getAnswer2(); // OK
+  getAnswer3(); // CLOSED
+  getAnswer3(); // OK
   return true;
 }
 
@@ -1115,19 +1115,19 @@ unsigned char getTrack2Esp(unsigned long fileId)
   do
   {
     sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
-    getAnswer2(); // CONNECT or ERROR or link is not valid
+    getAnswer3(); // CONNECT or ERROR or link is not valid
     count1 = strstr(netbuf, "CONNECT");
   } while (count1 == NULL);
 
-  getAnswer2(); // OK
+  getAnswer3(); // OK
 
   sprintf(cmd, "AT+CIPSEND=%d", strlen(link) + 2); // second CRLF in send command
   sendcommand(cmd);
-  getAnswer2();
+  getAnswer3();
 
   do
   {
-    byte = uart_readBlock();
+    byte = uartReadBlock();
     // putchar(byte);
   } while (byte != '>');
   sendcommand(link);
@@ -1135,7 +1135,7 @@ unsigned char getTrack2Esp(unsigned long fileId)
 
   do
   {
-    byte = uart_readBlock();
+    byte = uartReadBlock();
     if (byte == sendOk[countl])
     {
       countl++;
@@ -1145,8 +1145,8 @@ unsigned char getTrack2Esp(unsigned long fileId)
       countl = 0;
     }
   } while (countl < strlen(sendOk));
-  uart_readBlock(); // CR
-  uart_readBlock(); // LF
+  uartReadBlock(); // CR
+  uartReadBlock(); // LF
   downloaded = 0;
   firstPacket = true;
   do
@@ -1161,8 +1161,8 @@ unsigned char getTrack2Esp(unsigned long fileId)
       if (curFileStruct.httpErr != 200)
       {
         sendcommand("AT+CIPCLOSE");
-        getAnswer2(); // CLOSED
-        getAnswer2(); // OK
+        getAnswer3(); // CLOSED
+        getAnswer3(); // OK
         return false;
       }
     }
@@ -1170,8 +1170,8 @@ unsigned char getTrack2Esp(unsigned long fileId)
     saveBuf(curFileStruct.picId, 01, todo);
   } while (downloaded < contLen);
   sendcommand("AT+CIPCLOSE");
-  getAnswer2(); // CLOSED
-  getAnswer2(); // OK
+  getAnswer3(); // CLOSED
+  getAnswer3(); // OK
   saveBuf(curFileStruct.picId, 02, 0);
   return true;
 }
@@ -1430,6 +1430,8 @@ C_task main(int argc, const char *argv[])
   targetadr.b2 = 146; // 92
   targetadr.b3 = 69;  // 45
   targetadr.b4 = 13;  // 0D
+
+  printf("[Build:%s  %s]", __DATE__, __TIME__);
 
   netDriver = readParamFromIni();
 

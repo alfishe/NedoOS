@@ -84,7 +84,7 @@ unsigned char fileIdChar[10];
 void clearStatus(void)
 {
 }
-
+/*
 void writeLog(const char *logline, char *place)
 {
   FILE *LogFile;
@@ -106,7 +106,7 @@ void writeLog(const char *logline, char *place)
   OS_WRITEHANDLE(toLog, LogFile, strlen(toLog));
   OS_CLOSEHANDLE(LogFile);
 }
-
+*/
 void emptyKeys(void)
 {
   unsigned char loop = 0, key;
@@ -231,6 +231,7 @@ void printHelp(void)
   printf(" 'M' Минимальный рейтинг для случайного воспроизведения. \n\r");
   printf(" 'H' Данная справочная информация\n\r");
   printf("-----------------Нажмите любую кнопку------------------\n\r");
+  printf("[Build:%s  %s]",__DATE__, __TIME__);
   OS_SETCOLOR(70);
   keypress = getchar();
   OS_CLS(0);

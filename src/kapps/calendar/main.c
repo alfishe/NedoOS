@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <../common/terminal.c>
 #include <osfs.h>
-///
+//
 #define true 1
 #define false 0
 
@@ -814,18 +814,18 @@ unsigned char loadProdCalEsp(int year, const char *country)
 			delay(500);
 		}
 		sendcommand("AT+CIPSTART=\"TCP\",\"xmlcalendar.ru\",80");
-		getAnswer2(); // CONNECT or ERROR or link is not valid
+		getAnswer3(); // CONNECT or ERROR or link is not valid
 		count1 = strstr(netbuf, "CONNECT");
 	} while (count1 == NULL);
 
-	getAnswer2(); // OK
+	getAnswer3(); // OK
 
 	sprintf(netbuf, "AT+CIPSEND=%u", sizeLink + 2); // second CRLF in send command
 	sendcommand(netbuf);
-	getAnswer2();
+	getAnswer3();
 	do
 	{
-		byte = uart_readBlock();
+		byte = uartReadBlock();
 		// putchar(byte);
 	} while (byte != '>');
 	sendcommand(curPath);
@@ -834,7 +834,7 @@ unsigned char loadProdCalEsp(int year, const char *country)
 
 	do
 	{
-		byte = uart_readBlock();
+		byte = uartReadBlock();
 		if (byte == sendOk[count])
 		{
 			count++;
@@ -844,8 +844,8 @@ unsigned char loadProdCalEsp(int year, const char *country)
 			count = 0;
 		}
 	} while (count < strlen(sendOk));
-	uart_readBlock(); // CR
-	uart_readBlock(); // LF
+	uartReadBlock(); // CR
+	uartReadBlock(); // LF
 	skipHeader = 0;
 	downloaded = 0;
 	do
@@ -867,8 +867,8 @@ unsigned char loadProdCalEsp(int year, const char *country)
 
 	} while (downloaded < contLen);
 	sendcommand("AT+CIPCLOSE");
-	getAnswer2(); // CLOSED
-	getAnswer2(); // OK
+	getAnswer3(); // CLOSED
+	getAnswer3(); // OK
 	calbuf[downloaded + 1] = 0;
 	strcat(calbuf, "\n9999.12.31\n");
 
@@ -888,6 +888,7 @@ C_task main(int argc, char *argv[])
 
 	os_initstdio();
 	CLS();
+	printf("[Build:%s  %s]",__DATE__, __TIME__);
 	loadEspConfig();
 	get_dns();
 	AT(3, 25);
