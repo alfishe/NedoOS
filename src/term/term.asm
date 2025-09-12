@@ -1937,7 +1937,7 @@ BDOS_prchar_cr
 pr_curlineaddr=$+1
         ld hl,SCRBASE
        endif
-        jr BDOS_settextcuraddr
+        jr BDOS_settextcuraddr ;ld (pr_textmode_curaddr),hl
         
 buftopaddr_down
 pr_buf_curtopaddr=$+1
@@ -1947,6 +1947,9 @@ pr_buf_curtopaddr=$+1
         ret
         
 BDOS_prchar_lf
+       call BDOS_prchar_cr ;auto CR
+cursor_down
+         ld hl,(pr_textmode_curaddr)
         push hl
         ld hl,(pr_buf_curaddr)
         inc h
@@ -1974,8 +1977,6 @@ BDOS_prchar_lf
         jp BDOS_prchar_lf_q
        endif
 
-cursor_down
-        ld a,0x0a ;lf
 BDOS_prchar_a
 ;keeps bc!
         cp 0x0e

@@ -351,6 +351,8 @@ BDOS_prchar_cr
         
 BDOS_prchar_lf
         ld a,l
+         and 0xc0
+         res 5,h ;auto CR
         add a,0x40
         ld l,a
         jr nc,BDOS_settextcuraddr ;BDOS_prchar_q ;ret nc
