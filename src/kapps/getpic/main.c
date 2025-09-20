@@ -6,7 +6,7 @@
 #include <intrz80.h>
 #include <../common/terminal.c>
 #include <tcp.h>
-/////////////
+//////////////////
 #define true 1
 #define false 0
 
@@ -62,7 +62,7 @@ struct sockaddr_in dnsaddress;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 
-unsigned char ver[] = "4.6";
+unsigned char ver[] = "4.7";
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
@@ -84,29 +84,7 @@ unsigned char fileIdChar[10];
 void clearStatus(void)
 {
 }
-/*
-void writeLog(const char *logline, char *place)
-{
-  FILE *LogFile;
-  unsigned long fileSize;
-  unsigned char toLog[512];
 
-  LogFile = OS_OPENHANDLE("m:/getpic.log", 0x80);
-  if (((int)LogFile) & 0xff)
-  {
-    LogFile = OS_CREATEHANDLE("m:/getpic.log", 0x80);
-    OS_CLOSEHANDLE(LogFile);
-    LogFile = OS_OPENHANDLE("m:/getpic.log", 0x80);
-  }
-
-  fileSize = OS_GETFILESIZE(LogFile);
-  OS_SEEKHANDLE(LogFile, fileSize);
-
-  sprintf(toLog, "%6lu : %s : %s\r\n", time(), place, logline);
-  OS_WRITEHANDLE(toLog, LogFile, strlen(toLog));
-  OS_CLOSEHANDLE(LogFile);
-}
-*/
 void emptyKeys(void)
 {
   unsigned char loop = 0, key;
@@ -213,25 +191,26 @@ void infoBox(struct window w, const char *message)
 void printHelp(void)
 {
   OS_SETCOLOR(67);
-  printf("   GETPIC [%s] zxart.ee picture viewer for nedoNET\n\r", ver);
+  printf("   GETPIC [%s] zxart.ee picture viewer for NedoNET\n\r", ver);
   OS_SETCOLOR(6);
-  printf("-------------------------------------------------------\n\r");
+  printf("----------------------------------------------------------\n\r");
+  printf("-----------GETPIC [Build:%s  %s]-----------\r\n",__DATE__, __TIME__);
+  printf("----------------------------------------------------------\n\r");
   printf(" Управление:\n\r");
-  printf(" 'ESC' - выход из программы;\n\r");
-  printf(" '<-' или 'B' к последним картинкам;\n\r");
-  printf(" '->' или 'Пробел' к более старым картинкам\n\r");
-  printf(" 'J' Прыжок на  указанную по счету картинку\n\r");
-  printf(" 'I' Просмотр экрана информации о картинках\n\r");
-  printf(" 'S' Сохранить картинку на диск в текущую папку\n\r");
-  printf(" 'V' не выводить информацию об авторах\n\r");
-  printf(" 'R' переход в режим  случайная картинка с рейтингом 4+\n\r");
-  printf(" 'A' переход в режим  слайд-шоу\n\r");
-  printf(" 'D' Переключение режима ZXNETUSB/ESP-COM\n\r");
-  printf(" 'T' Продолжительность одного слайда в int-ах \n\r");
-  printf(" 'M' Минимальный рейтинг для случайного воспроизведения. \n\r");
-  printf(" 'H' Данная справочная информация\n\r");
-  printf("-----------------Нажмите любую кнопку------------------\n\r");
-  printf("[Build:%s  %s]",__DATE__, __TIME__);
+  printf("   'ESC' - выход из программы;\n\r");
+  printf("   '<-' или 'B' к последним картинкам;\n\r");
+  printf("   '->' или 'Пробел' к более старым картинкам\n\r");
+  printf("   'J' Прыжок на  указанную по счету картинку\n\r");
+  printf("   'I' Просмотр экрана информации о картинках\n\r");
+  printf("   'S' Сохранить картинку на диск в текущую папку\n\r");
+  printf("   'V' не выводить информацию об авторах\n\r");
+  printf("   'R' переход в режим  случайная картинка с рейтингом 4+\n\r");
+  printf("   'A' переход в режим  слайд-шоу\n\r");
+  printf("   'D' Переключение режима ZXNETUSB/ESP-COM\n\r");
+  printf("   'T' Продолжительность одного слайда в int-ах \n\r");
+  printf("   'M' Минимальный рейтинг для случайного воспроизведения. \n\r");
+  printf("   'H' Данная справочная информация\n\r");
+  printf("------------------Нажмите любую кнопку--------------------\n\r");
   OS_SETCOLOR(70);
   keypress = getchar();
   OS_CLS(0);
@@ -258,6 +237,37 @@ void delay(unsigned long counter)
 #include <../common/esp-com.c>
 #include <../common/network.c>
 //////////////////////////
+
+int getAnswerInt(int retries)
+{
+	unsigned char key = 0;
+	while (!getAnswer3() && retries != 0)
+	{
+		retries--;
+		printf("Retry [UART][%u]\r\n", retries);
+
+		if (retries == 0)
+		{
+			printf("\rAnswer reading timeout? press [Y]/[Enter] to retry, other key for abort. ");
+			key = getchar();
+			switch (key)
+			{
+			case 'y':
+			case 'Y':
+			case 13:
+				retries = 1;
+				break;
+			default:
+			quit();	
+      return false;
+			}
+		}
+	}
+	return true;
+}
+
+
+
 
 int testOperation2(const char *process, int socket)
 {
@@ -360,14 +370,14 @@ char fillPictureEsp(void)
   do
   {
     sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
-    getAnswer3(); // CONNECT or ERROR or link is not valid
+    getAnswerInt(1); // CONNECT or ERROR or link is not valid
     count1 = strstr(netbuf, "CONNECT");
   } while (count1 == NULL);
 
-  getAnswer3();                                   // OK
+  getAnswerInt(1);                                   // OK
   sprintf(netbuf, "AT+CIPSEND=%u", sizeLink + 2); // second CRLF in send command
   sendcommand(netbuf);
-  getAnswer3();
+  //getAnswer3(); // !!!!1409
   do
   {
 
@@ -449,11 +459,11 @@ char fillPictureEsp(void)
     downloaded = downloaded + todo;
   } while (downloaded < contLen);
   sendcommand("AT+CIPCLOSE");
-  getAnswer3(); // CLOSED or ERROR
+  getAnswerInt(1); // CLOSED or ERROR
   count1 = strstr(netbuf, "CLOSED");
   if (count1 != NULL)
   {
-    getAnswer3(); // OK
+    getAnswerInt(1); // OK
   }
   // writeLog("Data downloaded", "fillPictureEsp ");
   return true;
@@ -1293,7 +1303,6 @@ C_task main(void)
 {
   long iddqd, idkfa;
   char result;
-
   OS_HIDEFROMPARENT();
   OS_SETGFX(0x86);
   OS_CLS(0);

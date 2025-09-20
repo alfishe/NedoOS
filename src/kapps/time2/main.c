@@ -22,13 +22,14 @@ unsigned int comType = 0;
 unsigned int espType = 32;
 unsigned int espRetry = 5;
 unsigned long factor, timerok;
-unsigned char cmd[512];
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 const unsigned char timeUpdated[] = "+CIPSNTPTIME:";
 int GMT = 3;
 unsigned char is_atm;
-unsigned char netbuf[4 * 1024];
+unsigned char netbuf[4096];
+unsigned char cmd[512];
+//unsigned char dump[128];
 struct sockaddr_in ntp_ia;
 union
 {
@@ -251,6 +252,34 @@ inetloop:
 ///////////////////////////
 #include <../common/esp-com.c>
 //////////////////////////
+
+int getAnswerInt(int retries)
+{
+	unsigned char key = 0;
+	while (!getAnswer3() && retries != 0)
+	{
+		retries--;
+		printf("Retry [UART][%u]\r\n", retries);
+
+		if (retries == 0)
+		{
+			printf("\rAnswer reading timeout? press [Y]/[Enter] to retry, other key for abort. ");
+			key = getchar();
+			switch (key)
+			{
+			case 'y':
+			case 'Y':
+			case 13:
+				retries = 1;
+				break;
+			default:
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 void espntp_resolver(void)
 {
 	unsigned char retry, retryuart, count = 0;
@@ -259,6 +288,7 @@ void espntp_resolver(void)
 	unsigned char *count1;
 	loadEspConfig();
 	uart_init(divider);
+	timerok = uartBench();
 	if (!espReBoot())
 	{
 		puts("\r\nerror ESP init...");
@@ -277,8 +307,8 @@ void espntp_resolver(void)
 	retryuart = 3;
 	sprintf(cmd, "AT+CIPSNTPCFG=1,%u,\"%s\",\"time.google.com\"", GMT, defntp);
 	sendcommand(cmd);
-	getAnswer3(); // OK
-
+	// getAnswer3(); // OK
+	getAnswerInt(3);
 	count1 = strstr(netbuf, "ERROR");
 	if (count1)
 	{
@@ -298,7 +328,7 @@ retryTime:
 		if (byte == timeUpdated[count])
 		{
 			count++;
-			putchar(byte);
+			// putchar(byte);
 		}
 		else
 		{
@@ -312,7 +342,7 @@ retryTime:
 		}
 	} while (count < strlen(timeUpdated));
 
-	if (!getAnswer3()) // TIME
+	if (!getAnswerInt(3)) // TIME
 	{
 		if (retryuart != 0)
 		{
@@ -486,7 +516,7 @@ C_task main(int argc, char *argv[])
 {
 	unsigned char i = 1;
 	os_initstdio();
-	printf("[Build:%s  %s]", __DATE__, __TIME__);
+	printf("[TIME2 Build:%s  %s]\r\n", __DATE__, __TIME__);
 	is_atm = (unsigned char)OS_GETCONFIG();
 
 	if (argc == 1)
