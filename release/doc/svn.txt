@@ -25,8 +25,8 @@ lst выводит список файлов
         svn lst nedoos.ru/nedoos/nedoos/release -r 2270
         svn lst nedoos.ru/nedoos/nedoos/release -r 2270 -v
 log выводит информацию о последнем коммите
-    при указании опции -r выводит комиты от оказанной опции до последней
-    при указании опции -r в формате -r N:M выводит комиты от N до M
+    при указании опции -r выводит комиты от указанной ревизии до последней
+    при указании опции -r в формате -r N:M выводит комиты от ревизии N до M
     примеры:
         svn log nedoos.ru/nedoos/nedoos
         svn log nedoos.ru/nedoos/nedoos -r 2270
@@ -44,5 +44,3 @@ upd обновляет рекурсивно файлы в указанной директории
     для обновления недооси на Еве, выполнить:
         svn upd nedoos.ru/nedoos/nedoos/release/bin /bin
         svn upd nedoos.ru/nedoos/nedoos/release/sd_boot.$C /
-
-
