@@ -55,6 +55,10 @@ playerinit
 	ld (tfmstatus),a
 	ld a,(ix+GPSETTINGS.opmstatus)
 	ld (opmstatus),a
+	ld a,(ix+GPSETTINGS.opnastatus)
+	ld (opnastatus),a
+	or a
+	call nz,enableopna
 	ld de,(ix+GPSETTINGS.framelength)
 	ld hl,-MIN_FRAME_LENGTH_FPGA
 	add hl,de
@@ -170,6 +174,7 @@ inithardware
 	xor a
 	a_or_dw HEADER_CLOCK_YM2203
 	a_or_dw HEADER_CLOCK_YM2608
+.opninitfunc=$+1
 	call nz,initYM2203
 	jp nz,.missinghardwareerror
 ;init Moonsound
@@ -221,9 +226,11 @@ playerdeinit
 	include "vgm/opl4.asm"
 	include "common/opn.asm"
 	include "common/opm.asm"
+	include "common/opna.asm"
 	include "vgm/opn.asm"
 	include "vgm/opm.asm"
 	include "vgm/ssg.asm"
+	include "vgm/opna.asm"
 	include "progress.asm"
 
 ondataloaded
@@ -437,13 +444,7 @@ wait882	ld de,882
 	jp waitnn
 
 waitvar	memory_stream_read_2 e,d
-	ld hl,(waitcounterlo)
-	add hl,de
-	ld (waitcounterlo),hl
-	ret nc
-	ld hl,waitcounterhi
-	inc (hl)
-	ret
+	jp waitnn
 
 	macro skip_n n
 	ld b,n
@@ -471,13 +472,21 @@ cmdunsupported
 	xor a
 	ret
 
-cmdYM2203
+cmdYM2203_tfm
+cmdYM2608p0_tfm
 	memory_stream_read_2 e,d
 	jp opnwritemusiconlyfm1
 
-cmdYM2203dp
+cmdYM2203dp_tfm
 	memory_stream_read_2 e,d
 	jp opnwritemusiconlyfm2
+
+cmdYM2608p1_tfm
+	memory_stream_read_2 e,d
+	ld a,e
+	cp 0x30
+	ret c
+	jp opnwritefm2
 
 cmdYMF278B
 	memory_stream_read_3 c,e,d
@@ -527,8 +536,8 @@ processdatablock
 	call memorystreamread4 ;adbc = data size
 	ld a,e
 	ld hl,bc
-;	cp 0x81
-;	jp z,opnaloaddatablock
+	cp 0x81
+	jp z,opnaloaddatablock
 	cp 0x84
 	jp z,opl4loadromdatablock
 	cp 0x87
@@ -717,9 +726,9 @@ cmdtable
 	db cmdunsupported  %256 ; 52
 	db cmdunsupported  %256 ; 53
 	db cmdYM2151       %256 ; 54
-	db cmdYM2203       %256 ; 55
-	db cmdYM2608p0     %256 ; 56
-	db cmdYM2608p1     %256 ; 57
+	db cmdYM2203_tfm   %256 ; 55
+	db cmdYM2608p0_tfm %256 ; 56
+	db cmdYM2608p1_tfm %256 ; 57
 	db cmdunsupported  %256 ; 58
 	db cmdunsupported  %256 ; 59
 	db cmdYM3812       %256 ; 5A
@@ -797,7 +806,7 @@ cmdtable
 	db cmdunsupported  %256 ; A2
 	db cmdunsupported  %256 ; A3
 	db cmdYM2151dp     %256 ; A4
-	db cmdYM2203dp     %256 ; A5
+	db cmdYM2203dp_tfm %256 ; A5
 	db skip3           %256 ; A6
 	db skip3           %256 ; A7
 	db skip3           %256 ; A8
@@ -973,9 +982,9 @@ cmdtable
 	db cmdunsupported  /256 ; 52
 	db cmdunsupported  /256 ; 53
 	db cmdYM2151       /256 ; 54
-	db cmdYM2203       /256 ; 55
-	db cmdYM2608p0     /256 ; 56
-	db cmdYM2608p1     /256 ; 57
+	db cmdYM2203_tfm   /256 ; 55
+	db cmdYM2608p0_tfm /256 ; 56
+	db cmdYM2608p1_tfm /256 ; 57
 	db cmdunsupported  /256 ; 58
 	db cmdunsupported  /256 ; 59
 	db cmdYM3812       /256 ; 5A
@@ -1053,7 +1062,7 @@ cmdtable
 	db cmdunsupported  /256 ; A2
 	db cmdunsupported  /256 ; A3
 	db cmdYM2151dp     /256 ; A4
-	db cmdYM2203dp     /256 ; A5
+	db cmdYM2203dp_tfm /256 ; A5
 	db skip3           /256 ; A6
 	db skip3           /256 ; A7
 	db skip3           /256 ; A8
@@ -1335,6 +1344,16 @@ initAY8910
 	set_device_mask DEVICE_TURBOSOUND_BIT
 	ret
 
+initYM2608
+opnastatus=$+1
+	ld a,0
+	dec a
+	ret m
+	call opnainit
+	set_device_mask DEVICE_OPNA_BIT
+	xor a
+	ret
+
 initYM2203
 tfmstatus=$+1
 	ld a,0
@@ -1406,16 +1425,35 @@ musicunload
 	call nz,opmmute
 	check_device_mask DEVICE_DUAL_OPM_BIT
 	call nz,opmmute
+	check_device_mask DEVICE_OPNA_BIT
+	call nz,opnamute
 	jp memorystreamfree
 
-cmdYM2608p0 equ cmdYM2203
+	macro set_cmd_handler cmd,handler
+	ld hl,cmdtable+cmd
+	ld (hl),handler%256
+	inc h
+	ld (hl),handler/256
+	endm
 
-cmdYM2608p1
+enableopna
+	ld hl,initYM2608
+	ld (inithardware.opninitfunc),hl
+	set_cmd_handler 0x55,cmdYM2203_opna
+	set_cmd_handler 0x56,cmdYM2608p0_opna
+	set_cmd_handler 0x57,cmdYM2608p1_opna
+	set_cmd_handler 0xa5,cmdYM2203dp_opna
+	ret
+
+cmdYM2203_opna
+cmdYM2608p0_opna
 	memory_stream_read_2 e,d
-	ld a,e
-	cp 0x30
-	ret c
-	jp opnwritefm2
+	jp opnawritemusiconlyfm1
+
+cmdYM2608p1_opna
+cmdYM2203dp_opna
+	memory_stream_read_2 e,d
+	jp opnawritemusiconlyfm2
 
 initokstr
 	db "OK\r\n",0

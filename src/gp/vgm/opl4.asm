@@ -70,8 +70,7 @@ sub24x16
 	ld a,d
 	or a
 	ret
-.carry
-	ld a,d
+.carry	ld a,d
 	sbc a,0
 	ld d,a
 	ret nz
@@ -86,7 +85,6 @@ opl4loadromdatablockheader
 	call memorystreamread4 ;adbc = total rom size
 	ld (opl4loadramdatablockheader.romsize0),bc
 	ld a,d
-	add 0x20 ;place in RAM
 	ld (opl4loadramdatablockheader.romsize2),a
 	call memorystreamread4 ;adbc = start address
 	ld hl,bc
@@ -142,8 +140,7 @@ opl4loadsample
 	exx
 	call setup24bitscounterloop
 	ld hl,(memorystreamcurrentaddr)
-.loop
-	memory_stream_read_byte c
+.loop	memory_stream_read_byte c
 	opl4_wait
 	ld a,c
 	out (MOON_WDAT),a
@@ -185,8 +182,7 @@ opl4loadromdatablock
 	ld hl,waveheaderbuffer
 	ld de,MOONWAVEHEADERSIZE
 	ld b,MOONRAMWAVETABLESIZE
-.loop
-	set 5,(hl) ;set base address in RAM area
+.loop	set 5,(hl) ;set base address in RAM area
 	add hl,de
 	djnz .loop
 	ld hl,MOONSOUNDROMSIZE%65536

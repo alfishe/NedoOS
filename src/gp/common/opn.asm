@@ -15,13 +15,17 @@ OPN_DAT = 0xbffd
 	out (c),a
 	nop
 	nop
+	nop
+	nop
 	in f,(c)
-	jp m,$-4
+	jp m,$-6
 	out (c),e
 	nop
 	nop
+	nop
+	nop
 	in f,(c)
-	jp m,$-4
+	jp m,$-6
 	ld bc,OPN_DAT
 	out (c),d
 	endm

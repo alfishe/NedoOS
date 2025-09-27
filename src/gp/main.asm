@@ -11,7 +11,7 @@ FILE_NAME_OFFSET = FILE_DISPLAY_INFO_OFFSET+FILE_DISPLAY_INFO_SIZE
 FILE_NAME_SIZE = SFN_SIZE
 FILE_ATTRIB_OFFSET = FILE_NAME_OFFSET+FILE_NAME_SIZE
 FILE_ATTRIB_SIZE = 1
-BROWSER_FILE_COUNT = 145
+BROWSER_FILE_COUNT = 138
 PLAYLIST_FILE_COUNT = 40
 PANELCOLOR = 0x4f
 CURSORCOLOR = 0x28
@@ -59,6 +59,7 @@ mainbegin
 	call detectmoonsound
 	call detecttfm
 	call detectopm
+	call detectopna
 	call loadplayers
 	jp nz,printerrorandexit
 
@@ -1158,15 +1159,17 @@ detectingmoonsoundstr
 detectingtfmstr
 	db "Detecting TurboSound FM...",0
 detectingopmstr
-	db "Detecting OPM...",0
+	db "Detecting YM2151...",0
+detectingopnastr
+	db "Detecting YM2608...",0
 notfoundstr
 	db "no device!\r\n",0
 foundstr
 	db "found!\r\n",0
 bomgemoonstr
 	db "OPL3\r\n",0
-dualopmstr
-	db "2x YM2151\r\n",0
+founddualchipstr
+	db "2x\r\n",0
 detectingcpustr
 	db "Running on...",0
 cpufpgastr
@@ -1439,8 +1442,6 @@ trywritingopm
 detectopm
 	ld hl,detectingopmstr
 	call print_hl
-	xor a
-	ld (gpsettings.opmstatus),a
 ;check for non-zero as an early exit condition
 	ld bc,OPM0_DAT
 	in a,(c)
@@ -1464,7 +1465,7 @@ detectopm
 	ld bc,OPM1_DAT
 	in a,(c)
 	cp 2
-	ld hl,dualopmstr
+	ld hl,founddualchipstr
 	jr z,.hasdualopm
 	call opmdisablechip1
 	ld hl,foundstr
@@ -1473,6 +1474,45 @@ detectopm
 	ld (gpsettings.opmstatus),a
 	call print_hl
 	jp opmstoptimers
+
+trywritingopna1
+	dec a
+	jr nz,$-1
+	ld bc,OPNA1_REG
+	out (c),e
+	dec a
+	jr nz,$-1
+	ld bc,OPNA1_DAT
+	out (c),d
+	ret
+
+detectopna
+	ld hl,detectingopnastr
+	call print_hl
+;check for non-zero as an early exit condition
+	ld bc,OPNA1_REG
+	in a,(c)
+	or a
+	ld hl,notfoundstr
+	jp nz,print_hl
+	ld de,0xff26
+	call trywritingopna1
+	ld de,0x2a27
+	call trywritingopna1
+;wait for the timer to finish
+	YIELD
+	YIELD
+;check the timer flags
+	ld bc,OPNA1_REG
+	in a,(c)
+	cp 2
+	ld hl,notfoundstr
+;	jp nz,print_hl
+	ld a,1
+	ld (gpsettings.opnastatus),a
+	ld hl,foundstr
+	call print_hl
+	jp opnastoptimers
 
 loadsettings
 	ld de,settingsfilename
@@ -1806,6 +1846,7 @@ isfilesupported jumpindirect ISFILESUPPORTEDPROCADDR
 	include "common/opl4.asm"
 	include "common/opn.asm"
 	include "common/opm.asm"
+	include "common/opna.asm"
 
 trywritingmoonsoundfm1
 	djnz $
