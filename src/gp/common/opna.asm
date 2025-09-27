@@ -69,6 +69,11 @@ opnainit
 	call opnawritefm1
 ;ADPCM 1bit / DRAM / panpot
 	ld de,0xc001
+	call opnawritefm2
+;limit address
+	ld de,0xff0c
+	call opnawritefm2
+	ld de,0xff0d
 	jp opnawritefm2
 
 opnastoptimers

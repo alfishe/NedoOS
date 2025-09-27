@@ -59,10 +59,6 @@ playerinit
 	ld (opnastatus),a
 	or a
 	call nz,enableopna
-	ld de,(ix+GPSETTINGS.framelength)
-	ld hl,-MIN_FRAME_LENGTH_FPGA
-	add hl,de
-	call nc,opndisableextradelay
 ;hardware detection is done when loading VGM
 	ld hl,initokstr
 	xor a
@@ -1349,7 +1345,7 @@ opnastatus=$+1
 	ld a,0
 	dec a
 	ret m
-	call opnainit
+	call vgmopnainit
 	set_device_mask DEVICE_OPNA_BIT
 	xor a
 	ret
@@ -1359,7 +1355,7 @@ tfmstatus=$+1
 	ld a,0
 	dec a
 	ret m
-	call opninit
+	call vgmopninit
 	set_timer opnwaittimer60hz,735
 	call opninittimer60hz
 	set_device_mask DEVICE_TFM_BIT
@@ -1416,7 +1412,7 @@ musicunload
 	check_device_mask DEVICE_MOONSOUND_BIT
 	call nz,opl4mute
 	check_device_mask DEVICE_TFM_BIT
-	call nz,opnmute
+	call nz,vgmopnmute
 	check_device_mask DEVICE_AY_BIT
 	call nz,ssgmute
 	check_device_mask DEVICE_TURBOSOUND_BIT

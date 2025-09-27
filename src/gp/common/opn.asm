@@ -15,17 +15,13 @@ OPN_DAT = 0xbffd
 	out (c),a
 	nop
 	nop
-	nop
-	nop
 	in f,(c)
-	jp m,$-6
+	jp m,$-4
 	out (c),e
 	nop
 	nop
-	nop
-	nop
 	in f,(c)
-	jp m,$-6
+	jp m,$-4
 	ld bc,OPN_DAT
 	out (c),d
 	endm
@@ -38,18 +34,12 @@ opnwritefm1
 ;e = register
 ;d = value
 	opn_write_fm_reg 0
-.extradelay ;additional delay for FPGA systems
-	ld b,8
-	djnz $
 	ret
 
 opnwritefm2
 ;e = register
 ;d = value
 	opn_write_fm_reg 1
-.extradelay ;additional delay for FPGA systems
-	ld b,8
-	djnz $
 	ret
 
 	macro opn_write_fm_regs incr,incd
@@ -66,12 +56,6 @@ opnwritefm2
 	dec l
 	jr nz,.loop
 	endm
-
-opndisableextradelay
-	ld a,0xc9 ;ret opcode
-	ld (opnwritefm1.extradelay),a
-	ld (opnwritefm2.extradelay),a
-	ret
 
 opninit
 	ld l,0xb4
@@ -114,4 +98,17 @@ opnmute
 	ld bc,OPN_REG
 	ld a,%11111111
 	out (c),a
+	ret
+
+turnturbooff
+	ld e,6+8 ;textmode + noturbo
+	OS_SETGFX
+	YIELD
+	YIELD
+	YIELD
+	ret
+
+turnturboon
+	ld e,6 ;textmode
+	OS_SETGFX
 	ret

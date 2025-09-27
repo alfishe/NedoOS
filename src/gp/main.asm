@@ -32,8 +32,7 @@ PLAYLIST_VERSION = 1
 mainbegin
 	ld sp,0x4000
 	OS_HIDEFROMPARENT
-	ld e,6 ;textmode
-	OS_SETGFX
+	call turnturboon
 	ld e,7
 	OS_CLS
 
@@ -1510,9 +1509,12 @@ detectopna
 ;	jp nz,print_hl
 	ld a,1
 	ld (gpsettings.opnastatus),a
+	ld de,0x3027
+	call trywritingopna1
+	ld de,0x0027
+	call trywritingopna1
 	ld hl,foundstr
-	call print_hl
-	jp opnastoptimers
+	jp print_hl
 
 loadsettings
 	ld de,settingsfilename
@@ -1921,7 +1923,10 @@ istfmpresent
 	cp 2
 	ret nz
 ;there must be TFM in this system
-	call opnstoptimers
+	ld de,0x3027
+	call trywritingtfm1
+	ld de,0x0027
+	call trywritingtfm1
 	xor a
 	ret
 
@@ -2006,7 +2011,7 @@ detectcpuspeed
 	ld e,0
 	xor a
 	ld (.spincount),a
-	ld a,32
+	ld a,33
 	halt
 ;--> 42 t-states loop start
 .loop	inc e
@@ -2065,6 +2070,7 @@ lightweightinterrupthandler
 	pop af
 	ei
 	ret
+
 mainend
 
 playerpages

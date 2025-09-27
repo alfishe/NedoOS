@@ -36,6 +36,14 @@ opnwritemusiconlyfm2
 	ret z
 	jp opnwritefm2
 
+vgmopninit
+	call turnturbooff
+	jp opninit
+
+vgmopnmute
+	call opnmute
+	jp turnturboon
+
 opninittimer60hz
 ;	ld de,0xc626
 	ld de,0xca26
