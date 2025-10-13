@@ -8,7 +8,7 @@
 #include <osfs.h>
 #include <ctype.h>
 #include <math.h>
-///
+//
 #define true 1
 #define false 0
 #define COMMANDLINE 0x0080
@@ -26,6 +26,7 @@ unsigned int comType = 0;
 unsigned int espType = 32;
 unsigned int espRetry = 5;
 unsigned long factor, timerok;
+unsigned int magic = 16;
 
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";

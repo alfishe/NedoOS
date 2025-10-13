@@ -61,6 +61,7 @@ unsigned int divider = 1;
 unsigned int comType = 0;
 unsigned int espType = 32;
 unsigned int espRetry = 5;
+unsigned int magic = 16;
 unsigned long factor, timerok;
 
 unsigned int odoa = 12;

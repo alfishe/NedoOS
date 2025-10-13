@@ -21,6 +21,7 @@ unsigned int divider = 1;
 unsigned int comType = 0;
 unsigned int espType = 32;
 unsigned int espRetry = 5;
+unsigned int magic = 16;
 unsigned long factor, timerok;
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
@@ -288,7 +289,6 @@ void espntp_resolver(void)
 	unsigned char *count1;
 	loadEspConfig();
 	uart_init(divider);
-	timerok = uartBench();
 	if (!espReBoot())
 	{
 		puts("\r\nerror ESP init...");

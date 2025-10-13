@@ -23,6 +23,7 @@ unsigned int comType = 0;
 unsigned int espType = 32;
 unsigned int espRetry = 5;
 unsigned long factor, timerok;
+unsigned int magic = 16;
 
 unsigned char picture[15000];
 unsigned char netbuf[5000];
@@ -194,7 +195,7 @@ void printHelp(void)
   printf("   GETPIC [%s] zxart.ee picture viewer for NedoNET\n\r", ver);
   OS_SETCOLOR(6);
   printf("----------------------------------------------------------\n\r");
-  printf("-----------GETPIC [Build:%s  %s]-----------\r\n",__DATE__, __TIME__);
+  printf("-----------GETPIC [Build:%s  %s]-----------\r\n", __DATE__, __TIME__);
   printf("----------------------------------------------------------\n\r");
   printf(" Управление:\n\r");
   printf("   'ESC' - выход из программы;\n\r");
@@ -240,34 +241,31 @@ void delay(unsigned long counter)
 
 int getAnswerInt(int retries)
 {
-	unsigned char key = 0;
-	while (!getAnswer3() && retries != 0)
-	{
-		retries--;
-		printf("Retry [UART][%u]\r\n", retries);
+  unsigned char key = 0;
+  while (!getAnswer3() && retries != 0)
+  {
+    retries--;
+    printf("Retry [UART][%u]\r\n", retries);
 
-		if (retries == 0)
-		{
-			printf("\rAnswer reading timeout? press [Y]/[Enter] to retry, other key for abort. ");
-			key = getchar();
-			switch (key)
-			{
-			case 'y':
-			case 'Y':
-			case 13:
-				retries = 1;
-				break;
-			default:
-			quit();	
-      return false;
-			}
-		}
-	}
-	return true;
+    if (retries == 0)
+    {
+      printf("\rAnswer reading timeout? press [Y]/[Enter] to retry, other key for abort. ");
+      key = getchar();
+      switch (key)
+      {
+      case 'y':
+      case 'Y':
+      case 13:
+        retries = 1;
+        break;
+      default:
+        quit();
+        return false;
+      }
+    }
+  }
+  return true;
 }
-
-
-
 
 int testOperation2(const char *process, int socket)
 {
@@ -374,10 +372,10 @@ char fillPictureEsp(void)
     count1 = strstr(netbuf, "CONNECT");
   } while (count1 == NULL);
 
-  getAnswerInt(1);                                   // OK
+  getAnswerInt(1);                                // OK
   sprintf(netbuf, "AT+CIPSEND=%u", sizeLink + 2); // second CRLF in send command
   sendcommand(netbuf);
-  //getAnswer3(); // !!!!1409
+  // getAnswer3(); // !!!!1409
   do
   {
 
@@ -1306,9 +1304,7 @@ C_task main(void)
   OS_HIDEFROMPARENT();
   OS_SETGFX(0x86);
   OS_CLS(0);
-
   init();
-
   printHelp();
   safeKeys(keypress);
 

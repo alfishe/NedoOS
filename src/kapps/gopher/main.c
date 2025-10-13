@@ -29,6 +29,7 @@ unsigned int espType = 32;
 unsigned int netDriver = 0;
 unsigned int espRetry = 5;
 unsigned long factor, timerok;
+unsigned int magic = 16;
 
 unsigned char uVer[] = "1.6";
 unsigned char curPath[128];

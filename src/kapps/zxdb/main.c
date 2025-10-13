@@ -9,7 +9,7 @@
 #include <graphic.h>
 #include <ctype.h>
 #include <math.h>
-///
+//
 #define true 1
 #define false 0
 #define screenHeight 23
@@ -28,6 +28,7 @@ unsigned int comType = 0;
 unsigned int espType = 32;
 unsigned int espRetry = 5;
 unsigned long factor, timerok;
+unsigned int magic = 16;
 unsigned char netDriver = 0;
 unsigned char curHost;
 unsigned long contLen;

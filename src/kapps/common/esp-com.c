@@ -230,104 +230,25 @@ unsigned char uart_read(void)
 	}
 	return 255;
 }
-/*
-unsigned char uart_readBlock(void)
-{
-	unsigned char data;
-	timerok = factor;
-	switch (comType)
-	{
-	case 0: // Kondratyev  NO AFC
-		while ((1 & input(LSR)) == 0)
-		{
-			if (timerok-- == 0)
-			{
-				////writeLog("receiving timeout. returning 0", "uart_readBlock ");
-				printf("\r[uart_readBlock] receiving timeout. returning 0. [%lu]", factor);
-				getchar();
-				return false;
-			}
-			disable_interrupt();
-			output(MCR, 2);
-			output(MCR, 0);
-			enable_interrupt();
-		}
-		return input(RBR_THR);
-	case 1: // ATM2 COM port
-		while (uart_hasByte() == 0)
-		{
-			if (timerok-- == 0)
-			{
-				printf("\r[uart_readBlock] receiving timeout. returning 0. [%lu]", factor);
-				return false;
-			}
-			disable_interrupt();
-			input(0x55fe); // Переход в режим команд
-			input(0x43fe); // Команда установить статус
-			input(0x03fe); // Устанавливаем готовность DTR и RTS
-			input(0x55fe); // Переход в режим команд
-			input(0x43fe); // Команда установить статус
-			input(0x00fe); // Снимаем готовность DTR и RTS
-			enable_interrupt();
-		}
-		disable_interrupt();
-		input(0x55fe);		  // Переход в режим команд
-		data = input(0x02fe); // Команда прочесть из порта
-		enable_interrupt();
-		return data;
-	case 2: // Kondratyev AFC
-		while ((1 & input(LSR)) == 0)
-		{
-			if (timerok-- == 0)
-			{
-				printf("\r[uart_readBlock] receiving timeout. returning 0. [%lu]", factor);
-				return false;
-			}
-		}
-		return input(RBR_THR);
-	case 3: // ATM2IOESP
-		disable_interrupt();
-		output(0xfb, LSR);
-		while ((1 & input(0xfa)) == 0)
-		{
-			if (timerok-- == 0)
-			{
-				enable_interrupt();
-				printf("\r[uart_readBlock] receiving timeout. returning 0. [%lu]", timerok);
-				return false;
-			}
-			// disable_interrupt();
-			output(0xfb, MCR);
-			output(0xfa, 2);
-			output(0xfa, 0);
-			output(0xfb, LSR);
-			// enable_interrupt();
-		}
-		output(0xfb, RBR_THR);
-		data = input(0xfa);
-		enable_interrupt();
-		return data;
-	}
-	return 255;
-}
-*/
+
 unsigned int uartReadBlock(void)
 {
 	unsigned char data;
+	unsigned long strt;
 	timerok = factor;
-	// printf("[uartReadBlock] timerok %lu / factor %lu\r\n", timerok, factor);
-	//writeLog("Start procedure.", "uartreadBlock ");
+	strt = time();
 	switch (comType)
 	{
 	case 0: // Kondratyev  NO AFC
 		while ((1 & input(LSR)) == 0)
 		{
-			if (timerok-- == 0)
+			if (timerok == 0)
 			{
-				//writeLog("[NO AFC] receiving timeout.", "uartreadBlock  ");
-				printf("\r[uartReadBlock NO AFC] receiving timeout. returning 0. [%lu]", timerok);
+				printf("\r[uartReadBlock NO AFC] receiving timeout. Finish [%lu]", time() - strt);
+				getchar();
 				return 0xffff;
 			}
+			timerok = timerok - 1;
 			disable_interrupt();
 			output(MCR, 2);
 			output(MCR, 0);
@@ -337,13 +258,14 @@ unsigned int uartReadBlock(void)
 	case 1: // ATM2 COM port
 		while (uart_hasByte() == 0)
 		{
-			if (timerok-- == 0)
+			if (timerok == 0)
 			{
 				enable_interrupt();
-				//writeLog("[ATM2 COM] receiving timeout.", "uartreadBlock ");
-				printf("\r[uartReadBlock ATM2 COM port] receiving timeout. returning 0. [%lu]", timerok);
+				printf("\r[uartReadBlock ATM2 COM port] receiving timeout. Finish [%lu]", time() - strt);
+				getchar();
 				return 0xffff;
 			}
+			timerok = timerok - 1;
 			disable_interrupt();
 			input(0x55fe); // Переход в режим команд
 			input(0x43fe); // Команда установить статус
@@ -361,12 +283,13 @@ unsigned int uartReadBlock(void)
 	case 2: // Kondratyev AFC
 		while ((1 & input(LSR)) == 0)
 		{
-			if (timerok-- == 0)
+			if (timerok == 0)
 			{
-				//writeLog("[Kondratyev AFC] receiving timeout.", "uartreadBlock  ");
-				printf("\r[uartReadBlock Kondratyev AFC] receiving timeout. returning 0. [%lu]", factor);
+				printf("\r[uartReadBlock Kondratyev AFC] receiving timeout. Finish [%lu]", time() - strt);
+				getchar();
 				return 0xffff;
 			}
+			timerok = timerok - 1;
 		}
 		return input(RBR_THR);
 	case 3: // ATM2IOESP
@@ -374,13 +297,14 @@ unsigned int uartReadBlock(void)
 		output(0xfb, LSR);
 		while ((1 & input(0xfa)) == 0)
 		{
-			if (timerok-- == 0)
+			if (timerok == 0)
 			{
 				enable_interrupt();
-				//writeLog("[ATM2IOESP] receiving timeout.", "uartreadBlock  ");
-				printf("\r[uartReadBlock ATM2IOESP] receiving timeout. returning 0. [%lu]", factor);
+				printf("\r[uartReadBlock ATM2IOESP] receiving timeout. Finish [%lu]", time() - strt);
+				getchar();
 				return 0xffff;
 			}
+			timerok = timerok - 1;
 			// disable_interrupt();
 			output(0xfb, MCR);
 			output(0xfa, 2);
@@ -398,104 +322,39 @@ unsigned int uartReadBlock(void)
 	return 0xffff;
 }
 
-void uart_flush(void)
-{
-	uart_setrts(1);
-	delay(200);
-	uart_setrts(0);
-}
-
 void uartFlush(unsigned int millis)
 {
+	unsigned long finish;
+	finish = time() + (millis / 20);
 	uart_setrts(1);
-	delay(millis);
-	uart_setrts(0);
-	//writeLog("Flushed data", "uartFlush      ");
-}
-
-unsigned long uartBench(void)
-{
-	unsigned char data;
-	unsigned int count;
-	unsigned long start, finish;
-	start = time();
-	switch (comType)
+	while (time() < finish)
 	{
-	case 0: // Kondratyev  NO AFC
-		for (count = 0; count < 5000; count++)
-		{
-			data = (1 & input(LSR));
-			disable_interrupt();
-			output(MCR, 2);
-			output(MCR, 0);
-			enable_interrupt();
-			input(RBR_THR);
-		}
-		break;
-	case 1: // ATM2 COM port
-		for (count = 0; count < 5000; count++)
-		{
-			uart_hasByte();
-			disable_interrupt();
-			input(0x55fe); // Переход в режим команд
-			input(0x43fe); // Команда установить статус
-			input(0x03fe); // Устанавливаем готовность DTR и RTS
-			input(0x55fe); // Переход в режим команд
-			input(0x43fe); // Команда установить статус
-			input(0x00fe); // Снимаем готовность DTR и RTS
-			input(0x55fe); // Переход в режим команд
-			input(0x02fe); // Команда прочесть из порта
-			enable_interrupt();
-		}
-		break;
-	case 2: // Kondratyev AFC
-		for (count = 0; count < 5000; count++)
-		{
-			data = (1 & input(LSR));
-			input(RBR_THR);
-		}
-		break;
-	case 3: // ATM2IOESP
-		for (count = 0; count < 5000; count++)
-		{
-			disable_interrupt();
-			output(0xfb, LSR);
-			data = (1 & input(0xfa));
-			output(0xfb, MCR);
-			output(0xfa, 2);
-			output(0xfa, 0);
-			output(0xfb, LSR);
-			output(0xfb, RBR_THR);
-			data = (input(0xfa));
-			enable_interrupt();
-		}
-		break;
+		uart_read();
 	}
-	finish = time();
-	factor = espRetry * (5000 * 50 / (finish - start));
-
-	return factor;
+	uart_setrts(0);
+	// writeLog("Flushed data", "uartFlush      ");
 }
 
 char getdataEsp(unsigned int counted)
 {
 	unsigned int counter;
-	//writeLog("Start procedure.", "getdataEsp    ");
 	switch (comType)
 	{
 	case 0: // Kondratyev  NO AFC
 		for (counter = 0; counter < counted; counter++)
 		{
+			unsigned long strt;
+			strt = time();
 			timerok = factor;
 			while ((1 & input(LSR)) == 0)
 			{
-				if (timerok-- == 0)
+				if (timerok == 0)
 				{
-					//writeLog("Receiving timeout. returning 0", "getdataEsp     ");
-					printf("\r[getdataEsp] receiving timeout. returning 0. Press any key. [%u]", factor);
+					printf("\r[getdataEsp] receiving timeout. returning 0. Press any key. [%lu]", time() - strt);
 					getchar();
 					return false;
 				}
+				timerok = timerok - 1;
 				disable_interrupt();
 				output(MCR, 2);
 				output(MCR, 0);
@@ -503,21 +362,22 @@ char getdataEsp(unsigned int counted)
 			};
 			netbuf[counter] = input(RBR_THR);
 		}
-		//writeLog("Finish procedure.", "getdataEsp    ");
 		return true;
 	case 1: // ATM2 COM port
 		for (counter = 0; counter < counted; counter++)
 		{
+			unsigned long strt;
+			strt = time();
 			timerok = factor;
 			while (uart_hasByte() == 0)
 			{
-				if (timerok-- == 0)
+				if (timerok == 0)
 				{
-					//writeLog("Receiving timeout. returning 0", "getdataEsp     ");
-					printf("\r[getdataEsp] receiving timeout. returning 0. Press any key. [%u]", factor);
+					printf("\r[getdataEsp] receiving timeout. returning 0. Press any key. [%lu]", time() - strt);
 					getchar();
 					return false;
 				}
+				timerok = timerok - 1;
 				disable_interrupt();
 				input(0x55fe); // Переход в режим команд
 				input(0x43fe); // Команда установить статус
@@ -532,41 +392,43 @@ char getdataEsp(unsigned int counted)
 			netbuf[counter] = input(0x02fe); // Команда прочесть из порта
 			enable_interrupt();
 		}
-		//writeLog("Finish procedure.", "getdataEsp    ");
 		return true;
 	case 2: // Kondratyev AFC
 		for (counter = 0; counter < counted; counter++)
 		{
+			unsigned long strt;
+			strt = time();
 			timerok = factor;
 			while ((1 & input(LSR)) == 0)
 			{
-				if (timerok-- == 0)
+				if (timerok == 0)
 				{
-					//writeLog("Receiving timeout. returning 0", "getdataEsp     ");
-					printf("\r[getdataEsp] receiving timeout. returning 0. Press any key. [%u]", factor);
+					printf("\r[getdataEsp] receiving timeout. returning 0. Press any key. [%lu]", time() - strt);
 					getchar();
 					return false;
 				}
+				timerok = timerok - 1;
 			}
 			netbuf[counter] = input(RBR_THR);
 		}
-		//writeLog("Finish procedure.", "getdataEsp    ");
 		return true;
 	case 3: // ATM2IOESP
 		for (counter = 0; counter < counted; counter++)
 		{
+			unsigned long strt;
+			strt = time();
 			timerok = factor;
 			disable_interrupt();
 			output(0xfb, LSR);
 			while ((1 & input(0xfa)) == 0)
 			{
-				if (timerok-- == 0)
+				if (timerok == 0)
 				{
-					printf("\r[getdataEsp] receiving timeout. returning 0. Press any key. [%u]", factor);
+					printf("\r[getdataEsp] receiving timeout. returning 0. Press any key. [%lu]", time() - strt);
 					getchar();
 					return false;
 				}
-
+				timerok = timerok - 1;
 				// disable_interrupt();
 				output(0xfb, MCR);
 				output(0xfa, 2);
@@ -579,7 +441,6 @@ char getdataEsp(unsigned int counted)
 			enable_interrupt();
 		}
 	}
-	//writeLog("Finish procedure.", "getdataEsp    ");
 	return true;
 }
 
@@ -593,8 +454,6 @@ void sendcommand(const char *commandline)
 	}
 	uart_write('\r');
 	uart_write('\n');
-	// printf("Sended:[%s] \r\n", commandline);
-	//writeLog(commandline, "sendcommand   ");
 }
 
 void sendcommandNrn(const char *commandline)
@@ -605,45 +464,17 @@ void sendcommandNrn(const char *commandline)
 	{
 		uart_write(commandline[count]);
 	}
-	// printf("[Nrn]Sended:[%s] \r\n", commandline);
 }
-/*
-unsigned char getAnswer2(void)
-{
-	unsigned char readbyte;
-	unsigned int curPos = 0;
-	do
-	{
-		readbyte = uart_readBlock();
-	} while (((readbyte == 0x0a) || (readbyte == 0x0d)));
 
-	netbuf[curPos] = readbyte;
-	curPos++;
-	do
-	{
-		readbyte = uart_readBlock();
-		netbuf[curPos] = readbyte;
-		curPos++;
-	} while (readbyte != 0x0d);
-	netbuf[curPos - 1] = 0;
-	uart_readBlock(); // 0xa
-	// printf("Answer2:[%s]\r\n", netbuf);
-	//  getchar();
-	////writeLog(netbuf, "getAnswer2     ");
-	return curPos;
-}
-*/
 unsigned char getAnswer3(void)
 {
 	unsigned int readbyte;
 	unsigned int curPos = 0;
-	//writeLog("Start procedure", "getAnswer3    ");
 	do
 	{
-		readbyte = uartReadBlock();
+		readbyte = uartReadBlock(); // Очистка всех лишних CRLF перед ответом.
 		if (readbyte > 255)
 		{
-			//writeLog("getAnswer3(); receiving timeout [1]", "getAnswer3    ");
 			return false;
 		}
 
@@ -651,28 +482,95 @@ unsigned char getAnswer3(void)
 
 	netbuf[curPos] = readbyte;
 	curPos++;
-	do
+	do // Чтение сообщения
 	{
 		readbyte = uartReadBlock();
 		if (readbyte > 255)
 		{
-			//writeLog("getAnswer3(); receiving timeout [2]", "getAnswer3    ");
 			return false;
 		}
 		netbuf[curPos] = readbyte;
 		curPos++;
 	} while (readbyte != 0x0d);
 	netbuf[curPos - 1] = 0;
-	uartReadBlock(); // 0xa
-	if (readbyte > 255)
-	{
-		//writeLog("getAnswer3(); receiving timeout [3]", "getAnswer3    ");
-		return false;
-	}
-	// printf("Answer3:[%s]\r\n", netbuf);
-	//  getchar();
-	//writeLog(netbuf, "getAnswer3    ");
+	uartReadBlock(); //  Вычитываем в хвосте 0xA, если не смогли, то ничего страшного.
 	return true;
+}
+
+unsigned long uartBench(void)
+{
+	unsigned char data;
+	unsigned int count;
+	unsigned long start, finish;
+
+	// scanf("enter comType %u", &comType);
+	start = time();
+	switch (comType)
+	{
+	case 0: // Kondratyev  NO AFC
+		for (count = 0; count < 10000; count++)
+		{
+			data = (1 & input(LSR));
+			data = (1 & input(LSR));
+			if (count == 0)
+			{
+			}
+			output(MCR, 2);
+			output(MCR, 0);
+			data = input(RBR_THR);
+		}
+		break;
+	case 1: // ATM2 COM port
+		for (count = 0; count < 10000; count++)
+		{
+			enable_interrupt();
+			input(0x55fe);		  // Переход в режим команд
+			data = input(0xc2fe); // Получаем количество байт в приемном буфере
+			data = input(0xc2fe); // Получаем количество байт в приемном буфере
+			if (count == 0)
+			{
+			}
+			enable_interrupt();
+			enable_interrupt();
+			input(0x55fe);		  // Переход в режим команд
+			input(0x43fe);		  // Команда установить статус
+			input(0x03fe);		  // Устанавливаем готовность DTR и RTS
+			input(0x55fe);		  // Переход в режим команд
+			input(0x43fe);		  // Команда установить статус
+			input(0x00fe);		  // Снимаем готовность DTR и RTS
+			input(0x55fe);		  // Переход в режим команд
+			data = input(0x02fe); // Команда прочесть из порта
+			enable_interrupt();
+		}
+		break;
+	case 2: // Kondratyev AFC
+		for (count = 0; count < 10000; count++)
+		{
+			data = (1 & input(LSR));
+			input(RBR_THR);
+		}
+		break;
+	case 3: // ATM2IOESP
+		for (count = 0; count < 10000; count++)
+		{
+			enable_interrupt();
+			output(0xfb, LSR);
+			data = (1 & input(0xfa));
+			output(0xfb, MCR);
+			output(0xfa, 2);
+			output(0xfa, 0);
+			output(0xfb, LSR);
+			output(0xfb, RBR_THR);
+			data = (input(0xfa));
+			enable_interrupt();
+		}
+		break;
+	}
+	finish = time();
+
+	factor = (unsigned long)(espRetry * magic * 50000 / (finish - start)); // magic number  15 * (espRetry * 10000 * 50 / (finish - start)) /10
+	printf("10000 cycles %lu ints factor = %lu \r\n", finish - start, factor);
+	return factor;
 }
 
 char espReBoot(void)
@@ -680,11 +578,8 @@ char espReBoot(void)
 	unsigned char count;
 	unsigned int byte;
 	unsigned long finish;
-	//writeLog("Start procedure", "espReBoot     ");
-	clearStatus();
-	printf("Benchmarking");
+	puts("Resetting ESP");
 	timerok = uartBench();
-	printf(". Loop:[%lu]. Resetting ESP", timerok);
 	sendcommand("AT+RST");
 	count = 0;
 	finish = time();
@@ -711,8 +606,6 @@ char espReBoot(void)
 
 		if (time() > finish)
 		{
-			clearStatus();
-			//writeLog("Common timeout.", "espReBoot      ");
 			printf("espReBoot timeout Finish exit %lu > %lu\r\n", time(), finish);
 			return false;
 		}
@@ -740,7 +633,11 @@ char espReBoot(void)
 	sendcommand("AT+CIPRECVMODE=0");
 	getAnswer3();
 	uartFlush(200);
-	//writeLog("Finish procedure", "espReBoot      ");
+	
+	
+	//getAnswer3();
+	
+	
 	return true;
 }
 
