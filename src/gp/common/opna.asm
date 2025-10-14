@@ -57,11 +57,11 @@ opnawritefm2
 	endm
 
 opnainit
-	ld l,0x88
+	ld l,0x83
 	ld de,0x0030
 	opna_write_regs 0,1,0
 ;panpots
-	ld l,4
+	ld l,3
 	ld de,0xc0b4
 	opna_write_regs 0,1,0
 ;6 voice mode

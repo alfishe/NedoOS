@@ -1,4 +1,4 @@
-;Define ENABLE_FM to enable FM DACs
+;Define OPN_ENABLE_FM to enable FM DACs
 
 OPN_REG = 0xfffd
 OPN_DAT = 0xbffd
@@ -7,7 +7,7 @@ OPN_DAT = 0xbffd
 ;e = register
 ;d = value
 	ld bc,OPN_REG
-	ifdef ENABLE_FM
+	ifdef OPN_ENABLE_FM
 	ld a,chip_n+%11111000
 	else
 	ld a,chip_n+%11111100
@@ -42,7 +42,7 @@ opnwritefm2
 	opn_write_fm_reg 1
 	ret
 
-	macro opn_write_fm_regs incr,incd
+	macro opn_write_regs incr,incd
 ;e = base register
 ;d = value
 ;l = count
@@ -58,9 +58,9 @@ opnwritefm2
 	endm
 
 opninit
-	ld l,0xb4
-	ld de,0x0000
-	opn_write_fm_regs 1,0
+	ld l,0x83
+	ld de,0x0030
+	opn_write_regs 1,0
 ;configure prescaler
 	ld de,0x002f
 	call opnwriteall
@@ -78,37 +78,24 @@ opnmute
 ;mute SSG
 	ld l,3
 	ld de,0x0008
-	opn_write_fm_regs 1,0
+	opn_write_regs 1,0
 	ld l,14
 	ld de,0x0000
-	opn_write_fm_regs 1,0
+	opn_write_regs 1,0
 ;max release rate
 	ld l,0x10
 	ld de,0x0f80
-	opn_write_fm_regs 1,0
+	opn_write_regs 1,0
 ;min total level
 	ld l,0x10
 	ld de,0x7f40
-	opn_write_fm_regs 1,0
+	opn_write_regs 1,0
 ;key off
-	ld l,0x04
+	ld l,3
 	ld de,0x0028
-	opn_write_fm_regs 0,1
+	opn_write_regs 0,1
 ;default tfm state
 	ld bc,OPN_REG
 	ld a,%11111111
 	out (c),a
-	ret
-
-turnturbooff
-	ld e,6+8 ;textmode + noturbo
-	OS_SETGFX
-	YIELD
-	YIELD
-	YIELD
-	ret
-
-turnturboon
-	ld e,6 ;textmode
-	OS_SETGFX
 	ret

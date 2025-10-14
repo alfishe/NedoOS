@@ -55,9 +55,9 @@ opnawritectrl2
 opnaconvertstartlo
 	ld a,d
 	ld (opnastartaddr),a
+opnawriteconvertedstartaddr
 opnastartaddr=$+1
 	ld hl,0
-opnawriteconvertedstartaddr
 	add hl,hl
 	add hl,hl
 	add hl,hl
@@ -71,15 +71,14 @@ opnawriteconvertedstartaddr
 opnaconvertstarthi
 	ld a,d
 	ld (opnastartaddr+1),a
-	ld hl,(opnastartaddr)
 	jr opnawriteconvertedstartaddr
 
 opnaconvertstoplo
 	ld a,d
 	ld (opnastopaddr),a
+opnawriteconvertedstopaddr
 opnastopaddr=$+1
 	ld hl,0
-opnawriteconvertedstopaddr
 	add hl,hl
 	add hl,hl
 	add hl,hl
@@ -93,7 +92,6 @@ opnawriteconvertedstopaddr
 opnaconvertstophi
 	ld a,d
 	ld (opnastopaddr+1),a
-	ld hl,(opnastopaddr)
 	jr opnawriteconvertedstopaddr
 
 vgmopnainit

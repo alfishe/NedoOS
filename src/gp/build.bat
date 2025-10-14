@@ -5,7 +5,9 @@ sjasmplus --nologo --msg=war ngsdec/gscode.asm
 sjasmplus --nologo --msg=war mp3.asm
 sjasmplus --nologo --msg=war vgm.asm
 sjasmplus --nologo --msg=war moonmod.asm
+sjasmplus --nologo --msg=war moonmid.asm
 sjasmplus --nologo --msg=war main.asm
+copy /b gp1.plr + gp2.plr gp.plr > nul
 rem sjasmplus --nologo --msg=war moonmod/generateperiodlookup.asm
 
 if "%currentdir%"=="" (

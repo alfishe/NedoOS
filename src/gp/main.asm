@@ -2,7 +2,7 @@
 	include "../_sdk/sys_h.asm"
 	include "playerdefs.asm"
 
-NUM_PLAYERS = 5
+NUM_PLAYERS = 6
 SFN_SIZE = 13
 FILE_DATA_SIZE = 52 ;keep in sync with getfiledataoffset
 FILE_DISPLAY_INFO_OFFSET = 0
@@ -11,7 +11,7 @@ FILE_NAME_OFFSET = FILE_DISPLAY_INFO_OFFSET+FILE_DISPLAY_INFO_SIZE
 FILE_NAME_SIZE = SFN_SIZE
 FILE_ATTRIB_OFFSET = FILE_NAME_OFFSET+FILE_NAME_SIZE
 FILE_ATTRIB_SIZE = 1
-BROWSER_FILE_COUNT = 138
+BROWSER_FILE_COUNT = 175
 PLAYLIST_FILE_COUNT = 40
 PANELCOLOR = 0x4f
 CURSORCOLOR = 0x28
@@ -26,6 +26,7 @@ FILE_ATTRIB_PARENT_DIR = 0
 FILE_ATTRIB_DRIVE = 1
 FILE_ATTRIB_FOLDER = 2
 PLAYLIST_VERSION = 1
+STARTUP_CODE_ADDR  = 0x8000
 
 	org PROGSTART
 
@@ -35,45 +36,27 @@ mainbegin
 	call turnturboon
 	ld e,7
 	OS_CLS
-
-	OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
-	ld (gpsettings.sharedpages),hl
-	ld a,e
-	ld (gpsettings.sharedpages+2),a
-	ld d,b
-	call closeexistingplayer
-
-	ld de,currentfolder
-	OS_GETPATH
-	ld hl,(currentfolder+2)
-	ld a,l
-	xor '/'
-	or h
-	jr nz,$+5
-	ld (currentfolder+2),a
-
-	OS_SETSYSDRV
-	call loadsettings
-	call detectcpuspeed
-	call detectmoonsound
-	call detecttfm
-	call detectopm
-	call detectopna
+;startup
+	ld hl,startupcode
+	ld de,STARTUP_CODE_ADDR
+	ld bc,startupcodesize
+	ldir
+	call startup
+;load players from low memory
 	call loadplayers
 	jp nz,printerrorandexit
-
+;init panels	
 	ld ix,browserpanel
 	call clearpanel
 	ld ix,playlistpanel
 	call clearpanel
 	or 255 ;set zf=0
 	call setcurrentpanel
-
 	ld de,defaultplaylistfilename
 	call loadplaylist
 	xor a
 	ld (playlistchanged),a
-
+;parse command line
 	ld hl,COMMANDLINE
 	call skipword_hl
 	call skipspaces_hl
@@ -96,7 +79,6 @@ mainbegin
 	call drawui
 	pop af
 	call c,startplaying
-
 playloop
 isplaying=$+1
 	ld a,0
@@ -105,7 +87,6 @@ isplaying=$+1
 	call musicplay
 	call z,playnextfile
 	call updateprogressbar
-
 checkmsgs
 	ld a,(COMMANDLINE)
 	or a
@@ -1135,6 +1116,10 @@ noplayersloadedstr
 	db "Unable to load any players!",0
 playersloaderrorstr
 	db "Failed to load gp/gp.plr from OS folder!",0
+initializing1str
+	db "Initializing ",0
+initializing2str
+	db "...",0
 chdirfailedstr
 	db "Unable to change directory!",0
 playliststr
@@ -1145,48 +1130,12 @@ playing1str
 	db "...",0
 deviceseparatorstr
 	db " and ",0
-closingplayerstr
-	db "Closing old player instance...\r\n",0
 emptystr
 	db 0
-initializing1str
-	db "Initializing ",0
-initializing2str
-	db "...",0
-detectingmoonsoundstr
-	db "Detecting MoonSound...",0
-detectingtfmstr
-	db "Detecting TurboSound FM...",0
-detectingopmstr
-	db "Detecting YM2151...",0
-detectingopnastr
-	db "Detecting YM2608...",0
-notfoundstr
-	db "no device!\r\n",0
-foundstr
-	db "found!\r\n",0
-bomgemoonstr
-	db "OPL3\r\n",0
-founddualchipstr
-	db "2x\r\n",0
-detectingcpustr
-	db "Running on...",0
-cpufpgastr
-	db "FPGA\r\n",0
-cpuevostr
-	db "ZX Evolution\r\n",0
-cpuatmstr
-	db "ATM\r\n",0
-rom001200
-	db "Copyright"
 loadingstr
 	db "LOADING...",0
 errorwindowheaderstr
 	db "Error",0
-firmwareerrorstr
-	db "firmware problem!\r\nPlease update ZXM-MoonSound firmware to revision 1.01\r\n"
-	db "https://www.dropbox.com/s/1e0b2197emrhzos/zxm_moonsound01_frm0101.zip\r\n"
-	db "Or set BomgeMoon=1 in bin\\gp\\gp.ini to skip OPL4 ports detection.",0
 hotkeystr
 	db "Arrows=Navigate  Enter=Play  Tab=Panel  Space=Add/Remove  S=Save Playlist",0
 drivedata
@@ -1291,6 +1240,7 @@ loadplayer
 	ld a,e
 	ld (.playerpage),a
 	SETPG4000
+	call setsharedpages
 	ld de,0x4000
 .codesize=$+1
 	ld hl,0
@@ -1339,18 +1289,23 @@ loadplayers
 	ld a,(filehandle)
 	ld b,a
 	OS_GETFILESIZE
-	ld de,plrend-plrbegin
-	sub hl,de
+	ld bc,plrfilesize%65536
+	sub hl,bc
+	ld hl,invalidplayerfilestr
+	ret nz
+	ld hl,plrfilesize/65536
+	sbc hl,de
 	ld hl,invalidplayerfilestr
 	ret nz
 ;load players from file
 	xor a
 	ld (playercount),a
-	ld de,modend-modstart : ld hl,(gpsettings.usemoonmod) : call loadplayer
-	ld de,mwmend-mwmstart : ld hl,(gpsettings.usemwm) : call loadplayer
-	ld de,mp3end-mp3start : ld hl,(gpsettings.usemp3) : call loadplayer
-	ld de,pt3end-pt3start : ld hl,(gpsettings.usept3) : call loadplayer
-	ld de,vgmend-vgmstart : ld hl,(gpsettings.usevgm) : call loadplayer
+	ld de,modplrsize : ld hl,(gpsettings.usemoonmod) : call loadplayer
+	ld de,mwmplrsize : ld hl,(gpsettings.usemwm) : call loadplayer
+	ld de,mp3plrsize : ld hl,(gpsettings.usemp3) : call loadplayer	
+	ld de,moonmidsize : ld hl,(gpsettings.usemoonmid) : call loadplayer
+	ld de,pt3plrsize : ld hl,(gpsettings.usept3) : call loadplayer
+	ld de,vgmplrsize : ld hl,(gpsettings.usevgm) : call loadplayer
 	call closestream_file
 	ld a,(playercount)
 	dec a
@@ -1359,239 +1314,8 @@ loadplayers
 	xor a
 	ret
 
-isbomgemoon
-;output: zf=0 is BomgeMoon flag is set
-	ld hl,(bomgemoonsettings)
-	ld a,l
-	or h
-	ret z
-	ld a,(hl)
-	cp '0'
-	ret
-
-detectmoonsound
-	ld hl,detectingmoonsoundstr
-	call print_hl
-	call ismoonsoundpresent
-	ld hl,notfoundstr
-	jp nz,print_hl
-	call opl4init
-	call isbomgemoon
-	jr z,.detectwaveports
-	ld hl,devicebomgemoon
-	ld (devicelist.moonsoundstraddr),hl
-	ld a,1
-	ld (gpsettings.moonsoundstatus),a
-	ld hl,bomgemoonstr
-	jp print_hl
-.detectwaveports
-	ld bc,9
-	ld d,0
-	ld hl,0x1200
-	ld ix,browserpanel
-	call opl4readmemory
-	ld b,9
-	ld de,rom001200
-	ld hl,gpsettings.moonsoundstatus
-.cmploop
-	ld a,(de)
-	cp (ix)
-	jr nz,.waveportsfailed
-	inc de
-	inc ix
-	djnz .cmploop
-	ld (hl),2
-	ld hl,foundstr
-	jp print_hl
-.waveportsfailed
-	ld (hl),1
-	ld hl,firmwareerrorstr
-	call print_hl
-	ld hl,pressanykeystr
-	call print_hl
-	YIELDGETKEYLOOP
-	ret
-
-detecttfm
-	ld hl,detectingtfmstr
-	call print_hl
-	call istfmpresent
-	ld hl,notfoundstr
-	jp nz,print_hl
-	ld a,1
-	ld (gpsettings.tfmstatus),a
-	ld hl,foundstr
-	jp print_hl
-
-trywritingopm
-	dec a
-	jr nz,$-1
-	ld bc,OPM0_REG
-	out (c),e
-	ld bc,OPM1_REG
-	out (c),e
-	dec a
-	jr nz,$-1
-	ld bc,OPM0_DAT
-	out (c),d
-	ld bc,OPM1_DAT
-	out (c),d
-	ret
-
-detectopm
-	ld hl,detectingopmstr
-	call print_hl
-;check for non-zero as an early exit condition
-	ld bc,OPM0_DAT
-	in a,(c)
-	or a
-	ld hl,notfoundstr
-	jp nz,print_hl
-;start timer
-	ld de,0xff12
-	call trywritingopm
-	ld de,0x2a14
-	call trywritingopm
-;wait for the timer to finish
-	YIELD
-	YIELD
-;check the timer flags
-	ld bc,OPM0_DAT
-	in a,(c)
-	cp 2
-	ld hl,notfoundstr
-	jp nz,print_hl
-	ld bc,OPM1_DAT
-	in a,(c)
-	cp 2
-	ld hl,founddualchipstr
-	jr z,.hasdualopm
-	call opmdisablechip1
-	ld hl,foundstr
-	ld a,1
-.hasdualopm
-	ld (gpsettings.opmstatus),a
-	call print_hl
-	jp opmstoptimers
-
-trywritingopna1
-	dec a
-	jr nz,$-1
-	ld bc,OPNA1_REG
-	out (c),e
-	dec a
-	jr nz,$-1
-	ld bc,OPNA1_DAT
-	out (c),d
-	ret
-
-detectopna
-	ld hl,detectingopnastr
-	call print_hl
-;check for non-zero as an early exit condition
-	ld bc,OPNA1_REG
-	in a,(c)
-	or a
-	ld hl,notfoundstr
-	jp nz,print_hl
-	ld de,0xff26
-	call trywritingopna1
-	ld de,0x2a27
-	call trywritingopna1
-;wait for the timer to finish
-	YIELD
-	YIELD
-;check the timer flags
-	ld bc,OPNA1_REG
-	in a,(c)
-	cp 2
-	ld hl,notfoundstr
-;	jp nz,print_hl
-	ld a,1
-	ld (gpsettings.opnastatus),a
-	ld de,0x3027
-	call trywritingopna1
-	ld de,0x0027
-	call trywritingopna1
-	ld hl,foundstr
-	jp print_hl
-
-loadsettings
-	ld de,settingsfilename
-	call openstream_file
-	or a
-	ret nz
-	ld de,browserpanel
-	ld hl,0x4000
-	call readstream_file
-	ld de,browserpanel
-	add hl,de
-	ld (hl),0
-	call closestream_file
-	ld de,browserpanel
-.parseloop
-	ld bc,'='*256
-	call findnextchar
-	or a
-	ret z
-	cp b
-	jr nz,.parseloop
-	ld b,settingsvarcount
-	ld hl,settingsvars
-.varsearchloop
-	ld a,(hl)
-	inc hl
-	cp c
-	jr z,.foundvar
-	inc hl
-	inc hl
-	djnz .varsearchloop
-	jr .nextvar
-.foundvar
-	ld a,(hl)
-	inc hl
-	ld h,(hl)
-	ld l,a
-	ld (hl),e
-	inc hl
-	ld (hl),d
-.nextvar
-	ld b,0
-	call findnextchar
-	or a
-	jr nz,.parseloop
-	ret
-
-findnextchar
-;de = ptr
-;b = character to search
-;c = LRC
-;output: de = ptr past character, c = updated LRC
-	ld a,(de)
-	inc de
-	or a
-	ret z
-	cp "\n"
-	ret z
-	cp b
-	ret z
-	xor c
-	ld c,a
-	jr findnextchar
-
 gpsettings GPSETTINGS
 bomgemoonsettings dw 0
-
-settingsvars
-	db 0x19 : dw gpsettings.usemp3
-	db 0x14 : dw gpsettings.usemwm
-	db 0x74 : dw gpsettings.usept3
-	db 0x1F : dw gpsettings.usevgm
-	db 0x26 : dw gpsettings.usemoonmod
-	db 0x7F : dw gpsettings.moonmoddefaultpanning
-	db 0x7A : dw gpsettings.midiuartdelayoverride
-	db 0x61 : dw bomgemoonsettings
-settingsvarcount=($-settingsvars)/3
 
 getfileextension
 ;hl = file name
@@ -1644,13 +1368,17 @@ findsupportedplayer
 	dec b ;set zf=0
 	ret
 
-createfileslist
-	ld de,emptystr
-	OS_OPENDIR
+setsharedpages
 	ld a,(gpsettings.sharedpages)
 	SETPG8000
 	ld a,(gpsettings.sharedpages+1)
 	SETPGC000
+	ret
+
+createfileslist
+	ld de,emptystr
+	OS_OPENDIR
+	call setsharedpages
 	xor a
 	ld (browserpanel.currentfileindex),a
 	ld (browserpanel.firstfiletoshow),a
@@ -1845,234 +1573,20 @@ isfilesupported jumpindirect ISFILESUPPORTEDPROCADDR
 
 	include "../_sdk/file.asm"
 	include "common/radixsort.asm"
-	include "common/opl4.asm"
-	include "common/opn.asm"
-	include "common/opm.asm"
-	include "common/opna.asm"
+	include "common/turbo.asm"
 
-trywritingmoonsoundfm1
-	djnz $
-	ld a,e
-	out (MOON_REG1),a
-	djnz $
-	ld a,d
-	out (MOON_DAT1),a
-	ret
-
-ismoonsoundpresent
-;out: zf=1 if Moonsound is present, zf=0 if not
-	switch_to_pcm_ports_c2_c3
-;check for 255 as an early exit condition
-	in a,(MOON_STAT)
-	add a,1
-	sbc a,a
-	ret nz
-;read the status second time, now expect all bits clear
-	in a,(MOON_STAT)
-	or a
-	ret nz
-;start timer
-	ld de,0xff03
-	call trywritingmoonsoundfm1
-	ld de,0x4204
-	call trywritingmoonsoundfm1
-	ld d,0x80
-	call trywritingmoonsoundfm1
-;wait for the timer to finish
-	YIELD
-	YIELD
-;check the timer flags
-	in a,(MOON_STAT)
-	cp 0xa0
-	ret nz
-;there must be MoonSound in this system
-	call opl4stoptimers
-	xor a
-	ret
-
-trywritingtfm1
-	dec a
-	jr nz,$-1
-	ld bc,OPN_REG
-	out (c),e
-	dec a
-	jr nz,$-1
-	ld bc,OPN_DAT
-	out (c),d
-	ret
-
-istfmpresent
-;check for non-zero as an early exit condition
-	ld bc,OPN_REG
-	ld a,%11111100
-	out (c),a
-	in a,(c)
-	or a
-	ret nz
-;start timer
-	ld de,0xff26
-	call trywritingtfm1
-	ld de,0x2a27
-	call trywritingtfm1
-;wait for the timer to finish
-	YIELD
-	YIELD
-;check the timer flags
-	ld bc,OPN_REG
-	in a,(c)
-	cp 2
-	ret nz
-;there must be TFM in this system
-	ld de,0x3027
-	call trywritingtfm1
-	ld de,0x0027
-	call trywritingtfm1
-	xor a
-	ret
-
-closeexistingplayer
-;d = current pid
-	ld e,1
-.searchloop
-	ld a,e
-	cp d
-	jr z,.nextprocess
-	push de
-	OS_GETAPPMAINPAGES ;d,e,h,l=pages in 0000,4000,8000,c000
-	or a
-	ld a,d
-	pop de
-	jr nz,.nextprocess
-	push de
-	SETPGC000
-	ld hl,0xc000+COMMANDLINE
-	ld de,0x8000
-	ld bc,COMMANDLINE_sz
-	ldir
-	ld hl,0x8000
-	call skipword_hl
-	ld (hl),0
-	ld hl,0x8000
-	ld c,'/'
-	call findlastchar ;out: de = after last slash or start
-	call isplayer
-	pop de
-	jr z,.foundplayer
-.nextprocess
-	inc e
-	ld a,e
-	inc a
-	jr nz,.searchloop
-	ret
-.foundplayer
-	xor a
-	ld (0xc000+COMMANDLINE),a
-	push de
-	ld hl,closingplayerstr
-	call print_hl
-	pop de
-.waitloop
-	push de
-	YIELD
-	YIELD
-	YIELD
-	YIELD
-	OS_GETAPPMAINPAGES
-	pop de
-	or a
-	jr z,.waitloop
-	ret
-
-isplayer
-;de = command line file name
-;out: zf=1 if gp, zf=0 otherwise
-	ld a,(de)
-	call tolower
-	cp 'g'
-	ret nz
-	inc de
-	ld a,(de)
-	call tolower
-	cp 'p'
-	ret nz
-	inc de
-	ld a,(de)
-	or a
-	ret z
-	cp '.'
-	ret
-
-detectcpuspeed
-	ld hl,detectingcpustr
-	call print_hl
-	call swapinterrupthandler ;avoid OS while benchmarking
-	halt
-	ld hl,0
-	ld e,0
-	xor a
-	ld (.spincount),a
-	ld a,33
-	halt
-;--> 42 t-states loop start
-.loop	inc e
-	jp nz,$+4
-	inc hl
-	nop
-.spincount=$+1
-	ld bc,0
-	cp c
-	jp nc,.loop
-;<-- loop end
-	push de
-	push hl
-	call swapinterrupthandler ;restore OS handler
-	pop hl
-	pop de
-;hl = hle / 32
-	sla e : adc hl,hl
-	sla e : adc hl,hl
-	sla e : adc hl,hl
-	ld (gpsettings.framelength),hl
-	ex de,hl
-	ld hl,-MIN_FRAME_LENGTH_FPGA
-	add hl,de
-	ld hl,cpufpgastr
-	jp c,print_hl
-	ld hl,-MIN_FRAME_LENGTH_ZXEVO
-	add hl,de
-	ld hl,cpuevostr
-	jp c,print_hl
-	ld hl,cpuatmstr
-	jp print_hl
-
-swapinterrupthandler
-	di
-	ld hl,.store
-	ld de,0x38
-	ld b,3
-.loop	ld a,(de)
-	ld c,(hl)
-	ld (hl),a
-	ld a,c
-	ld (de),a
-	inc hl
-	inc de
-	djnz .loop
-	ei
-	ret
-.store	jp lightweightinterrupthandler
-
-lightweightinterrupthandler
-	push af
-	ld a,(detectcpuspeed.spincount)
-	inc a
-	ld (detectcpuspeed.spincount),a
-	pop af
-	ei
-	ret
-
+tempmemorystart = $
+startupcode
+	disp STARTUP_CODE_ADDR
+	include "startup.asm"
+	ent
+startupcodesize=$-startupcode
 mainend
 
+;	display "gpsys = ",/d,startupcodesize," bytes"
+	savebin "gp.com",mainbegin,mainend-mainbegin
+
+	org tempmemorystart
 playerpages
 	ds NUM_PLAYERS
 filinfo
@@ -2105,26 +1619,31 @@ playlistchanged ds 1
 
 	assert $ <= 0x3e00 ;reserve 512 bytes for stack
 
-	savebin "gp.com",mainbegin,mainend-mainbegin
-
-	org 0x0000
-
-plrbegin
+	org 0
 modstart
 	incbin "moonmod.bin"
-modend
+modplrsize=$-modstart
 mwmstart
 	incbin "mwm.bin"
-mwmend
+mwmplrsize=$-mwmstart
 mp3start
 	incbin "mp3.bin"
-mp3end
+mp3plrsize=$-mp3start
+moonmidstart
+	incbin "moonmid.bin"
+moonmidsize=$-moonmidstart
+plrpart1size=$
+	savebin "gp1.plr",0,plrpart1size
+
+	org 0
 pt3start
 	incbin "pt3.bin"
-pt3end
+pt3plrsize=$-pt3start
 vgmstart
 	incbin "vgm.bin"
-vgmend
-plrend
+vgmplrsize=$-vgmstart
+plrpart2size=$
 
-	savebin "gp.plr",plrbegin,plrend-plrbegin
+	savebin "gp2.plr",0,plrpart2size
+
+plrfilesize=plrpart1size+plrpart2size

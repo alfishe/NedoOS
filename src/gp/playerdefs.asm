@@ -32,8 +32,10 @@ usemwm dw 0
 usept3 dw 0
 usevgm dw 0
 usemoonmod dw 0
+usemoonmid dw 0
 framelength dw 0 ;in 42 t-states units
 moonmoddefaultpanning dw 0
+forcemididevice dw 0
 midiuartdelayoverride dw 0
 moonsoundstatus ds 1 ; 0 - no device, 1 - BomgeMoon or MoonSound with old firmware (wave ports not working), 2 - MoonSound OK
 tfmstatus ds 1 ; 0 - no device, 1 - found TFM

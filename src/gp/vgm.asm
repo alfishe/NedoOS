@@ -1,5 +1,5 @@
 ; Video Game Music player
-; Supports AY8910, YM3526, YM3812, YMF262, YMF278B, YM2203, YM2151.
+; Supports AY8910, YM3526, YM3812, YMF262, YMF278B, YM2203, YM2151, YM2608.
 
 	DEVICE ZXSPECTRUM128
 	include "../_sdk/sys_h.asm"
@@ -10,7 +10,6 @@ HEADER_SIZE_MAX = 256
 TITLELENGTH = 64
 MEMORYSTREAMMAXPAGES = 250
 MEMORYSTREAMERRORMASK = 255 ; TODO: do we need to enforce loading the entire file?
-ENABLE_FM = 1
 
 	org PLAYERSTART
 
@@ -102,6 +101,7 @@ musicload
 	jr z,.loadcompressed
 	call memorystreamloadfile
 	jr z,.doneloading
+	call turnturboon
 	ld hl,(ERRORSTRINGADDR)
 	ld a,l
 	or h
@@ -220,9 +220,11 @@ playerdeinit
 	include "common/memorystream.asm"
 	include "common/opl4.asm"
 	include "vgm/opl4.asm"
+	define OPN_ENABLE_FM 1
 	include "common/opn.asm"
 	include "common/opm.asm"
 	include "common/opna.asm"
+	include "common/turbo.asm"
 	include "vgm/opn.asm"
 	include "vgm/opm.asm"
 	include "vgm/ssg.asm"
@@ -469,13 +471,41 @@ cmdunsupported
 	ret
 
 cmdYM2203_tfm
-cmdYM2608p0_tfm
 	memory_stream_read_2 e,d
 	jp opnwritemusiconlyfm1
 
 cmdYM2203dp_tfm
 	memory_stream_read_2 e,d
 	jp opnwritemusiconlyfm2
+
+cmdYM2608p0_tfm
+	memory_stream_read_2 e,d
+	ld a,e
+	cp 0x08
+	jp c,opnwritemusiconlyfm1
+	cp 0x0b
+	jr c,.writessgvolume
+	cp 0x28
+	jp nz,opnwritemusiconlyfm1
+	bit 2,d
+	jp z,opnwritefm1
+	res 2,d
+	jp opnwritefm2
+.writessgvolume
+	ld a,d
+	and 31
+	add a,.ssgattenuationtable%256
+	ld l,a
+	adc a,.ssgattenuationtable/256
+	sub l
+	ld h,a
+	ld d,(hl)
+	jp opnwritefm1
+.ssgattenuationtable
+	db 0x00,0x00,0x01,0x01,0x02,0x02,0x03,0x03
+	db 0x04,0x05,0x05,0x06,0x07,0x07,0x08,0x08
+	db 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+	db 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
 
 cmdYM2608p1_tfm
 	memory_stream_read_2 e,d
@@ -533,7 +563,8 @@ processdatablock
 	ld a,e
 	ld hl,bc
 	cp 0x81
-	jp z,opnaloaddatablock
+opnadatablockhandler=$+1
+	jp z,$+3
 	cp 0x84
 	jp z,opl4loadromdatablock
 	cp 0x87
@@ -1197,6 +1228,7 @@ savedSP=$+1
 	call memorystreamfree
 	call restoreappdata
 	call closestream_file
+	call turnturboon
 	or 1
 	ret
 
@@ -1356,8 +1388,6 @@ tfmstatus=$+1
 	dec a
 	ret m
 	call vgmopninit
-	set_timer opnwaittimer60hz,735
-	call opninittimer60hz
 	set_device_mask DEVICE_TFM_BIT
 	xor a
 	ret
@@ -1435,6 +1465,8 @@ musicunload
 enableopna
 	ld hl,initYM2608
 	ld (inithardware.opninitfunc),hl
+	ld hl,opnaloaddatablock
+	ld (opnadatablockhandler),hl
 	set_cmd_handler 0x55,cmdYM2203_opna
 	set_cmd_handler 0x56,cmdYM2608p0_opna
 	set_cmd_handler 0x57,cmdYM2608p1_opna

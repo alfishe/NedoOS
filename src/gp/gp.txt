@@ -1,5 +1,5 @@
 gp.com - Проигрыватель для AY8910, GeneralSound, NeoGS, MoonSound/BomgeMoon,
-	TurboSound, MultiSound, прототип звуковой карты с двумя YM2151 и одним
+	TurboSound, MultiSound, прототипа звуковой карты с двумя YM2151 и одним
 	YM2608 (подробно описан ниже).
 
 Поддерживаемые форматы:
