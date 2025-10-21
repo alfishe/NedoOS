@@ -24,7 +24,7 @@ unsigned int 	OS_CLOSEHANDLE(FILE * hnd);
 unsigned long	OS_GETFILESIZE(FILE * hnd);
 void			OS_SEEKHANDLE(FILE * hnd, unsigned long ofset);
 unsigned char	OS_GETFILINFO(unsigned char * path, FILINFO*);
-unsigned char * OS_GETPATH(unsigned char * path);
+unsigned int 	OS_GETPATH(unsigned int curPathPtr); // in: de = ptr to buffer out: hl = ptr to last symbol of path
 unsigned char	OS_OPENDIR(unsigned char * path);
 unsigned char	OS_READDIR(FILINFO*);
 unsigned char	OS_CHDIR(const unsigned char * path);

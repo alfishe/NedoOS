@@ -5,13 +5,16 @@ void writeLog(const char *logline, char *place)
 	FILE *LogFile;
 	unsigned long fileSize;
 	unsigned char toLog[512];
+	unsigned char cPath[130];
 
-	LogFile = OS_OPENHANDLE("m:/espcom.log", 0x80);
+	OS_GETPATH((unsigned int)&cPath);
+	OS_SETSYSDRV();
+	LogFile = OS_OPENHANDLE("../espcom.log", 0x80);
 	if (((int)LogFile) & 0xff)
 	{
-		LogFile = OS_CREATEHANDLE("m:/espcom.log", 0x80);
+		LogFile = OS_CREATEHANDLE("../espcom.log", 0x80);
 		OS_CLOSEHANDLE(LogFile);
-		LogFile = OS_OPENHANDLE("m:/espcom.log", 0x80);
+		LogFile = OS_OPENHANDLE("../espcom.log", 0x80);
 	}
 
 	fileSize = OS_GETFILESIZE(LogFile);
@@ -20,6 +23,7 @@ void writeLog(const char *logline, char *place)
 	sprintf(toLog, "%6lu : %s : %s\r\n", time(), place, logline);
 	OS_WRITEHANDLE(toLog, LogFile, strlen(toLog));
 	OS_CLOSEHANDLE(LogFile);
+	OS_CHDIR(cPath);
 }
 
 void portOutput(char port, char data)
@@ -234,9 +238,7 @@ unsigned char uart_read(void)
 unsigned int uartReadBlock(void)
 {
 	unsigned char data;
-	unsigned long strt;
 	timerok = factor;
-	strt = time();
 	switch (comType)
 	{
 	case 0: // Kondratyev  NO AFC
@@ -244,8 +246,8 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok == 0)
 			{
-				printf("\r[uartReadBlock NO AFC] receiving timeout. Finish [%lu]", time() - strt);
-				getchar();
+				sprintf(cmd, "[NO AFC] receiving timeout.[c=%lu]", count);
+				writeLog(cmd, "uartReadBlock  ");
 				return 0xffff;
 			}
 			timerok = timerok - 1;
@@ -261,8 +263,8 @@ unsigned int uartReadBlock(void)
 			if (timerok == 0)
 			{
 				enable_interrupt();
-				printf("\r[uartReadBlock ATM2 COM port] receiving timeout. Finish [%lu]", time() - strt);
-				getchar();
+				sprintf(cmd, "[ATM2 COM] receiving timeout.[c=%lu]", count);
+				writeLog(cmd, "uartReadBlock  ");
 				return 0xffff;
 			}
 			timerok = timerok - 1;
@@ -285,8 +287,9 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok == 0)
 			{
-				printf("\r[uartReadBlock Kondratyev AFC] receiving timeout. Finish [%lu]", time() - strt);
-				getchar();
+				unsigned char cmd[128];
+				sprintf(cmd, "[AFC] receiving timeout.[c=%lu]", count);
+				writeLog(cmd, "uartReadBlock  ");
 				return 0xffff;
 			}
 			timerok = timerok - 1;
@@ -299,9 +302,10 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok == 0)
 			{
+				unsigned char cmd[128];
 				enable_interrupt();
-				printf("\r[uartReadBlock ATM2IOESP] receiving timeout. Finish [%lu]", time() - strt);
-				getchar();
+				sprintf(cmd, "[ATM2IOESP] receiving timeout.[c=%lu]", count);
+				writeLog(cmd, "uartReadBlock  ");
 				return 0xffff;
 			}
 			timerok = timerok - 1;
@@ -343,15 +347,13 @@ char getdataEsp(unsigned int counted)
 	case 0: // Kondratyev  NO AFC
 		for (counter = 0; counter < counted; counter++)
 		{
-			unsigned long strt;
-			strt = time();
 			timerok = factor;
 			while ((1 & input(LSR)) == 0)
 			{
 				if (timerok == 0)
 				{
-					printf("\r[getdataEsp] receiving timeout. returning 0. Press any key. [%lu]", time() - strt);
-					getchar();
+					sprintf(cmd, "[NO AFC] receiving timeout.[c=%lu]", count);
+					writeLog(cmd, "getDataEsp     ");
 					return false;
 				}
 				timerok = timerok - 1;
@@ -366,15 +368,13 @@ char getdataEsp(unsigned int counted)
 	case 1: // ATM2 COM port
 		for (counter = 0; counter < counted; counter++)
 		{
-			unsigned long strt;
-			strt = time();
 			timerok = factor;
 			while (uart_hasByte() == 0)
 			{
 				if (timerok == 0)
 				{
-					printf("\r[getdataEsp] receiving timeout. returning 0. Press any key. [%lu]", time() - strt);
-					getchar();
+					sprintf(cmd, "[ATM2 COM] receiving timeout.[c=%lu]", count);
+					writeLog(cmd, "getDataEsp     ");
 					return false;
 				}
 				timerok = timerok - 1;
@@ -396,15 +396,14 @@ char getdataEsp(unsigned int counted)
 	case 2: // Kondratyev AFC
 		for (counter = 0; counter < counted; counter++)
 		{
-			unsigned long strt;
-			strt = time();
 			timerok = factor;
 			while ((1 & input(LSR)) == 0)
 			{
 				if (timerok == 0)
 				{
-					printf("\r[getdataEsp] receiving timeout. returning 0. Press any key. [%lu]", time() - strt);
-					getchar();
+				unsigned char cmd[512];
+					sprintf(cmd, "[AFC] receiving timeout.[c=%lu]", count);
+					writeLog(cmd, "getDataEsp     ");
 					return false;
 				}
 				timerok = timerok - 1;
@@ -415,8 +414,6 @@ char getdataEsp(unsigned int counted)
 	case 3: // ATM2IOESP
 		for (counter = 0; counter < counted; counter++)
 		{
-			unsigned long strt;
-			strt = time();
 			timerok = factor;
 			disable_interrupt();
 			output(0xfb, LSR);
@@ -424,8 +421,8 @@ char getdataEsp(unsigned int counted)
 			{
 				if (timerok == 0)
 				{
-					printf("\r[getdataEsp] receiving timeout. returning 0. Press any key. [%lu]", time() - strt);
-					getchar();
+					sprintf(cmd, "[ATM2IOESP] receiving timeout.[c=%lu]", count);
+					writeLog(cmd, "getDataEsp     ");
 					return false;
 				}
 				timerok = timerok - 1;
@@ -448,12 +445,16 @@ void sendcommand(const char *commandline)
 {
 	unsigned int count, cmdLen;
 	cmdLen = strlen(commandline);
+
+	// writeLog(commandline, "sendcommand    ");
+	YIELD();
 	for (count = 0; count < cmdLen; count++)
 	{
 		uart_write(commandline[count]);
 	}
 	uart_write('\r');
 	uart_write('\n');
+	YIELD();
 }
 
 void sendcommandNrn(const char *commandline)
@@ -494,6 +495,8 @@ unsigned char getAnswer3(void)
 	} while (readbyte != 0x0d);
 	netbuf[curPos - 1] = 0;
 	uartReadBlock(); //  Вычитываем в хвосте 0xA, если не смогли, то ничего страшного.
+	// writeLog(netbuf, "getAnswer3     ");
+	YIELD();
 	return true;
 }
 
@@ -569,7 +572,7 @@ unsigned long uartBench(void)
 	finish = time();
 
 	factor = (unsigned long)(espRetry * magic * 50000 / (finish - start)); // magic number  15 * (espRetry * 10000 * 50 / (finish - start)) /10
-	printf("10000 cycles %lu ints factor = %lu \r\n", finish - start, factor);
+	printf(". Factor = %lu.", factor);
 	return factor;
 }
 
@@ -578,8 +581,11 @@ char espReBoot(void)
 	unsigned char count;
 	unsigned int byte;
 	unsigned long finish;
-	puts("Resetting ESP");
+	printf("Resetting ESP");
 	timerok = uartBench();
+
+	//getAnswer3();
+
 	sendcommand("AT+RST");
 	count = 0;
 	finish = time();
@@ -633,11 +639,7 @@ char espReBoot(void)
 	sendcommand("AT+CIPRECVMODE=0");
 	getAnswer3();
 	uartFlush(200);
-	
-	
-	//getAnswer3();
-	
-	
+
 	return true;
 }
 
@@ -742,7 +744,6 @@ void loadEspConfig(void)
 		puts("     Port (Unknown type)");
 		break;
 	}
-	puts(" ");
 	YIELD();
 }
 ////////////////////////ESP32 PROCEDURES//////////////////////

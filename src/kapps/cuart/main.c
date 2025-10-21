@@ -7,7 +7,7 @@
 #include <../common/terminal.c>
 #define true 1
 #define false 0
-//
+
 //const unsigned char ready[] = "ready";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 
@@ -23,7 +23,10 @@ unsigned int divider = 1;
 unsigned int comType = 0;
 unsigned int espType = 32;
 unsigned int espRetry = 5;
-unsigned long factor, timerok;
+unsigned long factor, timerok, count = 0;
+const unsigned int magic = 15;
+unsigned char cmd[128];
+
 unsigned char directMode = 0;
 
 unsigned char key;

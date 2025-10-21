@@ -23,13 +23,8 @@ unsigned int comType = 0;
 unsigned int espType = 32;
 unsigned int espRetry = 5;
 unsigned long factor, timerok;
-unsigned int magic = 16;
+const unsigned int magic = 15;
 
-unsigned char picture[15000];
-unsigned char netbuf[5000];
-unsigned char curPath[128];
-
-unsigned char minRating[] = "0000000000";
 struct fileStruct
 {
   long picId;
@@ -69,6 +64,7 @@ const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
 unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; GetPic)\r\n\r\n\0";
 unsigned char zxart[] = "zxart.ee";
+unsigned char minRating[] = "0000000000";
 unsigned char keypress, verbose, randomPic, slideShow, netDriver;
 
 unsigned long contLen;
@@ -81,6 +77,9 @@ unsigned char crlf[2] = {13, 10};
 unsigned char cmd[512];
 unsigned char link[512];
 unsigned char fileIdChar[10];
+unsigned char picture[15000];
+unsigned char netbuf[5000];
+unsigned char curPath[128];
 
 void clearStatus(void)
 {
@@ -191,6 +190,7 @@ void infoBox(struct window w, const char *message)
 */
 void printHelp(void)
 {
+  OS_CLS(0);
   OS_SETCOLOR(67);
   printf("   GETPIC [%s] zxart.ee picture viewer for NedoNET\n\r", ver);
   OS_SETCOLOR(6);
@@ -249,22 +249,23 @@ int getAnswerInt(int retries)
 
     if (retries == 0)
     {
-      printf("\rAnswer reading timeout? press [Y]/[Enter] to retry, other key for abort. ");
+      printf("\rAnswer reading timeout. press [Y] or [Enter] to retry, other key for abort. ");
       key = getchar();
+      sprintf(cmd, "Error. User choose %u ", key);
+      writeLog(cmd, "getAnswerInt   ");
       switch (key)
       {
       case 'y':
       case 'Y':
       case 13:
-        retries = 1;
-        break;
+        return 2;
       default:
-        quit();
-        return false;
+        // quit();
+        return 0;
       }
     }
   }
-  return true;
+  return 1;
 }
 
 int testOperation2(const char *process, int socket)
@@ -288,15 +289,13 @@ int cutHeader(unsigned int todo)
   if (curFileStruct.httpErr != 200)
   {
     clearStatus();
-
-    // writeLog("HTTP error ", "cutHeader      ");
-    // writeLog(netbuf, "cutHeader      ");
-    // writeLog("---+++---", "cutHeader      ");
-
     printf("HTTP response:[%u]\r\n", curFileStruct.httpErr);
-    puts(netbuf);
-    puts("---+++---");
-    waitKey();
+
+    sprintf(link, "HTTP Error %u @ %lu(%lu)", curFileStruct.httpErr, count, curFileStruct.picId);
+    writeLog(link, "cutHeader      ");
+    // puts(netbuf);
+    // puts("---+++---");
+    // waitKey();
     return 0;
   }
   count1 = strstr(netbuf, "Content-Length:");
@@ -365,10 +364,16 @@ char fillPictureEsp(void)
   unsigned int byte;
   strcpy(link, netbuf);
   sizeLink = strlen(link);
+
   do
   {
     sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
-    getAnswerInt(1); // CONNECT or ERROR or link is not valid
+
+    if (!getAnswerInt(1)) // CONNECT or ERROR or link is not valid
+    {
+      writeLog(netbuf, "getAnswerInt   ");
+      return false;
+    }
     count1 = strstr(netbuf, "CONNECT");
   } while (count1 == NULL);
 
@@ -389,13 +394,14 @@ char fillPictureEsp(void)
     // putchar(byte);
   } while (byte != '>');
   sendcommand(link);
+
   countl = 0;
   do
   {
     byte = uartReadBlock();
     if (byte > 255)
     {
-      // writeLog("uartReadBlock(); receiving timeout [2]", "fillPictureEsp ");
+
       return false;
     }
 
@@ -409,16 +415,16 @@ char fillPictureEsp(void)
     }
   } while (countl < strlen(sendOk));
   // writeLog("sendOk - OK", "fillPictureEsp ");
+
   byte = uartReadBlock(); // CR
   if (byte > 255)
   {
-    // writeLog("uartReadBlock(); receiving timeout  [3]", "fillPictureEsp ");
     return false;
   }
+
   byte = uartReadBlock(); // LF
   if (byte > 255)
   {
-    // writeLog("uartReadBlock(); receiving timeout  [4]", "fillPictureEsp ");
     return false;
   }
   downloaded = 0;
@@ -1273,7 +1279,6 @@ void init(void)
     loadEspConfig();
     uart_init(divider);
     espReBoot();
-    OS_CLS(0);
   }
 }
 
@@ -1301,10 +1306,13 @@ C_task main(void)
 {
   long iddqd, idkfa;
   char result;
-  OS_HIDEFROMPARENT();
+  // OS_HIDEFROMPARENT();
   OS_SETGFX(0x86);
   OS_CLS(0);
   init();
+
+  OS_HIDEFROMPARENT();
+
   printHelp();
   safeKeys(keypress);
 

@@ -1412,7 +1412,7 @@ C_task main(int argc, const char *argv[])
   unsigned long curTimer, startTimer, oldTimer;
   srand(time());
 
-  OS_HIDEFROMPARENT();
+  //  OS_HIDEFROMPARENT();
   OS_SETGFX(0x86);
   OS_CLS(0);
 
@@ -1432,42 +1432,29 @@ C_task main(int argc, const char *argv[])
   targetadr.b3 = 69;  // 45
   targetadr.b4 = 13;  // 0D
 
-  printf("[Build:%s  %s]", __DATE__, __TIME__);
+  printf("[Build:%s  %s]\r\n", __DATE__, __TIME__);
 
   netDriver = readParamFromIni();
 
   if (argc > 1)
   {
-    if ((argv[1][0] == 'e') || (argv[1][0] == 'E'))
+    if ((argv[1][0] == 'e') || (argv[1][0] == 'E') || netDriver == 1)
     {
       netDriver = 1;
-      clearStatus();
-      printf("    ESP-COM mode enabled...");
-      BDBOX(1, 14, 80, 8, 71, ' ');
-      OS_SETXY(0, 14);
       loadEspConfig();
       uart_init(divider);
       espReBoot();
-      printHelp();
     }
   }
-
-  strcpy(queryType, "from newest to oldest");
-
-  if (netDriver == 0)
+  else if (netDriver == 0)
   {
     get_dns();
     clearStatus();
     dnsResolve("zxart.ee");
   }
 
-  if (netDriver == 1)
-  {
-    loadEspConfig();
-    uart_init(divider);
-    espReBoot();
-  }
-
+  OS_HIDEFROMPARENT();
+  strcpy(queryType, "from newest to oldest");
   OS_CLS(0);
   OS_SETCOLOR(71);
   OS_SETCOLOR(95);
