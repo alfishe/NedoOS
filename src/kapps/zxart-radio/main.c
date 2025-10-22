@@ -1438,7 +1438,7 @@ C_task main(int argc, const char *argv[])
 
   if (argc > 1)
   {
-    if ((argv[1][0] == 'e') || (argv[1][0] == 'E') || netDriver == 1)
+    if ((argv[1][0] == 'e') || (argv[1][0] == 'E'))
     {
       netDriver = 1;
       loadEspConfig();
@@ -1451,6 +1451,13 @@ C_task main(int argc, const char *argv[])
     get_dns();
     clearStatus();
     dnsResolve("zxart.ee");
+  }
+  else if (netDriver == 1)
+  {
+    netDriver = 1;
+    loadEspConfig();
+    uart_init(divider);
+    espReBoot();
   }
 
   OS_HIDEFROMPARENT();

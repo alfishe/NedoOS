@@ -2025,11 +2025,11 @@ unsigned char getMouse(void)
 C_task main(int argc, const char *argv[])
 {
 	unsigned char keypress;
-	OS_HIDEFROMPARENT();
 	OS_SETGFX(0x86);
 	OS_CLS(0);
 	OS_SETSYSDRV();
 	init();
+	OS_HIDEFROMPARENT();
 	// printTable();
 	// waitKey();
 
