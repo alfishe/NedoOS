@@ -253,6 +253,7 @@ int getAnswerInt(int retries)
       key = getchar();
       sprintf(cmd, "Error. User choose %u ", key);
       writeLog(cmd, "getAnswerInt   ");
+      writeLog(netbuf, "getAnswerInt   ");
       switch (key)
       {
       case 'y':
@@ -369,25 +370,26 @@ char fillPictureEsp(void)
   {
     sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
 
-    if (!getAnswerInt(1)) // CONNECT or ERROR or link is not valid
+    switch (getAnswerInt(1))
     {
-      writeLog(netbuf, "getAnswerInt   ");
+    case 0:
       return false;
+    case 2:
+      continue;
     }
     count1 = strstr(netbuf, "CONNECT");
   } while (count1 == NULL);
 
-  getAnswerInt(1);                                // OK
+  getAnswer3();                                   // OK
   sprintf(netbuf, "AT+CIPSEND=%u", sizeLink + 2); // second CRLF in send command
   sendcommand(netbuf);
-  // getAnswer3(); // !!!!1409
+
   do
   {
-
     byte = uartReadBlock();
     if (byte > 255)
     {
-      // writeLog("uartReadBlock(); receiving timeout [1]", "fillPictureEsp ");
+      writeLog("Timeout when waiting '>' ", "fillPictureEsp ");
       return false;
     }
 
@@ -401,7 +403,7 @@ char fillPictureEsp(void)
     byte = uartReadBlock();
     if (byte > 255)
     {
-
+      writeLog("Timeout when waiting 'sendOk' ", "fillPictureEsp ");
       return false;
     }
 
@@ -414,17 +416,18 @@ char fillPictureEsp(void)
       countl = 0;
     }
   } while (countl < strlen(sendOk));
-  // writeLog("sendOk - OK", "fillPictureEsp ");
 
   byte = uartReadBlock(); // CR
   if (byte > 255)
   {
+    writeLog("Timeout when waiting 'CR' ", "fillPictureEsp ");
     return false;
   }
 
   byte = uartReadBlock(); // LF
   if (byte > 255)
   {
+    writeLog("Timeout when waiting 'LF' ", "fillPictureEsp ");
     return false;
   }
   downloaded = 0;
@@ -438,6 +441,7 @@ char fillPictureEsp(void)
     {
       OS_CLS(0);
       printf("[getdataEsp] Downloading timeout. Exit![%lu]\r\n", count);
+      writeLog("Downloading timeout. Exit!", "fillPictureEsp ");
       waitKey();
       exit(0);
     }
