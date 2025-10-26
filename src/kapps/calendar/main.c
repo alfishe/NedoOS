@@ -684,8 +684,8 @@ char fillProdCal(int year)
 	return result;
 }
 
-#include <../common/network.c>
 #include <../common/esp-com.c>
+#include <../common/network.c>
 
 int cutHeader(unsigned int todo)
 {

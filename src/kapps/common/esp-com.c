@@ -20,7 +20,7 @@ void writeLog(const char *logline, char *place)
 	fileSize = OS_GETFILESIZE(LogFile);
 	OS_SEEKHANDLE(LogFile, fileSize);
 
-	sprintf(toLog, "%6lu : %s : %s\r\n", time(), place, logline);
+	sprintf(toLog, "%7lu : %s : %s\r\n", time(), place, logline);
 	OS_WRITEHANDLE(toLog, LogFile, strlen(toLog));
 	OS_CLOSEHANDLE(LogFile);
 	OS_CHDIR(cPath);
@@ -238,7 +238,11 @@ unsigned char uart_read(void)
 unsigned int uartReadBlock(void)
 {
 	unsigned char data;
+	unsigned long strt;
+	strt = time();
+
 	timerok = factor;
+
 	switch (comType)
 	{
 	case 0: // Kondratyev  NO AFC
@@ -263,7 +267,7 @@ unsigned int uartReadBlock(void)
 			if (timerok == 0)
 			{
 				enable_interrupt();
-				sprintf(cmd, "[ATM2 COM] receiving timeout.[c=%lu]", count);
+				sprintf(cmd, "[ATM2 COM] receiving timeout.[c=%lu][t=%lu]", count, time() - strt);
 				writeLog(cmd, "uartReadBlock  ");
 				return 0xffff;
 			}
@@ -288,7 +292,7 @@ unsigned int uartReadBlock(void)
 			if (timerok == 0)
 			{
 				unsigned char cmd[128];
-				sprintf(cmd, "[AFC] receiving timeout.[c=%lu]", count);
+				sprintf(cmd, "[AFC] receiving timeout.[c=%lu][t=%lu]", count, time() - strt);
 				writeLog(cmd, "uartReadBlock  ");
 				return 0xffff;
 			}
@@ -304,7 +308,7 @@ unsigned int uartReadBlock(void)
 			{
 				unsigned char cmd[128];
 				enable_interrupt();
-				sprintf(cmd, "[ATM2IOESP] receiving timeout.[c=%lu]", count);
+				sprintf(cmd, "[ATM2IOESP] receiving timeout.[c=%lu][t=%lu]", count, time() - strt);
 				writeLog(cmd, "uartReadBlock  ");
 				return 0xffff;
 			}
@@ -401,7 +405,6 @@ char getdataEsp(unsigned int counted)
 			{
 				if (timerok == 0)
 				{
-				unsigned char cmd[512];
 					sprintf(cmd, "[AFC] receiving timeout.[c=%lu]", count);
 					writeLog(cmd, "getDataEsp     ");
 					return false;
@@ -476,11 +479,11 @@ unsigned char getAnswer3(void)
 		readbyte = uartReadBlock(); // Очистка всех лишних CRLF перед ответом.
 		if (readbyte > 255)
 		{
+			writeLog("Timeout while (readbyte == 0x0a) || (readbyte == 0x0d) ", "getAnswer3     ");
 			return false;
 		}
 
 	} while (((readbyte == 0x0a) || (readbyte == 0x0d)));
-
 	netbuf[curPos] = readbyte;
 	curPos++;
 	do // Чтение сообщения
@@ -488,13 +491,21 @@ unsigned char getAnswer3(void)
 		readbyte = uartReadBlock();
 		if (readbyte > 255)
 		{
+			writeLog("Timeout while reading answer", "getAnswer3     ");
 			return false;
 		}
 		netbuf[curPos] = readbyte;
 		curPos++;
 	} while (readbyte != 0x0d);
 	netbuf[curPos - 1] = 0;
-	uartReadBlock(); //  Вычитываем в хвосте 0xA, если не смогли, то ничего страшного.
+
+	readbyte = uartReadBlock(); // 0x0a
+	if (readbyte > 255)
+	{
+		writeLog("Timeout while reading tail's 0x0a", "getAnswer3     ");
+		return false;
+	}
+
 	// writeLog(netbuf, "getAnswer3     ");
 	YIELD();
 	return true;
@@ -584,7 +595,7 @@ char espReBoot(void)
 	printf("Resetting ESP");
 	timerok = uartBench();
 
-	//getAnswer3();
+	// getAnswer3();
 
 	sendcommand("AT+RST");
 	count = 0;
@@ -645,8 +656,8 @@ char espReBoot(void)
 
 int recvHead(void)
 {
-	unsigned char byte, dataRead;
-	int todo = 0, count = 0, countErr = 0;
+	unsigned char dataRead;
+	int byte, todo = 0, count = 0, countErr = 0;
 	const char closed[] = "CLOSED";
 	const char error[] = "ERROR";
 	//+IPD<,length>:<data>
@@ -676,15 +687,19 @@ int recvHead(void)
 		}
 		if ((count == strlen(closed)) || (countErr == strlen(error)))
 		{
-			// uartReadBlock(); // CR
-			// uartReadBlock(); // LF
-			return todo;
+			writeLog("Recieved  'closed' or 'error' ", "recvHead       ");
+			return false;
 		}
 	} while (byte != ',');
 
 	do
 	{
 		byte = uartReadBlock();
+		if (byte > 255)
+		{
+			writeLog("Timeout waiting ':' ", "recvHead       ");
+			return false;
+		}
 		netbuf[dataRead] = byte;
 		dataRead++;
 	} while (byte != ':');

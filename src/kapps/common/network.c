@@ -27,6 +27,7 @@ int httpError(void)
   }
   else
   {
+    writeLog(netbuf, "cutHeader[0]  ");
     httpErr = 0;
   }
   return httpErr;

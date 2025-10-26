@@ -78,7 +78,7 @@ unsigned char cmd[512];
 unsigned char link[512];
 unsigned char fileIdChar[10];
 unsigned char picture[15000];
-unsigned char netbuf[5000];
+unsigned char netbuf[4000];
 unsigned char curPath[128];
 
 void clearStatus(void)
@@ -249,6 +249,7 @@ int getAnswerInt(int retries)
 
     if (retries == 0)
     {
+      OS_CLS(0);
       printf("\rAnswer reading timeout. press [Y] or [Enter] to retry, other key for abort. ");
       key = getchar();
       sprintf(cmd, "Error. User choose %u ", key);
@@ -358,7 +359,7 @@ char fillPictureEsp(void)
 {
   unsigned char sizeLink;
   unsigned long downloaded;
-  unsigned char countl;
+  // unsigned char countl;
   unsigned int todo;
   const unsigned char *count1;
   unsigned char firstPacket;
@@ -373,14 +374,20 @@ char fillPictureEsp(void)
     switch (getAnswerInt(1))
     {
     case 0:
+      writeLog("Timeout 'AT+CIPSTART' - Abort ", "fillPictureEsp ");
       return false;
     case 2:
+      writeLog("Timeout 'AT+CIPSTART' - Retry ", "fillPictureEsp ");
+      uartFlush(100);
       continue;
     }
     count1 = strstr(netbuf, "CONNECT");
   } while (count1 == NULL);
 
-  getAnswer3();                                   // OK
+  if (!getAnswer3())
+  {
+    writeLog("Timeout waiting 'OK'", "fillPictureEsp ");
+  } // OK
   sprintf(netbuf, "AT+CIPSEND=%u", sizeLink + 2); // second CRLF in send command
   sendcommand(netbuf);
 
@@ -395,8 +402,15 @@ char fillPictureEsp(void)
 
     // putchar(byte);
   } while (byte != '>');
+
   sendcommand(link);
 
+  if (!getAnswer3()) // 'sendOk'
+  {
+    writeLog("Timeout when waiting 'sendOk' ", "fillPictureEsp ");
+  }
+
+  /*
   countl = 0;
   do
   {
@@ -416,6 +430,7 @@ char fillPictureEsp(void)
       countl = 0;
     }
   } while (countl < strlen(sendOk));
+*/
 
   byte = uartReadBlock(); // CR
   if (byte > 255)
@@ -436,6 +451,12 @@ char fillPictureEsp(void)
   {
     headlng = 0;
     todo = recvHead();
+
+    if (todo == 0)
+    {
+      writeLog("Error parsing packet size, todo = 0", "fillPictureEsp ");
+      return false;
+    }
 
     if (!getdataEsp(todo))
     {
@@ -467,11 +488,11 @@ char fillPictureEsp(void)
     downloaded = downloaded + todo;
   } while (downloaded < contLen);
   sendcommand("AT+CIPCLOSE");
-  getAnswerInt(1); // CLOSED or ERROR
+  getAnswer3(); // CLOSED or ERROR
   count1 = strstr(netbuf, "CLOSED");
   if (count1 != NULL)
   {
-    getAnswerInt(1); // OK
+    getAnswer3(); // OK
   }
   // writeLog("Data downloaded", "fillPictureEsp ");
   return true;
@@ -610,10 +631,9 @@ unsigned char savePic(unsigned long fileId)
     strcat(curFileStruct.fileName, fileIdChar);
     strcat(curFileStruct.fileName, ".scr");
   }
-  OS_SETSYSDRV();
-  OS_MKDIR("../downloads");        // Create if not exist
-  OS_MKDIR("../downloads/getpic"); // Create if not exist
-  OS_CHDIR("../downloads/getpic");
+
+  printf("%s  ", curFileStruct.fileName);
+
   fp2 = OS_CREATEHANDLE(curFileStruct.fileName, 0x80);
   if (((int)fp2) & 0xff)
   {
@@ -1064,9 +1084,6 @@ void safeKeys(unsigned char keypress)
   switch (keypress)
   {
   case 27:
-    OS_SETCOLOR(70);
-    printf("Good bye...\r\n");
-    delayLong(500);
     quit();
     break;
   case 'j':
@@ -1081,10 +1098,6 @@ void safeKeys(unsigned char keypress)
     if (inputBox(curWin, ""))
     {
       sscanf(cmd, "%lu", &count);
-      if (count > curFileStruct.totalAmount - 1)
-      {
-        count = curFileStruct.totalAmount - 1;
-      }
     }
     break;
   case 't':
@@ -1107,17 +1120,12 @@ void safeKeys(unsigned char keypress)
       OS_SETCOLOR(70);
       printf("Slide duration set to %u ints.", slideShowTime);
       delayLong(500);
+      OS_CLS(0);
     }
     break;
   case 'v':
   case 'V':
     verbose = !verbose;
-
-    if (verbose == 0)
-    {
-      BOX(1, 1, 80, 25, 40, ' ');
-      AT(1, 1);
-    }
     break;
   case 'h':
   case 'H':
@@ -1127,19 +1135,19 @@ void safeKeys(unsigned char keypress)
   case 'R':
     randomPic = !randomPic;
     OS_SETCOLOR(70);
-    if (verbose == 1)
+    if (verbose)
     {
       if (randomPic == 1)
       {
         printf("    Random mode enabled...\r\n");
         count = 0;
-        delayLong(500);
+        // delayLong(500);
       }
       else
       {
         printf("    Sequental mode enabled...\r\n");
         count = 0;
-        delayLong(500);
+        // delayLong(500);
       }
     }
     break;
@@ -1172,8 +1180,6 @@ void safeKeys(unsigned char keypress)
       loadEspConfig();
       uart_init(divider);
       espReBoot();
-      printf("    ESP-COM inited...\r\n");
-      delayLong(500);
     }
     else
     {
@@ -1190,7 +1196,7 @@ void safeKeys(unsigned char keypress)
     curWin.h = 1;
     curWin.text = 103;
     curWin.back = 103;
-    strcpy(curWin.tittle, "Минимальная оценка:");
+    strcpy(curWin.tittle, "Minimal rating:");
 
     if (inputBox(curWin, ""))
     {
@@ -1259,7 +1265,7 @@ void init(void)
   verbose = 1;
   randomPic = 0;
   slideShow = 0;
-  strcpy(minRating, "4.0");
+  strcpy(minRating, "4.1");
 
   targetadr.family = AF_INET;
   targetadr.porth = 00;
@@ -1273,6 +1279,7 @@ void init(void)
 
   if (netDriver == 0)
   {
+    verbose = 0;
     get_dns();
     clearStatus();
     dnsResolve("zxart.ee");
@@ -1289,6 +1296,7 @@ void init(void)
 unsigned char viewScreen6912c(unsigned int bufAdr)
 {
   unsigned char key;
+  OS_CLS(0);
   OS_SETBORDER(0);
   OS_SETGFX(0x83);
   SETPG32KHIGH(OS_GETSCR0() >> 8);
@@ -1310,17 +1318,24 @@ C_task main(void)
 {
   long iddqd, idkfa;
   char result;
-  // OS_HIDEFROMPARENT();
   OS_SETGFX(0x86);
   OS_CLS(0);
   init();
 
   OS_HIDEFROMPARENT();
 
+  writeLog("GetPic Started & Inited.", "main           ");
+
   printHelp();
   safeKeys(keypress);
 
 start:
+
+  if (count > curFileStruct.totalAmount - 1)
+  {
+    count = 0;
+  }
+
   keypress = 0;
   switch (randomPic)
   {
@@ -1354,17 +1369,20 @@ start:
     goto start;
   }
 
-  if (verbose == 1)
+  idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
+  if (idkfa < 0)
   {
-    idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
-    if (idkfa < 0)
-    {
-      printf("[%u]Error can't parse authorIds(%s). Next picture, please...\r\n", curFileStruct.httpErr, curFileStruct.authorIds);
-      count++;
-      delayLong(500);
-      goto start;
-    }
+    printf("[%u]Error can't parse authorIds(%s). Next picture, please...\r\n", curFileStruct.httpErr, curFileStruct.authorIds);
+    count++;
+    delayLong(500);
+    goto start;
   }
+
+  if (verbose)
+  {
+    printData();
+  }
+
   if (strcmp(curFileStruct.picType, "standard") != 0)
   {
     printf("[%u]Error format '%s' not supported. Next picture, please.\n\r", curFileStruct.httpErr, curFileStruct.picType);
@@ -1392,18 +1410,16 @@ start:
   }
 
 review:
-  OS_CLS(0);
   YIELD();
-  // keypress = viewScreen6912((unsigned int)&picture, slideShowTime);
   keypress = viewScreen6912c((unsigned int)&picture);
-  emptyKeys();
+  // emptyKeys();
 
   ////// Keys only for pictures
   if (keypress == 's' || keypress == 'S')
   {
+    printf("Saving ", curFileStruct.fileName);
     savePic(iddqd);
-    printf("%s saved.", curFileStruct.fileName);
-    delayLong(500);
+    printf("O.K.\r\n", curFileStruct.fileName);
     count++;
   }
 
