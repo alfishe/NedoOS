@@ -1177,7 +1177,9 @@ void safeKeys(unsigned char keypress)
     if (netDriver == 1)
     {
       printf("    ESP-COM mode enabled...\r\n");
+      OS_GETPATH((unsigned int)&curPath);
       loadEspConfig();
+      OS_CHDIR(curPath);
       uart_init(divider);
       espReBoot();
     }
@@ -1228,6 +1230,7 @@ char readParamFromIni(void)
   unsigned char curNet = 0;
 
   OS_GETPATH((unsigned int)&curPath);
+
   OS_SETSYSDRV();
   OS_CHDIR("/");
   OS_CHDIR("ini");
@@ -1235,6 +1238,7 @@ char readParamFromIni(void)
   fpini = OS_OPENHANDLE("network.ini", 0x80);
   if (((int)fpini) & 0xff)
   {
+    OS_CHDIR(curPath);
     clearStatus();
     printf("network.ini not found.\r\n");
     getchar();
@@ -1256,17 +1260,11 @@ char readParamFromIni(void)
 
 void init(void)
 {
-  OS_SETSYSDRV();
-  OS_MKDIR("../downloads");        // Create if not exist
-  OS_MKDIR("../downloads/getpic"); // Create if not exist
-  OS_CHDIR("../downloads/getpic");
-
   count = 0;
   verbose = 1;
   randomPic = 0;
   slideShow = 0;
   strcpy(minRating, "4.1");
-
   targetadr.family = AF_INET;
   targetadr.porth = 00;
   targetadr.portl = 80;
@@ -1274,6 +1272,13 @@ void init(void)
   targetadr.b2 = 146; // 92
   targetadr.b3 = 69;  // 45
   targetadr.b4 = 13;  // 0D
+
+  OS_SETSYSDRV();
+  OS_MKDIR("../downloads");        // Create if not exist
+  OS_MKDIR("../downloads/getpic"); // Create if not exist
+  OS_CHDIR("../downloads/getpic");
+
+
 
   netDriver = readParamFromIni();
 
@@ -1287,10 +1292,16 @@ void init(void)
 
   if (netDriver == 1)
   {
+    OS_GETPATH((unsigned int)&curPath);
     loadEspConfig();
+    OS_CHDIR(curPath);
     uart_init(divider);
     espReBoot();
   }
+
+
+
+
 }
 
 unsigned char viewScreen6912c(unsigned int bufAdr)
@@ -1412,7 +1423,7 @@ start:
 review:
   YIELD();
   keypress = viewScreen6912c((unsigned int)&picture);
-  // emptyKeys();
+  emptyKeys();
 
   ////// Keys only for pictures
   if (keypress == 's' || keypress == 'S')
