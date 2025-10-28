@@ -34,7 +34,7 @@ struct fileStruct
   unsigned int extStatus;
   unsigned char picRating[8];
   unsigned char picName[256];
-  unsigned char picType[64];
+  unsigned char picType[32]; // 28102025!!!
   unsigned char authorIds[64];
   unsigned char authorTitle[64];
   unsigned char authorRealName[64];
@@ -145,49 +145,7 @@ void quit(void)
   OS_SETGFX(-1);
   exit(0);
 }
-/*
-void infoBox(struct window w, const char *message)
-{
-  unsigned char wcount, tempx, tittleStart;
 
-  w.h++;
-  OS_SETXY(w.x, w.y - 1);
-  BDBOX(w.x, w.y, w.w + 1, w.h, w.back, 32);
-  OS_SETXY(w.x, w.y);
-  OS_SETCOLOR(w.text);
-  putchar(201);
-  for (wcount = 0; wcount < w.w; wcount++)
-  {
-    putchar(205);
-  }
-  putchar(187);
-  OS_SETXY(w.x, w.y + w.h);
-  putchar(200);
-  for (wcount = 0; wcount < w.w; wcount++)
-  {
-    putchar(205);
-  }
-  putchar(188);
-
-  tempx = w.x + w.w + 1;
-  for (wcount = 1; wcount < w.h; wcount++)
-  {
-    OS_SETXY(w.x, w.y + wcount);
-    putchar(186);
-    OS_SETXY(tempx, w.y + wcount);
-    putchar(186);
-  }
-  tittleStart = w.x + (w.w / 2) - (strlen(w.tittle) / 2);
-  OS_SETXY(tittleStart, w.y);
-  printf("[%s]", w.tittle);
-
-  OS_SETXY(w.x + 1, w.y + 1);
-  OS_SETCOLOR(w.back);
-  tittleStart = w.x + (w.w / 2) - (strlen(message) / 2);
-  OS_SETXY(tittleStart, w.y + 1);
-  printf("%s", message);
-}
-*/
 void printHelp(void)
 {
   OS_CLS(0);
@@ -217,28 +175,11 @@ void printHelp(void)
   OS_CLS(0);
 }
 
-void delay(unsigned long counter)
-{
-  unsigned long start, finish;
-  counter = counter / 20;
-  if (counter < 1)
-  {
-    counter = 1;
-  }
-  start = time();
-  finish = start + counter;
-
-  while (start < finish)
-  {
-    start = time();
-  }
-}
-
 ///////////////////////////
 #include <../common/esp-com.c>
 #include <../common/network.c>
 //////////////////////////
-
+/*
 int getAnswerInt(int retries)
 {
   unsigned char key = 0;
@@ -254,7 +195,7 @@ int getAnswerInt(int retries)
       key = getchar();
       sprintf(cmd, "Error. User choose %u ", key);
       writeLog(cmd, "getAnswerInt   ");
-      writeLog(netbuf, "getAnswerInt   ");
+
       switch (key)
       {
       case 'y':
@@ -269,7 +210,7 @@ int getAnswerInt(int retries)
   }
   return 1;
 }
-
+*/
 int testOperation2(const char *process, int socket)
 {
   if (socket < 0)
@@ -295,9 +236,6 @@ int cutHeader(unsigned int todo)
 
     sprintf(link, "HTTP Error %u @ %lu(%lu)", curFileStruct.httpErr, count, curFileStruct.picId);
     writeLog(link, "cutHeader      ");
-    // puts(netbuf);
-    // puts("---+++---");
-    // waitKey();
     return 0;
   }
   count1 = strstr(netbuf, "Content-Length:");
@@ -371,6 +309,19 @@ char fillPictureEsp(void)
   {
     sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
 
+    if (!getAnswer3())
+    {
+      writeLog("Timeout 'AT+CIPSTART' return false", "fillPictureEsp ");
+      return false;
+    }
+    count1 = strstr(netbuf, "CONNECT");
+  } while (count1 == NULL);
+
+  /*
+  do
+  {
+    sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
+
     switch (getAnswerInt(1))
     {
     case 0:
@@ -383,10 +334,11 @@ char fillPictureEsp(void)
     }
     count1 = strstr(netbuf, "CONNECT");
   } while (count1 == NULL);
-
+*/
   if (!getAnswer3())
   {
     writeLog("Timeout waiting 'OK'", "fillPictureEsp ");
+    return false;
   } // OK
   sprintf(netbuf, "AT+CIPSEND=%u", sizeLink + 2); // second CRLF in send command
   sendcommand(netbuf);
@@ -408,6 +360,7 @@ char fillPictureEsp(void)
   if (!getAnswer3()) // 'sendOk'
   {
     writeLog("Timeout when waiting 'sendOk' ", "fillPictureEsp ");
+    return false;
   }
 
   /*
@@ -462,7 +415,7 @@ char fillPictureEsp(void)
     {
       OS_CLS(0);
       printf("[getdataEsp] Downloading timeout. Exit![%lu]\r\n", count);
-      writeLog("Downloading timeout. Exit!", "fillPictureEsp ");
+      writeLog("Downloading timeout in getdataEsp. Exit!", "fillPictureEsp ");
       waitKey();
       exit(0);
     }
@@ -488,11 +441,19 @@ char fillPictureEsp(void)
     downloaded = downloaded + todo;
   } while (downloaded < contLen);
   sendcommand("AT+CIPCLOSE");
-  getAnswer3(); // CLOSED or ERROR
+
+  if (!getAnswer3()) // CLOSED or ERROR
+  {
+    writeLog("Timeout  waiting CLOSED or ERROR continue", "fillPictureEsp ");
+  }
+
   count1 = strstr(netbuf, "CLOSED");
   if (count1 != NULL)
   {
-    getAnswer3(); // OK
+    if (!getAnswer3()) // OK
+    {
+      writeLog("Timeout  waiting OK after CLOSED continue", "fillPictureEsp ");
+    }
   }
   // writeLog("Data downloaded", "fillPictureEsp ");
   return true;
@@ -1278,8 +1239,6 @@ void init(void)
   OS_MKDIR("../downloads/getpic"); // Create if not exist
   OS_CHDIR("../downloads/getpic");
 
-
-
   netDriver = readParamFromIni();
 
   if (netDriver == 0)
@@ -1296,12 +1255,13 @@ void init(void)
     loadEspConfig();
     OS_CHDIR(curPath);
     uart_init(divider);
-    espReBoot();
+    if (!espReBoot())
+    {
+      puts("Error rebooting ESP!. Press any key to continue.");
+      getchar();
+    }
+    writeLog("GetPic Started & Inited.", "main           ");
   }
-
-
-
-
 }
 
 unsigned char viewScreen6912c(unsigned int bufAdr)
@@ -1335,19 +1295,17 @@ C_task main(void)
 
   OS_HIDEFROMPARENT();
 
-  writeLog("GetPic Started & Inited.", "main           ");
-
   printHelp();
   safeKeys(keypress);
 
 start:
+  keypress = 0;
 
   if (count > curFileStruct.totalAmount - 1)
   {
     count = 0;
   }
 
-  keypress = 0;
   switch (randomPic)
   {
   case 0:
@@ -1366,15 +1324,18 @@ start:
   case -3: // return 0 pictures
     strcpy(minRating, "1.0");
     printf("[%u]No picture is returned in query. Minimal rating is set to %s\r\n", curFileStruct.httpErr, minRating);
+    writeLog("[-3]No picture is returned in query. minRating=1.0", "main           ");
     delayLong(500);
     goto start;
   case -4: // return xxxx picture, but empty body.
-    printf("[%u]Empty body is returned. Next picture, please.(%ld)...\r\n", curFileStruct.httpErr, iddqd);
+    printf("[%u]Empty body is returned. Next picture, please.(%ld)...\r\n", curFileStruct.httpErr, count);
+    writeLog("[-4]Empty body is returned. Next picture, please.", "main           ");
     delayLong(500);
     count++;
     goto start;
   case -1: // return HTTP error != 200
-    printf("[%u]Error getting pic info. Next picture, please(%ld)...\r\n", curFileStruct.httpErr, iddqd);
+    printf("[%u]Error getting pic info. Next picture, please(%ld)...\r\n", curFileStruct.httpErr, count);
+    writeLog("[-1]Error getting pic info. Next picture, please", "main           ");
     count++;
     delayLong(500);
     goto start;
@@ -1391,6 +1352,7 @@ start:
 
   if (verbose)
   {
+    OS_CLS(0);
     printData();
   }
 
@@ -1423,7 +1385,7 @@ start:
 review:
   YIELD();
   keypress = viewScreen6912c((unsigned int)&picture);
-  emptyKeys();
+  //emptyKeys();
 
   ////// Keys only for pictures
   if (keypress == 's' || keypress == 'S')

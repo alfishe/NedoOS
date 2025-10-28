@@ -4,10 +4,10 @@ void writeLog(const char *logline, char *place)
 {
 	FILE *LogFile;
 	unsigned long fileSize;
-	unsigned char toLog[512];
-	unsigned char cPath[130];
+	unsigned char toLog[256];
+	// unsigned char cPath[130]; //28102025!!!
 
-	OS_GETPATH((unsigned int)&cPath);
+	OS_GETPATH((unsigned int)&curPath);
 	OS_SETSYSDRV();
 	LogFile = OS_OPENHANDLE("../espcom.log", 0x80);
 	if (((int)LogFile) & 0xff)
@@ -23,7 +23,7 @@ void writeLog(const char *logline, char *place)
 	sprintf(toLog, "%7lu : %s : %s\r\n", time(), place, logline);
 	OS_WRITEHANDLE(toLog, LogFile, strlen(toLog));
 	OS_CLOSEHANDLE(LogFile);
-	OS_CHDIR(cPath);
+	OS_CHDIR(curPath);
 }
 
 void portOutput(char port, char data)
@@ -250,7 +250,7 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok == 0)
 			{
-				sprintf(cmd, "[NO AFC] receiving timeout.[c=%lu]", count);
+				sprintf(cmd, "[NO AFC] receiving timeout.[c=%lu][t=%lu]", count, time() - strt);
 				writeLog(cmd, "uartReadBlock  ");
 				return 0xffff;
 			}
@@ -448,8 +448,6 @@ void sendcommand(const char *commandline)
 {
 	unsigned int count, cmdLen;
 	cmdLen = strlen(commandline);
-
-	// writeLog(commandline, "sendcommand    ");
 	YIELD();
 	for (count = 0; count < cmdLen; count++)
 	{
@@ -458,6 +456,7 @@ void sendcommand(const char *commandline)
 	uart_write('\r');
 	uart_write('\n');
 	YIELD();
+	// writeLog(commandline, "sendcommand    ");
 }
 
 void sendcommandNrn(const char *commandline)
@@ -561,6 +560,8 @@ unsigned long uartBench(void)
 		for (count = 0; count < 10000; count++)
 		{
 			data = (1 & input(LSR));
+			data = (1 & input(LSR));
+			data = (1 & input(LSR));
 			input(RBR_THR);
 		}
 		break;
@@ -599,8 +600,7 @@ char espReBoot(void)
 
 	sendcommand("AT+RST");
 	count = 0;
-	finish = time();
-	finish = finish + 10 * 50;
+	finish = time() + (10 * 50);
 	do
 	{
 		byte = uartReadBlock();
@@ -608,8 +608,18 @@ char espReBoot(void)
 		if (byte > 255)
 		{
 			clearStatus();
-			printf("uartReadBlock() timeout Finish exit %lu > %lu\r\n", time(), finish);
-			return false;
+			printf("\r\nuartReadBlock() timeout Finish Continue\r\n");
+			writeLog("Reboot waiting error. Continue; ", "espReBoot      ");
+			if (time() > finish)
+			{
+				printf("espReBoot timeout Finish exit %lu > %lu\r\n", time(), finish);
+				writeLog("Reboot waiting error. Timeout. ", "espReBoot      ");
+				return false;
+			}
+			else
+			{
+				continue;
+			}
 		}
 
 		if (byte == gotWiFi[count])
@@ -620,13 +630,6 @@ char espReBoot(void)
 		{
 			count = 0;
 		}
-
-		if (time() > finish)
-		{
-			printf("espReBoot timeout Finish exit %lu > %lu\r\n", time(), finish);
-			return false;
-		}
-
 	} while (count < strlen(gotWiFi));
 	printf(". Reset complete.");
 
@@ -635,9 +638,22 @@ char espReBoot(void)
 	do
 	{
 		byte = uartReadBlock();
+		if (byte > 255)
+		{
+			writeLog("ATE0. OK answer waiting error. ", "espReBoot      ");
+		}
+
 	} while (byte != 'K'); // OK
-	uartReadBlock(); // CR
-	uartReadBlock(); // LN
+
+	if (uartReadBlock() > 255) // CR
+	{
+		writeLog("ATE0. CR answer waiting error.", "espReBoot      ");
+	}
+
+	if (uartReadBlock() > 255) // LN
+	{
+		writeLog("ATE0. CR answer waiting error. ", "espReBoot      ");
+	}
 
 	sendcommand("AT+CIPCLOSE");
 	getAnswer3();
@@ -666,6 +682,13 @@ int recvHead(void)
 	do
 	{
 		byte = uartReadBlock();
+
+		if (byte > 255)
+		{
+			writeLog("Timeout reading head ", "recvHead       ");
+			return false;
+		}
+
 		// printf("[%c]", byte);
 
 		if (byte == closed[count])

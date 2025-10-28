@@ -30,7 +30,8 @@ int GMT = 3;
 unsigned char is_atm;
 unsigned char netbuf[4096];
 unsigned char cmd[512];
-//unsigned char dump[128];
+unsigned char curPath[128];
+
 struct sockaddr_in ntp_ia;
 union
 {
@@ -254,37 +255,9 @@ inetloop:
 #include <../common/esp-com.c>
 //////////////////////////
 
-int getAnswerInt(int retries)
-{
-	unsigned char key = 0;
-	while (!getAnswer3() && retries != 0)
-	{
-		retries--;
-		printf("Retry [UART][%u]\r\n", retries);
-
-		if (retries == 0)
-		{
-			printf("\rAnswer reading timeout? press [Y]/[Enter] to retry, other key for abort. ");
-			key = getchar();
-			switch (key)
-			{
-			case 'y':
-			case 'Y':
-			case 13:
-				retries = 1;
-				break;
-			default:
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
 void espntp_resolver(void)
 {
 	unsigned char retry, retryuart, count = 0;
-	unsigned int byte;
 	unsigned long finish;
 	unsigned char *count1;
 	loadEspConfig();
@@ -295,6 +268,8 @@ void espntp_resolver(void)
 		exit(255);
 	}
 	puts("\r\nGetting time...");
+
+	writeLog("Time2 started and inited", "espntp_resolver");
 
 	// AT+CIPSNTPCFG=1,8,"cn.ntp.org.cn","ntp.sjtu.edu.cn"
 	weekday = 0;
@@ -307,55 +282,44 @@ void espntp_resolver(void)
 	retryuart = 3;
 	sprintf(cmd, "AT+CIPSNTPCFG=1,%u,\"%s\",\"time.google.com\"", GMT, defntp);
 	sendcommand(cmd);
-	// getAnswer3(); // OK
-	getAnswerInt(3);
+	if (!getAnswer3()) // OK
+	{
+		puts("Timeout waiting 'OK' AT+CIPSNTPCFG");
+		writeLog("Timeout waiting 'OK' AT+CIPSNTPCFG", "espntp_resolver");
+		exit(255);
+	}
 	count1 = strstr(netbuf, "ERROR");
-	if (count1)
+	if (count1 != NULL)
 	{
 		printf("Error. You may need to update your AT-Firmware, to a version that supports AT+CIPSNTPCFG");
+		writeLog("ERROR answer to AT+CIPSNTPCFG", "espntp_resolver");
 		exit(255);
+	}
+
+	delay(250);
+
+	if (espType == 32)
+	{
+		getAnswer3(); // "+TIME_UPDATED"
 	}
 
 retryTime:
 	count = 0;
 	delay(300);
-	finish = time() + 5 * 50;
+	finish = time() + (5 * 50);
 	sendcommand("AT+CIPSNTPTIME?");
-	do
-	{
-		byte = uartReadBlock();
-		// printf("[%c]", byte);
-		if (byte == timeUpdated[count])
-		{
-			count++;
-			// putchar(byte);
-		}
-		else
-		{
-			count = 0;
-		}
 
-		if (time() > finish)
-		{
-			puts("error getting time...");
-			exit(255);
-		}
-	} while (count < strlen(timeUpdated));
+	getAnswer3(); // TIME......
 
-	if (!getAnswerInt(3)) // TIME
+	count1 = strstr(netbuf, "+CIPSNTPTIME:");
+	if (count1 == NULL)
 	{
-		if (retryuart != 0)
-		{
-			retryuart--;
-			printf("Retry [UART][%u]\r\n", retryuart);
-			delay(500);
-			goto retryTime;
-		}
-		puts("error getting time...");
+		puts("Error. No '+CIPSNTPTIME:' in answer ");
+		writeLog("Error. No '+CIPSNTPTIME:' in answer", "espntp_resolver");
 		exit(255);
 	}
 
-	strncpy(cmd, netbuf, 3);
+	strncpy(cmd, netbuf + 13, 3);
 	cmd[3] = 0;
 
 	if (cmd[0] == 'S' && cmd[1] == 'u')
@@ -387,7 +351,7 @@ retryTime:
 		weekday = 7;
 	}
 
-	strncpy(cmd, netbuf + 4, 3);
+	strncpy(cmd, netbuf + 4 + 13, 3);
 	cmd[3] = 0;
 
 	if (cmd[0] == 'J' && cmd[1] == 'a')
@@ -439,39 +403,41 @@ retryTime:
 		month = 12;
 	}
 
-	strncpy(cmd, netbuf + 8, 2);
+	strncpy(cmd, netbuf + 8 + 13, 2);
 	cmd[2] = 0;
 	day = atoi(cmd);
 
-	strncpy(cmd, netbuf + 11, 2);
+	strncpy(cmd, netbuf + 11 + 13, 2);
 	hour = atoi(cmd);
 
-	strncpy(cmd, netbuf + 14, 2);
+	strncpy(cmd, netbuf + 14 + 13, 2);
 	minute = atoi(cmd);
 
-	strncpy(cmd, netbuf + 17, 2);
+	strncpy(cmd, netbuf + 17 + 13, 2);
 	second = atoi(cmd);
 
-	strncpy(cmd, netbuf + 22, 2);
+	strncpy(cmd, netbuf + 22 + 13, 2);
 	cmd[4] = 0;
 	year = atoi(cmd) + 100;
 
-	getAnswer3(); // OK
-
 	// printf("day of week:%u Month:%u day:%u hours:%u minutes:%u seconds:%u year:%u\r\n", weekday, month, day, hour, minute, second, year);
+
+	getAnswer3(); // OK
 
 	if (year == 170)
 	{
 		YIELD();
-		if (retry != 0)
+		if (retry == 0)
 		{
-			retry--;
-			printf("Retry [NTP][%u]\r\n", retry);
-			delay(500);
-			goto retryTime;
+			puts("error getting time...");
+			exit(255);
 		}
-		puts("error getting time...");
-		exit(255);
+
+		retry--;
+		printf("Retry [NTP][%u]\r\n", retry);
+		writeLog("Retry [NTP] incorrect year", "espntp_resolver");
+		delay(500);
+		goto retryTime;
 	}
 }
 
