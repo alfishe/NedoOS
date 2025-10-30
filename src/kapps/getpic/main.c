@@ -763,7 +763,7 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     strcpy(curFileStruct.picType, netbuf);
     parseJson("\"rating\":\"");
     strcpy(curFileStruct.picRating, netbuf);
-    parseJson("\"year\":\"");
+    parseJson("\"year\":");
     curFileStruct.picYear = atoi(netbuf);
     parseJson("\"totalAmount\":");
     curFileStruct.totalAmount = atol(netbuf);
@@ -1200,6 +1200,7 @@ C_task main(void)
   char result;
   OS_SETGFX(0x86);
   OS_CLS(0);
+
   init();
 
   OS_HIDEFROMPARENT();
@@ -1307,7 +1308,7 @@ start:
   }
 
   OS_SETGFX(0x86);
-
+  
   ////// Keys for pictures
 
   switch (keypress & 0xdf)
