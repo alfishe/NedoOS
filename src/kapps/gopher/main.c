@@ -111,7 +111,7 @@ struct time
 } clock;
 
 unsigned char nvext[1024];
-unsigned char netbuf[32768];
+unsigned char netbuf[31768];
 unsigned char heap[2000];
 
 void spaces(unsigned char number)

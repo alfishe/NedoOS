@@ -85,20 +85,6 @@ void clearStatus(void)
 {
 }
 
-void emptyKeys(void)
-{
-  unsigned char loop = 0, key;
-  do
-  {
-    key = OS_GETKEY();
-    if (loop > 64)
-    {
-      break;
-    }
-    loop++;
-  } while (key != 0);
-}
-
 void waitKey(void)
 {
   do
@@ -179,38 +165,7 @@ void printHelp(void)
 #include <../common/esp-com.c>
 #include <../common/network.c>
 //////////////////////////
-/*
-int getAnswerInt(int retries)
-{
-  unsigned char key = 0;
-  while (!getAnswer3() && retries != 0)
-  {
-    retries--;
-    printf("Retry [UART][%u]\r\n", retries);
 
-    if (retries == 0)
-    {
-      OS_CLS(0);
-      printf("\rAnswer reading timeout. press [Y] or [Enter] to retry, other key for abort. ");
-      key = getchar();
-      sprintf(cmd, "Error. User choose %u ", key);
-      writeLog(cmd, "getAnswerInt   ");
-
-      switch (key)
-      {
-      case 'y':
-      case 'Y':
-      case 13:
-        return 2;
-      default:
-        // quit();
-        return 0;
-      }
-    }
-  }
-  return 1;
-}
-*/
 int testOperation2(const char *process, int socket)
 {
   if (socket < 0)
@@ -234,7 +189,7 @@ int cutHeader(unsigned int todo)
     clearStatus();
     printf("HTTP response:[%u]\r\n", curFileStruct.httpErr);
 
-    sprintf(link, "HTTP Error %u @ %lu(%lu)", curFileStruct.httpErr, count, curFileStruct.picId);
+    sprintf(link, "HTTP Error %u @ %lu(%ld)", curFileStruct.httpErr, count, curFileStruct.picId);
     writeLog(link, "cutHeader      ");
     return 0;
   }
@@ -295,9 +250,8 @@ char *str_replace(char *dst, int num, const char *str, const char *orig, const c
 
 char fillPictureEsp(void)
 {
-  unsigned char sizeLink;
+  unsigned int sizeLink;
   unsigned long downloaded;
-  // unsigned char countl;
   unsigned int todo;
   const unsigned char *count1;
   unsigned char firstPacket;
@@ -309,37 +263,28 @@ char fillPictureEsp(void)
   {
     sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
 
-    if (!getAnswer3())
+    if (!getAnswer3()) // "CONNECT"
     {
       writeLog("Timeout 'AT+CIPSTART' return false", "fillPictureEsp ");
       return false;
     }
     count1 = strstr(netbuf, "CONNECT");
-  } while (count1 == NULL);
-
-  /*
-  do
-  {
-    sendcommand("AT+CIPSTART=\"TCP\",\"zxart.ee\",80");
-
-    switch (getAnswerInt(1))
+    if (count1 != NULL)
     {
-    case 0:
-      writeLog("Timeout 'AT+CIPSTART' - Abort ", "fillPictureEsp ");
-      return false;
-    case 2:
-      writeLog("Timeout 'AT+CIPSTART' - Retry ", "fillPictureEsp ");
-      uartFlush(100);
-      continue;
+      break;
     }
-    count1 = strstr(netbuf, "CONNECT");
-  } while (count1 == NULL);
-*/
-  if (!getAnswer3())
+    printf("Error in AT+CIPSTART \r\n[%s]", netbuf);
+    writeLog("Error in AT+CIPSTART. Not Connect", "fillPictureEsp ");
+    getchar();
+    quit();
+
+  } while (42);
+
+  if (!getAnswer3()) // OK
   {
     writeLog("Timeout waiting 'OK'", "fillPictureEsp ");
     return false;
-  } // OK
+  }
   sprintf(netbuf, "AT+CIPSEND=%u", sizeLink + 2); // second CRLF in send command
   sendcommand(netbuf);
 
@@ -362,28 +307,6 @@ char fillPictureEsp(void)
     writeLog("Timeout when waiting 'sendOk' ", "fillPictureEsp ");
     return false;
   }
-
-  /*
-  countl = 0;
-  do
-  {
-    byte = uartReadBlock();
-    if (byte > 255)
-    {
-      writeLog("Timeout when waiting 'sendOk' ", "fillPictureEsp ");
-      return false;
-    }
-
-    if (byte == sendOk[countl])
-    {
-      countl++;
-    }
-    else
-    {
-      countl = 0;
-    }
-  } while (countl < strlen(sendOk));
-*/
 
   byte = uartReadBlock(); // CR
   if (byte > 255)
@@ -434,9 +357,11 @@ char fillPictureEsp(void)
 
     if (downloaded + todo > sizeof(picture))
     {
-      printf("dataBuffer overrun... %u reached \n\r", downloaded + todo);
+      printf("dataBuffer overrun... %lu reached \n\r", downloaded + todo);
+      getchar();
       return false;
     }
+
     memcpy(picture + downloaded, netbuf + headlng, todo);
     downloaded = downloaded + todo;
   } while (downloaded < contLen);
@@ -583,10 +508,10 @@ unsigned char savePic(unsigned long fileId)
 
   ncReplace();
 
-  sprintf(curFileStruct.fileName, "%s-%s-%ld.scr", curFileStruct.afn, curFileStruct.pfn, fileId);
+  sprintf(curFileStruct.fileName, "%s-%s-%lu.scr", curFileStruct.afn, curFileStruct.pfn, fileId);
   if (strlen(curFileStruct.fileName) > 62)
   {
-    sprintf(fileIdChar, "-%ld", fileId);
+    sprintf(fileIdChar, "-%lu", fileId);
     str_replace(curFileStruct.fileName, sizeof(curFileStruct.fileName) - 1, curFileStruct.fileName, fileIdChar, "");
     curFileStruct.fileName[50] = '\0';
     strcat(curFileStruct.fileName, fileIdChar);
@@ -790,6 +715,7 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     puts(picture);
     puts("---------------");
     printf("PROCESS JSON: [ERROR: Bad responseStatus.] [Query:%u][Pic:%lu]\r\n", queryNum, startPos);
+    writeLog("PROCESS JSON: [ERROR: Bad responseStatus.]", "processJson    ");
     YIELD();
     getchar();
     return -1;
@@ -815,6 +741,7 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     puts(picture);
     puts("---------------");
     printf("PROCESS JSON: [ERROR: ID not found.] [Query:%u][Pic:%lu]\r\n", queryNum, startPos);
+    writeLog("PROCESS JSON: [ERROR: ID not found.]", "processJson    ");
     YIELD();
     return -2;
   }
@@ -864,7 +791,7 @@ void printData(void)
   OS_SETCOLOR(70);
   printf(" ID: ");
   OS_SETCOLOR(71);
-  printf("%lu ", curFileStruct.picId);
+  printf("%ld ", curFileStruct.picId);
   OS_SETCOLOR(70);
   printf(" Total Pics: ");
   OS_SETCOLOR(71);
@@ -1042,12 +969,11 @@ unsigned char inputBox(struct window w, const char *prefilled)
 
 void safeKeys(unsigned char keypress)
 {
-  switch (keypress)
+  switch (keypress & 0xdf)
   {
   case 27:
     quit();
     break;
-  case 'j':
   case 'J':
     curWin.w = 13;
     curWin.x = 80 / 2 - curWin.w / 2 - 2;
@@ -1061,7 +987,6 @@ void safeKeys(unsigned char keypress)
       sscanf(cmd, "%lu", &count);
     }
     break;
-  case 't':
   case 'T':
     curWin.w = 20;
     curWin.x = 80 / 2 - curWin.w / 2 - 2;
@@ -1084,15 +1009,12 @@ void safeKeys(unsigned char keypress)
       OS_CLS(0);
     }
     break;
-  case 'v':
   case 'V':
     verbose = !verbose;
     break;
-  case 'h':
   case 'H':
     printHelp();
     break;
-  case 'r':
   case 'R':
     randomPic = !randomPic;
     OS_SETCOLOR(70);
@@ -1112,7 +1034,6 @@ void safeKeys(unsigned char keypress)
       }
     }
     break;
-  case 'a':
   case 'A':
     slideShow = !slideShow;
     OS_SETCOLOR(70);
@@ -1131,7 +1052,6 @@ void safeKeys(unsigned char keypress)
       delayLong(500);
     }
     break;
-  case 'd':
   case 'D':
     netDriver = !netDriver;
     OS_SETCOLOR(70);
@@ -1151,7 +1071,6 @@ void safeKeys(unsigned char keypress)
       delayLong(500);
     }
     break;
-  case 'm':
   case 'M':
     curWin.w = 22;
     curWin.x = 80 / 2 - curWin.w / 2 - 2;
@@ -1258,31 +1177,21 @@ void init(void)
     if (!espReBoot())
     {
       puts("Error rebooting ESP!. Press any key to continue.");
+      writeLog("Error rebooting ESP!. Continue.", "main           ");
       getchar();
     }
     writeLog("GetPic Started & Inited.", "main           ");
   }
 }
 
-unsigned char viewScreen6912c(unsigned int bufAdr)
+void viewScreen6912c(unsigned int bufAdr)
 {
-  unsigned char key;
   OS_CLS(0);
   OS_SETBORDER(0);
   OS_SETGFX(0x83);
   SETPG32KHIGH(OS_GETSCR0() >> 8);
   memcpy((unsigned char *)(0xc000), (unsigned char *)(bufAdr), 6912);
-
-  if (slideShowTime != 0)
-  {
-    key = delayLongKey(slideShowTime * 20);
-  }
-  else
-  {
-    key = getchar();
-  }
-  OS_SETGFX(0x86);
-  return key;
+  return;
 }
 
 C_task main(void)
@@ -1328,13 +1237,13 @@ start:
     delayLong(500);
     goto start;
   case -4: // return xxxx picture, but empty body.
-    printf("[%u]Empty body is returned. Next picture, please.(%ld)...\r\n", curFileStruct.httpErr, count);
+    printf("[%u]Empty body is returned. Next picture, please.(%lu)...\r\n", curFileStruct.httpErr, count);
     writeLog("[-4]Empty body is returned. Next picture, please.", "main           ");
     delayLong(500);
     count++;
     goto start;
   case -1: // return HTTP error != 200
-    printf("[%u]Error getting pic info. Next picture, please(%ld)...\r\n", curFileStruct.httpErr, count);
+    printf("[%u]Error getting pic info. Next picture, please(%lu)...\r\n", curFileStruct.httpErr, count);
     writeLog("[-1]Error getting pic info. Next picture, please", "main           ");
     count++;
     delayLong(500);
@@ -1382,40 +1291,54 @@ start:
     goto start;
   }
 
-review:
-  YIELD();
-  keypress = viewScreen6912c((unsigned int)&picture);
-  //emptyKeys();
+  viewScreen6912c((unsigned int)&picture);
 
-  ////// Keys only for pictures
-  if (keypress == 's' || keypress == 'S')
+  if (slideShowTime != 0)
   {
-    printf("Saving ", curFileStruct.fileName);
-    savePic(iddqd);
-    printf("O.K.\r\n", curFileStruct.fileName);
-    count++;
+    keypress = delayLongKey(slideShowTime * 20);
+  }
+  else
+  {
+    do
+    {
+      YIELD();
+      keypress = OS_GETKEY();
+    } while (keypress == 0);
   }
 
-  if (keypress == 248 || keypress == 'b' || keypress == 'B')
+  OS_SETGFX(0x86);
+
+  ////// Keys for pictures
+
+  switch (keypress & 0xdf)
   {
+  case 'S':
+    printf("Saving ");
+    savePic(iddqd);
+    puts("O.K.");
+    count++;
+    break;
+  case 'B':
+  case 216:
     if (count > 0)
     {
       count--;
     }
-  }
-  if (keypress == 251 || keypress == 32)
-  {
+    break;
+  case 0: //' '
+  case 219:
     count++;
-    goto start;
-  }
-  if (keypress == 'i' || keypress == 'I')
-  {
+    break;
+  case 'I':
     printData();
     while (OS_GETKEY() == 0)
     {
+      YIELD();
     }
-    goto review;
+    break;
+  default:
+    safeKeys(keypress);
+    break;
   }
-  safeKeys(keypress);
   goto start;
 }

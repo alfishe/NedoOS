@@ -291,7 +291,6 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok == 0)
 			{
-				unsigned char cmd[128];
 				sprintf(cmd, "[AFC] receiving timeout.[c=%lu][t=%lu]", count, time() - strt);
 				writeLog(cmd, "uartReadBlock  ");
 				return 0xffff;
@@ -306,7 +305,6 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok == 0)
 			{
-				unsigned char cmd[128];
 				enable_interrupt();
 				sprintf(cmd, "[ATM2IOESP] receiving timeout.[c=%lu][t=%lu]", count, time() - strt);
 				writeLog(cmd, "uartReadBlock  ");

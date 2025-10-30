@@ -300,7 +300,12 @@ void espntp_resolver(void)
 
 	if (espType == 32)
 	{
-		getAnswer3(); // "+TIME_UPDATED"
+		if (!getAnswer3()) // "+TIME_UPDATED"
+		{
+			puts("Timeout waiting '+TIME_UPDATED'");
+			writeLog("Timeout waiting '+TIME_UPDATED'", "espntp_resolver");
+			exit(255);
+		}
 	}
 
 retryTime:
@@ -309,7 +314,12 @@ retryTime:
 	finish = time() + (5 * 50);
 	sendcommand("AT+CIPSNTPTIME?");
 
-	getAnswer3(); // TIME......
+	if (!getAnswer3()) // TIME......
+	{
+		puts("Timeout waiting answer to AT+CIPSNTPTIME?");
+		writeLog("Timeout waiting answer to AT+CIPSNTPTIME?", "espntp_resolver");
+		exit(255);
+	}
 
 	count1 = strstr(netbuf, "+CIPSNTPTIME:");
 	if (count1 == NULL)
@@ -422,7 +432,11 @@ retryTime:
 
 	// printf("day of week:%u Month:%u day:%u hours:%u minutes:%u seconds:%u year:%u\r\n", weekday, month, day, hour, minute, second, year);
 
-	getAnswer3(); // OK
+	if (!getAnswer3()) // OK
+	{
+		puts("Timeout waiting last OK. Continue");
+		writeLog("Timeout waiting last OK. Continue", "espntp_resolver");
+	}
 
 	if (year == 170)
 	{
@@ -482,7 +496,7 @@ C_task main(int argc, char *argv[])
 {
 	unsigned char i = 1;
 	os_initstdio();
-	printf("[TIME2 Build:%s  %s]\r\n", __DATE__, __TIME__);
+	printf("[TIME2 Build:%s  %s]\r\n\r\n", __DATE__, __TIME__);
 	is_atm = (unsigned char)OS_GETCONFIG();
 
 	if (argc == 1)
@@ -490,6 +504,7 @@ C_task main(int argc, char *argv[])
 		get_datetime();
 		puts(help);
 	}
+
 	while (i != argc)
 	{
 		char *p = argv[i];
