@@ -273,8 +273,8 @@ char fillPictureEsp(void)
     {
       break;
     }
-    printf("Error in AT+CIPSTART \r\n[%s]", netbuf);
-    writeLog("Error in AT+CIPSTART. Not Connect", "fillPictureEsp ");
+    printf("Error in AT+CIPSTART. Not Connect. \r\n[%s]", netbuf);
+    writeLog("Error in AT+CIPSTART. Not Connect.", "fillPictureEsp ");
     getchar();
     quit();
 
@@ -285,6 +285,7 @@ char fillPictureEsp(void)
     writeLog("Timeout waiting 'OK'", "fillPictureEsp ");
     return false;
   }
+  
   sprintf(netbuf, "AT+CIPSEND=%u", sizeLink + 2); // second CRLF in send command
   sendcommand(netbuf);
 
@@ -1188,9 +1189,9 @@ void viewScreen6912c(unsigned int bufAdr)
 {
   OS_CLS(0);
   OS_SETBORDER(0);
-  OS_SETGFX(0x83);
   SETPG32KHIGH(OS_GETSCR0() >> 8);
   memcpy((unsigned char *)(0xc000), (unsigned char *)(bufAdr), 6912);
+  OS_SETGFX(0x83);
   return;
 }
 
@@ -1308,7 +1309,7 @@ start:
   }
 
   OS_SETGFX(0x86);
-  
+
   ////// Keys for pictures
 
   switch (keypress & 0xdf)
