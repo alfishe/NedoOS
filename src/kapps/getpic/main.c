@@ -285,7 +285,7 @@ char fillPictureEsp(void)
     writeLog("Timeout waiting 'OK'", "fillPictureEsp ");
     return false;
   }
-  
+
   sprintf(netbuf, "AT+CIPSEND=%u", sizeLink + 2); // second CRLF in send command
   sendcommand(netbuf);
 
@@ -1251,18 +1251,16 @@ start:
     delayLong(500);
     goto start;
   }
-
-  idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
-  if (idkfa < 0)
-  {
-    printf("[%u]Error can't parse authorIds(%s). Next picture, please...\r\n", curFileStruct.httpErr, curFileStruct.authorIds);
-    count++;
-    delayLong(500);
-    goto start;
-  }
-
   if (verbose)
   {
+    idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
+    if (idkfa < 0)
+    {
+      printf("[%u]Error can't parse authorIds(%s). Next picture, please...\r\n", curFileStruct.httpErr, curFileStruct.authorIds);
+      strcpy(curFileStruct.authorTitle, "ErrorGet");
+      strcpy(curFileStruct.authorRealName, "Error Getting Name");
+    }
+
     OS_CLS(0);
     printData();
   }
@@ -1315,7 +1313,19 @@ start:
   switch (keypress & 0xdf)
   {
   case 'S':
+    if (!verbose)
+    {
+      idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
+      if (idkfa < 0)
+      {
+        printf("[%u]Error can't parse authorIds(%s). Next picture, please...\r\n", curFileStruct.httpErr, curFileStruct.authorIds);
+        strcpy(curFileStruct.authorTitle, "ErrorGet");
+        strcpy(curFileStruct.authorRealName, "Error Getting Name");
+      }
+    }
+
     printf("Saving ");
+
     savePic(iddqd);
     puts("O.K.");
     count++;
