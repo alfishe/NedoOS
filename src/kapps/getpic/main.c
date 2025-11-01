@@ -58,7 +58,7 @@ struct sockaddr_in dnsaddress;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 
-unsigned char ver[] = "4.7";
+unsigned char ver[] = "4.8";
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
@@ -269,15 +269,20 @@ char fillPictureEsp(void)
       return false;
     }
     count1 = strstr(netbuf, "CONNECT");
-    if (count1 != NULL)
+    if (count1 == NULL)
+    {
+      printf("Error in AT+CIPSTART. Not Connect. \r\n[%s]", netbuf);
+      writeLog("Error in AT+CIPSTART. Not Connect.", "fillPictureEsp ");
+      espReBoot();
+      if (OS_GETKEY() == 27)
+      {
+        quit();
+      }
+    }
+    else
     {
       break;
     }
-    printf("Error in AT+CIPSTART. Not Connect. \r\n[%s]", netbuf);
-    writeLog("Error in AT+CIPSTART. Not Connect.", "fillPictureEsp ");
-    getchar();
-    quit();
-
   } while (42);
 
   if (!getAnswer3()) // OK
