@@ -170,6 +170,7 @@ int testOperation2(const char *process, int socket)
 {
   if (socket < 0)
   {
+    OS_SETGFX(0x86);
     printf("%s: [ERROR:", process);
     errorPrint(-socket);
     printf("]\r\n");
@@ -186,9 +187,6 @@ int cutHeader(unsigned int todo)
   curFileStruct.httpErr = httpError();
   if (curFileStruct.httpErr != 200)
   {
-    clearStatus();
-    printf("HTTP response:[%u]\r\n", curFileStruct.httpErr);
-
     sprintf(link, "HTTP Error %u @ %lu(%ld)", curFileStruct.httpErr, count, curFileStruct.picId);
     writeLog(link, "cutHeader      ");
     return 0;
@@ -196,8 +194,7 @@ int cutHeader(unsigned int todo)
   count1 = strstr(netbuf, "Content-Length:");
   if (count1 == NULL)
   {
-    clearStatus();
-    printf("contLen not found");
+    writeLog("contLen not found", "cutHeader      ");
     contLen = 0;
     curFileStruct.httpErr = 999; // bad kostil
     return 0;
@@ -208,8 +205,7 @@ int cutHeader(unsigned int todo)
   count1 = strstr(netbuf, "\r\n\r\n");
   if (count1 == NULL)
   {
-    clearStatus();
-    printf("end of header not found\r\n");
+    writeLog("end of header not found", "cutHeader      ");
   }
   else
   {
@@ -271,7 +267,7 @@ char fillPictureEsp(void)
     count1 = strstr(netbuf, "CONNECT");
     if (count1 == NULL)
     {
-      printf("Error in AT+CIPSTART. Not Connect. \r\n[%s]", netbuf);
+      OS_SETGFX(0x86);
       writeLog("Error in AT+CIPSTART. Not Connect.", "fillPictureEsp ");
       espReBoot();
       if (OS_GETKEY() == 27)
@@ -421,7 +417,7 @@ char fillPictureNet(void)
   {
     headlng = 0;
     todo = tcpRead(socket, retry);
-    testOperation("OS_WIZNETREAD", todo); // Quit if too many retries
+    testOperation2("OS_WIZNETREAD", todo); // Quit if too many retries
 
     if (firstPacket)
     {
@@ -436,6 +432,7 @@ char fillPictureNet(void)
 
     if (downloaded + todo > sizeof(picture))
     {
+      OS_SETGFX(0x86);
       printf("dataBuffer overrun... %u reached \n\r", downloaded + todo);
       return false;
     }
@@ -715,15 +712,6 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   count1 = strstr(picture, "responseStatus\":\"success");
   if (count1 == NULL)
   {
-    OS_CLS(0);
-    OS_SETCOLOR(66);
-    puts("Picture[]:");
-    puts(picture);
-    puts("---------------");
-    printf("PROCESS JSON: [ERROR: Bad responseStatus.] [Query:%u][Pic:%lu]\r\n", queryNum, startPos);
-    writeLog("PROCESS JSON: [ERROR: Bad responseStatus.]", "processJson    ");
-    YIELD();
-    getchar();
     return -1;
   }
 
@@ -741,14 +729,6 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     {
       return -4;
     }
-    OS_CLS(0);
-    OS_SETCOLOR(66);
-    puts("Picture[]:");
-    puts(picture);
-    puts("---------------");
-    printf("PROCESS JSON: [ERROR: ID not found.] [Query:%u][Pic:%lu]\r\n", queryNum, startPos);
-    writeLog("PROCESS JSON: [ERROR: ID not found.]", "processJson    ");
-    YIELD();
     return -2;
   }
   netbuf[0] = 0;
@@ -790,6 +770,8 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
 
 void printData(void)
 {
+  OS_SETGFX(0x86);
+  OS_CLS(0);
   OS_SETCOLOR(70);
   printf(" #: ");
   OS_SETCOLOR(71);
@@ -1238,18 +1220,21 @@ start:
   switch (iddqd)
   {
   case -3: // return 0 pictures
+    OS_SETGFX(0x86);
     strcpy(minRating, "1.0");
     printf("[%u]No picture is returned in query. Minimal rating is set to %s\r\n", curFileStruct.httpErr, minRating);
     writeLog("[-3]No picture is returned in query. minRating=1.0", "main           ");
     delayLong(500);
     goto start;
   case -4: // return xxxx picture, but empty body.
+    OS_SETGFX(0x86);
     printf("[%u]Empty body is returned. Next picture, please.(%lu)...\r\n", curFileStruct.httpErr, count);
     writeLog("[-4]Empty body is returned. Next picture, please.", "main           ");
     delayLong(500);
     count++;
     goto start;
   case -1: // return HTTP error != 200
+    OS_SETGFX(0x86);
     printf("[%u]Error getting pic info. Next picture, please(%lu)...\r\n", curFileStruct.httpErr, count);
     writeLog("[-1]Error getting pic info. Next picture, please", "main           ");
     count++;
@@ -1261,17 +1246,17 @@ start:
     idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
     if (idkfa < 0)
     {
+      OS_SETGFX(0x86);
       printf("[%u]Error can't parse authorIds(%s). Next picture, please...\r\n", curFileStruct.httpErr, curFileStruct.authorIds);
       strcpy(curFileStruct.authorTitle, "ErrorGet");
       strcpy(curFileStruct.authorRealName, "Error Getting Name");
     }
-
-    OS_CLS(0);
     printData();
   }
 
   if (strcmp(curFileStruct.picType, "standard") != 0)
   {
+    OS_SETGFX(0x86);
     printf("[%u]Error format '%s' not supported. Next picture, please.\n\r", curFileStruct.httpErr, curFileStruct.picType);
     delayLong(500);
     count++;
@@ -1290,6 +1275,7 @@ start:
 
   if (!result) // return HTTP error != 200
   {
+    OS_SETGFX(0x86);
     printf("[%u]Error getting pic. Next picture, please...\r\n", curFileStruct.httpErr);
     count++;
     delayLong(500);
@@ -1311,13 +1297,14 @@ start:
     } while (keypress == 0);
   }
 
-  OS_SETGFX(0x86);
+  // OS_SETGFX(0x86);
 
   ////// Keys for pictures
 
   switch (keypress & 0xdf)
   {
   case 'S':
+    OS_SETGFX(0x86);
     if (!verbose)
     {
       idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
@@ -1354,6 +1341,7 @@ start:
     }
     break;
   default:
+    OS_SETGFX(0x86);
     safeKeys(keypress);
     break;
   }
