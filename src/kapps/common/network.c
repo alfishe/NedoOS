@@ -33,6 +33,56 @@ int httpError(void)
   return httpErr;
 }
 
+void getErrorText(unsigned int error, char *buf)
+{
+  error = error & 0xff;
+  switch (error)
+  {
+  case 2:
+    strcpy(buf, "02 SHUT_RDWR");
+    break;
+  case 4:
+    strcpy(buf, "04 ERR_INTR");
+    break;
+  case 23:
+    strcpy(buf, "23 ERR_NFILE");
+    break;
+  case 35:
+    strcpy(buf, "35 ERR_EAGAIN");
+    break;
+  case 37:
+    strcpy(buf, "37 ERR_ALREADY");
+    break;
+  case 38:
+    strcpy(buf, "38 ERR_NOTSOCK");
+    break;
+  case 40:
+    strcpy(buf, "40 ERR_EMSGSIZE");
+    break;
+  case 41:
+    strcpy(buf, "41 ERR_PROTOTYPE");
+    break;
+  case 47:
+    strcpy(buf, "47 ERR_AFNOSUPPORT");
+    break;
+  case 53:
+    strcpy(buf, "53 ERR_ECONNABORTED");
+    break;
+  case 54:
+    strcpy(buf, "54 ERR_CONNRESET");
+    break;
+  case 57:
+    strcpy(buf, "57 ERR_NOTCONN");
+    break;
+  case 65:
+    strcpy(buf, "65 ERR_HOSTUNREACH");
+    break;
+  default:
+    sprintf(buf, "%u UNKNOWN ERROR", error);
+    break;
+  }
+}
+
 void errorPrint(unsigned int error)
 {
   switch (error)
@@ -177,6 +227,7 @@ int tcpSend(signed char socket, unsigned int messageadr, unsigned int size, unsi
 int tcpRead(signed char socket, unsigned char retry)
 {
   unsigned int todo = 0;
+  char key;
 
   readStruct.socket = socket;
   readStruct.BufAdr = (unsigned int)&netbuf;
@@ -193,6 +244,14 @@ int tcpRead(signed char socket, unsigned char retry)
       {
         retry--;
         delayLong(500);
+      }
+      else
+      {
+        key = _low_level_get();
+        if (key == 27)
+        {
+          break;
+        }
       }
     }
     else
@@ -248,6 +307,7 @@ unsigned char dnsResolve(const char *domainName)
   todo = OS_WIZNETWRITE_UDP(&readStruct, &dnsaddress);
   if (todo > 32767)
   {
+    putchar('\r');
     errorPrint(todo & 255);
     return 0;
   }

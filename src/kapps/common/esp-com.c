@@ -238,7 +238,7 @@ unsigned char uart_read(void)
 unsigned int uartReadBlock(void)
 {
 	unsigned char data;
-	unsigned long strt;
+	unsigned long strt = 0;
 	strt = time();
 
 	timerok = factor;
@@ -344,17 +344,20 @@ void uartFlush(unsigned int millis)
 char getdataEsp(unsigned int counted)
 {
 	unsigned int counter;
+	unsigned long strt = 0;
 	switch (comType)
 	{
 	case 0: // Kondratyev  NO AFC
 		for (counter = 0; counter < counted; counter++)
 		{
+			strt = time();
+
 			timerok = factor;
 			while ((1 & input(LSR)) == 0)
 			{
 				if (timerok == 0)
 				{
-					sprintf(cmd, "[NO AFC] receiving timeout.[c=%lu]", count);
+					sprintf(cmd, "[NO AFC] Timeout.[Downloaded:%u of %u][t=%lu]", counter, counted, time() - strt);
 					writeLog(cmd, "getDataEsp     ");
 					return false;
 				}
@@ -370,12 +373,14 @@ char getdataEsp(unsigned int counted)
 	case 1: // ATM2 COM port
 		for (counter = 0; counter < counted; counter++)
 		{
+			strt = time();
+
 			timerok = factor;
 			while (uart_hasByte() == 0)
 			{
 				if (timerok == 0)
 				{
-					sprintf(cmd, "[ATM2 COM] receiving timeout.[c=%lu]", count);
+					sprintf(cmd, "[ATM2 COM] Timeout.[Downloaded:%u of %u][t=%lu]", counter, counted, time() - strt);
 					writeLog(cmd, "getDataEsp     ");
 					return false;
 				}
@@ -398,12 +403,14 @@ char getdataEsp(unsigned int counted)
 	case 2: // Kondratyev AFC
 		for (counter = 0; counter < counted; counter++)
 		{
+			strt = time();
+
 			timerok = factor;
 			while ((1 & input(LSR)) == 0)
 			{
 				if (timerok == 0)
 				{
-					sprintf(cmd, "[AFC] receiving timeout.[c=%lu]", count);
+					sprintf(cmd, "[AFC] Timeout.[Downloaded:%u of %u][t=%lu]", counter, counted, time() - strt);
 					writeLog(cmd, "getDataEsp     ");
 					return false;
 				}
@@ -415,6 +422,8 @@ char getdataEsp(unsigned int counted)
 	case 3: // ATM2IOESP
 		for (counter = 0; counter < counted; counter++)
 		{
+			strt = time();
+
 			timerok = factor;
 			disable_interrupt();
 			output(0xfb, LSR);
@@ -422,7 +431,7 @@ char getdataEsp(unsigned int counted)
 			{
 				if (timerok == 0)
 				{
-					sprintf(cmd, "[ATM2IOESP] receiving timeout.[c=%lu]", count);
+					sprintf(cmd, "[ATM2IOESP] Timeout.[Downloaded:%u of %u][t=%lu]", counter, counted, time() - strt);
 					writeLog(cmd, "getDataEsp     ");
 					return false;
 				}

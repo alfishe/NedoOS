@@ -30,7 +30,7 @@ unsigned int espRetry = 5;
 unsigned long factor, timerok, count = 0;
 unsigned int magic = 15;
 
-unsigned char uVer[] = "1.9";
+unsigned char uVer[] = "2.0";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -67,7 +67,7 @@ struct configuration
 
 unsigned char netbuf[4096];
 
-unsigned char cmdlist1[] = " HTTP/1.1\r\nHost: nedoos.ru\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
+unsigned char userAgent[] = " HTTP/1.1\r\nHost: nedoos.ru\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
 unsigned char binLink[] = "http://nedoos.ru/images/sysbin.zip";
 unsigned char pkunzipLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/pkunzip.com";
 unsigned char tarLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/tar.com";
@@ -94,12 +94,21 @@ void clearNetBuf(void)
 	}
 }
 
+void spaces(unsigned char number)
+{
+	while (number > 0)
+	{
+		putchar(' ');
+		number--;
+	}
+}
+
 void clearStatus(void)
 {
 	AT(1, 24);
-	printf("                                                                                \r");
+	spaces(79);
+	putchar('\r');
 }
-
 void printTable(void)
 {
 	unsigned int cycle;
@@ -147,7 +156,7 @@ unsigned char delayLongKey(unsigned long counter)
 	while (start < finish)
 	{
 		start = time();
-		key = OS_GETKEY();
+		key = _low_level_get();
 		if (key != 0)
 		{
 			return key;
@@ -162,7 +171,7 @@ void waitKey(void)
 	do
 	{
 		YIELD();
-	} while (OS_GETKEY() == 0);
+	} while (_low_level_get() == 0);
 }
 
 void printNews(void) // max 20 lines in total and 59 col.
@@ -441,140 +450,240 @@ unsigned int cutHeader(void)
 	}
 	return ((unsigned int)count1 - (unsigned int)netbuf + 4);
 }
-unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
+
+char testOperation3(const char *process, int socket)
+{
+	if (socket < 0)
+	{
+		clearStatus();
+		getErrorText(-socket, cmd);
+		printf("%s: [ERROR:%s]          ", process, cmd);
+		YIELD();
+		return false;
+	}
+	return true;
+}
+
+unsigned char getFileNet(const unsigned char *fileLink, unsigned char *fileNamePtr)
 {
 	int todo;
 	char socket, firstPacket;
 	unsigned int fileSize1;
 	unsigned long downloaded = 0;
+	unsigned int down;
+	sprintf(netbuf, "GET %s%s", fileLink, userAgent);
+	socket = OpenSock(AF_INET, SOCK_STREAM);
+	if (!testOperation3("OS_NETSOCKET", socket))
+	{
+		return false;
+	}
+
+	todo = netConnect(socket, 1);
+	if (!testOperation3("OS_NETCONNECT", todo))
+	{
+		return false;
+	}
+
+	todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), 1);
+	if (!testOperation3("OS_WIZNETWRITE", todo))
+	{
+		return false;
+	}
+
+	firstPacket = true;
+
+	do
+	{
+		headlng = 0;
+		todo = tcpRead(socket, 1);
+		if (!testOperation3("OS_WIZNETREAD", todo))
+		{
+			return false;
+		}
+
+		if (firstPacket)
+		{
+			firstPacket = false;
+			headlng = cutHeader();
+			todo = todo - headlng;
+			fileSize1 = contLen / 1024;
+			saveBuf(fileNamePtr, 00, 0);
+		}
+
+		downloaded = downloaded + todo;
+		down = downloaded / 1024;
+		printf("\r %5u of %5u kb     ", down, fileSize1);
+		saveBuf(fileNamePtr, 01, todo);
+		if (_low_level_get() == 27)
+		{
+			saveBuf(fileNamePtr, 02, 00);
+			fatalError("Updating aborted!");
+		}
+	} while (downloaded < contLen);
+	netShutDown(socket, 0);
+	saveBuf(fileNamePtr, 02, 00);
+
+	if (downloaded != contLen)
+	{
+		return false;
+	}
+	return true;
+}
+
+unsigned char getFileEsp(const unsigned char *fileLink, unsigned char *fileNamePtr)
+{
+	int todo;
+	char firstPacket = true;
+	unsigned int fileSize1;
+	unsigned long downloaded = 0;
 	unsigned int down, byte;
 	unsigned int sizeLink;
-	unsigned char count;
-	// const unsigned char *count1;
-	unsigned char temp[64];
-	/*
-	strcpy(netbuf, "GET ");
-	strcat(netbuf, fileLink);
-	strcat(netbuf, cmdlist1);
-	*/
-	sprintf(netbuf, "GET %s%s", fileLink, cmdlist1);
+	const unsigned char *count1;
 
-	clearStatus();
-	AT(1, 24);
-	printf("%s", fileNamePtr);
-
-	if (netDriver == 0)
+	do
 	{
-		socket = OpenSock(AF_INET, SOCK_STREAM);
-		testOperation("OS_NETSOCKET", socket);
+		sendcommand("AT+CIPSTART=\"TCP\",\"nedoos.ru\",80");
 
-		todo = netConnect(socket, 1);
-		testOperation("OS_NETCONNECT", todo);
-
-		todo = tcpSend(socket, (unsigned int)&netbuf, strlen(netbuf), 1);
-		testOperation("OS_WIZNETWRITE", todo);
-
-		firstPacket = true;
-		putchar('\r');
-		do
+		if (!getAnswer3()) // "CONNECT"
 		{
-			headlng = 0;
-			todo = tcpRead(socket, 1);
-			testOperation("OS_WIZNETREAD", todo);
-
-			if (firstPacket)
+			writeLog("Timeout 'AT+CIPSTART' return false", "getFileEsp     ");
+			return false;
+		}
+		count1 = strstr(netbuf, "CONNECT");
+		if (count1 == NULL)
+		{
+			OS_SETGFX(0x86);
+			writeLog("Error in AT+CIPSTART. Not Connect.", "getFileEsp     ");
+			espReBoot();
+			if (_low_level_get() == 27)
 			{
-				firstPacket = false;
-				headlng = cutHeader();
-				todo = todo - headlng;
-				fileSize1 = contLen / 1024;
-				saveBuf(fileNamePtr, 00, 0);
+				exit(255);
 			}
-
-			downloaded = downloaded + todo;
-			down = downloaded / 1024;
-			sprintf(temp, " %5u of %5u kb     ", down, fileSize1);
-			printf("%s\r", temp);
-			saveBuf(fileNamePtr, 01, todo);
-		} while (downloaded < contLen);
-		netShutDown(socket, 0);
-		saveBuf(fileNamePtr, 02, 00);
-
-		if (downloaded != contLen)
+		}
+		else
 		{
-			fatalError("File download error!");
+			break;
+		}
+	} while (42);
+
+	sprintf(link, "GET %s%s", fileLink, userAgent);
+	sizeLink = strlen(link);
+
+	sprintf(cmd, "AT+CIPSEND=%u", sizeLink + 2); // second CRLF in send command
+	sendcommand(cmd);
+	do
+	{
+		byte = uartReadBlock();
+		if (byte > 255)
+		{
+			writeLog("Timeout when waiting '>' ", "getFileEsp     ");
+			return false;
+		}
+		// putchar(byte);
+	} while (byte != '>');
+
+	sendcommand(link);
+
+	if (!getAnswer3()) // 'sendOk'
+	{
+		writeLog("Timeout when waiting 'sendOk' ", "getFileEsp     ");
+		return false;
+	}
+
+	byte = uartReadBlock(); // CR
+	if (byte > 255)
+	{
+		writeLog("Timeout when waiting 'CR' ", "getFileEsp     ");
+		return false;
+	}
+
+	byte = uartReadBlock(); // LF
+	if (byte > 255)
+	{
+		writeLog("Timeout when waiting 'LF' ", "getFileEsp     ");
+		return false;
+	}
+
+	do
+	{
+		headlng = 0;
+		todo = recvHead();
+
+		if (todo == 0)
+		{
+			writeLog("Error parsing packet size, todo = 0", "getFileEsp     ");
+			return false;
+		}
+
+		if (!getdataEsp(todo))
+		{
+			writeLog("Downloading timeout in getdataEsp. Exit!", "getFileEsp     ");
+			fatalError("[getdataEsp]Downloading timeout. Exit!");
+		}
+
+		if (firstPacket)
+		{
+			firstPacket = false;
+			headlng = cutHeader();
+			todo = todo - headlng;
+			fileSize1 = contLen / 1024;
+			saveBuf(fileNamePtr, 00, 0);
+		}
+		downloaded = downloaded + todo;
+		down = downloaded / 1024;
+		printf("\r %5u of %5u kb     ", down, fileSize1);
+		saveBuf(fileNamePtr, 01, todo);
+		if (_low_level_get() == 27)
+		{
+			saveBuf(fileNamePtr, 02, 00);
+			fatalError("Updating aborted! Exit.");
+		}
+
+	} while (downloaded < contLen);
+	saveBuf(fileNamePtr, 02, 00);
+	sendcommand("AT+CIPCLOSE");
+
+	if (!getAnswer3()) // CLOSED or ERROR
+	{
+		writeLog("Timeout  waiting CLOSED or ERROR continue", "fillPictureEsp ");
+	}
+
+	count1 = strstr(netbuf, "CLOSED");
+	if (count1 != NULL)
+	{
+		if (!getAnswer3()) // OK
+		{
+			writeLog("Timeout  waiting OK after CLOSED continue", "fillPictureEsp ");
 		}
 	}
-	if (netDriver == 1)
+
+	return true;
+}
+
+unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
+{
+	char result;
+	clearStatus();
+	AT(26, 24);
+	printf("%s", fileNamePtr);
+
+	switch (netDriver)
 	{
-		strcpy(link, netbuf);
-		sizeLink = strlen(link);
-		do
-		{
-			sendcommand("AT+CIPSTART=\"TCP\",\"nedoos.ru\",80");
-			getAnswer3(); // CONNECT or ERROR or link is not valid
-		} while (strstr(netbuf, "CONNECT") == NULL);
-
-		getAnswer3(); // OK
-
-		sprintf(cmd, "AT+CIPSEND=%u", sizeLink + 2); // second CRLF in send command
-		sendcommand(cmd);
-		getAnswer3();
-		do
-		{
-			byte = uartReadBlock();
-			// putchar(byte);
-		} while (byte != '>');
-		sendcommand(link);
-		count = 0;
-
-		do
-		{
-			byte = uartReadBlock();
-			if (byte == sendOk[count])
-			{
-				count++;
-			}
-			else
-			{
-				count = 0;
-			}
-		} while (count < strlen(sendOk));
-		uartReadBlock(); // CR
-		uartReadBlock(); // LF
-
-		firstPacket = true;
-		putchar('\r');
-		do
-		{
-			headlng = 0;
-			todo = recvHead();
-
-			if (!getdataEsp(todo))
-			{
-				fatalError("[getdataEsp]Downloading timeout. Exit!");
-			}
-
-			if (firstPacket)
-			{
-				firstPacket = false;
-				headlng = cutHeader();
-				todo = todo - headlng;
-				fileSize1 = contLen / 1024;
-				saveBuf(fileNamePtr, 00, 0);
-			}
-			downloaded = downloaded + todo;
-			down = downloaded / 1024;
-			sprintf(temp, " %5u of %5u kb     ", down, fileSize1);
-			printf("%s\r", temp);
-			saveBuf(fileNamePtr, 01, todo);
-		} while (downloaded < contLen);
-		saveBuf(fileNamePtr, 02, 00);
-		sendcommand("AT+CIPCLOSE");
-		getAnswer3(); // CLOSED
-		getAnswer3(); // OK
+	case 0:
+		result = getFileNet(fileLink, fileNamePtr);
+		break;
+	case 1:
+		result = getFileEsp(fileLink, fileNamePtr);
+		break;
 	}
-	return 0;
+
+	if (!result)
+	{
+		sprintf(cmd, "%s download error!", fileNamePtr);
+		fatalError(cmd);
+	}
+
+	return false;
 }
 
 unsigned char getConfig(void)
@@ -614,6 +723,7 @@ unsigned char getConfig(void)
 	}
 	return config.is_atm;
 }
+
 // Downloading minimal tools for updating/boot
 void getTools(void)
 {
