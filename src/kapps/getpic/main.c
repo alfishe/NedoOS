@@ -81,6 +81,13 @@ unsigned char picture[15000];
 unsigned char netbuf[4000];
 unsigned char curPath[128];
 
+void quit(void)
+{
+  OS_CLS(0);
+  OS_SETGFX(-1);
+  exit(0);
+}
+
 void clearStatus(void)
 {
 }
@@ -95,21 +102,26 @@ void waitKey(void)
 
 unsigned char delayLongKey(unsigned long counter)
 {
-  unsigned long start, finish, key;
+  unsigned long curTime, finish;
+  char key;
   counter = counter / 20;
   if (counter < 1)
   {
     counter = 1;
   }
-  start = time();
-  finish = start + counter;
+  curTime = time();
+  finish = curTime + counter;
 
-  while (start < finish)
+  while (curTime < finish)
   {
-    start = time();
+    curTime = time();
     key = OS_GETKEY();
     if (key != 0)
     {
+      if (key == 27)
+      {
+        quit();
+      }
       return key;
     }
     YIELD();
@@ -124,12 +136,6 @@ void spaces(unsigned char number)
     putchar(' ');
     number--;
   }
-}
-void quit(void)
-{
-  OS_CLS(0);
-  OS_SETGFX(-1);
-  exit(0);
 }
 
 void printHelp(void)
@@ -247,10 +253,10 @@ char *str_replace(char *dst, int num, const char *str, const char *orig, const c
 char fillPictureEsp(void)
 {
   unsigned int sizeLink;
-  unsigned long downloaded;
-  unsigned int todo;
+  unsigned int downloaded = 0;
+  int todo;
   const unsigned char *count1;
-  unsigned char firstPacket;
+  unsigned char firstPacket = true;
   unsigned int byte;
   strcpy(link, netbuf);
   sizeLink = strlen(link);
@@ -268,12 +274,10 @@ char fillPictureEsp(void)
     if (count1 == NULL)
     {
       OS_SETGFX(0x86);
-      writeLog("Error in AT+CIPSTART. Not Connect.", "fillPictureEsp ");
+      writeLog("Error in AT+CIPSTART. Not 'CONNECT'.", "fillPictureEsp ");
       espReBoot();
-      if (OS_GETKEY() == 27)
-      {
-        quit();
-      }
+
+      delayLongKey(1000);
     }
     else
     {
@@ -1197,6 +1201,7 @@ C_task main(void)
   safeKeys(keypress);
 
 start:
+
   keypress = 0;
 
   if (count > curFileStruct.totalAmount - 1)
@@ -1224,21 +1229,22 @@ start:
     strcpy(minRating, "1.0");
     printf("[%u]No picture is returned in query. Minimal rating is set to %s\r\n", curFileStruct.httpErr, minRating);
     writeLog("[-3]No picture is returned in query. minRating=1.0", "main           ");
-    delayLong(500);
+    delayLongKey(2000);
+
     goto start;
   case -4: // return xxxx picture, but empty body.
     OS_SETGFX(0x86);
-    printf("[%u]Empty body is returned. Next picture, please.(%lu)...\r\n", curFileStruct.httpErr, count);
-    writeLog("[-4]Empty body is returned. Next picture, please.", "main           ");
-    delayLong(500);
+    printf("[%u]Empty body is returned. Next picture(%lu)...\r\n", curFileStruct.httpErr, count);
+    writeLog("[-4]Empty body is returned. Next picture.", "main           ");
     count++;
+    delayLongKey(2000);
     goto start;
   case -1: // return HTTP error != 200
     OS_SETGFX(0x86);
-    printf("[%u]Error getting pic info. Next picture, please(%lu)...\r\n", curFileStruct.httpErr, count);
-    writeLog("[-1]Error getting pic info. Next picture, please", "main           ");
+    printf("[%u]Error getting pic info. Next picture(%lu)...\r\n", curFileStruct.httpErr, count);
+    writeLog("[-1]Error getting pic info. Next picture.", "main           ");
     count++;
-    delayLong(500);
+    delayLongKey(2000);
     goto start;
   }
   if (verbose)
@@ -1247,7 +1253,7 @@ start:
     if (idkfa < 0)
     {
       OS_SETGFX(0x86);
-      printf("[%u]Error can't parse authorIds(%s). Next picture, please...\r\n", curFileStruct.httpErr, curFileStruct.authorIds);
+      printf("[%u]Error can't parse authorIds(%s).\r\n", curFileStruct.httpErr, curFileStruct.authorIds);
       strcpy(curFileStruct.authorTitle, "ErrorGet");
       strcpy(curFileStruct.authorRealName, "Error Getting Name");
     }
@@ -1257,9 +1263,9 @@ start:
   if (strcmp(curFileStruct.picType, "standard") != 0)
   {
     OS_SETGFX(0x86);
-    printf("[%u]Error format '%s' not supported. Next picture, please.\n\r", curFileStruct.httpErr, curFileStruct.picType);
-    delayLong(500);
+    printf("[%u]Error format '%s' not supported. Next picture.\n\r", curFileStruct.httpErr, curFileStruct.picType);
     count++;
+    delayLongKey(2000);
     goto start;
   }
   sprintf(netbuf, "GET /file/id:%ld%s", iddqd, userAgent);
@@ -1276,9 +1282,9 @@ start:
   if (!result) // return HTTP error != 200
   {
     OS_SETGFX(0x86);
-    printf("[%u]Error getting pic. Next picture, please...\r\n", curFileStruct.httpErr);
+    printf("[%u]Error getting pic. Next picture.\r\n", curFileStruct.httpErr);
     count++;
-    delayLong(500);
+    delayLongKey(2000);
     goto start;
   }
 
@@ -1310,7 +1316,7 @@ start:
       idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
       if (idkfa < 0)
       {
-        printf("[%u]Error can't parse authorIds(%s). Next picture, please...\r\n", curFileStruct.httpErr, curFileStruct.authorIds);
+        printf("[%u]Error can't parse authorIds(%s). Next picture.\r\n", curFileStruct.httpErr, curFileStruct.authorIds);
         strcpy(curFileStruct.authorTitle, "ErrorGet");
         strcpy(curFileStruct.authorRealName, "Error Getting Name");
       }

@@ -266,7 +266,6 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok == 0)
 			{
-				enable_interrupt();
 				sprintf(cmd, "[ATM2 COM] receiving timeout.[c=%lu][t=%lu]", count, time() - strt);
 				writeLog(cmd, "uartReadBlock  ");
 				return 0xffff;
@@ -279,9 +278,9 @@ unsigned int uartReadBlock(void)
 			input(0x55fe); // Переход в режим команд
 			input(0x43fe); // Команда установить статус
 			input(0x00fe); // Снимаем готовность DTR и RTS
-						   // enable_interrupt();
+			enable_interrupt();
 		}
-		// disable_interrupt();
+		disable_interrupt();
 		input(0x55fe);		  // Переход в режим команд
 		data = input(0x02fe); // Команда прочесть из порта
 		enable_interrupt();
