@@ -80,7 +80,7 @@ unsigned char netIniLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/net.i
 unsigned char relLink[] = "http://nedoos.ru/images/release.zip";
 unsigned char nameBuf1[512];
 unsigned char *nameBuf = nameBuf1;
-const unsigned char sendOk[] = "SEND OK";
+//const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char cmd[512];
 unsigned char link[512];
@@ -584,6 +584,7 @@ unsigned char getFileEsp(const unsigned char *fileLink, unsigned char *fileNameP
 
 	sendcommand(link);
 
+/*	
 	if (!getAnswer3()) // 'sendOk'
 	{
 		writeLog("Timeout when waiting 'sendOk' ", "getFileEsp     ");
@@ -603,7 +604,7 @@ unsigned char getFileEsp(const unsigned char *fileLink, unsigned char *fileNameP
 		writeLog("Timeout when waiting 'LF' ", "getFileEsp     ");
 		return false;
 	}
-
+*/
 	do
 	{
 		headlng = 0;
@@ -611,7 +612,6 @@ unsigned char getFileEsp(const unsigned char *fileLink, unsigned char *fileNameP
 		clearNetBuf(255);
 
 		todo = recvHead();
-
 		if (todo == 0)
 		{
 			writeLog("Error parsing packet size, todo = 0", "getFileEsp     ");

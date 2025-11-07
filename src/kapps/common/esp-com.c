@@ -4,8 +4,7 @@ void writeLog(const char *logline, char *place)
 {
 	FILE *LogFile;
 	unsigned long fileSize;
-	unsigned char toLog[256];
-	// unsigned char cPath[130]; //28102025!!!
+	unsigned char toLog[512];
 
 	OS_GETPATH((unsigned int)&curPath);
 	OS_SETSYSDRV();
@@ -510,9 +509,9 @@ unsigned char getAnswer3(void)
 		writeLog("Timeout while reading tail's 0x0a", "getAnswer3     ");
 		return false;
 	}
-
-	// writeLog(netbuf, "getAnswer3     ");
 	YIELD();
+	// writeLog(netbuf, "getAnswer3     ");
+
 	return true;
 }
 
@@ -719,9 +718,10 @@ int recvHead(void)
 		if ((count == strlen(closed)) || (countErr == strlen(error)))
 		{
 			writeLog("Recieved  'closed' or 'error' ", "recvHead       ");
+			writeLog(netbuf, "recvHead       ");
 			return false;
 		}
-	} while (byte != ',');		// SEND OK<CR><LF><CR><LF>+IPD,
+	} while (byte != ','); // SEND OK<CR><LF><CR><LF>+IPD,
 	toComa = dataRead;
 	do
 	{
@@ -735,11 +735,11 @@ int recvHead(void)
 		netbuf[dataRead] = byte;
 		dataRead++;
 
-	} while (byte != ':');		//:<data>
+	} while (byte != ':'); //:<data>
 	todo = atoi(netbuf + toComa);
 
 	// <actual_len>
-	//printf("recvHead(); todo = %d  ", todo);
+	// printf("recvHead(); todo = %d  ", todo);
 
 	return todo;
 }
