@@ -85,10 +85,10 @@ const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char cmd[512];
 unsigned char link[512];
 
-void clearNetBuf(void)
+void clearNetBuf(unsigned int const size)
 {
 	unsigned int counter;
-	for (counter = 0; counter < sizeof(netbuf); counter++)
+	for (counter = 0; counter < size; counter++)
 	{
 		netbuf[counter] = 0;
 	}
@@ -607,6 +607,9 @@ unsigned char getFileEsp(const unsigned char *fileLink, unsigned char *fileNameP
 	do
 	{
 		headlng = 0;
+
+		clearNetBuf(255);
+
 		todo = recvHead();
 
 		if (todo == 0)

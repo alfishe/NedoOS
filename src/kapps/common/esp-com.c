@@ -678,13 +678,13 @@ char espReBoot(void)
 
 int recvHead(void)
 {
-	unsigned char dataRead;
-	int byte, todo = 0, count = 0, countErr = 0;
+	unsigned int dataRead = 0;
+	int byte, todo = 0, count = 0, countErr = 0, toComa;
 	const char closed[] = "CLOSED";
 	const char error[] = "ERROR";
-	//+IPD<,length>:<data>
+	//+IPD,<length>:<data>
 	//+CIPRECVDATA:<actual_len>,<data>
-	dataRead = 0;
+
 	do
 	{
 		byte = uartReadBlock();
@@ -695,6 +695,8 @@ int recvHead(void)
 			return false;
 		}
 
+		netbuf[dataRead] = byte;
+		dataRead++;
 		// printf("[%c]", byte);
 
 		if (byte == closed[count])
@@ -719,8 +721,8 @@ int recvHead(void)
 			writeLog("Recieved  'closed' or 'error' ", "recvHead       ");
 			return false;
 		}
-	} while (byte != ',');
-
+	} while (byte != ',');		// SEND OK<CR><LF><CR><LF>+IPD,
+	toComa = dataRead;
 	do
 	{
 		byte = uartReadBlock();
@@ -729,12 +731,15 @@ int recvHead(void)
 			writeLog("Timeout waiting ':' ", "recvHead       ");
 			return false;
 		}
+
 		netbuf[dataRead] = byte;
 		dataRead++;
-	} while (byte != ':');
-	todo = atoi(netbuf);
+
+	} while (byte != ':');		//:<data>
+	todo = atoi(netbuf + toComa);
+
 	// <actual_len>
-	// printf("recvHead(); todo = %d   ", todo);
+	//printf("recvHead(); todo = %d  ", todo);
 
 	return todo;
 }
