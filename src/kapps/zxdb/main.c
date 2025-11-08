@@ -781,9 +781,9 @@ char getFileEsp(void)
 	int todo;
 	unsigned char byte, firstPacket;
 	unsigned long downloaded = 0;
-	unsigned int count, fileSize1, down;
-	const unsigned char sendOk[] = "SEND OK";
-
+	unsigned int fileSize1, down;
+	// const unsigned char sendOk[] = "SEND OK";
+	// unsigned int count;
 	sprintf(cmd, "AT+CIPSTART=\"TCP\",\"%s\",%u", link.host, link.port);
 	sendcommand(cmd);
 
@@ -817,25 +817,25 @@ char getFileEsp(void)
 
 	// sendcommandNrn(link.path);
 	sendcommand(link.path);
-
-	count = 0;
-	do
-	{
-		byte = uartReadBlock();
-		if (byte == sendOk[count])
+	/*
+		count = 0;
+		do
 		{
-			count++;
-			// putchar(byte);
-		}
-		else
-		{
-			count = 0;
-		}
-	} while (count < strlen(sendOk));
+			byte = uartReadBlock();
+			if (byte == sendOk[count])
+			{
+				count++;
+				// putchar(byte);
+			}
+			else
+			{
+				count = 0;
+			}
+		} while (count < strlen(sendOk));
 
-	uartReadBlock(); // CR
-	uartReadBlock(); // LF
-
+		uartReadBlock(); // CR
+		uartReadBlock(); // LF
+	*/
 	firstPacket = true;
 	do
 	{
@@ -843,10 +843,18 @@ char getFileEsp(void)
 		limiter.headLng = 0;
 		todo = recvHead();
 
+		if (todo == 0)
+		{
+			writeLog("Error parsing packet size, todo = 0", "getFileEsp     ");
+			writeLog(netbuf, "getFileEsp     ");
+			return false;
+		}
+
 		if (!getdataEsp(todo))
 		{
 			OS_CLS(0);
 			puts("[getdataEsp]Downloading timeout. Exit!");
+			writeLog("Downloading timeout. Exit!", "getFileEsp     ");
 			delayLongKey(5000);
 			exit(0);
 		}
@@ -1030,8 +1038,8 @@ char makeRequestEsp(void)
 	int todo;
 	unsigned char byte, firstPacket;
 	unsigned long downloaded = 0;
-	unsigned int count;
-	const unsigned char sendOk[] = "SEND OK";
+	// unsigned int count;
+	// const unsigned char sendOk[] = "SEND OK";
 
 	sprintf(cmd, "AT+CIPSTART=\"TCP\",\"%s\",%u", link.host, link.port);
 	sendcommand(cmd);
@@ -1066,31 +1074,47 @@ char makeRequestEsp(void)
 
 	// sendcommandNrn(link.path);
 	sendcommand(link.path);
-
-	count = 0;
-	do
-	{
-		byte = uartReadBlock();
-		if (byte == sendOk[count])
+	/*
+		count = 0;
+		do
 		{
-			count++;
-			// putchar(byte);
-		}
-		else
-		{
-			count = 0;
-		}
-	} while (count < strlen(sendOk));
+			byte = uartReadBlock();
+			if (byte == sendOk[count])
+			{
+				count++;
+				// putchar(byte);
+			}
+			else
+			{
+				count = 0;
+			}
+		} while (count < strlen(sendOk));
 
-	uartReadBlock(); // CR
-	uartReadBlock(); // LF
-
+		uartReadBlock(); // CR
+		uartReadBlock(); // LF
+	*/
 	firstPacket = true;
 	do
 	{
 		limiter.headLng = 0;
 		todo = recvHead();
-		getdataEsp(todo); // Requested size
+
+		if (todo == 0)
+		{
+			writeLog("Error parsing packet size, todo = 0", "makeRequestEsp ");
+			writeLog(netbuf, "makeRequestEsp ");
+			return false;
+		}
+
+		if (!getdataEsp(todo))
+		{
+			OS_CLS(0);
+			puts("[makeRequestEsp]Downloading timeout. Exit!");
+			writeLog("[makeRequestEsp]Downloading timeout. Exit!", "makeRequestEsp ");
+			delayLongKey(5000);
+			exit(0);
+		}
+
 		if (firstPacket)
 		{
 			firstPacket = false;
