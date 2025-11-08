@@ -62,13 +62,13 @@ unsigned int comType = 0;
 unsigned int espType = 32;
 unsigned int espRetry = 5;
 unsigned int magic = 16;
-unsigned long factor, timerok, count= 0;
+unsigned long factor, timerok, count = 0;
 
 unsigned int odoa = 12;
 char foreColor;
 unsigned int errn, headlng;
 unsigned long contLen;
-const unsigned char sendOk[] = "SEND OK";
+//const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char userAgent[] = "Host: xmlcalendar.ru\r\nConnection: keep-alive\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n";
 char country2[5][2] = {"ru", "kz", "by", "uz", "ua"};
@@ -560,9 +560,9 @@ void clearHolidays(void)
 char readParamFromIni(void)
 {
 	FILE *fpini;
-	//char skip2end = false;
-	//unsigned int count = 0;
-	//unsigned long loop = 0;
+	// char skip2end = false;
+	// unsigned int count = 0;
+	// unsigned long loop = 0;
 	unsigned char *count1;
 
 	const char useProdCalendar[] = "useProdCalendar";
@@ -585,7 +585,7 @@ char readParamFromIni(void)
 	OS_READHANDLE(calbuf, fpini, 512);
 	OS_CLOSEHANDLE(fpini);
 
-	//calbuf[loop + 1] = 0;
+	// calbuf[loop + 1] = 0;
 
 	count1 = strstr(calbuf, useProdCalendar);
 	if (count1 != NULL)
@@ -609,9 +609,9 @@ char loadProdCalDisk(int year)
 {
 	FILE *fpdat;
 	unsigned long loaded, total = 0;
-	//int lineYear = 0;
-	//int lineMonth = 0;
-	//int lineDay = 0;
+	// int lineYear = 0;
+	// int lineMonth = 0;
+	// int lineDay = 0;
 	odoa = 12;
 	clearStatus();
 	printf("Загрузка производственного кадендаря с диска на %d год", year);
@@ -830,29 +830,38 @@ unsigned char loadProdCalEsp(int year, const char *country)
 		// putchar(byte);
 	} while (byte != '>');
 	sendcommand(curPath);
+	/*
+		count = 0;
 
-	count = 0;
-
-	do
-	{
-		byte = uartReadBlock();
-		if (byte == sendOk[count])
+		do
 		{
-			count++;
-		}
-		else
-		{
-			count = 0;
-		}
-	} while (count < strlen(sendOk));
-	uartReadBlock(); // CR
-	uartReadBlock(); // LF
+			byte = uartReadBlock();
+			if (byte == sendOk[count])
+			{
+				count++;
+			}
+			else
+			{
+				count = 0;
+			}
+		} while (count < strlen(sendOk));
+		uartReadBlock(); // CR
+		uartReadBlock(); // LF
+	*/
 	skipHeader = 0;
 	downloaded = 0;
 	do
 	{
 		headlng = 0;
 		dataSize = recvHead();
+		
+			if (dataSize == 0)
+		{
+			writeLog("Error parsing packet size, dataSize = 0", "loadProdCalEsp ");
+			writeLog(netbuf, "loadProdCalEsp ");
+			return false;
+		}	
+		
 		getdataEsp(dataSize); // Requested size
 		if (skipHeader == 0)
 		{
@@ -889,7 +898,7 @@ C_task main(int argc, char *argv[])
 
 	os_initstdio();
 	CLS();
-	printf("[Build:%s  %s]",__DATE__, __TIME__);
+	printf("[Build:%s  %s]", __DATE__, __TIME__);
 	loadEspConfig();
 	get_dns();
 	AT(3, 25);
