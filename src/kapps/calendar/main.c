@@ -904,7 +904,7 @@ C_task main(int argc, char *argv[])
 	AT(3, 25);
 	ATRIB(40);
 	ATRIB(90);
-	printf("Онлайн производственный календарь предоставлен сайтом http://xmlcalendar.ru/");
+	printf("Онлайн производственный календарь предоставлен сайтом http://xmlcalendar.ru/ \r\n");
 	ATRIB(97);
 	YIELD();
 

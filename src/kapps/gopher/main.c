@@ -112,7 +112,16 @@ struct time
 
 unsigned char nvext[1024];
 unsigned char netbuf[31768];
-unsigned char heap[2000];
+unsigned char heap[1500];
+
+void clearNetBuf(unsigned int const size)
+{
+	unsigned int counter;
+	for (counter = 0; counter < size; counter++)
+	{
+		netbuf[counter] = 0;
+	}
+}
 
 void spaces(unsigned char number)
 {
@@ -212,15 +221,6 @@ char readParamFromIni(void)
 
 	OS_CHDIR(curPath);
 	return curNet;
-}
-
-void clearNetbuf(void)
-{
-	unsigned int counter;
-	for (counter = 0; counter < sizeof(netbuf); counter++)
-	{
-		netbuf[counter] = 0;
-	}
 }
 
 unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsigned int sizeOfBuf)
@@ -958,7 +958,7 @@ void goHome(char backSpace)
 	else
 	{
 		newPage();
-		clearNetbuf();
+		clearNetBuf(sizeof(netbuf));
 		OS_CLS(0);
 		mainWinDraw();
 	}
@@ -1011,8 +1011,6 @@ char getFileEsp(unsigned char *fileNamePtr)
 	int todo;
 	unsigned char byte;
 	unsigned long downloaded = 0;
-	unsigned int count;
-	const unsigned char sendOk[] = "SEND OK";
 
 	if ((strlen(link.path) == 1 && link.path[0] == '/') || strlen(link.path) == 0)
 	{
@@ -1055,29 +1053,12 @@ char getFileEsp(unsigned char *fileNamePtr)
 
 	sendcommandNrn(link.path);
 
-	count = 0;
-	do
-	{
-		byte = uartReadBlock();
-		if (byte == sendOk[count])
-		{
-			count++;
-			// putchar(byte);
-		}
-		else
-		{
-			count = 0;
-		}
-	} while (count < strlen(sendOk));
-
-	uartReadBlock(); // CR
-	uartReadBlock(); // LF
-
 	OS_DELETE(fileNamePtr);
 	saveBuf(fileNamePtr, 00, 0);
 	clearStatus();
 	do
 	{
+		clearNetBuf(128);
 		todo = recvHead();
 		downloaded = downloaded + todo;
 		if (downloaded == 0)

@@ -302,9 +302,8 @@ void espntp_resolver(void)
 	{
 		if (!getAnswer3()) // "+TIME_UPDATED"
 		{
-			puts("Timeout waiting '+TIME_UPDATED'");
+			puts("Timeout waiting '+TIME_UPDATED' Check espType may be you have 8266.");
 			writeLog("Timeout waiting '+TIME_UPDATED'", "espntp_resolver");
-			exit(255);
 		}
 	}
 

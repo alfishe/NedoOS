@@ -4,7 +4,7 @@ void writeLog(const char *logline, char *place)
 {
 	FILE *LogFile;
 	unsigned long fileSize;
-	unsigned char toLog[512];
+	unsigned char toLog[550];
 
 	OS_GETPATH((unsigned int)&curPath);
 	OS_SETSYSDRV();
@@ -19,7 +19,9 @@ void writeLog(const char *logline, char *place)
 	fileSize = OS_GETFILESIZE(LogFile);
 	OS_SEEKHANDLE(LogFile, fileSize);
 
-	sprintf(toLog, "%7lu : %s : %s\r\n", time(), place, logline);
+	sprintf(toLog, "%7lu : %s : ", time(), place);
+	strncat(toLog, logline, 512);
+	strcat(toLog, "\r\n");
 	OS_WRITEHANDLE(toLog, LogFile, strlen(toLog));
 	OS_CLOSEHANDLE(LogFile);
 	OS_CHDIR(curPath);
@@ -461,7 +463,7 @@ void sendcommand(const char *commandline)
 	uart_write('\r');
 	uart_write('\n');
 	YIELD();
-	// writeLog(commandline, "sendcommand    ");
+	//writeLog(commandline, "sendcommand    ");
 }
 
 void sendcommandNrn(const char *commandline)
@@ -509,9 +511,9 @@ unsigned char getAnswer3(void)
 		writeLog("Timeout while reading tail's 0x0a", "getAnswer3     ");
 		return false;
 	}
-	YIELD();
-	// writeLog(netbuf, "getAnswer3     ");
 
+	//writeLog(netbuf, "getAnswer3     ");
+	YIELD();
 	return true;
 }
 
@@ -701,8 +703,13 @@ int recvHead(void)
 		if (byte == closed[count])
 		{
 			count++;
+			if (count == strlen(closed))
+			{
+				return false;
+			}
 		}
 		else
+
 		{
 			count = 0;
 		}
@@ -710,16 +717,16 @@ int recvHead(void)
 		if (byte == error[countErr])
 		{
 			countErr++;
+			if (countErr == strlen(error))
+			{
+				writeLog("Recieved 'ERROR' ", "recvHead       ");
+				writeLog(netbuf, "recvHead       ");
+				return false;
+			}
 		}
 		else
 		{
 			countErr = 0;
-		}
-		if ((count == strlen(closed)) || (countErr == strlen(error)))
-		{
-			writeLog("Recieved  'closed' or 'error' ", "recvHead       ");
-			writeLog(netbuf, "recvHead       ");
-			return false;
 		}
 	} while (byte != ','); // SEND OK<CR><LF><CR><LF>+IPD,
 	toComa = dataRead;
@@ -740,7 +747,6 @@ int recvHead(void)
 
 	// <actual_len>
 	// printf("recvHead(); todo = %d  ", todo);
-
 	return todo;
 }
 
