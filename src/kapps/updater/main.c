@@ -80,7 +80,7 @@ unsigned char netIniLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/net.i
 unsigned char relLink[] = "http://nedoos.ru/images/release.zip";
 unsigned char nameBuf1[512];
 unsigned char *nameBuf = nameBuf1;
-//const unsigned char sendOk[] = "SEND OK";
+// const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char cmd[512];
 unsigned char link[512];
@@ -92,6 +92,14 @@ void clearNetBuf(unsigned int const size)
 	{
 		netbuf[counter] = 0;
 	}
+}
+
+void quit(void)
+{
+	ATRIB(40);
+	ATRIB(32);
+	AT(1, 25);
+	exit(0);
 }
 
 void spaces(unsigned char number)
@@ -106,9 +114,10 @@ void spaces(unsigned char number)
 void clearStatus(void)
 {
 	AT(1, 24);
-	spaces(79);
+	spaces(80);
 	putchar('\r');
 }
+
 void printTable(void)
 {
 	unsigned int cycle;
@@ -159,6 +168,11 @@ unsigned char delayLongKey(unsigned long counter)
 		key = _low_level_get();
 		if (key != 0)
 		{
+
+			if (key == 27)
+			{
+				quit();
+			}
 			return key;
 		}
 		YIELD();
@@ -371,8 +385,9 @@ unsigned char OS_SHELL(const unsigned char *command)
 
 unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsigned int sizeOfBuf)
 {
-	if (operation == 00)
+	switch (operation)
 	{
+	case 00:
 		fp2 = OS_CREATEHANDLE(fileNamePtr, 0x80);
 		if (((int)fp2) & 0xff)
 		{
@@ -395,22 +410,19 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 			exit(0);
 		}
 		AT(1, 24);
-		return 0;
-	}
+		break;
 
-	if (operation == 01)
-	{
+	case 01:
 		OS_WRITEHANDLE(netbuf + headlng, fp2, sizeOfBuf);
-		return 0;
+		break;
+
+	default:
+		OS_CLOSEHANDLE(fp2);
 	}
 
-	if (operation == 02)
-	{
-		OS_CLOSEHANDLE(fp2);
-		return 0;
-	}
 	return 0;
 }
+
 unsigned int cutHeader(void)
 {
 	unsigned int err;
@@ -533,7 +545,7 @@ unsigned char getFileNet(const unsigned char *fileLink, unsigned char *fileNameP
 unsigned char getFileEsp(const unsigned char *fileLink, unsigned char *fileNamePtr)
 {
 	int todo;
-	char firstPacket = true;
+	unsigned char firstPacket = true;
 	unsigned int fileSize1;
 	unsigned long downloaded = 0;
 	unsigned int down, byte;
@@ -552,13 +564,10 @@ unsigned char getFileEsp(const unsigned char *fileLink, unsigned char *fileNameP
 		count1 = strstr(netbuf, "CONNECT");
 		if (count1 == NULL)
 		{
-			OS_SETGFX(0x86);
-			writeLog("Error in AT+CIPSTART. Not Connect.", "getFileEsp     ");
+			writeLog("Error in AT+CIPSTART. Not 'CONNECT'.", "getFileEsp     ");
+			clearStatus();
 			espReBoot();
-			if (_low_level_get() == 27)
-			{
-				exit(255);
-			}
+			delayLongKey(1000);
 		}
 		else
 		{
@@ -584,34 +593,34 @@ unsigned char getFileEsp(const unsigned char *fileLink, unsigned char *fileNameP
 
 	sendcommand(link);
 
-/*	
-	if (!getAnswer3()) // 'sendOk'
-	{
-		writeLog("Timeout when waiting 'sendOk' ", "getFileEsp     ");
-		return false;
-	}
+	/*
+		if (!getAnswer3()) // 'sendOk'
+		{
+			writeLog("Timeout when waiting 'sendOk' ", "getFileEsp     ");
+			return false;
+		}
 
-	byte = uartReadBlock(); // CR
-	if (byte > 255)
-	{
-		writeLog("Timeout when waiting 'CR' ", "getFileEsp     ");
-		return false;
-	}
+		byte = uartReadBlock(); // CR
+		if (byte > 255)
+		{
+			writeLog("Timeout when waiting 'CR' ", "getFileEsp     ");
+			return false;
+		}
 
-	byte = uartReadBlock(); // LF
-	if (byte > 255)
-	{
-		writeLog("Timeout when waiting 'LF' ", "getFileEsp     ");
-		return false;
-	}
-*/
+		byte = uartReadBlock(); // LF
+		if (byte > 255)
+		{
+			writeLog("Timeout when waiting 'LF' ", "getFileEsp     ");
+			return false;
+		}
+	*/
+
 	do
 	{
-		headlng = 0;
-
 		clearNetBuf(255);
-
+		headlng = 0;
 		todo = recvHead();
+
 		if (todo == 0)
 		{
 			writeLog("Error parsing packet size, todo = 0", "getFileEsp     ");
@@ -621,7 +630,7 @@ unsigned char getFileEsp(const unsigned char *fileLink, unsigned char *fileNameP
 
 		if (!getdataEsp(todo))
 		{
-			writeLog("Downloading timeout in getdataEsp. Exit!", "getFileEsp     ");
+			writeLog("Downloading timeout. Exit!", "getFileEsp     ");
 			fatalError("[getdataEsp]Downloading timeout. Exit!");
 		}
 
@@ -759,6 +768,7 @@ unsigned char ren2old(unsigned char *name)
 	}
 	return counter;
 }
+
 /*
 void ren2tar(void)
 {
@@ -776,6 +786,7 @@ void ren2tar(void)
 	} while (errn != 0);
 }
 */
+
 /*
 void ren2bin(void)
 {
@@ -793,6 +804,7 @@ void ren2bin(void)
 	} while (errn != 0);
 }
 */
+
 void restoreConfig(unsigned char oldBinExt)
 {
 	unsigned char count;
@@ -836,7 +848,7 @@ void restoreConfig(unsigned char oldBinExt)
 	errn = OS_RENAME("bin/browser/index.gph.new", "bin/browser/index.gph");
 }
 
-// Download, backup, unpack release.bin
+// Download, backup, unpack release.zip
 void fullUpdate(void)
 {
 	BOX(1, 1, 80, 25, 40, 176);
@@ -1132,8 +1144,5 @@ C_task main(int argc, const char *argv[])
 	delayLongKey(5000);
 	// getchar();
 	//   OS_DELETE("release.zip");
-	ATRIB(40);
-	ATRIB(32);
-	AT(1, 25);
-	exit(0);
+	quit();
 }
