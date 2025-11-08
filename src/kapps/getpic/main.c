@@ -59,7 +59,7 @@ struct sockaddr_in targetadr;
 struct readstructure readStruct;
 
 unsigned char ver[] = "4.8";
-const unsigned char sendOk[] = "SEND OK";
+//const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
 unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; GetPic)\r\n\r\n\0";
@@ -308,6 +308,7 @@ char fillPictureEsp(void)
 
   sendcommand(link);
 
+  /*
   if (!getAnswer3()) // 'sendOk'
   {
     writeLog("Timeout when waiting 'sendOk' ", "fillPictureEsp ");
@@ -327,6 +328,7 @@ char fillPictureEsp(void)
     writeLog("Timeout when waiting 'LF' ", "fillPictureEsp ");
     return false;
   }
+  */
   downloaded = 0;
   firstPacket = true;
   do
@@ -337,6 +339,7 @@ char fillPictureEsp(void)
     if (todo == 0)
     {
       writeLog("Error parsing packet size, todo = 0", "fillPictureEsp ");
+      writeLog(netbuf, "fillPictureEsp ");
       return false;
     }
 
