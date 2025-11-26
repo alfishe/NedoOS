@@ -2,14 +2,25 @@ opnawritemusiconlyfm1
 ;e = register
 ;d = value
 	ld a,e
+	cp 0x30
+	jp nc,opnawritefm1
+	cp 0x0e
+	jp c,opnawritefm1
+	cp 0x22
+	jr c,.rhythm
+	jp z,opnawritefm1
+;block timers but no need to block the prescaler since OPNA PC-98 sound cards
+;behave the same as the RE2-2608 so VGMs can adjust it as they like
+	cp 0x28
+	jp nc,opnawritefm1
+	ret
+.rhythm	cp 0x1e
+	ret nc
 	cp 0x12
 	ret z
-	cp 0x21
-	ret z
+	cp 0x10
+	jp nz,opnawritefm1
 	call opnawritefm1
-	ld a,e
-	sub 0x10
-	ret nz
 	dec a
 	jr nz,$-1
 	ret

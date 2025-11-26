@@ -1,13 +1,12 @@
 	macro opn_write_music_only write_register
 	ld a,e
-	cp 0x0e
-	jp c,write_register
-	cp 0x27
-	jp z,write_register
-	cp 0x28
-	jp z,write_register
 	cp 0x30
 	jp nc,write_register
+	cp 0x0e
+	jp c,write_register
+;block both timers and the prescaler (the TFM prescaler is fairly unique)
+	cp 0x28
+	jp z,write_register
 	endm
 
 opnwritemusiconlyfm1

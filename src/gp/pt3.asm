@@ -1,5 +1,5 @@
 ; ProTracker modules player for AY8910/TurboSound
-; Player for MIDI UART connected to AY port A.2 (e.g. ZX MultiSound)
+; Player for MIDI UART connected to AY/YM2608 IOA port bit 2 (e.g. ZX MultiSound)
 
 	DEVICE ZXSPECTRUM128
 	include "../_sdk/sys_h.asm"
@@ -100,13 +100,43 @@ playerinit
 	inc hl
 	ld a,(hl)
 	ld (pageC000),a
-	call setuartdelay
-	ld a,(waitspincount)
-	or a
-	call z,setautouartdelay
+	call initmidi
 	ld hl,initokstr
 	xor a
 	ret
+
+initmidi
+	ld de,(ix+GPSETTINGS.mididevice)
+	ld a,d
+	or e
+	jr z,.defaultdevice
+	ld a,(de)
+	cp '0'
+	jr z,.defaultdevice
+	cp '4'
+	jr z,.defaultdevice
+	cp '3'
+	jr z,.changeay
+	cp '5'
+	jr z,.enableopna
+	ld hl,isfilesupported.checkts
+	ld (ISFILESUPPORTEDPROCADDR),hl
+	ret
+.enableopna
+	ld hl,OPNA1_REG
+	ld (ymregaddr),hl
+	ld hl,OPNA1_DAT
+	ld (ymdataddr),hl
+	jr .defaultdevice
+.changeay
+	ld a,%11111111
+	ld (ymselector),a
+.defaultdevice
+	call setuartdelay
+	ld a,(waitspincount)
+	or a
+	ret nz
+	jp setautouartdelay
 
 setuartdelay
 ;ix = GPSETTINGS
@@ -296,6 +326,7 @@ getconfig
 	include "ptsplay/ptsplay.asm"
 	include "common/memorystream.asm"
 	include "common/muldiv.asm"
+	include "common/opna.asm"
 	include "progress.asm"
 
 VSYNC_FREQ = 49
@@ -307,9 +338,6 @@ DEFAULT_QNOTE_DURATION_MCS = 500000
 VSYNC_MCS = 1000000/VSYNC_FREQ
 CC1 = WAIT_LOOP_TSTATES*BAUD_RATE
 CC2 = (VSYNC_FREQ*BENCHMARK_LOOP_TSTATES*65536+CC1/2)/CC1
-
-SSG_REG = 0xfffd
-SSG_DAT = 0xbffd
 
 	macro wait_32us reducebytstates
 	ld a,(waitspincount)
@@ -325,13 +353,18 @@ SSG_DAT = 0xbffd
 .done   ;that's all, folks
 	endm
 
+ymselector equ midinitport.ymselector
+ymregaddr equ midsendbyte.regaddr
+ymdataddr equ midsendbyte.dataddr
+
 midinitport
-	ld bc,SSG_REG
-	ld a,0xff
+	ld bc,(ymregaddr)
+.ymselector=$+1
+	ld a,%11111110
 	out (c),a
 	ld a,7
 	out (c),a
-	ld bc,SSG_DAT
+	ld bc,(ymdataddr)
 	ld a,0xfc
 	out (c),a
 	ret
@@ -347,10 +380,12 @@ midsend2
 midsendbyte
 ;d = data
 	di
-	ld bc,SSG_REG
+.regaddr=$+1
+	ld bc,0xfffd
 	ld a,14
 	out (c),a
-	ld bc,SSG_DAT
+.dataddr=$+1
+	ld bc,0xbffd
 	ld a,%11111010
 	out (c),a
 	wait_32us 42

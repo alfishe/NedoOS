@@ -15,10 +15,9 @@ begin   PLAYERHEADER
 isfilesupported
 ;cde = file extension
 ;out: zf=1 if this player can handle the file and the sound hardware is available, zf=0 otherwise
-ismoonsounddisabled=$+1
-	jr nosupportedfiles
 	call ismodfile
 	jr z,initplayvars
+.checks3m
 	ld a,'s'
 	cp c
 	ret nz
@@ -31,9 +30,6 @@ initplayvars
 	ld hl,musicprogress+1
 	ld (MUSICPROGRESSADDR),hl
 	jp initprogress
-nosupportedfiles
-	or 1
-	ret
 
 playerinit
 ;hl,ix = GPSETTINGS
@@ -65,9 +61,24 @@ playerinit
 	ld a,(ix)
 	ld (modfilebufferpage),a
 	call setdefaultpanning
+	call checkmididevicesettings
 	ld hl,initokstr
 	xor a
-	ld (ismoonsounddisabled),a
+	ret
+
+checkmididevicesettings
+;output: zf=1 if this player is enabled, zf=0 otherwise
+	ld de,(ix+GPSETTINGS.moddevice)
+	ld a,d
+	or e
+	ret z
+	ld a,(de)
+	cp '0'
+	ret z
+	cp '1'
+	ret z
+	ld hl,isfilesupported.checks3m
+	ld (ISFILESUPPORTEDPROCADDR),hl
 	ret
 
 setdefaultpanning

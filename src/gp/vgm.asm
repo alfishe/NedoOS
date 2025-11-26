@@ -482,7 +482,7 @@ cmdYM2608p0_tfm
 	memory_stream_read_2 e,d
 	ld a,e
 	cp 0x08
-	jp c,opnwritemusiconlyfm1
+	jp c,opnwritefm1
 	cp 0x0b
 	jr c,.writessgvolume
 	cp 0x28
@@ -1426,7 +1426,7 @@ opmstatus=$+1
 	and 0x40
 	ret nz
 .hasdualopm
-	call vgmopminit
+	call opminit
 	ld a,(HEADER_CLOCK_YM2151+3)
 	and 0x40
 	jr nz,.dualchip
@@ -1474,12 +1474,25 @@ enableopna
 	ret
 
 cmdYM2203_opna
+	memory_stream_read_2 e,d
+	opn_write_music_only opnawritefm1
+	ret
+
+cmdYM2203dp_opna
+	memory_stream_read_2 e,d
+	ld a,e
+	cp 0x30
+	jp nc,opnawritefm2
+	cp 0x28
+	ret nz
+	set 2,d
+	jp opnawritefm1
+
 cmdYM2608p0_opna
 	memory_stream_read_2 e,d
 	jp opnawritemusiconlyfm1
 
 cmdYM2608p1_opna
-cmdYM2203dp_opna
 	memory_stream_read_2 e,d
 	jp opnawritemusiconlyfm2
 

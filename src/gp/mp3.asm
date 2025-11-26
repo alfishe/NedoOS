@@ -18,103 +18,115 @@ begin   PLAYERHEADER
 isfilesupported
 ;cde = file extension
 ;out: zf=1 if this player can handle the file and the sound hardware is available, zf=0 otherwise
-isgsdisabled=$+1
-	jr nosupportedfiles
-	call ismodfile
-	jr nz,checkmid
-	ld hl,0
-	ld (MUSICTITLEADDR),hl
-	ld hl,musicprogress+1
-	ld (MUSICPROGRESSADDR),hl
-	jp initprogress
-nosupportedfiles
-	or 1
-	ret
-checkmid
-vsversion=$+1
-	ld a,255
-	ld l,'m'
-	ld h,b
-	sub hl,bc
-	jr nz,checkogg
-	ld hl,'id'
-	sbc hl,de
-	jr nz,checkogg
-	cp SS_VER_VS1003
-	jr z,initmidvars
-	cp SS_VER_VS1033
-	jr z,initmidvars
-	cp SS_VER_VS1053
-	jr z,initmidvars
-	cp SS_VER_VS1103
-	ret nz
-initmidvars
-	ld (filechunkcounter),hl
-	ld (MUSICTITLEADDR),hl
-	ld (MUSICPROGRESSADDR),hl
-	jp initprogress
-checkogg
-	ld l,'o'
-	ld h,b
-	sub hl,bc
-	jr nz,checkaac
+	ld a,c
+	cp 'o'
+	jp nz,.checkaac
 	ld hl,'gg'
 	sbc hl,de
-	jr nz,checkaac
+	jp nz,.checkaac
+	ld a,(vsversion)
 	cp SS_VER_VS1053
-	jr z,initmp3vars
+	jr z,.initmp3vars
 	cp SS_VER_VS1063
-	jr z,initmp3vars
-	ret	
-checkaac
-	ld l,'a'
-	ld h,b
-	sub hl,bc
-	jr nz,checkmp3
+	jr z,.initmp3vars
+	ret
+.checkaac
+	cp 'a'
+	jp nz,.checkmp3modmid
 	ld hl,'ac'
 	sbc hl,de
-	jr nz,checkmp3
-	cp SS_VER_VS1033
-	jr z,initmp3vars
+	jp nz,.checkmp3modmid
+	ld a,(vsversion)
 	cp SS_VER_VS1053
-	jr z,initmp3vars
+	jr z,.initmp3vars
+	cp SS_VER_VS1033
+	jr z,.initmp3vars
 	cp SS_VER_VS1063
-	jr z,initmp3vars
+	jr z,.initmp3vars
 	ret
-checkmp3
-	ld l,'m'
-	ld h,b
-	sub hl,bc
+.checkmp3modmid
+	cp 'm'
 	ret nz
-	ld hl,'p3'
+	ld hl,'od'
 	sbc hl,de
+.disablemod=$+1
+	jr z,.initmodvars
+	ld hl,'id'
+	sub hl,de
+.disablemid=$+1
+	jr z,.checkmid
+	ld hl,'p3'
+	sub hl,de
 	ret nz
-	and ~SS_VER_MASK
-	ret nz
-initmp3vars
+.initmp3vars
 	ld (filechunkcounter),hl
 	ld (MUSICTITLEADDR),hl
 	ld hl,musicprogress+1
+	ld (MUSICPROGRESSADDR),hl
+	jp initprogress
+.initmodvars
+	ld (MUSICTITLEADDR),hl
+	ld hl,musicprogress+1
+	ld (MUSICPROGRESSADDR),hl
+	jp initprogress
+.checkmid
+	ld a,(vsversion)
+	cp SS_VER_VS1053
+	jr z,.initmidvars
+	cp SS_VER_VS1003
+	jr z,.initmidvars
+	cp SS_VER_VS1033
+	jr z,.initmidvars
+	cp SS_VER_VS1103
+	ret nz
+.initmidvars
+	ld (filechunkcounter),hl
+	ld (MUSICTITLEADDR),hl
 	ld (MUSICPROGRESSADDR),hl
 	jp initprogress
 
-ismodfile
-;cde = file extension
-;out: zf=1 if .mod, zf=0 otherwise
-	ld a,'m'
-	cp c
+isfilesupportedgsonly
+;specialized function for GeneralSound
+	ld a,c
+	cp 'm'
 	ret nz
-	ld a,'o'
-	cp d
+	ld hl,'od'
+	sbc hl,de
 	ret nz
-	ld a,'d'
-	cp e
+	jr isfilesupported.initmodvars
+
+ismodenabled
+;output: zf=1 if .mod is enabled on this device, zf=0 otherwise
+	ld de,(ix+GPSETTINGS.moddevice)
+	ld a,d
+	or e
+	ret z
+	ld a,(de)
+	cp '0'
+	ret z
+	cp '2'
+	ret
+
+checkmididevicesettings
+;output: zf=1 if this player is enabled, zf=0 otherwise
+	ld de,(ix+GPSETTINGS.mididevice)
+	ld a,d
+	or e
+	ret z
+	ld a,(de)
+	cp '0'
+	ret z
+	cp '2'
+	ret z
+	ld a,0
+	ld (isfilesupported.disablemid),a
 	ret
 
 playerinit
 ;hl,ix = GPSETTINGS
 ;a = player page
 ;out: zf=1 if init is successful, hl=init message
+	ld (.settingsaddr),hl
 	ld a,(hl)
 	ld (page8000),a
 	inc hl
@@ -139,10 +151,11 @@ playerinit
 	GD
 	ld (vsversion),a
 	call gscodereset
+.settingsaddr=$+2
+	ld ix,0
 	ld a,(vsversion)
 	cp SS_VER_VS1103+1
-	ld hl,gsinitok
-	jr nc,.gsonly
+	jr nc,.initgsonly
 	rrca
 	rrca
 	add a,idtostr%256
@@ -153,13 +166,38 @@ playerinit
 	ld de,chipidstr
 	ld bc,4
 	ldir
-	ld hl,ngsinitokstr
-.gsonly
+	call ismodenabled
+	jr z,$+6
 	xor a
-	ld (isgsdisabled),a
+	ld (isfilesupported.disablemod),a
+	call checkmididevicesettings
+	ld hl,ngsinitokstr
+	xor a
+	ret
+.initgsonly
+	call ismodenabled
+	ld hl,playerdisabledstr
+	ret nz
+	ld hl,isfilesupportedgsonly
+	ld (ISFILESUPPORTEDPROCADDR),hl
+	ld hl,gsinitokstr
+	xor a
 	ret
 
 playerdeinit
+	ret
+
+ismodfile
+;cde = file extension
+;out: zf=1 if .mod, zf=0 otherwise
+	ld a,'m'
+	cp c
+	ret nz
+	ld a,'o'
+	cp d
+	ret nz
+	ld a,'d'
+	cp e
 	ret
 
 musicload
@@ -525,6 +563,8 @@ SS_VER_VS1033 = 0x50
 SS_VER_VS1063 = 0x60
 SS_VER_VS1103 = 0x70
 
+vsversion
+	db 255
 idtostr
 	db "1001"
 	db "1011"
@@ -537,12 +577,14 @@ ngsinitokstr
 	db "NeoGS with VS"
 chipidstr
 	db "????\r\n",0
-gsinitok
+gsinitokstr
 	db "GS\r\n",0
 nodevicestr
 	db "no device!\r\n",0
 playernamestr
 	db "GS/NeoGS",0
+playerdisabledstr
+	db "disabled!\r\n",0
 end
 
 currentposition

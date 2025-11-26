@@ -13,9 +13,8 @@ begin   PLAYERHEADER
 isfilesupported
 ;cde = file extension
 ;out: zf=1 if this player can handle the file and the sound hardware is available, zf=0 otherwise
-mwmsupported=$+1
-	ld a,'m'
-	cp c
+	ld a,c
+	cp 'm'
 	ret nz
 	ld hl,'wm'
 	sbc hl,de
@@ -38,8 +37,6 @@ playerinit
 	ld hl,initokstr
 	ret z
 	ld hl,nodevicestr
-	ld a,255
-	ld (mwmsupported),a ;writes 255 disabling the extension
 	ret
 
 playerdeinit

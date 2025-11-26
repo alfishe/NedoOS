@@ -10,8 +10,6 @@ begin   PLAYERHEADER
 isfilesupported
 ;cde = file extension
 ;out: zf=1 if this player can handle the file and the sound hardware is available, zf=0 otherwise
-ismoonsounddisabled=$+1
-	jr nosupportedfiles
 	call ismidfile
 	ret nz
 	ld hl,0
@@ -19,9 +17,6 @@ ismoonsounddisabled=$+1
 	ld hl,musicprogress+1
 	ld (MUSICPROGRESSADDR),hl
 	jp initprogress
-nosupportedfiles
-	or 1
-	ret
 	
 ismidfile
 ;cde = file extension
@@ -63,9 +58,22 @@ playerinit
 	ld (opl4tablespage),a
 .settingsaddr=$+2
 	ld ix,0
+	call ismidienabled
+	ld hl,playerdisabledstr
+	ret nz
 	ld hl,initokstr
-	xor a
-	ld (ismoonsounddisabled),a
+	ret
+
+ismidienabled
+;output: zf=1 if this player is enabled, zf=0 otherwise
+	ld de,(ix+GPSETTINGS.mididevice)
+	ld a,d
+	or e
+	ret z
+	ld a,(de)
+	cp '0'
+	ret z
+	cp '1'
 	ret
 	
 playerdeinit
@@ -203,6 +211,8 @@ initokstr
 	db "OK\r\n",0
 nodevicestr
 	db "no device!\r\n",0
+playerdisabledstr
+	db "disabled!\r\n",0
 
 tempmemorystart = $
 opl4tables
@@ -233,6 +243,6 @@ newtareaend
 
 
 
-	display "moonmid load = ",/d,end-begin," bytes"
-	display "moonmid work = ",/d,newtareaend-begin," bytes"
-	display "sample table = ",/d,opl4tables_end-opl4tables," bytes"
+;	display "moonmid load = ",/d,end-begin," bytes"
+;	display "moonmid work = ",/d,newtareaend-begin," bytes"
+;	display "sample table = ",/d,opl4tables_end-opl4tables," bytes"
