@@ -1,19 +1,3 @@
-; 1 - MoonSound
-; 2 - NeoGS c декодером VS1003/VS1033/VS1053/VS1103
-; 3 - MIDI UART через первый чип AY (Multisound)
-; 4 - MIDI UART через второй чип AY
-MidiDevice=0
-
-;Указывает какое устройство использовать для воспроизведения .mod файлов.
-; 0 - плеер выбирает первое доступное устройство
-; 1 - MoonSound
-; 2 - проигрывание через прошивку GeneralSound/NeoGS
-ModDevice=0
-
-;Для разработчика! Надо увеличивать при каждом добавлении опций.
-IniFileVersion=1
-
-
 ; One-time initialization code, not retained after startup is complete.
 
 	include "common/opl4.asm"
