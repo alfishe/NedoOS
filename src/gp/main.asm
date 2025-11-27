@@ -27,7 +27,7 @@ FILE_ATTRIB_PARENT_DIR = 0
 FILE_ATTRIB_DRIVE = 1
 FILE_ATTRIB_FOLDER = 2
 PLAYLIST_VERSION = 1
-STARTUP_CODE_ADDR  = 0x8000
+STARTUP_CODE_ADDR = 0x8000
 
 	org PROGSTART
 
@@ -298,16 +298,13 @@ removefromplaylist
 
 exitplayer
 	pop hl
-	call deinitonexit
-;save playlist
-	ld a,255
-	ld (playlistpanel.isinactive),a
+	call stopplaying
 	OS_SETSYSDRV
+	call unloadplayers
 	call savedefaultplaylist
 	QUIT
 
-deinitonexit
-	call stopplaying
+unloadplayers
 	ld hl,playerpages
 	ld a,(playercount)
 	ld b,a
@@ -328,6 +325,8 @@ playerdeinitloop
 	ret
 
 savedefaultplaylist
+	ld a,255
+	ld (playlistpanel.isinactive),a
 	ld a,(playlistchanged)
 	or a
 	ret z
@@ -361,6 +360,7 @@ onhotkeyS
 	jp createfilelistandchangesel
 
 onhotkeyO
+	call setsharedpages
 	ld hl,runoptionsode
 	ld de,STARTUP_CODE_ADDR
 	ld bc,runoptionsodesize
@@ -1603,26 +1603,27 @@ runoptionsode
 	disp STARTUP_CODE_ADDR
 runoptions
 	OS_SETSYSDRV
-	call savedefaultplaylist
 	ld de,mainfilename
 	OS_OPENHANDLE
-	push af
-	ld a,b
-	ld (.filehandle),a
-	pop af
 	or a
-	jp nz,exitplayer
+	jr z,.foundmainfile
 	ld de,currentfolder
 	OS_CHDIR
-	pop hl
-	call deinitonexit
+	ret
+.foundmainfile
+	push bc
+	push bc
+	call unloadplayers
+	call savedefaultplaylist
+	ld a,(gpsettings.sharedpages+2)
+	SETPG4000
+	ld de,currentfolder
+	OS_CHDIR
 	ld de,mainbegin
 	ld hl,mainsize
-.filehandle=$+1
-	ld b,0
+	pop bc
 	OS_READHANDLE
-	ld a,(.filehandle)
-	ld b,a
+	pop bc
 	OS_CLOSEHANDLE
 	ld a,1
 	ld (runplayersetup),a
