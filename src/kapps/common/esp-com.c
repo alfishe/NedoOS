@@ -236,12 +236,24 @@ unsigned char uart_read(void)
 	return 255;
 }
 
+void uartFlush(unsigned int millis)
+{
+	unsigned long finish;
+	finish = time() + (millis / 20);
+	uart_setrts(1);
+	while (time() < finish)
+	{
+		uart_read();
+	}
+	uart_setrts(0);
+	// writeLog("Flushed data", "uartFlush      ");
+}
+
 unsigned int uartReadBlock(void)
 {
 	unsigned char data;
-	unsigned long strt = 0;
-	strt = time();
-
+	//unsigned long strt = 0;
+	//strt = time();
 	timerok = factor;
 
 	switch (comType)
@@ -251,7 +263,7 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok == 0)
 			{
-				sprintf(cmd, "[NO AFC] receiving timeout.[c=%lu][t=%lu]", count, time() - strt);
+				sprintf(cmd, "[NO AFC]receiving timeout.[c=%lu]", count);
 				writeLog(cmd, "uartReadBlock  ");
 				return 0xffff;
 			}
@@ -267,7 +279,7 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok == 0)
 			{
-				sprintf(cmd, "[ATM2 COM] receiving timeout.[c=%lu][t=%lu]", count, time() - strt);
+				sprintf(cmd, "[ATM2 COM]receiving timeout.[c=%lu]", count);
 				writeLog(cmd, "uartReadBlock  ");
 				return 0xffff;
 			}
@@ -291,7 +303,7 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok == 0)
 			{
-				sprintf(cmd, "[AFC] receiving timeout.[c=%lu][t=%lu]", count, time() - strt);
+				sprintf(cmd, "[AFC]receiving timeout.[c=%lu]", count);
 				writeLog(cmd, "uartReadBlock  ");
 				return 0xffff;
 			}
@@ -306,7 +318,7 @@ unsigned int uartReadBlock(void)
 			if (timerok == 0)
 			{
 				enable_interrupt();
-				sprintf(cmd, "[ATM2IOESP] receiving timeout.[c=%lu][t=%lu]", count, time() - strt);
+				sprintf(cmd, "[ATM2IOESP]receiving timeout.[c=%lu]", count);
 				writeLog(cmd, "uartReadBlock  ");
 				return 0xffff;
 			}
@@ -328,36 +340,24 @@ unsigned int uartReadBlock(void)
 	return 0xffff;
 }
 
-void uartFlush(unsigned int millis)
-{
-	unsigned long finish;
-	finish = time() + (millis / 20);
-	uart_setrts(1);
-	while (time() < finish)
-	{
-		uart_read();
-	}
-	uart_setrts(0);
-	// writeLog("Flushed data", "uartFlush      ");
-}
-
 char getdataEsp(unsigned int counted)
 {
 	unsigned int counter;
-	unsigned long strt = 0;
+	//unsigned long strt = 0;
+
 	switch (comType)
 	{
 	case 0: // Kondratyev  NO AFC
 		for (counter = 0; counter < counted; counter++)
 		{
-			strt = time();
-
+			//strt = time();
 			timerok = factor;
+
 			while ((1 & input(LSR)) == 0)
 			{
 				if (timerok == 0)
 				{
-					sprintf(cmd, "[NO AFC] Timeout.[Downloaded:%u of %u][t=%lu]", counter, counted, time() - strt);
+					sprintf(cmd, "[NO AFC]Timeout.[Downloaded:%u of %u]", counter, counted);
 					writeLog(cmd, "getDataEsp     ");
 					return false;
 				}
@@ -373,14 +373,14 @@ char getdataEsp(unsigned int counted)
 	case 1: // ATM2 COM port
 		for (counter = 0; counter < counted; counter++)
 		{
-			strt = time();
-
+			//strt = time();
 			timerok = factor;
+
 			while (uart_hasByte() == 0)
 			{
 				if (timerok == 0)
 				{
-					sprintf(cmd, "[ATM2 COM] Timeout.[Downloaded:%u of %u][t=%lu]", counter, counted, time() - strt);
+					sprintf(cmd, "[ATM2 COM]Timeout.[Downloaded:%u of %u]", counter, counted);
 					writeLog(cmd, "getDataEsp     ");
 					return false;
 				}
@@ -403,14 +403,14 @@ char getdataEsp(unsigned int counted)
 	case 2: // Kondratyev AFC
 		for (counter = 0; counter < counted; counter++)
 		{
-			strt = time();
-
+			//strt = time();
 			timerok = factor;
+
 			while ((1 & input(LSR)) == 0)
 			{
 				if (timerok == 0)
 				{
-					sprintf(cmd, "[AFC] Timeout.[Downloaded:%u of %u][t=%lu]", counter, counted, time() - strt);
+					sprintf(cmd, "[AFC]Timeout.[Downloaded:%u of %u]", counter, counted);
 					writeLog(cmd, "getDataEsp     ");
 					return false;
 				}
@@ -422,35 +422,37 @@ char getdataEsp(unsigned int counted)
 	case 3: // ATM2IOESP
 		for (counter = 0; counter < counted; counter++)
 		{
-			strt = time();
-
+			//strt = time();
 			timerok = factor;
-			disable_interrupt();
-			output(0xfb, LSR);
-			while ((1 & input(0xfa)) == 0)
+
+			while (42)
 			{
 				if (timerok == 0)
 				{
-					sprintf(cmd, "[ATM2IOESP] Timeout.[Downloaded:%u of %u][t=%lu]", counter, counted, time() - strt);
+					sprintf(cmd, "[ATM2IOESP]Timeout.[Downloaded:%u of %u]", counter, counted);
 					writeLog(cmd, "getDataEsp     ");
 					return false;
 				}
+
 				timerok = timerok - 1;
-				// disable_interrupt();
+
+				output(0xfb, LSR);
+				if ((1 & input(0xfa)) != 0)
+				{
+					break;
+				}
+				disable_interrupt();
 				output(0xfb, MCR);
 				output(0xfa, 2);
 				output(0xfa, 0);
-				output(0xfb, LSR);
-				// enable_interrupt();
+				enable_interrupt();
 			}
 			output(0xfb, RBR_THR);
 			netbuf[counter] = input(0xfa);
-			enable_interrupt();
 		}
 	}
 	return true;
 }
-
 void sendcommand(const char *commandline)
 {
 	unsigned int count, cmdLen;
@@ -463,7 +465,7 @@ void sendcommand(const char *commandline)
 	uart_write('\r');
 	uart_write('\n');
 	YIELD();
-	//writeLog(commandline, "sendcommand    ");
+	// writeLog(commandline, "sendcommand    ");
 }
 
 void sendcommandNrn(const char *commandline)
@@ -512,7 +514,7 @@ unsigned char getAnswer3(void)
 		return false;
 	}
 
-	//writeLog(netbuf, "getAnswer3     ");
+	// writeLog(netbuf, "getAnswer3     ");
 	YIELD();
 	return true;
 }
@@ -521,14 +523,15 @@ unsigned long uartBench(void)
 {
 	unsigned char data;
 	unsigned int count;
-	unsigned long start, finish;
+	unsigned long start, takes;
+	unsigned int cycles = 2000;
 
 	// scanf("enter comType %u", &comType);
 	start = time();
 	switch (comType)
 	{
 	case 0: // Kondratyev  NO AFC
-		for (count = 0; count < 10000; count++)
+		for (count = 0; count < cycles; count++)
 		{
 			data = (1 & input(LSR));
 			data = (1 & input(LSR));
@@ -541,7 +544,7 @@ unsigned long uartBench(void)
 		}
 		break;
 	case 1: // ATM2 COM port
-		for (count = 0; count < 10000; count++)
+		for (count = 0; count < cycles; count++)
 		{
 			enable_interrupt();
 			input(0x55fe);		  // Переход в режим команд
@@ -564,7 +567,7 @@ unsigned long uartBench(void)
 		}
 		break;
 	case 2: // Kondratyev AFC
-		for (count = 0; count < 10000; count++)
+		for (count = 0; count < cycles; count++)
 		{
 			data = (1 & input(LSR));
 			data = (1 & input(LSR));
@@ -573,7 +576,7 @@ unsigned long uartBench(void)
 		}
 		break;
 	case 3: // ATM2IOESP
-		for (count = 0; count < 10000; count++)
+		for (count = 0; count < cycles; count++)
 		{
 			enable_interrupt();
 			output(0xfb, LSR);
@@ -588,9 +591,8 @@ unsigned long uartBench(void)
 		}
 		break;
 	}
-	finish = time();
-
-	factor = (unsigned long)(espRetry * magic * 50000 / (finish - start)); // magic number  15 * (espRetry * 10000 * 50 / (finish - start)) /10
+	takes = time() - start;
+	factor = (magic * cycles / takes) * espRetry * 50 / 10;
 	printf(". Factor = %lu.", factor);
 	return factor;
 }
@@ -614,7 +616,6 @@ char espReBoot(void)
 		// putchar(byte);
 		if (byte > 255)
 		{
-			clearStatus();
 			printf("\r\nuartReadBlock() timeout Finish Continue\r\n");
 			writeLog("Reboot waiting error. Continue; ", "espReBoot      ");
 			if (time() > finish)
@@ -692,7 +693,7 @@ int recvHead(void)
 
 		if (byte > 255)
 		{
-			writeLog("Timeout reading head ", "recvHead       ");
+			writeLog("Timeout reading +IPD head ", "recvHead       ");
 			return false;
 		}
 
@@ -709,7 +710,6 @@ int recvHead(void)
 			}
 		}
 		else
-
 		{
 			count = 0;
 		}

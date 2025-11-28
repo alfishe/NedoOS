@@ -1,9 +1,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <intrz80.h>
 #include <oscalls.h>
 #include <osfs.h>
-#include <intrz80.h>
 #include <../common/terminal.c>
 #include <tcp.h>
 //////////////////
@@ -23,7 +23,7 @@ unsigned int comType = 0;
 unsigned int espType = 32;
 unsigned int espRetry = 5;
 unsigned long factor, timerok;
-const unsigned int magic = 15;
+const unsigned int magic = 11;
 
 struct fileStruct
 {
@@ -59,7 +59,7 @@ struct sockaddr_in targetadr;
 struct readstructure readStruct;
 
 unsigned char ver[] = "4.8";
-//const unsigned char sendOk[] = "SEND OK";
+// const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
 unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; GetPic)\r\n\r\n\0";
@@ -1057,6 +1057,7 @@ void safeKeys(unsigned char keypress)
       loadEspConfig();
       OS_CHDIR(curPath);
       uart_init(divider);
+
       espReBoot();
     }
     else

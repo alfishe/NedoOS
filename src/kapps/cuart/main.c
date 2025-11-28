@@ -26,6 +26,8 @@ unsigned int espRetry = 5;
 unsigned long factor, timerok, count = 0;
 const unsigned int magic = 15;
 unsigned char cmd[128];
+unsigned char curPath[128];
+
 
 unsigned char directMode = 0;
 

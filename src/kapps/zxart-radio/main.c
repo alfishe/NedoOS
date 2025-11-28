@@ -1,13 +1,13 @@
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <intrz80.h>
-#include <stdlib.h>
 #include <oscalls.h>
 #include <../common/terminal.c>
 #include <tcp.h>
 #include <osfs.h>
-#include <ctype.h>
-#include <math.h>
+// #include <ctype.h>
+#include <math.h> // floor
 //
 #define true 1
 #define false 0
@@ -24,9 +24,9 @@ unsigned int SR = 0xffef;
 unsigned int divider = 1;
 unsigned int comType = 0;
 unsigned int espType = 32;
-unsigned int espRetry = 5;
+unsigned int espRetry = 1;
 unsigned long factor, timerok;
-unsigned int magic = 16;
+unsigned int magic = 11;
 
 const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";

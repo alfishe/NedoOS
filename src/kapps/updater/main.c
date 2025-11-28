@@ -630,6 +630,8 @@ unsigned char getFileEsp(const unsigned char *fileLink, unsigned char *fileNameP
 
 		if (!getdataEsp(todo))
 		{
+			saveBuf(fileNamePtr, 01, todo);
+			saveBuf(fileNamePtr, 02, 00);
 			writeLog("Downloading timeout. Exit!", "getFileEsp     ");
 			fatalError("[getdataEsp]Downloading timeout. Exit!");
 		}
