@@ -593,28 +593,6 @@ unsigned char getFileEsp(const unsigned char *fileLink, unsigned char *fileNameP
 
 	sendcommand(link);
 
-	/*
-		if (!getAnswer3()) // 'sendOk'
-		{
-			writeLog("Timeout when waiting 'sendOk' ", "getFileEsp     ");
-			return false;
-		}
-
-		byte = uartReadBlock(); // CR
-		if (byte > 255)
-		{
-			writeLog("Timeout when waiting 'CR' ", "getFileEsp     ");
-			return false;
-		}
-
-		byte = uartReadBlock(); // LF
-		if (byte > 255)
-		{
-			writeLog("Timeout when waiting 'LF' ", "getFileEsp     ");
-			return false;
-		}
-	*/
-
 	do
 	{
 		clearNetBuf(255);

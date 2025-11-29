@@ -252,8 +252,6 @@ void uartFlush(unsigned int millis)
 unsigned int uartReadBlock(void)
 {
 	unsigned char data;
-	//unsigned long strt = 0;
-	//strt = time();
 	timerok = factor;
 
 	switch (comType)
@@ -311,29 +309,25 @@ unsigned int uartReadBlock(void)
 		}
 		return input(RBR_THR);
 	case 3: // ATM2IOESP
-		disable_interrupt();
 		output(0xfb, LSR);
 		while ((1 & input(0xfa)) == 0)
 		{
 			if (timerok == 0)
 			{
-				enable_interrupt();
 				sprintf(cmd, "[ATM2IOESP]receiving timeout.[c=%lu]", count);
 				writeLog(cmd, "uartReadBlock  ");
 				return 0xffff;
 			}
 			timerok = timerok - 1;
-			// disable_interrupt();
+			disable_interrupt();
 			output(0xfb, MCR);
 			output(0xfa, 2);
 			output(0xfa, 0);
 			output(0xfb, LSR);
-			// enable_interrupt();
+			enable_interrupt();
 		}
 		output(0xfb, RBR_THR);
-		data = input(0xfa);
-		enable_interrupt();
-		return data;
+		return input(0xfa);
 	}
 	puts("Error, Unknown COM port");
 	getchar();
@@ -343,14 +337,11 @@ unsigned int uartReadBlock(void)
 char getdataEsp(unsigned int counted)
 {
 	unsigned int counter;
-	//unsigned long strt = 0;
-
 	switch (comType)
 	{
 	case 0: // Kondratyev  NO AFC
 		for (counter = 0; counter < counted; counter++)
 		{
-			//strt = time();
 			timerok = factor;
 
 			while ((1 & input(LSR)) == 0)
@@ -373,7 +364,6 @@ char getdataEsp(unsigned int counted)
 	case 1: // ATM2 COM port
 		for (counter = 0; counter < counted; counter++)
 		{
-			//strt = time();
 			timerok = factor;
 
 			while (uart_hasByte() == 0)
@@ -403,9 +393,7 @@ char getdataEsp(unsigned int counted)
 	case 2: // Kondratyev AFC
 		for (counter = 0; counter < counted; counter++)
 		{
-			//strt = time();
 			timerok = factor;
-
 			while ((1 & input(LSR)) == 0)
 			{
 				if (timerok == 0)
@@ -422,9 +410,7 @@ char getdataEsp(unsigned int counted)
 	case 3: // ATM2IOESP
 		for (counter = 0; counter < counted; counter++)
 		{
-			//strt = time();
 			timerok = factor;
-
 			while (42)
 			{
 				if (timerok == 0)
@@ -476,6 +462,8 @@ void sendcommandNrn(const char *commandline)
 	{
 		uart_write(commandline[count]);
 	}
+	// writeLog(commandline, "sendcommandNrn ");
+	YIELD();
 }
 
 unsigned char getAnswer3(void)
@@ -525,8 +513,6 @@ unsigned long uartBench(void)
 	unsigned int count;
 	unsigned long start, takes;
 	unsigned int cycles = 2000;
-
-	// scanf("enter comType %u", &comType);
 	start = time();
 	switch (comType)
 	{
@@ -591,7 +577,7 @@ unsigned long uartBench(void)
 		}
 		break;
 	}
-	takes = time() - start;
+	takes = time() - start + 1;
 	factor = (magic * cycles / takes) * espRetry * 50 / 10;
 	printf(". Factor = %lu.", factor);
 	return factor;
@@ -660,7 +646,7 @@ char espReBoot(void)
 
 	if (uartReadBlock() > 255) // LN
 	{
-		writeLog("ATE0. CR answer waiting error. ", "espReBoot      ");
+		writeLog("ATE0. LF answer waiting error. ", "espReBoot      ");
 	}
 
 	sendcommand("AT+CIPCLOSE");
@@ -681,7 +667,7 @@ char espReBoot(void)
 int recvHead(void)
 {
 	unsigned int dataRead = 0;
-	int byte, todo = 0, count = 0, countErr = 0, toComa;
+	unsigned int byte, todo = 0, count = 0, countErr = 0, toComa;
 	const char closed[] = "CLOSED";
 	const char error[] = "ERROR";
 	//+IPD,<length>:<data>
@@ -747,6 +733,8 @@ int recvHead(void)
 
 	// <actual_len>
 	// printf("recvHead(); todo = %d  ", todo);
+	// sprintf(cmd, "In header[todo=%d]", todo);
+	// writeLog(cmd, "recvHead       ");
 	return todo;
 }
 
