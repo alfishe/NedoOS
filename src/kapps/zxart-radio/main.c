@@ -1031,7 +1031,7 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
 
     parseJson("\"rating\":\"");
     strcpy(curFileStruct.picRating, netbuf);
-    parseJson("\"year\":\"");
+    parseJson("\"year\":");
     curFileStruct.picYear = atoi(netbuf);
     parseJson("\"totalAmount\":");
     curFileStruct.totalAmount = atol(netbuf);
