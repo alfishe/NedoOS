@@ -113,6 +113,7 @@ struct time
 unsigned char nvext[1024];
 unsigned char netbuf[31768];
 unsigned char heap[1500];
+FILE *fp2;
 
 void clearNetBuf(unsigned int const size)
 {
@@ -226,45 +227,42 @@ char readParamFromIni(void)
 unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsigned int sizeOfBuf)
 {
 
-	FILE *fp2;
-	if (operation == 00)
+	switch (operation)
 	{
+	case 00:
 		fp2 = OS_CREATEHANDLE(fileNamePtr, 0x80);
 		if (((int)fp2) & 0xff)
 		{
 			clearStatus();
-			printf("%s  creating error.", fileNamePtr);
-			waitKey();
+			AT(1, 24);
+			printf("%s", fileNamePtr);
+			printf(" creating error.");
 			exit(0);
 		}
+		
 		OS_CLOSEHANDLE(fp2);
-		return 0;
-	}
 
-	if (operation == 01)
-	{
-		long fileSize;
 		fp2 = OS_OPENHANDLE(fileNamePtr, 0x80);
 		if (((int)fp2) & 0xff)
 		{
 			clearStatus();
+			AT(1, 24);
 			printf("%s", fileNamePtr);
 			printf(" opening error. ");
-			waitKey();
+
 			exit(0);
 		}
-		fileSize = OS_GETFILESIZE(fp2);
-		OS_SEEKHANDLE(fp2, fileSize);
+		AT(1, 24);
+		break;
+
+	case 01:
 		OS_WRITEHANDLE(netbuf, fp2, sizeOfBuf);
+		break;
+
+	default:
 		OS_CLOSEHANDLE(fp2);
-		return 0;
 	}
 
-	if (operation == 02)
-	{
-		OS_CLOSEHANDLE(fp2);
-		return 0;
-	}
 	return 0;
 }
 
@@ -1070,6 +1068,7 @@ char getFileEsp(unsigned char *fileNamePtr)
 		printf("%lu kb  \r", downloaded / 1024);
 	} while (todo != 0);
 	link.size = downloaded;
+	saveBuf(fileNamePtr, 02, 00);
 	return true;
 }
 
@@ -1130,6 +1129,7 @@ char getFileNet(unsigned char *fileNamePtr)
 		printf("%lu kb    \r", downloaded / 1024);
 		saveBuf(fileNamePtr, 01, todo);
 	} while (42);
+	saveBuf(fileNamePtr, 02, 00);
 	clearStatus();
 	netShutDown(socket, 0);
 	link.size = downloaded;
@@ -2011,8 +2011,6 @@ C_task main(int argc, const char *argv[])
 	OS_SETSYSDRV();
 	init();
 	OS_HIDEFROMPARENT();
-	// printTable();
-	// waitKey();
 
 	goHome(false);
 
