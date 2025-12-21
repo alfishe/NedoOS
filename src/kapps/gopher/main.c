@@ -234,7 +234,6 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 		if (((int)fp2) & 0xff)
 		{
 			clearStatus();
-			AT(1, 24);
 			printf("%s", fileNamePtr);
 			printf(" creating error.");
 			exit(0);
@@ -246,13 +245,11 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 		if (((int)fp2) & 0xff)
 		{
 			clearStatus();
-			AT(1, 24);
 			printf("%s", fileNamePtr);
 			printf(" opening error. ");
 
 			exit(0);
 		}
-		AT(1, 24);
 		break;
 
 	case 01:
