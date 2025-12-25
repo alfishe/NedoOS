@@ -108,7 +108,7 @@ MEMORYSTREAMERRORMASK = 255
 DRUM_CHANNEL = 9
 
 DEFAULT_QNOTE_DURATION_MCS = 500000
-VSYNC_FREQ = 46 ;49 ;46
+VSYNC_FREQ = 49
 VSYNC_MCS = 1000000/VSYNC_FREQ
 
 
@@ -170,6 +170,8 @@ midloadfile
 	ld (g_header.ticks_per_qnote+1),a
 	ld de,VSYNC_MCS
 	call uintmul16
+	add hl,hl : rl de
+	add hl,hl : rl de
 	add hl,hl : rl de
 	add hl,hl : rl de
 	ld (g_header.ticksperqnoteXupdatelen+0),hl

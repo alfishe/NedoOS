@@ -13,13 +13,6 @@ FILE_ATTRIB_OFFSET = FILE_NAME_OFFSET+FILE_NAME_SIZE
 FILE_ATTRIB_SIZE = 1
 BROWSER_FILE_COUNT = 175
 PLAYLIST_FILE_COUNT = 40
-DEFAULTCOLOR = 0x07
-PANELCOLOR = 0x4f
-CURSORCOLOR = 0x28
-PANELFILECOLOR = 0x0f
-PANELDIRCOLOR = 0x4f
-PANELDRIVECOLOR = 0x4b
-ERRORWINDOWCOLOR = 0x17
 FILE_LINE_COUNT = 22
 FILES_WINDOW_X = 0
 FILE_ATTRIB_MUSIC = 255
@@ -80,9 +73,9 @@ mainbegin
 	push af
 	call drawui
 	pop af
-	call c,startplaying
 	ld hl,mainmsgtable
 	ld (currentmsgtable),hl
+	call c,startplaying
 
 playloop
 isplaying=$+1
@@ -325,14 +318,14 @@ playerdeinitloop
 	ret
 
 savedefaultplaylist
-	ld a,255
-	ld (playlistpanel.isinactive),a
 	ld a,(playlistchanged)
 	or a
 	ret z
 	ld de,defaultplaylistfilename
 saveplaylist
 ;de = filename
+	ld a,255
+	ld (playlistpanel.isinactive),a
 	push de
 	call openstream_file
 	pop de
@@ -423,6 +416,7 @@ startplaying
 	ld a,1
 	ld (isplaying),a
 	call drawplayerwindowtitle
+	call drawplayercustomui
 	call drawsongtitle
 	jp drawprogress
 .loadplaylist
@@ -700,7 +694,7 @@ drawerrorwindow
 	call drawui
 	jp startplaying
 .drawwindow
-	ld de,ERRORWINDOWCOLOR
+	ld de,COLOR_ERROR_WINDOW
 	OS_SETCOLOR
 	ld hl,(ERRORSTRINGADDR)
 	ld a,l
@@ -728,7 +722,7 @@ drawerrorwindow
 	jp drawui
 
 drawplayerwindow
-	ld de,PANELCOLOR
+	ld de,COLOR_PANEL
 	OS_SETCOLOR
 	call getmusicprogress
 	push af
@@ -750,7 +744,7 @@ drawplayerwindow
 	ld a,(isplaying)
 	or a
 	jp nz,drawprogress
-	ld de,PANELDIRCOLOR
+	ld de,COLOR_PANEL_DIR
 	OS_SETCOLOR
 	ld de,11*256+36
 	OS_SETXY
@@ -758,7 +752,7 @@ drawplayerwindow
 	jp print_hl
 
 drawsongtitle
-	ld de,PANELDIRCOLOR
+	ld de,COLOR_PANEL_DIR
 	OS_SETCOLOR
 songtitlepos=$+1
 	ld de,10*256+0
@@ -824,6 +818,8 @@ updateprogressbar
 	add hl,de
 	ex de,hl
 	OS_SETXY
+	ld de,COLOR_PANEL_DIR
+	OS_SETCOLOR
 	pop bc
 .drawloop
 	push bc
@@ -917,17 +913,17 @@ getfileinfocolor
 currentfileindex=$+1
 	ld a,0
 	cp c
-	ld de,CURSORCOLOR
+	ld de,COLOR_CURSOR
 	ret z
 	ld a,(ix+FILE_ATTRIB_OFFSET-FILE_DISPLAY_INFO_OFFSET)
 	cp FILE_ATTRIB_MUSIC
-	ld de,PANELFILECOLOR
+	ld de,COLOR_PANEL_FILE
 	ret z
 	cp FILE_ATTRIB_DRIVE
-	ld de,PANELDRIVECOLOR
+	ld de,COLOR_PANEL_DRIVE
 	ret z
 ;FILE_ATTRIB_PARENT_DIR or FILE_ATTRIB_FOLDER
-	ld de,PANELDIRCOLOR
+	ld de,COLOR_PANEL_DIR
 	ret
 
 printfilesinfos
@@ -1021,12 +1017,12 @@ currentpanelpos=$+1
 	jp printfilesinfos
 
 drawbrowserwindow
-	ld de,PANELCOLOR
+	ld de,COLOR_PANEL
 	OS_SETCOLOR
 	ld de,FILES_WINDOW_X
 	ld bc,FILE_DISPLAY_INFO_SIZE*256+FILE_LINE_COUNT
 	call drawwindow
-	ld de,CURSORCOLOR
+	ld de,COLOR_CURSOR
 	OS_SETCOLOR
 	ld de,FILES_WINDOW_X+2
 	OS_SETXY
@@ -1035,12 +1031,12 @@ drawbrowserwindow
 	jp drawbrowserfileslist
 
 drawplaylistwindow
-	ld de,PANELCOLOR
+	ld de,COLOR_PANEL
 	OS_SETCOLOR
 	ld de,FILES_WINDOW_X+FILE_DISPLAY_INFO_SIZE+2
 	ld bc,FILE_DISPLAY_INFO_SIZE*256+FILE_LINE_COUNT
 	call drawwindow
-	ld de,CURSORCOLOR
+	ld de,COLOR_CURSOR
 	OS_SETCOLOR
 	ld de,FILES_WINDOW_X+FILE_DISPLAY_INFO_SIZE+4
 	OS_SETXY
@@ -1051,10 +1047,9 @@ drawplaylistwindow
 redraw
 	ld e,7
 	OS_CLS
-drawui
-	call drawbrowserwindow
+drawui	call drawbrowserwindow
 	call drawplaylistwindow
-	ld de,DEFAULTCOLOR
+	ld de,COLOR_DEFAULT
 	OS_SETCOLOR
 	ld de,24*256+1
 	OS_SETXY
@@ -1063,7 +1058,60 @@ drawui
 	ld a,(isplaying)
 	or a
 	ret z
-	jp drawplayerwindow
+	call drawplayerwindow
+	jp drawplayercustomui
+
+drawplayercustomui
+	ld ix,(CUSTOMUIADDR)
+	ld a,ixl
+	or ixh
+	ret z
+drawcustomui
+;ix = commands
+.loop	ld a,(ix)
+	cp CUSTOM_UI_CMD_COUNT
+	ret nc
+	add a,a
+	ld (.commandtable),a
+.commandtable=$+1
+	jr $
+	jr .drawwindow
+	jr .printtext
+	jr .setcolor
+.drawwindow
+	ld e,(ix+CUSTOMUIDRAWWINDOW.topleftx)
+	ld d,(ix+CUSTOMUIDRAWWINDOW.toplefty)
+	ld b,(ix+CUSTOMUIDRAWWINDOW.clientwidth)
+	ld c,(ix+CUSTOMUIDRAWWINDOW.clientheight)
+	push ix
+	call drawwindow
+	pop ix
+	ld de,CUSTOMUIDRAWWINDOW
+	add ix,de
+	jr .loop
+.printtext
+	ld e,(ix+CUSTOMUIPRINTTEXT.posx)
+	ld d,(ix+CUSTOMUIPRINTTEXT.posy)
+	push ix
+	OS_SETXY
+	pop ix
+	ld de,(ix+CUSTOMUIPRINTTEXT.straddr)
+	ex de,hl
+	push ix
+	call print_hl
+	pop ix
+	ld de,CUSTOMUIPRINTTEXT
+	add ix,de
+	jr .loop
+.setcolor
+	ld e,(ix+CUSTOMUISETCOLOR.color)
+	ld d,0
+	push ix
+	OS_SETCOLOR
+	pop ix
+	ld de,CUSTOMUISETCOLOR
+	add ix,de
+	jr .loop
 
 skipword_hl
 	ld a,(hl)
@@ -1169,7 +1217,7 @@ drivedata
 drivedataend
 
 drawplayerwindowtitle
-	ld de,CURSORCOLOR
+	ld de,COLOR_CURSOR
 	OS_SETCOLOR
 playerwindowtitlepos=$+1
 	ld de,8*256+0
@@ -1217,7 +1265,7 @@ deviceay
 deviceturbosound
 	db "TurboSound",0
 devicetfm
-	db "TurboSound FM",0
+	db "TurboSound-FM",0
 devicemoonsound
 	db "MoonSound",0
 devicebomgemoon
@@ -1231,7 +1279,7 @@ devicemidiuart
 deviceopm
 	db "YM2151",0
 devicedualopm
-	db "2x YM2151",0
+	db "Dual-YM2151",0
 deviceopna
 	db "YM2608",0
 devicelist
@@ -1393,9 +1441,9 @@ findsupportedplayer
 	ret
 
 setsharedpages
-	ld a,(gpsettings.sharedpages)
-	SETPG8000
 	ld a,(gpsettings.sharedpages+1)
+	SETPG8000
+	ld a,(gpsettings.sharedpages)
 	SETPGC000
 	ret
 
@@ -1581,19 +1629,12 @@ fileextsortkeyoffsets
 	dw FILE_NAME_OFFSET+11, FILE_NAME_OFFSET+10, FILE_NAME_OFFSET+9
 	dw FILE_ATTRIB_OFFSET
 
-	macro jumpindirect addr
-	push hl
-	ld hl,(addr)
-	ex (sp),hl
-	ret
-	endm
-
-playerinit      jumpindirect PLAYERINITPROCADDR
-playerdeinit    jumpindirect PLAYERDEINITPROCADDR
-musicload       jumpindirect MUSICLOADPROCADDR
-musicunload     jumpindirect MUSICUNLOADPROCADDR
-musicplay       jumpindirect MUSICPLAYPROCADDR
-isfilesupported jumpindirect ISFILESUPPORTEDPROCADDR
+playerinit      = PLAYERINITPROCADDR - 1
+playerdeinit    = PLAYERDEINITPROCADDR - 1
+musicload       = MUSICLOADPROCADDR - 1
+musicunload     = MUSICUNLOADPROCADDR - 1
+musicplay       = MUSICPLAYPROCADDR - 1
+isfilesupported = ISFILESUPPORTEDPROCADDR - 1
 
 	include "../_sdk/file.asm"
 	include "common/radixsort.asm"

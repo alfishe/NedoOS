@@ -154,11 +154,15 @@ midloadtracks:
 			call midreadvarint
 			ld (memorystreamcurrentaddr),hl
 			
-			ld b,0
-			sla de : rl bc
-			sla de : rl bc
-			ld (ix+TRACK_DATA.waiting_for_t+0),de  
-			ld (ix+TRACK_DATA.waiting_for_t+2),bc
+			ex de,hl
+			xor a
+			add hl,hl : rl c : rla
+			add hl,hl : rl c : rla
+			add hl,hl : rl c : rla
+			add hl,hl : rl c : rla
+			ld (ix+TRACK_DATA.waiting_for_t+0),hl
+			ld (ix+TRACK_DATA.waiting_for_t+2),c
+			ld (ix+TRACK_DATA.waiting_for_t+3),a
 			call memorystreamgetpos
 			ld (ix+TRACK_DATA.streamoffset+0),hl
 			ld (ix+TRACK_DATA.streamoffset+2),de
@@ -1542,10 +1546,14 @@ finalize:
 			ld hl,(memorystreamcurrentaddr)
 			call midreadvarint                  ;read delta-time
 			ld (memorystreamcurrentaddr),hl
-			ld b,0
-			sla de : rl bc
-			sla de : rl bc
-			ld hl,(ix+TRACK_DATA.waiting_for+0)
+			ex de,hl
+			xor a
+			add hl,hl : rl c : rla
+			add hl,hl : rl c : rla
+			add hl,hl : rl c : rla
+			add hl,hl : rl c : rla
+			ld b,a
+			ld de,(ix+TRACK_DATA.waiting_for+0)
 			add hl,de
 			ld (ix+TRACK_DATA.waiting_for+0),hl
 			ld hl,(ix+TRACK_DATA.waiting_for+2)
@@ -1646,8 +1654,6 @@ midgetprogress
 ;dehl = ticks
 ;out: a = progress
 	ld a,e
-	add hl,hl : rla
-	add hl,hl : rla
 	add hl,hl : rla
 	add hl,hl : rla
 	ret
@@ -1783,13 +1789,18 @@ midadvancetrack
 		ld hl,(memorystreamcurrentaddr)
 		call midreadvarint
 		ld (memorystreamcurrentaddr),hl
-		ld b,0
-		sla de : rl bc
-		sla de : rl bc
-		ld hl,(ix+TRACK_DATA.waiting_for+0)
+		ex de,hl
+		xor a
+		add hl,hl : rl c : rla
+		add hl,hl : rl c : rla
+		add hl,hl : rl c : rla
+		add hl,hl : rl c : rla
+		ld b,a
+		ld de,(ix+TRACK_DATA.waiting_for+0)
 		add hl,de
 		ld (ix+TRACK_DATA.waiting_for+0),hl
 		ld hl,(ix+TRACK_DATA.waiting_for+2)
 		adc hl,bc
 		ld (ix+TRACK_DATA.waiting_for+2),hl
-		ret	
+		ret
+	

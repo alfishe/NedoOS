@@ -6,7 +6,7 @@
 	include "common/opna.asm"
 
 startup
-	ld de,DEFAULTCOLOR
+	ld de,COLOR_DEFAULT
 	OS_SETCOLOR
 	OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
 	ld (gpsettings.sharedpages),hl
@@ -54,11 +54,16 @@ runsetup
 	ld a,(hl)
 	and 1
 	call updatecheckbox
+	ld hl,(gpsettings.slowtfm)
+	ld de,slowtfmoption
+	ld a,(hl)
+	and 1
+	call updatecheckbox
 	call redrawplayersetupui
 	ld hl,playersetupmsgtable
 	ld (currentmsgtable),hl
 	call playloop
-	ld de,DEFAULTCOLOR
+	ld de,COLOR_DEFAULT
 	OS_SETCOLOR
 	ld e,7
 	OS_CLS
@@ -70,7 +75,7 @@ checkinifile
 	or h
 	jr z,.isoutdated
 	ld a,(hl)
-	cp '1'
+	cp '2'
 	ret z
 .isoutdated
 	ld hl,builtininifile
@@ -113,28 +118,49 @@ modoptions
 modoptioncount=($-modoptions)/6
 bomgemoonoption
 	dw bomgemoonoptionstr : dw bomgemoonhandler : dw bomgemoonoptiondescstr
+slowtfmoption
+	dw slowtfmoptionstr : dw slowtfmhandler : dw slowtfmoptiondescstr
 playersetupoptioncount=($-playersetupoptions)/6
 
-midioption1str db 4,5,"[X] Auto Select Device        ",0
-midioption2str db 5,5,"[ ] MoonSound (OPL4)          ",0
-midioption3str db 6,5,"[ ] NeoGS (VS10x3 Synth)      ",0
-midioption4str db 7,5,"[ ] UART AY1 (Multisound Old) ",0
-midioption5str db 8,5,"[ ] UART AY2 (Multisound New) ",0
-midioption6str db 9,5,"[ ] UART YM2608               ",0
-modoption1str db 5,47,"[X] Auto Select Device  ",0
-modoption2str db 6,47,"[ ] MoonSound (OPL4)    ",0
-modoption3str db 7,47,"[ ] GeneralSound        ",0
-bomgemoonoptionstr db 14,21,"[ ] OPL3-only Device (BomgeMoon)  ",0
-settingsheaderstr
-	db "Player Settings",0
-setuphotkeysstr
-	db "ESC=Save&Continue  Space=Toggle  Up/Down=Nagivate",0
-mididevicestr
-	db "MIDI Device...",0
-moddevicestr
-	db "MOD Device...",0
-miscoptionstr
-	db "Misc...",0
+MIDI_DEVICE_WINDOW_X = 4
+MIDI_DEVICE_WINDOW_Y = 3
+MOD_DEVICE_WINDOW_X = 46
+MOD_DEVICE_WINDOW_Y = 4
+MISC_OPTION_WINDOW_X = 20
+MISC_OPTION_WINDOW_Y = 13
+
+playersetupui
+	CUSTOMUISETCOLOR ,COLOR_DEFAULT
+	CUSTOMUIPRINTTEXT ,32,0,settingsheaderstr
+	CUSTOMUIPRINTTEXT ,15,24,setuphotkeysstr
+	CUSTOMUISETCOLOR ,COLOR_PANEL
+        CUSTOMUIDRAWWINDOW ,MIDI_DEVICE_WINDOW_X,MIDI_DEVICE_WINDOW_Y,30,6
+	CUSTOMUIPRINTTEXT ,MIDI_DEVICE_WINDOW_X+2,MIDI_DEVICE_WINDOW_Y,mididevicestr
+        CUSTOMUIDRAWWINDOW ,MOD_DEVICE_WINDOW_X,MOD_DEVICE_WINDOW_Y,24,3
+	CUSTOMUIPRINTTEXT ,MOD_DEVICE_WINDOW_X+2,MOD_DEVICE_WINDOW_Y,moddevicestr
+        CUSTOMUIDRAWWINDOW ,MOD_DEVICE_WINDOW_X,MOD_DEVICE_WINDOW_Y,24,3
+	CUSTOMUIPRINTTEXT ,MOD_DEVICE_WINDOW_X+2,MOD_DEVICE_WINDOW_Y,moddevicestr
+        CUSTOMUIDRAWWINDOW ,MISC_OPTION_WINDOW_X,MISC_OPTION_WINDOW_Y,34,2
+	CUSTOMUIPRINTTEXT ,MISC_OPTION_WINDOW_X+2,MISC_OPTION_WINDOW_Y,miscoptionstr
+	CUSTOMUIDRAWEND
+
+midioption1str db MIDI_DEVICE_WINDOW_Y+1,MIDI_DEVICE_WINDOW_X+1,"[X] Auto Select Device        ",0
+midioption2str db MIDI_DEVICE_WINDOW_Y+2,MIDI_DEVICE_WINDOW_X+1,"[ ] MoonSound (OPL4)          ",0
+midioption3str db MIDI_DEVICE_WINDOW_Y+3,MIDI_DEVICE_WINDOW_X+1,"[ ] NeoGS (VS10x3 Synth)      ",0
+midioption4str db MIDI_DEVICE_WINDOW_Y+4,MIDI_DEVICE_WINDOW_X+1,"[ ] UART AY1 (Multisound Old) ",0
+midioption5str db MIDI_DEVICE_WINDOW_Y+5,MIDI_DEVICE_WINDOW_X+1,"[ ] UART AY2 (Multisound New) ",0
+midioption6str db MIDI_DEVICE_WINDOW_Y+6,MIDI_DEVICE_WINDOW_X+1,"[ ] UART YM2608               ",0
+modoption1str db MOD_DEVICE_WINDOW_Y+1,MOD_DEVICE_WINDOW_X+1,"[X] Auto Select Device  ",0
+modoption2str db MOD_DEVICE_WINDOW_Y+2,MOD_DEVICE_WINDOW_X+1,"[ ] MoonSound (OPL4)    ",0
+modoption3str db MOD_DEVICE_WINDOW_Y+3,MOD_DEVICE_WINDOW_X+1,"[ ] GeneralSound        ",0
+bomgemoonoptionstr db MISC_OPTION_WINDOW_Y+1,MISC_OPTION_WINDOW_X+1,"[ ] OPL3-only Device (BomgeMoon)  ",0
+slowtfmoptionstr   db MISC_OPTION_WINDOW_Y+2,MISC_OPTION_WINDOW_X+1,"[ ] Slow TurboSound-FM            ",0
+
+settingsheaderstr db "Player Settings",0
+setuphotkeysstr db "ESC=Save&Continue  Space=Toggle  Up/Down=Nagivate",0
+mididevicestr db "MIDI Device...",0
+moddevicestr db "MOD Device...",0
+miscoptionstr db "Misc...",0
 
 moonsounddescstr db "Проигрывать через MoonSound.",0
 defaultdevicedescstr db "Разрешает плееру использовать любое доступное устройство.",0
@@ -143,7 +169,8 @@ midioption4descstr db "Используйте если у вас MultiSound с прошивкой первой верс
 midioption5descstr db "Используйте если у вас MultiSound с последней ревизией прошивки.",0
 midioption6descstr db "MIDI UART подключен через IOA YM2608.",0
 modoption3descstr db "Проигрывать через прошивку GeneralSound/NeoGS.",0
-bomgemoonoptiondescstr db "Используйте если у вас нет MoonSound, но есть карта с OPL3 чипом.",0
+bomgemoonoptiondescstr db "Включите, если у вас нет MoonSound, но есть карта с OPL3 чипом.",0
+slowtfmoptiondescstr db "Включите, если ваш TurboSound-FM работает плохо или не работает.",0
 
 activeoption db 0
 inifileversionsettings dw 0
@@ -176,6 +203,8 @@ updatecheckbox
 	dec a
 	ld c,a
 	ld b,1
+	ld a,'X'
+	ld (updateradiobuttons.selectionsymbol),a
 	ld a,'1'
 	jr updateradiobuttons.updateoptions
 
@@ -185,6 +214,8 @@ updateradiobuttons
 ;b = option count
 ;a = active option
 	ld c,a
+	ld a,254
+	ld (.selectionsymbol),a
 	ld a,'0'
 .updateoptions
 	ld (.basedigit),a
@@ -204,7 +235,8 @@ updateradiobuttons
 	inc de
 	inc de
 	dec c
-	ld a,'X'
+.selectionsymbol=$+1
+	ld a,254
 	jr z,$+4
 	ld a,' '
 	ld (de),a
@@ -234,6 +266,15 @@ modoptionhandler
 bomgemoonhandler
 	ld hl,(bomgemoonsettings)
 	ld de,bomgemoonoption
+	ld a,(hl)
+	cpl
+	and 1
+	call updatecheckbox
+	jp drawsetupoptions
+
+slowtfmhandler
+	ld hl,(gpsettings.slowtfm)
+	ld de,slowtfmoption
 	ld a,(hl)
 	cpl
 	and 1
@@ -293,39 +334,8 @@ optiondescbuffer equ playlistpanel
 redrawplayersetupui
 	ld e,7
 	OS_CLS
-	ld de,DEFAULTCOLOR
-	OS_SETCOLOR
-	ld de,0x00020
-	OS_SETXY
-	ld hl,settingsheaderstr
-	call print_hl
-	ld de,0x180f
-	OS_SETXY
-	ld hl,setuphotkeysstr
-	call print_hl
-	ld de,PANELCOLOR
-	OS_SETCOLOR
-	ld de,0x0304
-	ld bc,0x1e06
-	call drawwindow
-	ld de,0x0306
-	OS_SETXY
-	ld hl,mididevicestr
-	call print_hl
-	ld de,0x042e
-	ld bc,0x1803
-	call drawwindow
-	ld de,0x0430
-	OS_SETXY
-	ld hl,moddevicestr
-	call print_hl
-	ld de,0x0d14
-	ld bc,0x2201
-	call drawwindow
-	ld de,0x0d16
-	OS_SETXY
-	ld hl,miscoptionstr
-	call print_hl
+	ld ix,playersetupui
+	call drawcustomui
 drawsetupoptions
 	ld hl,playersetupoptions
 	ld b,playersetupoptioncount
@@ -334,9 +344,9 @@ drawsetupoptions
 	push bc
 	ld a,(activeoption)
 	cp c
-	ld de,CURSORCOLOR
+	ld de,COLOR_CURSOR
 	jr z,$+5
-	ld de,PANELFILECOLOR
+	ld de,COLOR_PANEL_FILE
 	push hl
 	OS_SETCOLOR
 	pop hl
@@ -360,7 +370,7 @@ drawsetupoptions
 	inc c
 	djnz .optionsloop
 ;print desc
-	ld de,DEFAULTCOLOR
+	ld de,COLOR_DEFAULT
 	OS_SETCOLOR
 	ld de,0x1600
 	OS_SETXY
@@ -400,8 +410,7 @@ drawsetupoptions
 	xor a
 	ld (de),a
 	ld hl,optiondescbuffer
-	call print_hl
-	ret
+	jp print_hl
 
 loadandparsesettings
 	ld de,settingsfilename
@@ -467,6 +476,7 @@ settingsvars
 	db 0x11 : dw gpsettings.mididevice
 	db 0x7E : dw gpsettings.moddevice
 	db 0x32 : dw inifileversionsettings
+	db 0x78 : dw gpsettings.slowtfm
 settingsvarcount=($-settingsvars)/3
 
 findnextchar
@@ -869,7 +879,7 @@ foundstr
 bomgemoonstr
 	db "OPL3\r\n",0
 founddualchipstr
-	db "2x\r\n",0
+	db "dual!\r\n",0
 detectingcpustr
 	db "Running on...",0
 cpufpgastr
@@ -883,7 +893,7 @@ rom001200
 firmwareerrorstr
 	db "firmware problem!\r\nPlease update ZXM-MoonSound firmware to revision 1.01\r\n"
 	db "https://www.dropbox.com/s/1e0b2197emrhzos/zxm_moonsound01_frm0101.zip\r\n"
-	db "Or set BomgeMoon=1 in bin\\gp\\gp.ini to skip OPL4 ports detection.",0
+	db "Or enable the BomgeMoon option in the player's settings to skip OPL4 port detection.",0
 
 builtininifile
 	incbin "gp.ini"

@@ -440,6 +440,8 @@ midloadfile
 	call uintmul16
 	add hl,hl : rl de
 	add hl,hl : rl de
+	add hl,hl : rl de
+	add hl,hl : rl de
 	ld (midplayer.ticksperqnoteXupdatelen+0),hl
 	ld (midplayer.ticksperqnoteXupdatelen+2),de
 	call midloadtracks
@@ -489,11 +491,15 @@ midloadtracks
 	ld hl,(memorystreamcurrentaddr)
 	call midreadvarint
 	ld (memorystreamcurrentaddr),hl
-	ld b,0
-	sla de : rl bc
-	sla de : rl bc
-	ld (ix+MIDTRACK.nexteventtick+0),de
+	ex de,hl
+	xor a
+	add hl,hl : rl c : rla
+	add hl,hl : rl c : rla
+	add hl,hl : rl c : rla
+	add hl,hl : rl c : rla
+	ld (ix+MIDTRACK.nexteventtick+0),hl
 	ld (ix+MIDTRACK.nexteventtick+2),c
+	ld (ix+MIDTRACK.nexteventtick+3),a
 	call memorystreamgetpos
 	ld (ix+MIDTRACK.streamoffset+0),hl
 	ld (ix+MIDTRACK.streamoffset+2),de
@@ -701,10 +707,14 @@ midreadvarint
 	ld hl,(memorystreamcurrentaddr)
 	call midreadvarint
 	ld (memorystreamcurrentaddr),hl
-	ld b,0
-	sla de : rl bc
-	sla de : rl bc
-	ld hl,(ix+MIDTRACK.nexteventtick+0)
+	ex de,hl
+	xor a
+	add hl,hl : rl c : rla
+	add hl,hl : rl c : rla
+	add hl,hl : rl c : rla
+	add hl,hl : rl c : rla
+	ld b,a
+	ld de,(ix+MIDTRACK.nexteventtick+0)
 	add hl,de
 	ld (ix+MIDTRACK.nexteventtick+0),hl
 	ld hl,(ix+MIDTRACK.nexteventtick+2)
@@ -727,8 +737,6 @@ midgetprogress
 ;dehl = ticks
 ;out: a = progress
 	ld a,e
-	add hl,hl : rla
-	add hl,hl : rla
 	add hl,hl : rla
 	add hl,hl : rla
 	ret

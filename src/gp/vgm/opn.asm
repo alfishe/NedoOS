@@ -24,6 +24,7 @@ opnwritemusiconlyfm2
 	ret
 
 vgmopninit
+.callturnturbooff
 	call turnturbooff
 	jp opninit
 

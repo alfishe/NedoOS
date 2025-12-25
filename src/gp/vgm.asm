@@ -48,6 +48,7 @@ playerinit
 	inc hl
 	ld a,(hl)
 	ld (filedatapage),a
+	call checkslowtfm
 	ld a,(ix+GPSETTINGS.moonsoundstatus)
 	ld (moonsoundstatus),a
 	ld a,(ix+GPSETTINGS.tfmstatus)
@@ -61,6 +62,18 @@ playerinit
 ;hardware detection is done when loading VGM
 	ld hl,initokstr
 	xor a
+	ret
+
+checkslowtfm
+	ld de,(ix+GPSETTINGS.slowtfm)
+	ld a,d
+	or e
+	ret z
+	ld a,(de)
+	cp '0'
+	ret nz
+	ld a,0x21
+	ld (vgmopninit.callturnturbooff),a
 	ret
 
 	macro a_or_dw addr
@@ -91,10 +104,12 @@ musicload
 	ld (dataoffsetlo),hl
 	ld (dataoffsethi),hl
 	ld (devicemask),hl
+	ld (totaldatablocksizelo),hl
 	ld a,l
 	ld (samplecounterhi),a
 	ld (waitcounterhi),a
 	ld (vgmheadercopy),a
+	ld (totaldatablocksizehi),a
 	ld a,e
 	pop de
 	cp 'z'
@@ -145,6 +160,43 @@ musicload
 	ld a,1
 	inc a
 	ld (loopcounter),a
+;fill VGM info
+	ld hl,(totaldatablocksizelo)
+	ld a,(totaldatablocksizehi)
+	ld bc,1023
+	add hl,bc
+	adc a,0
+	ld l,h
+	srl a : rr l
+	srl a : rr l
+	ld h,a
+	or l
+	jr z,.nopcm
+	ld de,vgmdatablocksizestr
+	call hltodecimalstring
+	ld hl,kbytestr
+	call strcopy_hltode
+	jr .donepcm
+.nopcm	ld hl,nonestr
+	ld de,vgmdatablocksizestr
+	call strcopy_hltode
+.donepcm
+	ld hl,(HEADER_RECORDING_RATE)
+	ld a,h
+	or l
+	jr z,.zerorate
+	ld de,vgmratestr
+	call hltodecimalstring
+	ld hl,hzstr
+	call strcopy_hltode
+	jr .finalizevgminfo
+.zerorate
+	ld hl,zeroratestr
+	ld de,vgmratestr
+	call strcopy_hltode
+.finalizevgminfo
+	ld hl,vgminfoui
+	ld (CUSTOMUIADDR),hl
 ;start command stream
 dataoffsetlo=$+1
 	ld hl,0
@@ -156,32 +208,88 @@ devicemask=$+1
 	ld hl,0
 	ret
 
+checkvgmchip
+;hl = header addr
+;de = chip name string
+;out: zf=1 if not found, zf=0 and c=255 otherwise
+	ld (.chipnamestr),de
+	ld a,(hl)
+	inc hl
+	or (hl)
+	inc hl
+	or (hl)
+	inc hl
+	or (hl)
+	ret z
+	bit 6,(hl)
+	push af
+.strend=$+1
+	ld hl,0
+.strcharleft=$+1
+	ld b,0
+	ld a,b
+	cp VGM_CHIP_STR_MAX_LEN
+	jr z,.noseparator
+	ld de,chipseparatorstr
+	call strncopy_detohl
+.noseparator
+	pop af
+	jr z,.singlechip
+	ld de,dualchipstr
+	call strncopy_detohl
+.singlechip
+.chipnamestr=$+1
+	ld de,0
+	call strncopy_detohl
+	ld (.strend),hl
+	ld a,b
+	ld (.strcharleft),a
+	or 255
+	ld c,a
+	ret
+
+	macro check_vgm_chip headeraddr,straddr
+	ld hl,headeraddr
+	ld de,straddr
+	call checkvgmchip
+	endm
+
 inithardware
 ;out: zf=1 if hardware is found, zf=0 otherwise
-	xor a
-	a_or_dw HEADER_CLOCK_AY8910
+	ld hl,vgmchipsstr
+	ld (checkvgmchip.strend),hl
+	ld a,VGM_CHIP_STR_MAX_LEN
+	ld (checkvgmchip.strcharleft),a
+;init AY
+	check_vgm_chip HEADER_CLOCK_AY8910,ay8910str
 	call nz,initAY8910
 ;init OPM
-	xor a
-	a_or_dw HEADER_CLOCK_YM2151
+	check_vgm_chip HEADER_CLOCK_YM2151,ym2151str
 	call nz,initYM2151
 	jp nz,.missinghardwareerror
 ;init TFM
-	xor a
-	a_or_dw HEADER_CLOCK_YM2203
-	a_or_dw HEADER_CLOCK_YM2608
+	ld c,0
+	check_vgm_chip HEADER_CLOCK_YM2203,ym2203str
+	check_vgm_chip HEADER_CLOCK_YM2608,ym2608str
+	check_vgm_chip HEADER_CLOCK_SN76489,sn76489str
+	check_vgm_chip HEADER_CLOCK_YM2612,ym2612str
+	inc c
+	dec c
 .opninitfunc=$+1
 	call nz,initYM2203
 	jp nz,.missinghardwareerror
 ;init Moonsound
-	xor a
-	a_or_dw HEADER_CLOCK_YM3526
-	a_or_dw HEADER_CLOCK_YM3812
-	a_or_dw HEADER_CLOCK_Y8950
+	ld c,0
+	check_vgm_chip HEADER_CLOCK_YM3526,ym3526str
+	check_vgm_chip HEADER_CLOCK_YM3812,ym3812str
+	check_vgm_chip HEADER_CLOCK_Y8950,y8950str
+	ld a,c
 	ld (useYM3812),a
-	a_or_dw HEADER_CLOCK_YMF262
+	check_vgm_chip HEADER_CLOCK_YMF262,ymf262str
+	inc c
+	dec c
 	jr nz,.opl4notneeded
-	a_or_dw HEADER_CLOCK_YMF278B
+	check_vgm_chip HEADER_CLOCK_YMF278B,ymf278bstr
 	jr z,.opl4notneeded
 	ld a,(moonsoundstatus)
 	cp 2
@@ -478,6 +586,7 @@ cmdYM2203dp_tfm
 	memory_stream_read_2 e,d
 	jp opnwritemusiconlyfm2
 
+cmdYM2612p0_tfm
 cmdYM2608p0_tfm
 	memory_stream_read_2 e,d
 	ld a,e
@@ -507,6 +616,7 @@ cmdYM2608p0_tfm
 	db 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
 	db 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
 
+cmdYM2612p1_tfm
 cmdYM2608p1_tfm
 	memory_stream_read_2 e,d
 	ld a,e
@@ -560,6 +670,14 @@ cmddatablock
 processdatablock
 ;e = data type
 	call memorystreamread4 ;adbc = data size
+totaldatablocksizelo=$+1
+	ld hl,0
+	add hl,bc
+	ld (totaldatablocksizelo),hl
+totaldatablocksizehi=$+1
+	ld a,0
+	adc a,d
+	ld (totaldatablocksizehi),a
 	ld a,e
 	ld hl,bc
 	cp 0x81
@@ -626,6 +744,9 @@ parsegd3
 	call z,stringcopy
 	pop hl
 	call z,gd3stringcopy ;author
+	ld a,b
+	cp 57
+	ret nc
 	ld hl,titlestr
 	ld (MUSICTITLEADDR),hl
 	ret
@@ -748,10 +869,10 @@ cmdtable
 	db skip3           %256 ; 4D
 	db skip3           %256 ; 4E
 	db skip2           %256 ; 4F
-	db cmdunsupported  %256 ; 50
+	db cmdSN76489      %256 ; 50
 	db cmdunsupported  %256 ; 51
-	db cmdunsupported  %256 ; 52
-	db cmdunsupported  %256 ; 53
+	db cmdYM2612p0_tfm %256 ; 52
+	db cmdYM2612p1_tfm %256 ; 53
 	db cmdYM2151       %256 ; 54
 	db cmdYM2203_tfm   %256 ; 55
 	db cmdYM2608p0_tfm %256 ; 56
@@ -1004,10 +1125,10 @@ cmdtable
 	db skip3           /256 ; 4D
 	db skip3           /256 ; 4E
 	db skip2           /256 ; 4F
-	db cmdunsupported  /256 ; 50
+	db cmdSN76489      /256 ; 50
 	db cmdunsupported  /256 ; 51
-	db cmdunsupported  /256 ; 52
-	db cmdunsupported  /256 ; 53
+	db cmdYM2612p0_tfm /256 ; 52
+	db cmdYM2612p1_tfm /256 ; 53
 	db cmdYM2151       /256 ; 54
 	db cmdYM2203_tfm   /256 ; 55
 	db cmdYM2608p0_tfm /256 ; 56
@@ -1439,6 +1560,8 @@ opmstatus=$+1
 	ret
 
 musicunload
+	ld hl,0
+	ld (CUSTOMUIADDR),hl
 	check_device_mask DEVICE_MOONSOUND_BIT
 	call nz,opl4mute
 	check_device_mask DEVICE_TFM_BIT
@@ -1467,6 +1590,8 @@ enableopna
 	ld (inithardware.opninitfunc),hl
 	ld hl,opnaloaddatablock
 	ld (opnadatablockhandler),hl
+	set_cmd_handler 0x52,cmdYM2612p0_opna
+	set_cmd_handler 0x53,cmdYM2612p1_opna
 	set_cmd_handler 0x55,cmdYM2203_opna
 	set_cmd_handler 0x56,cmdYM2608p0_opna
 	set_cmd_handler 0x57,cmdYM2608p1_opna
@@ -1488,13 +1613,121 @@ cmdYM2203dp_opna
 	set 2,d
 	jp opnawritefm1
 
+cmdYM2612p0_opna
 cmdYM2608p0_opna
 	memory_stream_read_2 e,d
 	jp opnawritemusiconlyfm1
 
+cmdYM2612p1_opna
 cmdYM2608p1_opna
 	memory_stream_read_2 e,d
 	jp opnawritemusiconlyfm2
+
+cmdSN76489
+	memory_stream_read_1 a
+	ret
+
+hltodecimalstring
+;hl = number
+;de = string buffer
+	ld ixl,e
+	ld bc,-10000
+	inc ixl
+	call .writedigit
+	ld bc,-1000
+	call .writedigit
+	ld bc,-100
+	call .writedigit
+	ld bc,-10
+	call .writedigit
+	ld bc,-1
+	dec ixl ;ensure the last zero is printed
+	call .writedigit
+	xor a
+	ld (de),a
+	ret
+.writedigit
+	ld a,'0'-1
+	inc a
+	add hl,bc
+	jr c,$-2
+	sbc hl,bc
+	ld (de),a
+	inc de
+	cp '0'
+	ret nz
+;remove leading zeroes
+	ld a,e
+	cp ixl
+	ret nz
+	dec de
+	ret
+
+strncopy_detohl
+;de = source string
+;hl = destionation buffer
+;b = max. characters to write
+	inc b
+	dec b
+	ret z
+.loop	ld a,(de)
+	ld (hl),a
+	or a
+	ret z
+	inc hl
+	inc de
+	djnz .loop
+	ld (hl),b
+	ret
+
+strcopy_hltode
+	ld a,(hl)
+	ld (de),a
+	or a
+	ret z
+	inc hl
+	inc de
+	jr strcopy_hltode
+
+VGM_INFO_WINDOW_X = 45
+VGM_INFO_WINDOW_Y = 17
+
+vgminfoui
+	CUSTOMUISETCOLOR ,COLOR_PANEL
+	CUSTOMUIDRAWWINDOW ,VGM_INFO_WINDOW_X,VGM_INFO_WINDOW_Y,23,3
+	CUSTOMUISETCOLOR ,COLOR_CURSOR
+	CUSTOMUIPRINTTEXT ,VGM_INFO_WINDOW_X+2,VGM_INFO_WINDOW_Y,vgminfostr
+	CUSTOMUISETCOLOR ,COLOR_PANEL_FILE
+	CUSTOMUIPRINTTEXT ,VGM_INFO_WINDOW_X+1,VGM_INFO_WINDOW_Y+1,vgmchipstextstr
+	CUSTOMUIPRINTTEXT ,VGM_INFO_WINDOW_X+1,VGM_INFO_WINDOW_Y+2,vgmdatablocktextstr
+	CUSTOMUIPRINTTEXT ,VGM_INFO_WINDOW_X+1,VGM_INFO_WINDOW_Y+3,vgmratetextstr
+	CUSTOMUIDRAWEND
+
+vgmchipstextstr db "Chip: "
+VGM_CHIP_STR_MAX_LEN = 16
+vgmchipsstr ds VGM_CHIP_STR_MAX_LEN+1
+chipseparatorstr db "+",0
+dualchipstr db "Dual-",0
+ay8910str db "AY8910",0
+sn76489str db "SN76489",0
+ym2151str db "YM2151",0
+ym2203str db "YM2203",0
+ym2608str db "YM2608",0
+ym2612str db "YM2612",0
+y8950str db "MSX-AUDIO",0
+ym3526str db "YM3526",0
+ym3812str db "YM3812",0
+ymf262str db "YMF262",0
+ymf278bstr db "YMF278B",0
+vgmdatablocktextstr db "(AD)PCM Samples: "
+vgmdatablocksizestr ds 10
+nonestr db "None",0
+kbytestr db "KB",0
+vgmratetextstr db "Rec. Rate: "
+vgmratestr ds 10
+hzstr db "Hz",0
+zeroratestr db "Undefined",0
+vgminfostr db "VGM Info",0
 
 initokstr
 	db "OK\r\n",0
@@ -1515,10 +1748,13 @@ waveheaderbufferend = waveheaderbuffer+WAVEHEADERBUFFERSIZE
 titlestr = waveheaderbufferend
 titlestrend = titlestr+TITLELENGTH
 
-HEADER_LOOP_SAMPLES_COUNT = vgmheadercopy+0x20
+HEADER_CLOCK_SN76489 = vgmheadercopy+0x0c
 HEADER_GD3_OFFSET    = vgmheadercopy+0x14
 HEADER_SAMPLES_COUNT = vgmheadercopy+0x18
 HEADER_LOOP_OFFSET   = vgmheadercopy+0x1c
+HEADER_LOOP_SAMPLES_COUNT = vgmheadercopy+0x20
+HEADER_RECORDING_RATE= vgmheadercopy+0x24
+HEADER_CLOCK_YM2612  = vgmheadercopy+0x2c
 HEADER_CLOCK_YM2151  = vgmheadercopy+0x30
 HEADER_CLOCK_YM2203  = vgmheadercopy+0x44
 HEADER_CLOCK_YM2608  = vgmheadercopy+0x48
