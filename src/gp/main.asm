@@ -11,7 +11,7 @@ FILE_NAME_OFFSET = FILE_DISPLAY_INFO_OFFSET+FILE_DISPLAY_INFO_SIZE
 FILE_NAME_SIZE = SFN_SIZE
 FILE_ATTRIB_OFFSET = FILE_NAME_OFFSET+FILE_NAME_SIZE
 FILE_ATTRIB_SIZE = 1
-BROWSER_FILE_COUNT = 175
+BROWSER_FILE_COUNT = 163
 PLAYLIST_FILE_COUNT = 40
 FILE_LINE_COUNT = 22
 FILES_WINDOW_X = 0
@@ -21,16 +21,90 @@ FILE_ATTRIB_DRIVE = 1
 FILE_ATTRIB_FOLDER = 2
 PLAYLIST_VERSION = 1
 STARTUP_CODE_ADDR = 0x8000
+STACK_ADDR = 0x4000
 
 	org PROGSTART
 
 mainbegin
-	ld sp,0x4000
+	ld sp,STACK_ADDR
 	OS_HIDEFROMPARENT
-	call turnturboon
-	ld e,7
-	OS_CLS
-;startup
+	jp startplayer
+
+drawprogress
+	ld a,(.pos)
+	inc a
+	ret z
+.color=$+1
+	ld de,COLOR_PANEL_DIR
+	OS_SETCOLOR
+.pos=$+1
+	ld de,0x0b08
+	OS_SETXY
+.counteraddr=$+1
+	ld hl,0
+	ld a,(hl)
+	ld (musicprogress),a
+	ld c,a
+	or a
+	jr z,.drawremaining
+	ld b,a
+.drawdoneloop
+	push bc
+	ld a,178
+	PRCHAR
+	pop bc
+	djnz .drawdoneloop
+.drawremaining
+	ld a,64
+	sub c
+	ret z
+	ld b,a
+.drawremainingloop
+	push bc
+	ld a,176
+	PRCHAR
+	pop bc
+	djnz .drawremainingloop
+	ret
+
+drawprogressincremental
+;out: a = number of ticks until the next draw
+	ld a,(drawprogress.pos)
+	inc a
+	ret z
+	ld hl,(drawprogress.counteraddr)
+	ld d,(hl)
+	ld hl,musicprogress
+	ld e,(hl)
+	ld a,d
+	sub e
+	ret z
+	ld (hl),d
+	push af
+	ld a,e
+	ld de,(drawprogress.pos)
+	add e
+	ld e,a
+	OS_SETXY
+	ld de,(drawprogress.color)
+	OS_SETCOLOR
+	pop bc
+.drawloop
+	push bc
+	ld a,178
+	PRCHAR
+	pop bc
+	djnz .drawloop
+	ld a,30
+	ret
+
+drawprogresscallback
+	ld hl,drawprogressincremental
+	ld a,0xc3 ;'jp nn' op
+	ld (drawprogresscallback),a
+	jp drawprogress
+
+startplayer
 	ld hl,startupcode
 	ld de,STARTUP_CODE_ADDR
 	ld bc,startupcodesize
@@ -51,32 +125,9 @@ mainbegin
 	call loadplaylist
 	xor a
 	ld (playlistchanged),a
-;parse command line
-	ld hl,COMMANDLINE
-	call skipword_hl
-	call skipspaces_hl
-	ld a,(hl)
-	or a
-	call nz,setcurrentfolder
-	push hl
-	call changetocurrentfolder
-	pop de
-	ld hl,chdirfailedstr
-	jp nz,printerrorandexit
-	push de
-	call createfileslist
-	pop de
-	ld a,(de)
-	or a
-	call nz,findfile
-	ld (browserpanel.currentfileindex),a
-	push af
-	call drawui
-	pop af
 	ld hl,mainmsgtable
 	ld (currentmsgtable),hl
-	call c,startplaying
-
+	call processcommandline
 playloop
 isplaying=$+1
 	ld a,0
@@ -84,15 +135,9 @@ isplaying=$+1
 	jr z,checkmsgs
 	call musicplay
 	call z,playnextfile
-	call updateprogressbar
 checkmsgs
-	ld a,(COMMANDLINE)
-	or a
-	ld a,key_esc
-	jr z,closeplayer
 	OS_GETKEY
 	call tolower
-closeplayer
 	ld hl,playloop
 	push hl
 currentmsgtable=$+1
@@ -122,15 +167,42 @@ printerrorandexit
 	YIELDGETKEYLOOP
 	QUIT
 
+processcommandline
+	ld hl,COMMANDLINE
+	call skipword_hl
+	call skipspaces_hl
+	ld a,(hl)
+	or a
+	call nz,setcurrentfolder
+	push hl
+	call changetocurrentfolder
+	call createfileslist
+	pop de
+	ld a,(de)
+	or a
+	call nz,findfile
+	ld (browserpanel.currentfileindex),a
+	push af
+	call drawui
+	pop af
+	call c,startplaying
+	ld hl,COMMANDLINE
+	ld (hl),'g'
+	inc hl
+	ld (hl),'p'
+	inc hl
+	ld (hl),0
+	ret
+
 mainmsgtable
 	db (mainmsghandlers_end-mainmsghandlers_start)/3
 mainmsghandlers_start
-	db 0             : dw nokey
+	db 0             : dw mainidle
 	db key_redraw    : dw redraw
 	db key_up        : dw goprevfile
 	db key_down      : dw gonextfile
 	db key_enter     : dw startplaying
-	db key_esc       : dw exitplayer
+	db key_esc       : dw confirmplayerexit
 	db ' '	         : dw addtoplaylist
 	db key_tab       : dw switchpanels
 	db key_backspace : dw clearplaylist
@@ -147,17 +219,44 @@ mainmsghandlers_end
 playmsgtable
 	db (playmsghandlers_end-playmsghandlers_start)/3
 playmsghandlers_start
+	db 0             : dw playnokeypressed
 	db key_redraw    : dw redraw
 	db ' '	         : dw playnextfile
 	db key_esc       : dw stopplaying
 playmsghandlers_end
 
-nokey
+mainidle
 	YIELD
-	ret
+	YIELD
+	YIELD
+	YIELD
+	ld a,(COMMANDLINE+2)
+	or a
+	ret z
+gotcommandline
+	call turnturboon
+	or 255 ;set zf=0
+	call setcurrentpanel
+	jp processcommandline
 
-gotop
-	ld ix,(currentpaneladdr)
+playnokeypressed
+.progressupdatecounter=$+1
+	ld a,0
+	dec a
+	call z,drawprogressincremental
+	ld (.progressupdatecounter),a
+.playtimeupdatecounter=$+1
+	ld a,1
+	dec a
+	call z,drawplaytimeincremental
+	ld (.playtimeupdatecounter),a
+	ld a,(COMMANDLINE+2)
+	or a
+	ret z
+	call stopplaying
+	jr gotcommandline
+
+gotop	ld ix,(currentpaneladdr)
 	xor a
 	ld (ix+PANEL.currentfileindex),a
 	ld (ix+PANEL.firstfiletoshow),a
@@ -290,12 +389,58 @@ removefromplaylist
 	jp drawplaylistwindow
 
 exitplayer
-	pop hl
 	call stopplaying
 	OS_SETSYSDRV
 	call unloadplayers
 	call savedefaultplaylist
 	QUIT
+
+confirmplayerexit
+	ld hl,confirmexitmsgtable
+	ld (currentmsgtable),hl
+	ld hl,confirmexitui
+	ld (drawdialog.uiaddr),hl
+	jp drawdialog
+
+cancelplayerexit
+	ld hl,mainmsgtable
+	ld (currentmsgtable),hl
+	ld hl,0
+	ld (drawdialog.uiaddr),hl
+	jp drawui
+
+confirmexitmsgtable
+	db (confirmexitmsghandlers_end-confirmexitmsghandlers_start)/3
+confirmexitmsghandlers_start
+	db 0             : dw mainidle
+	db key_redraw    : dw redraw
+	db 'y'	         : dw exitplayer
+	db 'n'	         : dw cancelplayerexit
+	db key_esc       : dw cancelplayerexit
+confirmexitmsghandlers_end
+
+CONFIRM_EXIT_WINDOW_X = 17
+CONFIRM_EXIT_WINDOW_Y = 8
+
+confirmexittext1str db "Нажмите RSHIFT+ENTER, чтобы свернуть плеер",0
+confirmexittext2str db "и вернуться к нему без долгого перезапуска.",0
+confirmexittext3str db "Exit the player instead? (Y/N)",0
+
+confirmexitui
+	CUSTOMUISETCOLOR ,40
+	CUSTOMUIDRAWWINDOW ,CONFIRM_EXIT_WINDOW_X,CONFIRM_EXIT_WINDOW_Y,45,6
+	CUSTOMUIPRINTTEXT ,CONFIRM_EXIT_WINDOW_X+2,CONFIRM_EXIT_WINDOW_Y+2,confirmexittext1str
+	CUSTOMUIPRINTTEXT ,CONFIRM_EXIT_WINDOW_X+2,CONFIRM_EXIT_WINDOW_Y+3,confirmexittext2str
+	CUSTOMUIPRINTTEXT ,CONFIRM_EXIT_WINDOW_X+8,CONFIRM_EXIT_WINDOW_Y+5,confirmexittext3str
+	CUSTOMUIDRAWEND
+
+drawdialog
+.uiaddr=$+2
+	ld ix,0
+	ld a,ixh
+	or ixl
+	ret z
+	jp drawcustomui
 
 unloadplayers
 	ld hl,playerpages
@@ -381,7 +526,7 @@ startplaying
 	cp FILE_ATTRIB_FOLDER
 	jp z,changetofolder
 	cp FILE_ATTRIB_DRIVE
-	jr z,changedrive
+	jp z,changedrive
 	cp FILE_ATTRIB_MUSIC
 	ret nz
 	ld a,(browserpanel.isinactive)
@@ -401,24 +546,37 @@ startplaying
 	ld hl,0
 	ld (devicemask),hl
 	ld (ERRORSTRINGADDR),hl
-	call drawplayerwindow
+	call drawplayer
 .filext1=$+1
 	ld bc,0
 .filext2=$+1
 	ld de,0
 .filename=$+1
 	ld hl,0
+	ld ix,drawprogresscallback
+	ld (ix),0x21 ;'ld hl,nn' op
 	call musicload
 	jp nz,drawerrorwindow
 	ld (devicemask),hl
 	ld hl,playmsgtable
 	ld (currentmsgtable),hl
+;init timer
+	OS_GETTIMER
+	ld (getplaytimestring.starttime),hl
+	ld hl,playtimestr
+	ld b,6
+	ld (hl),0
+	inc hl
+	djnz $-3
+;disable drawplayerwindow and draw the rest of player UI
 	ld a,1
 	ld (isplaying),a
-	call drawplayerwindowtitle
-	call drawplayercustomui
-	call drawsongtitle
-	jp drawprogress
+	ld a,0xc9
+	ld (drawplayerwindow),a
+	call drawplayer
+	xor a
+	ld (drawplayerwindow),a
+	ret
 .loadplaylist
 	ld de,(.filename)
 	call loadplaylist
@@ -671,16 +829,6 @@ stricmp
 	inc de
 	jr stricmp
 
-getmusicprogress
-;out: zf=0 and a=progress if progress is available, zf=1 and a=255 otherwise
-	ld hl,(MUSICPROGRESSADDR)
-	ld a,l
-	or h
-	ld a,255
-	ret z
-	ld a,(hl)
-	ret
-
 drawerrorwindow
 ;show the error if esc was pressed to avoid infinitely looping through unplayable files
 	OS_GETKEY
@@ -722,45 +870,126 @@ drawerrorwindow
 	jp drawui
 
 drawplayerwindow
+	nop
+	ld a,(.pos)
+	inc a
+	ret z
 	ld de,COLOR_PANEL
 	OS_SETCOLOR
-	call getmusicprogress
-	push af
-	ld (musicprogress),a
-	ld de,8*256+6
-	ld bc,66*256+4
-	ld a,8
-	jr nz,$+10
-	ld de,8*256+12
-	ld bc,54*256+3
-	ld a,14
-	ld (playerwindowtitlepos),a
-	ld (songtitlepos),a
-	call drawwindow
-	call drawplayerwindowtitle
-	call drawsongtitle
-	pop af
+.pos=$+1
+	ld de,0x0806
+.size=$+1
+	ld bc,0x4204
+	jp drawwindow
+
+TICKS_FREQ = 49
+
+getplaytimestring
+;de = string buffer
+	push de
+	OS_GETTIMER
+.starttime=$+1
+	ld de,0
+	sub hl,de
+	pop de
+	ld bc,-TICKS_FREQ*60
+	call .writefield ;minutes
+	ld a,':'
+	ld (de),a
+	inc de
+	ld bc,-TICKS_FREQ
+	call .writefield ;seconds
+	xor a
+	ld (de),a
+	ret
+.writefield
+	ld a,255
+	inc a
+	add hl,bc
+	jr c,$-2
+	sbc hl,bc
+	ld bc,0x2ff6 ;b='0'-1, c=-10
+	inc b
+	add a,c
+	jr c,$-2
+	ex de,hl
+	ld (hl),b
+	ex de,hl
+	inc de
+	add a,'0'+10
+	ld (de),a
+	inc de
+	ret
+
+drawplaytime
+	ld a,(.pos)
+	inc a
 	ret z
-	ld a,(isplaying)
-	or a
-	jp nz,drawprogress
-	ld de,COLOR_PANEL_DIR
-	OS_SETCOLOR
-	ld de,11*256+36
+	ld de,playtimestr
+	call getplaytimestring
+.pos=$+1
+	ld de,0x0d43
 	OS_SETXY
-	ld hl,loadingstr
+.color=$+1
+	ld de,COLOR_CURSOR
+	OS_SETCOLOR
+	ld hl,playtimestr
 	jp print_hl
 
+drawplaytimeincremental
+;out: a = number of ticks until the next draw
+	ld a,(drawplaytime.pos)
+	inc a
+	ret z
+	ld de,currentplaytimestr
+	call getplaytimestring
+	ld hl,playtimestr
+	ld de,currentplaytimestr
+	ld bc,0x0500
+.diffsearchloop
+	ld a,(de)
+	cp (hl)
+	jr nz,.difffound
+	inc de
+	inc hl
+	inc c
+	djnz .diffsearchloop
+	ld a,TICKS_FREQ/2
+	ret
+.difffound
+	push hl
+	ex de,hl
+	call strcopy_hltode
+	ld de,(drawplaytime.pos)
+	ld a,e
+	add a,c
+	ld e,a
+	OS_SETXY
+	ld de,(drawplaytime.color)
+	OS_SETCOLOR
+	pop hl
+	call print_hl
+	ld a,TICKS_FREQ/2
+	ret
+
 drawsongtitle
+	ld a,(.pos)
+	inc a
+	ret z
 	ld de,COLOR_PANEL_DIR
 	OS_SETCOLOR
-songtitlepos=$+1
-	ld de,10*256+0
+.pos=$+1
+	ld de,0x0a08
 	OS_SETXY
-	ld hl,(MUSICTITLEADDR)
+.straddr=$+1
+	ld hl,0
 	ld a,l
 	or h
+	jr z,.usefilename
+	ld a,(hl)
+	or a
 	jp nz,print_hl
+.usefilename
 	ld ix,(currentpaneladdr)
 	ld a,(ix+PANEL.currentfileindex)
 	call getfiledataoffset
@@ -773,61 +1002,52 @@ songtitlepos=$+1
 	add hl,de
 	jp print_hl
 
-drawprogress
-	ld a,(musicprogress)
-	cp 255
+drawplayerwindowtitle
+	ld a,(.pos)
+	inc a
 	ret z
-	ld de,11*256+8
-	OS_SETXY
-	ld a,(musicprogress)
-	ld c,a
-	or a
-	jr z,.drawremaining
-	ld b,a
-.drawdoneloop
-	push bc
-	ld a,178
-	PRCHAR
-	pop bc
-	djnz .drawdoneloop
-.drawremaining
-	ld a,64
-	sub c
-	ret z
-	ld b,a
-.drawremainingloop
-	push bc
-	ld a,176
-	PRCHAR
-	pop bc
-	djnz .drawremainingloop
-	ret
-
-updateprogressbar
-	call getmusicprogress
-	ret z
-	ld d,a
-	ld hl,musicprogress
-	ld e,(hl)
-	sub e
-	ret z
-	ld (hl),d
-	push af
-	ld hl,11*256+8
-	ld d,0
-	add hl,de
-	ex de,hl
-	OS_SETXY
-	ld de,COLOR_PANEL_DIR
+	ld de,COLOR_CURSOR
 	OS_SETCOLOR
-	pop bc
-.drawloop
-	push bc
-	ld a,178
-	PRCHAR
-	pop bc
-	djnz .drawloop
-	ret
+.pos=$+1
+	ld de,0x0808
+	OS_SETXY
+devicemask=$+1
+	ld bc,0
+	ld a,b
+	or c
+	ld hl,(PLAYERNAMESTRADDR)
+	jp z,print_hl
+	ld hl,playingstr
+	ld de,filinfo
+	call strcopy_hltode
+	ld hl,devicelist
+	ld ixl,15
+.loop	bit 0,c
+	jr z,.skip
+	bit 7,b
+	jr z,.noseparator
+	push hl
+	ld hl,deviceseparatorstr
+	call strcopy_hltode
+	pop hl
+.noseparator
+	push hl
+	ld a,(hl)
+	inc hl
+	ld h,(hl)
+	ld l,a
+	call strcopy_hltode
+	pop hl
+	set 7,b
+.skip	inc hl
+	inc hl
+	sra bc
+	dec ixl
+	jr nz,.loop
+	ld hl,playing1str
+	call strcopy_hltode
+	ld hl,filinfo
+	jp print_hl
 
 drawwindowline
 ;d = left char
@@ -1044,11 +1264,11 @@ drawplaylistwindow
 	call print_hl
 	jr drawplaylistfileslist
 
-redraw
-	ld e,7
+redraw	ld e,7
 	OS_CLS
 drawui	call drawbrowserwindow
 	call drawplaylistwindow
+	call drawdialog
 	ld de,COLOR_DEFAULT
 	OS_SETCOLOR
 	ld de,24*256+1
@@ -1058,60 +1278,141 @@ drawui	call drawbrowserwindow
 	ld a,(isplaying)
 	or a
 	ret z
-	call drawplayerwindow
-	jp drawplayercustomui
+	jp drawplayer
 
-drawplayercustomui
+drawplayer
 	ld ix,(CUSTOMUIADDR)
-	ld a,ixl
-	or ixh
-	ret z
 drawcustomui
 ;ix = commands
-.loop	ld a,(ix)
+.drawloop
+	ld a,(ix)
 	cp CUSTOM_UI_CMD_COUNT
 	ret nc
+	ld (.commandsizeoffset),a
+	ld b,a
 	add a,a
+	add a,b
 	ld (.commandtable),a
+	push ix
+	ld hl,.finalizecmd
+	push hl
 .commandtable=$+1
 	jr $
-	jr .drawwindow
-	jr .printtext
-	jr .setcolor
+	jp .drawwindow
+	jp .printtext
+	jp .setcolor
+	jp .playerwindow
+	jp .playerwindowtitle
+	jp .playtime
+	jp .playprogress
+	jp .songtitle
+	jp .separator
+.finalizecmd
+	pop ix
+.commandsizeoffset=$+1
+	ld de,0
+	ld hl,.commandsize
+	add hl,de
+	ld e,(hl)
+	add ix,de
+	jp .drawloop
+.commandsize
+	db CUSTOMUIDRAWWINDOW
+	db CUSTOMUIPRINTTEXT
+	db CUSTOMUISETCOLOR
+	db CUSTOMUIPLAYERWINDOW
+	db CUSTOMUIPLAYERWINDOWTITLE
+	db CUSTOMUIPLAYTIME
+	db CUSTOMUIPLAYPROGRESS
+	db CUSTOMUISONGTITLE
+	db CUSTOMUISEPARATOR
 .drawwindow
 	ld e,(ix+CUSTOMUIDRAWWINDOW.topleftx)
 	ld d,(ix+CUSTOMUIDRAWWINDOW.toplefty)
 	ld b,(ix+CUSTOMUIDRAWWINDOW.clientwidth)
 	ld c,(ix+CUSTOMUIDRAWWINDOW.clientheight)
-	push ix
-	call drawwindow
-	pop ix
-	ld de,CUSTOMUIDRAWWINDOW
-	add ix,de
-	jr .loop
+	jp drawwindow
 .printtext
 	ld e,(ix+CUSTOMUIPRINTTEXT.posx)
 	ld d,(ix+CUSTOMUIPRINTTEXT.posy)
-	push ix
+	ld hl,(ix+CUSTOMUIPRINTTEXT.straddr)
+	push hl
 	OS_SETXY
-	pop ix
-	ld de,(ix+CUSTOMUIPRINTTEXT.straddr)
-	ex de,hl
-	push ix
-	call print_hl
-	pop ix
-	ld de,CUSTOMUIPRINTTEXT
-	add ix,de
-	jr .loop
+	pop hl
+	jp print_hl
 .setcolor
 	ld e,(ix+CUSTOMUISETCOLOR.color)
 	ld d,0
-	push ix
 	OS_SETCOLOR
-	pop ix
-	ld de,CUSTOMUISETCOLOR
-	add ix,de
-	jr .loop
+	ret
+.playerwindow
+	ld l,(ix+CUSTOMUIPLAYERWINDOW.topleftx)
+	ld h,(ix+CUSTOMUIPLAYERWINDOW.toplefty)
+	ld (drawplayerwindow.pos),hl
+	ld h,(ix+CUSTOMUIPLAYERWINDOW.clientwidth)
+	ld l,(ix+CUSTOMUIPLAYERWINDOW.clientheight)
+	ld (drawplayerwindow.size),hl
+	jp drawplayerwindow
+.playerwindowtitle
+	ld l,(ix+CUSTOMUIPLAYERWINDOWTITLE.posx)
+	ld h,(ix+CUSTOMUIPLAYERWINDOWTITLE.posy)
+	ld (drawplayerwindowtitle.pos),hl
+	jp drawplayerwindowtitle
+.playtime
+	ld l,(ix+CUSTOMUIPLAYTIME.posx)
+	ld h,(ix+CUSTOMUIPLAYTIME.posy)
+	ld (drawplaytime.pos),hl
+	ld hl,(ix+CUSTOMUIPLAYTIME.color)
+	ld (drawplaytime.color),hl
+	ld a,1
+	ld (playnokeypressed.playtimeupdatecounter),a
+	ld a,(isplaying)
+	or a
+	ret z
+	jp drawplaytime
+.playprogress
+	ld e,(ix+CUSTOMUIPLAYPROGRESS.posx)
+	ld d,(ix+CUSTOMUIPLAYPROGRESS.posy)
+	ld (drawprogress.pos),de
+	ld hl,(ix+CUSTOMUIPLAYPROGRESS.counteraddr)
+	ld (drawprogress.counteraddr),hl
+	ld hl,(ix+CUSTOMUIPLAYPROGRESS.color)
+	ld (drawprogress.color),hl
+	ld a,1
+	ld (playnokeypressed.progressupdatecounter),a
+	inc e
+	ret z
+	ld a,(isplaying)
+	or a
+	jp nz,drawprogress
+	ld a,e
+	add a,27
+	ld e,a
+	OS_SETXY
+	ld de,COLOR_PANEL_DIR
+	OS_SETCOLOR
+	ld hl,loadingstr
+	jp print_hl
+.songtitle
+	ld l,(ix+CUSTOMUISONGTITLE.posx)
+	ld h,(ix+CUSTOMUISONGTITLE.posy)
+	ld (drawsongtitle.pos),hl
+	ld hl,(ix+CUSTOMUISONGTITLE.straddr)
+	ld (drawsongtitle.straddr),hl
+	jp drawsongtitle
+.separator
+	ld l,(ix+CUSTOMUISEPARATOR.rightchar)
+	ld h,(ix+CUSTOMUISEPARATOR.leftchar)
+	ld e,(ix+CUSTOMUISEPARATOR.posx)
+	ld d,(ix+CUSTOMUISEPARATOR.posy)
+	ld b,(ix+CUSTOMUISEPARATOR.middlecharcount)
+	ld c,(ix+CUSTOMUISEPARATOR.middlechar)
+	push bc
+	push hl
+	OS_SETXY
+	pop de
+	pop bc
+	jp drawwindowline
 
 skipword_hl
 	ld a,(hl)
@@ -1215,50 +1516,6 @@ drivedata
 	db "M: - SD Z-controller                  M:",0,0,0,0,0,0,0,0,0,0,0,FILE_ATTRIB_DRIVE
 	db "O: - USB ZX-NetUsb                    O:",0,0,0,0,0,0,0,0,0,0,0,FILE_ATTRIB_DRIVE
 drivedataend
-
-drawplayerwindowtitle
-	ld de,COLOR_CURSOR
-	OS_SETCOLOR
-playerwindowtitlepos=$+1
-	ld de,8*256+0
-	OS_SETXY
-devicemask=$+1
-	ld bc,0
-	ld a,b
-	or c
-	ld hl,(PLAYERNAMESTRADDR)
-	jp z,print_hl
-	ld hl,playingstr
-	ld de,filinfo
-	call strcopy_hltode
-	ld hl,devicelist
-	ld ixl,15
-.loop	bit 0,c
-	jr z,.skip
-	bit 7,b
-	jr z,.noseparator
-	push hl
-	ld hl,deviceseparatorstr
-	call strcopy_hltode
-	pop hl
-.noseparator
-	push hl
-	ld a,(hl)
-	inc hl
-	ld h,(hl)
-	ld l,a
-	call strcopy_hltode
-	pop hl
-	set 7,b
-.skip	inc hl
-	inc hl
-	sra bc
-	dec ixl
-	jr nz,.loop
-	ld hl,playing1str
-	call strcopy_hltode
-	ld hl,filinfo
-	jp print_hl
 
 deviceay
 	db "AY8910",0
@@ -1668,7 +1925,8 @@ runoptions
 	OS_CLOSEHANDLE
 	ld a,1
 	ld (runplayersetup),a
-	jp mainbegin
+	ld sp,STACK_ADDR
+	jp startplayer
 	ent
 runoptionsodesize=$-1
 
@@ -1715,8 +1973,11 @@ playlistdatasize=$-playlistdatastart
 musicprogress ds 1
 playercount ds 1
 playlistchanged ds 1
+playtimestr ds 6
+currentplaytimestr ds 6
 
 	assert $ <= 0x3e00 ;reserve 512 bytes for stack
+	assert startplayer <= SYSTEM_MEMORY_END
 
 	org 0
 modstart

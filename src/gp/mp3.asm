@@ -13,7 +13,7 @@ BUFSIZE = 0x8000
 
 	org PLAYERSTART
 
-begin   PLAYERHEADER
+begin   PLAYERHEADER 0
 
 isfilesupported
 ;cde = file extension
@@ -59,16 +59,13 @@ isfilesupported
 	sub hl,de
 	ret nz
 .initmp3vars
-	ld (filechunkcounter),hl
-	ld (MUSICTITLEADDR),hl
-	ld hl,musicprogress+1
-	ld (MUSICPROGRESSADDR),hl
-	jp initprogress
+	ld hl,mp3playerwindowui
+	ld (CUSTOMUIADDR),hl
+	ret
 .initmodvars
-	ld (MUSICTITLEADDR),hl
-	ld hl,musicprogress+1
-	ld (MUSICPROGRESSADDR),hl
-	jp initprogress
+	ld hl,modplayerwindowloading
+	ld (CUSTOMUIADDR),hl
+	ret
 .checkmid
 	ld a,(vsversion)
 	cp SS_VER_VS1053
@@ -80,9 +77,18 @@ isfilesupported
 	cp SS_VER_VS1103
 	ret nz
 .initmidvars
-	ld (filechunkcounter),hl
-	ld (MUSICTITLEADDR),hl
-	ld (MUSICPROGRESSADDR),hl
+	ld hl,midiplayerwindowui
+	ld (CUSTOMUIADDR),hl
+	ret
+
+cleanupvars
+;only destroys af and hl
+;out: zf=0 so this function can be used as error handler
+	xor a
+	ld (titlestr),a
+	ld (filechunkcounter+0),a
+	ld (filechunkcounter+1),a
+	inc a
 	jp initprogress
 
 isfilesupportedgsonly
@@ -171,8 +177,9 @@ playerinit
 	xor a
 	ld (isfilesupported.disablemod),a
 	call checkmididevicesettings
-	ld hl,ngsinitokstr
+	call cleanupvars
 	xor a
+	ld hl,ngsinitokstr
 	ret
 .initgsonly
 	call ismodenabled
@@ -180,8 +187,9 @@ playerinit
 	ret nz
 	ld hl,isfilesupportedgsonly
 	ld (ISFILESUPPORTEDPROCADDR),hl
-	ld hl,gsinitokstr
+	call cleanupvars
 	xor a
+	ld hl,gsinitokstr
 	ret
 
 playerdeinit
@@ -203,7 +211,9 @@ ismodfile
 musicload
 ;cde = file extension
 ;hl = input file name
+;ix = draw progress callback
 ;out: hl = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
+	ld (drawloadingprogress.callback),ix
 	call ismodfile
 	ld a,1
 	jr z,$+3
@@ -212,7 +222,7 @@ musicload
 	ex de,hl
 	call openstream_file
 	or a
-	ret nz
+	jp nz,cleanupvars
 page8000=$+1
 	ld a,0
 	SETPG8000
@@ -238,21 +248,32 @@ pageC000=$+1
 	ret
 
 TITLELENGTH = 64
-MODHEADERSIZE = 1084
 
 loadmod
-	ld hl,MODHEADERSIZE
+;setup loading progress
+	ld a,(filehandle)
+	ld b,a
+	OS_GETFILESIZE
+	ld a,e
+	ld de,0x7fff
+	add hl,de
+	adc a,0
+	add hl,hl
+	rla
+	call setprogressdelta
+;start loading
+	ld hl,BUFSIZE
 	ld de,BUFADDR
 	call readstream_file
-;init progress
+	push hl
+;get pattern count
 	call getmodtype
 	ld a,(BUFADDR+950)
 	jr z,$+5
 	ld a,(BUFADDR+470)
-	call setprogressdelta
+	ld (.pattnum),a
 ;set title
 	ld hl,titlestr
-	ld (MUSICTITLEADDR),hl
 	ld de,BUFADDR
 	ld b,TITLELENGTH+1
 .copytitleloop
@@ -276,26 +297,36 @@ loadmod
 	SC 0xD1
 	WC
 ;upload file
+	pop bc
+	ld d,0
+.uploadnextchunk
+	inc d
+	push de
 	ld hl,BUFADDR
-	ld bc,MODHEADERSIZE
+	ld a,c
+	dec bc
+	inc b
+	ld c,b
+	ld b,a
 .uploadloop
 	ld a,(hl)
 	out (GSDAT),a
 	WD
 	inc hl
-	dec bc
-	ld a,b
-	or c
+	djnz .uploadloop
+	dec c
 	jr nz,.uploadloop
+	ld a,d
+	call updateprogress
+	call drawloadingprogress
 	ld hl,BUFSIZE
 	ld de,BUFADDR
-	push de
 	call readstream_file
-	ex (sp),hl
-	pop bc
+	ld bc,hl
+	pop de
 	ld a,b
 	or c
-	jr nz,.uploadloop
+	jr nz,.uploadnextchunk
 	call closestream_file
 ;close stream
 	SC 0xD2
@@ -305,12 +336,24 @@ loadmod
 	out (GSDAT),a
 	SC 0x31
 	WC
+;finalize
+	call initprogress
+.pattnum=$+1
+	ld a,0
+	call setprogressdelta
+	ld hl,modplayerwindowui
+	ld (CUSTOMUIADDR),hl
 	xor a
 	ld (currentposition),a
 	ld hl,DEVICE_GS_MASK
 	ret
 
+drawloadingprogress
+.callback=$+1
+	jp 0
+
 musicunload
+	call cleanupvars
 	ld a,(isplayingmodfile)
 	or a
 	jr nz,unloadmod
@@ -377,9 +420,6 @@ checkifcanupload
 	ret
 
 playmod
-	YIELD
-	YIELD
-	YIELD
 	YIELD
 ;update progress
 	SC 0x60
@@ -585,6 +625,16 @@ playernamestr
 	db "GS/NeoGS",0
 playerdisabledstr
 	db "disabled!\r\n",0
+loadingtitlestr
+	db "Loading tracker module...",0
+modplayerwindowloading
+	PROGRESSIVELOADINGWINDOWTEMPLATE loadingtitlestr,musicprogress+1
+modplayerwindowui
+	PROGRESSIVEPLAYERWINDOWTEMPLATE titlestr,musicprogress+1
+mp3playerwindowui
+	PROGRESSIVEPLAYERWINDOWTEMPLATE 0,musicprogress+1
+midiplayerwindowui
+	PLAYERWINDOWTEMPLATE 0
 end
 
 currentposition

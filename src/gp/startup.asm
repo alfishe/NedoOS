@@ -6,14 +6,17 @@
 	include "common/opna.asm"
 
 startup
-	ld de,COLOR_DEFAULT
-	OS_SETCOLOR
 	OS_GETMAINPAGES ;out: d,e,h,l=pages in 0000,4000,8000,c000, c=flags, b=id
 	ld (gpsettings.sharedpages),hl
 	ld a,e
 	ld (gpsettings.sharedpages+2),a
 	ld d,b
-	call closeexistingplayer
+	call quitifanotherinstanceisrunning
+	call turnturboon
+	ld e,7
+	OS_CLS
+	ld de,COLOR_DEFAULT
+	OS_SETCOLOR
 	ld de,currentfolder
 	OS_GETPATH
 	ld hl,(currentfolder+2)
@@ -93,6 +96,7 @@ checkinifile
 playersetupmsgtable
 	db (playersetupmsghandlers_end-playersetupmsghandlers_start)/3
 playersetupmsghandlers_start
+	db 0             : dw setupidle
 	db key_redraw    : dw redrawplayersetupui
 	db key_esc       : dw exitplayersetup
 	db key_up        : dw goprevoption
@@ -101,6 +105,10 @@ playersetupmsghandlers_start
 	db ' '	         : dw setoption
 	db key_tab       : dw gonextfast
 playersetupmsghandlers_end
+
+setupidle
+	YIELD
+	ret
 
 playersetupoptions
 midioptions
@@ -131,16 +139,16 @@ MISC_OPTION_WINDOW_Y = 13
 
 playersetupui
 	CUSTOMUISETCOLOR ,COLOR_DEFAULT
-	CUSTOMUIPRINTTEXT ,32,0,settingsheaderstr
+	CUSTOMUIPRINTTEXT ,30,0,settingsheaderstr
 	CUSTOMUIPRINTTEXT ,15,24,setuphotkeysstr
 	CUSTOMUISETCOLOR ,COLOR_PANEL
-        CUSTOMUIDRAWWINDOW ,MIDI_DEVICE_WINDOW_X,MIDI_DEVICE_WINDOW_Y,30,6
+	CUSTOMUIDRAWWINDOW ,MIDI_DEVICE_WINDOW_X,MIDI_DEVICE_WINDOW_Y,30,6
 	CUSTOMUIPRINTTEXT ,MIDI_DEVICE_WINDOW_X+2,MIDI_DEVICE_WINDOW_Y,mididevicestr
-        CUSTOMUIDRAWWINDOW ,MOD_DEVICE_WINDOW_X,MOD_DEVICE_WINDOW_Y,24,3
+	CUSTOMUIDRAWWINDOW ,MOD_DEVICE_WINDOW_X,MOD_DEVICE_WINDOW_Y,24,3
 	CUSTOMUIPRINTTEXT ,MOD_DEVICE_WINDOW_X+2,MOD_DEVICE_WINDOW_Y,moddevicestr
-        CUSTOMUIDRAWWINDOW ,MOD_DEVICE_WINDOW_X,MOD_DEVICE_WINDOW_Y,24,3
+	CUSTOMUIDRAWWINDOW ,MOD_DEVICE_WINDOW_X,MOD_DEVICE_WINDOW_Y,24,3
 	CUSTOMUIPRINTTEXT ,MOD_DEVICE_WINDOW_X+2,MOD_DEVICE_WINDOW_Y,moddevicestr
-        CUSTOMUIDRAWWINDOW ,MISC_OPTION_WINDOW_X,MISC_OPTION_WINDOW_Y,34,2
+	CUSTOMUIDRAWWINDOW ,MISC_OPTION_WINDOW_X,MISC_OPTION_WINDOW_Y,34,2
 	CUSTOMUIPRINTTEXT ,MISC_OPTION_WINDOW_X+2,MISC_OPTION_WINDOW_Y,miscoptionstr
 	CUSTOMUIDRAWEND
 
@@ -156,8 +164,8 @@ modoption3str db MOD_DEVICE_WINDOW_Y+3,MOD_DEVICE_WINDOW_X+1,"[ ] GeneralSound  
 bomgemoonoptionstr db MISC_OPTION_WINDOW_Y+1,MISC_OPTION_WINDOW_X+1,"[ ] OPL3-only Device (BomgeMoon)  ",0
 slowtfmoptionstr   db MISC_OPTION_WINDOW_Y+2,MISC_OPTION_WINDOW_X+1,"[ ] Slow TurboSound-FM            ",0
 
-settingsheaderstr db "Player Settings",0
-setuphotkeysstr db "ESC=Save&Continue  Space=Toggle  Up/Down=Nagivate",0
+settingsheaderstr db "GP v0.9.0 Settings",0
+setuphotkeysstr db "ESC=Save&Continue  Space=Select  Up/Down=Nagivate",0
 mididevicestr db "MIDI Device...",0
 moddevicestr db "MOD Device...",0
 miscoptionstr db "Misc...",0
@@ -790,7 +798,7 @@ istfmpresent_notimer
 	and 128
 	ret
 
-closeexistingplayer
+quitifanotherinstanceisrunning
 ;d = current pid
 	ld e,1
 .searchloop
@@ -825,23 +833,11 @@ closeexistingplayer
 	jr nz,.searchloop
 	ret
 .foundplayer
-	xor a
-	ld (0xc000+COMMANDLINE),a
-	push de
-	ld hl,closingplayerstr
-	call print_hl
-	pop de
-.waitloop
-	push de
-	YIELD
-	YIELD
-	YIELD
-	YIELD
-	OS_GETAPPMAINPAGES
-	pop de
-	or a
-	jr z,.waitloop
-	ret
+	ld hl,COMMANDLINE
+	ld de,0xc000+COMMANDLINE
+	ld bc,COMMANDLINE_sz
+	ldir
+	QUIT
 
 isplayer
 ;de = command line file name
@@ -862,8 +858,6 @@ isplayer
 	cp '.'
 	ret
 
-closingplayerstr
-	db "Closing old player instance...\r\n",0
 detectingmoonsoundstr
 	db "Detecting MoonSound...",0
 detectingtfmstr

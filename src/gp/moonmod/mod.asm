@@ -64,6 +64,9 @@ patternaddrs ds MODMAXPATTERNS*4
 channelcount ds 1
 patterncount ds 1
 songlength ds 1
+moduletypestr ds 2
+samplesizesinkb ds 2
+samplecount ds 1
 	ends
 
 	struct MODPLAYER
@@ -97,6 +100,7 @@ modload
 	SETPGC000
 	call modparsetype
 	jp nz,memorystreamfree ;sets zf=0
+	ld (modinfo.moduletypestr),de
 	ld (modinfo.channelcount),a
 	ld a,(modheader.songlength)
 	ld (modinfo.songlength),a
@@ -140,7 +144,7 @@ modload
 	ret
 
 modparsetype
-;output: a = channel count
+;output: zf=1 if successful, a = channel count, de = module type string
 	ld hl,modtypetable
 	ld b,modtypecount
 .loop   ld a,(modheader.moduletype+0)
@@ -162,6 +166,10 @@ modparsetype
 	inc hl
 	or c
 	ld a,(hl)
+	inc hl
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
 	inc hl
 	ret z
 	djnz .loop
@@ -264,6 +272,21 @@ modloadfiledata
 	ld hl,0x8000
 	ret
 
+setupsampleloadingprogress
+;count non-zero samples for accurate progress bar
+	ld bc,MODSAMPLECOUNT*256
+	ld de,MODSAMPLEINFO
+	ld ix,modheader.samples
+.samplecountloop
+	ld a,(ix+MODSAMPLEINFO.samplelength)
+	or (ix+MODSAMPLEINFO.samplelength+1)
+	jr z,$+3
+	inc c
+	add ix,de
+	djnz .samplecountloop
+	ld a,c
+	jp setprogressdelta
+
 modloadsamples
 ;input: memory stream at samples data
 ;output: memory stream position is unchanged, zf=1 if samples are loaded, zf=0 otherwise
@@ -272,6 +295,7 @@ modloadsamples
 	call openstream_file
 	or a
 	ret nz
+	call setupsampleloadingprogress
 	call memorystreamgetpos
 	ld a,(filehandle)
 	ld b,a
@@ -287,7 +311,7 @@ modloadsamples
 	ld (.sampleaddresshi),a
 	ld ix,modheader.samples
 	ld iy,modwaveheaderbuffer
-	ld b,MODSAMPLECOUNT
+	ld bc,MODSAMPLECOUNT*256
 .mainloop
 	push bc
 	ld h,(ix+MODSAMPLEINFO.samplelength+0)
@@ -401,14 +425,38 @@ modloadsamples
 	ld (.sampleaddresslo),hl
 	adc a,d
 	ld (.sampleaddresshi),a
+;draw progress
+	push ix
+	push iy
+	call drawsampleloadingprogress
+	pop iy
+	pop ix
+	ld a,1
 .nextsample
 	ld bc,MODSAMPLEINFO
 	add ix,bc
 	ld c,MOONWAVEHEADERSIZE
 	add iy,bc
 	pop bc
+	add a,c
+	ld c,a
+	exx
+	call updateprogress
+	exx
 	dec b
 	jp nz,.mainloop
+	ld a,c
+	ld (modinfo.samplecount),a
+	ld hl,(.sampleaddresslo)
+	ld a,(.sampleaddresshi)
+	ld bc,-(S3MSAMPLEDATASTART%65536)+1023
+	add hl,bc
+	adc a,-(S3MSAMPLEDATASTART/65536)
+	ld l,h
+	srl a : rr l
+	srl a : rr l
+	ld h,a
+	ld (modinfo.samplesizesinkb),hl
 ;switch back to memory steam
 	call closestream_file
 	ld a,(memorystreamcurrentpage)
@@ -420,7 +468,7 @@ modloadsamples
 	ld bc,MODWAVEHEADERBUFFERSIZE
 	call opl4writememory
 	xor a
-	ret
+	jp initprogress
 
 modloadpatterns
 ;output: pattern offsets, memory stream is positioned past patterns data
@@ -1349,23 +1397,28 @@ modtimertable
 	db 0x86,0x86,0x87,0x87,0x87
 
 modtypetable
-	db "M.K.",4
-	db "M!K!",4
-	db "FLT4",4
-	db "OCTA",8
-	db "2CHN",2
-	db "4CHN",4
-	db "6CHN",6
-	db "8CHN",8
-	db "10CH",10
-	db "12CH",12
-	db "14CH",14
-	db "16CH",16
-	db "18CH",18
-	db "20CH",20
-	db "22CH",22
-	db "24CH",24
+	db "M.K.", 4 : dw protrackerstr
+	db "M!K!", 4 : dw protrackerstr
+	db "FLT4", 4 : dw startrekkerstr
+	db "OCTA", 8 : dw octalyzerstr
+	db "2CHN", 2 : dw fasttrackerstr
+	db "4CHN", 4 : dw fasttrackerstr
+	db "6CHN", 6 : dw fasttrackerstr
+	db "8CHN", 8 : dw fasttrackerstr
+	db "10CH",10 : dw fasttrackerstr
+	db "12CH",12 : dw fasttrackerstr
+	db "14CH",14 : dw fasttrackerstr
+	db "16CH",16 : dw fasttrackerstr
+	db "18CH",18 : dw fasttrackerstr
+	db "20CH",20 : dw fasttrackerstr
+	db "22CH",22 : dw fasttrackerstr
+	db "24CH",24 : dw fasttrackerstr
 modtypecount = ($-modtypetable)/5
+
+protrackerstr db "ProTracker",0
+startrekkerstr db "StarTrekker",0
+fasttrackerstr db "FastTracker",0
+octalyzerstr db "Octalyzer",0
 
 modfindnotenumber
 ;hl = period

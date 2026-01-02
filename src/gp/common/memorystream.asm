@@ -10,6 +10,9 @@ memorystreamloadfile
 	ld a,MEMORYSTREAMERROR_FILEIO
 	ld (memorystreamerrorcode),a
 	ret nz
+	ifdef ON_FILE_OPENED_CALLBACK
+	call ON_FILE_OPENED_CALLBACK
+	endif
 	ld hl,0
 	ld de,hl
 	ld c,l
@@ -65,6 +68,8 @@ memorystreamloadfile
 	jr z,$+5
 	ld hl,0xc000
 	ld (memorystreamcurrentaddr),hl
+	ld a,c
+	ld (memorystreampagecount),a
 	call ON_DATA_LOADED_CALLBACK
 	pop bc
 	ld a,b

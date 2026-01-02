@@ -1,10 +1,10 @@
-;Having chip 0 is mandatory for the player to detect YM2151,
-;chip 1 is an optional second chip.
+;Having chip#0 is mandatory for the player to detect YM2151,
+;chip#1 is an optional second chip.
 
-OPM0_REG = 0xf0c1 ;write: chip 0 address
-OPM0_DAT = 0xf1c1 ;write: chip 0 value, read: chip 0 status
-OPM1_REG = 0xf2c1 ;write: chip 1 address
-OPM1_DAT = 0xf3c1 ;write: chip 1 value, read: chip 1 status
+OPM0_REG = 0xf0c1 ;write: chip#0 address
+OPM0_DAT = 0xf1c1 ;write: chip#0 value, read: chip#0 status
+OPM1_REG = 0xf2c1 ;write: chip#1 address
+OPM1_DAT = 0xf3c1 ;write: chip#1 value, read: chip#1 status
 
 	macro opm_write_reg reg,dat
 ;bc = data port

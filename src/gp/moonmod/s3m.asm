@@ -90,6 +90,8 @@ choffset ds S3MMAXCHANNELS
 chpanning ds S3MMAXCHANNELS
 chnum ds 1
 chinitsize ds 2
+samplesizesinkb ds 2
+instnum ds 1
 	ends
 
 	struct S3MPLAYER
@@ -320,6 +322,8 @@ s3mloadsamples
 	call openstream_file
 	or a
 	ret nz
+	ld a,(s3mheader.instnum)
+	call setprogressdelta
 	ld hl,0
 	ld (filestreamcurrentaddr),hl
 	dec hl
@@ -336,6 +340,7 @@ s3mloadsamples
 	ld iy,s3mwaveheaderbuffer
 	ld a,(s3mheader.instnum)
 	ld b,a
+	ld c,0
 .mainloop
 	push bc
 ;convert instrument parapointer to memory address
@@ -504,13 +509,37 @@ s3mloadsamples
 	pop ix
 	ld (ix+S3MINSTRUMENT.tunefactorcoeff),hl
 	ld (ix+S3MINSTRUMENT.tunefactorshift),a
+;draw progress
+	push ix
+	push iy
+	call drawsampleloadingprogress
+	pop iy
+	pop ix
+	ld a,1
 .nextsample
 	ld bc,MOONWAVEHEADERSIZE
 	add iy,bc
 	pop hl
 	pop bc
+	add a,c
+	ld c,a
+	exx
+	call updateprogress
+	exx
 	dec b
 	jp nz,.mainloop
+	ld a,c
+	ld (s3minfo.instnum),a
+	ld hl,(.sampleaddresslo)
+	ld a,(.sampleaddresshi)
+	ld bc,-(S3MSAMPLEDATASTART%65536)+1023
+	add hl,bc
+	adc a,-(S3MSAMPLEDATASTART/65536)
+	ld l,h
+	srl a : rr l
+	srl a : rr l
+	ld h,a
+	ld (s3minfo.samplesizesinkb),hl
 ;switch back to memory steam
 	call closestream_file
 	ld a,(memorystreamcurrentpage)
@@ -522,7 +551,7 @@ s3mloadsamples
 	ld bc,S3MWAVEHEADERBUFFERSIZE
 	call opl4writememory
 	xor a
-	ret
+	jp initprogress
 
 s3munload
 	call opl4mute
@@ -780,7 +809,7 @@ s3mhandlecommandT0
 	jp .doexteffC ; 12 [Cut Note]
 	jp .doexteffD ; 13 [Delay Note]
 	jp .doexteffE ; 14 [Pattern Delay]
-        ret           ; 15 [Funk Repeat]
+	ret           ; 15 [Funk Repeat]
 .doexteff8
 .doexteffA
 	ld a,(ix+S3MSTEPDATA.effectdata)
@@ -958,7 +987,7 @@ s3mhandlecommandTN
 	jp .doexteffC ; 12 [Cut Note]
 	jp .doexteffD ; 13 [Delay Note]
 	ret : ds 2    ; 14 [Pattern Delay]
-        ret           ; 15 [Funk Repeat]
+	ret           ; 15 [Funk Repeat]
 .doexteffB
 	ld a,(s3mplayer.speedstep)
 	dec a
@@ -1433,7 +1462,7 @@ s3mtoneporta
 	call nz,mul8x8
 	xor a
 	add hl,hl : rla
-        if !is_fine
+	if !is_fine
 	add hl,hl : rla
 	add hl,hl : rla
 	endif

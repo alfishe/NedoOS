@@ -29,30 +29,24 @@ tracks ds MIDTRACK*MIDMAXTRACKS
 
 	org PLAYERSTART
 
-begin   PLAYERHEADER
+begin   PLAYERHEADER 0
 
 isfilesupported
 ;cde = file extension
 ;out: zf=1 if this player can handle the file and the sound hardware is available, zf=0 otherwise
 	call ismidfile
 	jr nz,.checkts
-	ld hl,0
-	ld (MUSICTITLEADDR),hl
-	ld hl,musicprogress+1
-	ld (MUSICPROGRESSADDR),hl
-	jp initprogress
+	ld hl,midiplayerwindowui
+	ld (CUSTOMUIADDR),hl
+	ret
 .checkts
 	ld a,c
 	cp 't'
 	jr nz,.checkpt
-	ld a,d
-	cp 's'
-	jr nz,.checkpt
-	ld a,e
-	or a
+	ld hl,'s'*256
+	sbc hl,de
 	jr z,.tsmodule
 .checkpt
-	ld a,c
 	cp 'p'
 	ret nz
 	ld a,d
@@ -62,19 +56,24 @@ isfilesupported
 	cp '2'
 	jr nz,.checkpt3
 ;prepare local variables
-	ld hl,0
-	ld (MUSICTITLEADDR),hl
-	ld (MUSICPROGRESSADDR),hl
+	ld hl,pt2playerwindowui
+	ld (CUSTOMUIADDR),hl
 	ret
 .checkpt3
 	cp '3'
 	ret nz
 ;prepare local variables
 .tsmodule
-	ld hl,0
-	ld (MUSICTITLEADDR),hl
-	ld hl,musicprogress+1
-	ld (MUSICPROGRESSADDR),hl
+	ld hl,pt3playerwindowui
+	ld (CUSTOMUIADDR),hl
+	ret
+
+cleanupvars
+;only destroys af and hl
+;out: zf=0 so this function can be used as error handler
+	xor a
+	ld (titlestr),a
+	inc a
 	jp initprogress
 
 ismidfile
@@ -101,6 +100,7 @@ playerinit
 	ld a,(hl)
 	ld (pageC000),a
 	call initmidi
+	call cleanupvars
 	ld hl,initokstr
 	xor a
 	ret
@@ -182,11 +182,12 @@ playerdeinit
 musicload
 ;cde = file extension
 ;hl = input file name
+;ix = draw progress callback
 ;out: hl = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
 	call ismidfile
 	jr nz,.ptfile
 	call midloadfile
-	ret nz
+	jp nz,cleanupvars
 	ld a,255
 	ld (isplayingmidfile),a
 	ld hl,DEVICE_MIDI_UART_MASK
@@ -195,7 +196,7 @@ musicload
 .ptfile	ex de,hl
 	call openstream_file
 	or a
-	ret nz
+	jp nz,cleanupvars
 page8000=$+1
 	ld a,0
 	SETPG8000
@@ -229,6 +230,7 @@ playerpage=$+1
 	ret
 
 musicunload
+	call cleanupvars
 	ld a,(isplayingmidfile)
 	or a
 	jp nz,midunload
@@ -245,10 +247,6 @@ musicplay
 	ld a,(isplayingmidfile)
 	or a
 	jp nz,midplay
-	YIELD
-	YIELD
-	YIELD
-	YIELD
 	YIELD
 	ld a,(SETUP)
 	and 2
@@ -294,7 +292,6 @@ getconfig
 	call setprogressdelta
 ;set title
 	ld hl,titlestr
-	ld (MUSICTITLEADDR),hl
 	ld de,titlestr+1
 	ld bc,TITLELENGTH-1
 	ld (hl),' '
@@ -316,6 +313,12 @@ getconfig
 	dec c
 	jr z,$+4
 	djnz .copytitleloop
+	ld a,c
+	cp 60
+	jr c,.validtitle
+	xor a
+	ld (titlestr),a
+.validtitle
 	call findts
 	ld a,%00010001 ;2xPT3
 	ret z
@@ -432,9 +435,8 @@ midloadfile
 	ld (midplayer.filetype),a
 	memory_stream_read_2 c,a
 	ld (midplayer.trackcount),a
-	add a,-MIDMAXTRACKS-1
-	sbc a,a
-	ret nz
+	cp MIDMAXTRACKS+1
+	jp nc,memorystreamfree ;sets zf=0
 	memory_stream_read_2 b,c
 	ld de,VSYNC_MCS
 	call uintmul16
@@ -794,6 +796,12 @@ initokstr
 	db "OK\r\n",0
 playernamestr
 	db "ProTracker/MIDI UART",0
+midiplayerwindowui
+	PROGRESSIVEPLAYERWINDOWTEMPLATE 0,musicprogress+1
+pt3playerwindowui
+	PROGRESSIVEPLAYERWINDOWTEMPLATE titlestr,musicprogress+1
+pt2playerwindowui
+	PLAYERWINDOWTEMPLATE 0
 end
 
 titlestr ds TITLELENGTH+1

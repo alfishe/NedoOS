@@ -4,11 +4,11 @@
 	include "../_sdk/sys_h.asm"
 	include "playerdefs.asm"
 
-MUSICTITLE = 0x80dc
-
 	org PLAYERSTART
 
-begin   PLAYERHEADER
+begin   PLAYERHEADER playerwindowui
+
+TITLELENGTH = 64
 
 isfilesupported
 ;cde = file extension
@@ -18,11 +18,14 @@ isfilesupported
 	ret nz
 	ld hl,'wm'
 	sbc hl,de
-	ret nz
-;prepare local variables
-	ld (MUSICTITLEADDR),hl
-	ld hl,musicprogress+1
-	ld (MUSICPROGRESSADDR),hl
+	ret
+
+cleanupvars
+;only destroys af and hl
+;out: zf=0 so this function can be used as error handler
+	xor a
+	ld (titlestr),a
+	inc a
 	jp initprogress
 
 playerinit
@@ -32,6 +35,7 @@ playerinit
 	ld de,songdata_bank1
 	ld bc,3
 	ldir
+	call cleanupvars
 	ld a,(ix+GPSETTINGS.moonsoundstatus)
 	cp 2
 	ld hl,initokstr
@@ -45,6 +49,7 @@ playerdeinit
 musicload
 ;cde = file extension
 ;hl = input file name
+;ix = draw progress callback
 ;out: hl = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
 ;
 ;First try loading wavekit with the same filename as input file.
@@ -70,7 +75,7 @@ filenameaddr=$+1
 	ld de,(filenameaddr)
 	call openstream_file
 	or a
-	ret nz
+	jp nz,cleanupvars
 	ld a,(songdata_bank1)
 	SETPG8000
 	ld de,0x8000
@@ -81,7 +86,7 @@ filenameaddr=$+1
 	ld de,0x8000
 	ld a,8 ;file type 8 = wave user song
 	call check_header
-	ret nz
+	jp nz,cleanupvars
 ;check if wavekit is needed
 	ld hl,0x8114
 	ld de,mwknone
@@ -120,22 +125,22 @@ donefilenamecopy
 	ld de,0x8000
 	call openstream_file
 	or a
-	ret nz
+	jp nz,cleanupvars
 loadmwkdata
 	call mwkload
 	push af
 	call closestream_file
 	pop af
-	ret nz
+	jp nz,cleanupvars
 loadmwm
 	ld hl,moduleerrorstr
 	ld (ERRORSTRINGADDR),hl
 	ld de,(filenameaddr)
 	call openstream_file
 	or a
-	ret nz
+	jp nz,cleanupvars
 	call mwmload
-	ret nz
+	jp nz,cleanupvars
 	call closestream_file
 	call start_music
 ;set music length
@@ -156,12 +161,19 @@ noloopinmusic
 	rra
 	adc a,b
 	call setprogressdelta
-;make title avaialable
-	ld hl,MUSICTITLE
-	ld (MUSICTITLEADDR),hl
-;null terminate string
+;set title
+	ld hl,0x80dc
+	ld de,titlestr
+	ld bc,50
+	ldir
+	ld b,TITLELENGTH-50
+	ld a,' '
+.filltitleloop
+	ld (de),a
+	inc de
+	djnz .filltitleloop
 	xor a
-	ld (MUSICTITLE+50),a
+	ld (de),a
 ;init progress vars
 	ld (lastplaypos),a
 	ld (loopcounter),a
@@ -172,6 +184,7 @@ noloopinmusic
 	ret
 
 musicunload
+	call cleanupvars
 	jp stop_music
 
 musicplay
@@ -271,6 +284,13 @@ wavekiterrorstr
 	db "Unable to load wavekit!",0
 moduleerrorstr
 	db "Failed to load the module!",0
+playerwindowui
+	PROGRESSIVEPLAYERWINDOWTEMPLATE titlestr,musicprogress+1
 end
 
+titlestr
+	ds TITLELENGTH+1
+
 	savebin "mwm.bin",begin,end-begin
+
+	assert $ <= PLAYEREND ;ensure everything is within the player page

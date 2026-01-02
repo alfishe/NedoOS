@@ -6,31 +6,24 @@
 	
 	org PLAYERSTART
 
-begin   PLAYERHEADER
+begin   PLAYERHEADER playerwindowui
+
 isfilesupported
 ;cde = file extension
 ;out: zf=1 if this player can handle the file and the sound hardware is available, zf=0 otherwise
-	call ismidfile
-	ret nz
-	ld hl,0
-	ld (MUSICTITLEADDR),hl
-	ld hl,musicprogress+1
-	ld (MUSICPROGRESSADDR),hl
-	jp initprogress
-	
-ismidfile
-;cde = file extension
-;out: zf=1 if .mod, zf=0 otherwise
 	ld a,'m'
 	cp c
 	ret nz
-	ld a,'i'
-	cp d
-	ret nz
-	ld a,'d'
-	cp e
+	ld hl,'id'
+	sbc hl,de
 	ret
-	
+
+cleanupvars
+;only destroys af and hl
+;out: zf=0 so this function can be used as error handler
+	or 255
+	jp initprogress
+
 playerinit
 ;hl,ix = GPSETTINGS
 ;a = player page
@@ -61,6 +54,8 @@ playerinit
 	call ismidienabled
 	ld hl,playerdisabledstr
 	ret nz
+	call cleanupvars
+	xor a
 	ld hl,initokstr
 	ret
 
@@ -82,15 +77,21 @@ opl4tablespage=$+1
 	OS_DELPAGE
 	ret	
 	
-musicload:	
+musicload
+;cde = file extension
+;hl = input file name
+;ix = draw progress callback
+;out: hl = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
 	call midloadfile
-	xor a
 	ld hl,DEVICE_MOONSOUND_MASK
-	ret
+	ret z
+	call memorystreamfree
+	jp cleanupvars ;sets zf=0
 
 musicunload
-	jp midunload	
-	
+	call cleanupvars
+	jp midunload
+
 musicplay
 ;out: zf=0 if still playing, zf=1 otherwise
 	jp midplay
@@ -196,7 +197,7 @@ midloadfile
 	call set_refresh
 ;	call opl4_reset
 	call opl4init
-    jp generate_tables	
+	jp generate_tables	
 	
 midunload
 	call opl4_reset
@@ -215,6 +216,8 @@ nodevicestr
 	db "no device!\r\n",0
 playerdisabledstr
 	db "disabled!\r\n",0
+playerwindowui
+	PROGRESSIVEPLAYERWINDOWTEMPLATE 0,musicprogress+1
 
 tempmemorystart = $
 opl4tables

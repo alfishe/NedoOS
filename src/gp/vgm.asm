@@ -13,7 +13,7 @@ MEMORYSTREAMERRORMASK = 255 ; TODO: do we need to enforce loading the entire fil
 
 	org PLAYERSTART
 
-begin   PLAYERHEADER
+begin   PLAYERHEADER 0
 
 isfilesupported
 ;cde = file extension
@@ -26,14 +26,16 @@ isfilesupported
 	ret nz
 	ld a,e
 	cp 'm'
-	jr z,$+5
+	ret z
 	cp 'z'
-	ret nz
-;prepare local variables
-	ld hl,0
-	ld (MUSICTITLEADDR),hl
-	ld hl,musicprogress+1
-	ld (MUSICPROGRESSADDR),hl
+	ret
+
+cleanupvars
+;only destroys af and hl
+;out: zf=0 so this function can be used as error handler
+	ld hl,playerwindowloading
+	ld (CUSTOMUIADDR),hl
+	or 255
 	jp initprogress
 
 playerinit
@@ -60,6 +62,7 @@ playerinit
 	or a
 	call nz,enableopna
 ;hardware detection is done when loading VGM
+	call cleanupvars
 	ld hl,initokstr
 	xor a
 	ret
@@ -72,7 +75,7 @@ checkslowtfm
 	ld a,(de)
 	cp '0'
 	ret nz
-	ld a,0x21
+	ld a,0x21 ;'ld hl,nn' op
 	ld (vgmopninit.callturnturbooff),a
 	ret
 
@@ -95,7 +98,9 @@ checkslowtfm
 musicload
 ;cde = file extension
 ;hl = input file name
+;ix = draw progress callback
 ;out: hl = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
+	ld (drawloadingprogress.callback),ix
 	push hl
 	set_timer waittimer50hz,882
 	ld hl,0
@@ -117,6 +122,7 @@ musicload
 	call memorystreamloadfile
 	jr z,.doneloading
 	call turnturboon
+	call cleanupvars
 	ld hl,(ERRORSTRINGADDR)
 	ld a,l
 	or h
@@ -134,9 +140,10 @@ musicload
 	ret
 .loadcompressed
 	call decompressfiletomemorystream
-	ret nz
+	jp nz,cleanupvars
 .doneloading
-;init progress
+;setup play progress
+	call initprogress
 	ld hl,(HEADER_SAMPLES_COUNT+2)
 	ld bc,(HEADER_LOOP_SAMPLES_COUNT+2)
 	add hl,bc
@@ -149,6 +156,7 @@ musicload
 	call setprogressdelta
 ;check for GD3
 	xor a
+	ld (titlestr),a
 	a_or_dw HEADER_GD3_OFFSET
 	call nz,parsegd3
 ;setup loop
@@ -189,13 +197,26 @@ musicload
 	call hltodecimalstring
 	ld hl,hzstr
 	call strcopy_hltode
-	jr .finalizevgminfo
+	jr .donerecordingrate
 .zerorate
 	ld hl,zeroratestr
 	ld de,vgmratestr
 	call strcopy_hltode
+.donerecordingrate
+	ld hl,(HEADER_SAMPLES_COUNT+0) : exx
+	ld hl,(HEADER_SAMPLES_COUNT+2) : exx
+	ld de,vgmlengthstr
+	call samplecounttotimestring
+	xor a
+	ld hl,(HEADER_LOOP_SAMPLES_COUNT+0) : or h : or l : exx
+	ld hl,(HEADER_LOOP_SAMPLES_COUNT+2) : or h : or l : exx
+	jr z,.finalizevgminfo
+	ld a,' ' : ld (de),a : inc de
+	ld a,'+' : ld (de),a : inc de
+	ld a,' ' : ld (de),a : inc de
+	call samplecounttotimestring
 .finalizevgminfo
-	ld hl,vgminfoui
+	ld hl,playerwindowui
 	ld (CUSTOMUIADDR),hl
 ;start command stream
 dataoffsetlo=$+1
@@ -212,7 +233,6 @@ checkvgmchip
 ;hl = header addr
 ;de = chip name string
 ;out: zf=1 if not found, zf=0 and c=255 otherwise
-	ld (.chipnamestr),de
 	ld a,(hl)
 	inc hl
 	or (hl)
@@ -221,6 +241,7 @@ checkvgmchip
 	inc hl
 	or (hl)
 	ret z
+	push de
 	bit 6,(hl)
 	push af
 .strend=$+1
@@ -238,8 +259,7 @@ checkvgmchip
 	ld de,dualchipstr
 	call strncopy_detohl
 .singlechip
-.chipnamestr=$+1
-	ld de,0
+	pop de
 	call strncopy_detohl
 	ld (.strend),hl
 	ld a,b
@@ -323,6 +343,7 @@ playerdeinit
 	ret
 
 	include "../_sdk/file.asm"
+	define ON_FILE_OPENED_CALLBACK onfileopened
 	define ON_DATA_LOADED_CALLBACK ondataloaded
 	define UNUSED_PAGE_ADDR page8000
 	include "common/memorystream.asm"
@@ -341,6 +362,9 @@ playerdeinit
 
 ondataloaded
 ;output: zf=1 if hardware is found, zf=0 otherwise
+	ld a,(memorystreampagecount)
+	call updateprogress
+	call drawloadingprogress
 	call memorystreamgetpos
 	push de
 	push hl
@@ -746,9 +770,9 @@ parsegd3
 	call z,gd3stringcopy ;author
 	ld a,b
 	cp 57
-	ret nc
-	ld hl,titlestr
-	ld (MUSICTITLEADDR),hl
+	ret c
+	xor a
+	ld (titlestr),a
 	ret
 
 gd3stringcopy
@@ -1302,12 +1326,50 @@ cmdtable
 	db skip5           /256 ; FE
 	db skip5           /256 ; FF
 
+onfileopened
+	ld a,(filehandle)
+	ld b,a
+	OS_GETFILESIZE
+	ld a,e
+setuploadingprogress
+;ahl = file size
+	ld de,0x3fff
+	add hl,de
+	adc a,0
+	add hl,hl : rla
+	add hl,hl : rla
+	jp setprogressdelta
+
 decompressfiletomemorystream
 ;de = input file name
 ;out: zf=1 is successful, zf=0 otherwise
 	call openstream_file
 	or a
 	ret nz
+;setup progress using the last 4 bytes containing decompressed file size
+	ld a,(filehandle)
+	ld b,a
+	OS_GETFILESIZE
+	ld bc,4
+	sub hl,bc
+	jr nc,$+3
+	dec de
+	ld a,(filehandle)
+	ld b,a
+	OS_SEEKHANDLE
+	ld de,memorystreamsize
+	ld hl,4
+	call readstream_file
+	ld a,(filehandle)
+	ld b,a
+	ld hl,0
+	ld de,hl
+	OS_SEEKHANDLE
+	ld hl,(memorystreamsize+0)
+	ld a,(memorystreamsize+2)
+	call setuploadingprogress
+;init memory stream
+	xor a
 	ld (memorystreampagecount),a
 	ld hl,0
 	ld (memorystreamsize+0),hl
@@ -1379,11 +1441,6 @@ GzipReadInputBuffer
 GzipWriteOutputBuffer
 ;de = OutputBuffer
 ;hl = size
-	exx
-	ex af,af'
-	push af,bc,de,hl,ix,iy
-	exx
-;allocate memory
 	ld a,l
 	add a,0xff
 	ld a,h
@@ -1391,7 +1448,13 @@ GzipWriteOutputBuffer
 	rlca
 	rlca
 	and 3
+	ret z
 	ld b,a
+	exx
+	ex af,af'
+	push af,bc,de,hl,ix,iy
+	exx
+;allocate memory
 	ld a,(memorystreampagecount)
 	ld c,a
 	push hl
@@ -1469,6 +1532,10 @@ GzipWriteOutputBuffer
 	exx
 	ex af,af'
 	jp setsharedpages
+
+drawloadingprogress
+.callback=$+1
+	jp 0
 
 	include "common/gunzip.asm"
 
@@ -1560,8 +1627,6 @@ opmstatus=$+1
 	ret
 
 musicunload
-	ld hl,0
-	ld (CUSTOMUIADDR),hl
 	check_device_mask DEVICE_MOONSOUND_BIT
 	call nz,opl4mute
 	check_device_mask DEVICE_TFM_BIT
@@ -1576,6 +1641,7 @@ musicunload
 	call nz,opmmute
 	check_device_mask DEVICE_OPNA_BIT
 	call nz,opnamute
+	call cleanupvars
 	jp memorystreamfree
 
 	macro set_cmd_handler cmd,handler
@@ -1663,6 +1729,46 @@ hltodecimalstring
 	dec de
 	ret
 
+samplecounttotimestring
+;hl'hl = 32 bit sample count
+;de = string buffer
+	ld bc,-2646000&0xffff
+	exx
+	ld bc,-2646000>>16
+	exx
+	call .writefield ;minutes
+	ld a,':'
+	ld (de),a
+	inc de
+	ld bc,-44100&0xffff
+	exx
+	ld bc,-44100>>16
+	exx
+	call .writefield ;seconds
+	xor a
+	ld (de),a
+	ret
+.writefield
+	ld a,255
+.loop	inc a
+	add hl,bc : exx
+	adc hl,bc : exx
+	jr c,.loop
+	sbc hl,bc : exx
+	sbc hl,bc : exx
+	ld bc,0x2ff6 ;b='0'-1, c=-10
+	inc b
+	add a,c
+	jr c,$-2
+	ex de,hl
+	ld (hl),b
+	ex de,hl
+	inc de
+	add a,'0'+10
+	ld (de),a
+	inc de
+	ret
+
 strncopy_detohl
 ;de = source string
 ;hl = destionation buffer
@@ -1689,24 +1795,10 @@ strcopy_hltode
 	inc de
 	jr strcopy_hltode
 
-VGM_INFO_WINDOW_X = 45
-VGM_INFO_WINDOW_Y = 17
-
-vgminfoui
-	CUSTOMUISETCOLOR ,COLOR_PANEL
-	CUSTOMUIDRAWWINDOW ,VGM_INFO_WINDOW_X,VGM_INFO_WINDOW_Y,23,3
-	CUSTOMUISETCOLOR ,COLOR_CURSOR
-	CUSTOMUIPRINTTEXT ,VGM_INFO_WINDOW_X+2,VGM_INFO_WINDOW_Y,vgminfostr
-	CUSTOMUISETCOLOR ,COLOR_PANEL_FILE
-	CUSTOMUIPRINTTEXT ,VGM_INFO_WINDOW_X+1,VGM_INFO_WINDOW_Y+1,vgmchipstextstr
-	CUSTOMUIPRINTTEXT ,VGM_INFO_WINDOW_X+1,VGM_INFO_WINDOW_Y+2,vgmdatablocktextstr
-	CUSTOMUIPRINTTEXT ,VGM_INFO_WINDOW_X+1,VGM_INFO_WINDOW_Y+3,vgmratetextstr
-	CUSTOMUIDRAWEND
-
-vgmchipstextstr db "Chip: "
-VGM_CHIP_STR_MAX_LEN = 16
+vgmchipstextstr db "Chips: "
+VGM_CHIP_STR_MAX_LEN = 27
 vgmchipsstr ds VGM_CHIP_STR_MAX_LEN+1
-chipseparatorstr db "+",0
+chipseparatorstr db ", ",0
 dualchipstr db "Dual-",0
 ay8910str db "AY8910",0
 sn76489str db "SN76489",0
@@ -1723,11 +1815,12 @@ vgmdatablocktextstr db "(AD)PCM Samples: "
 vgmdatablocksizestr ds 10
 nonestr db "None",0
 kbytestr db "KB",0
-vgmratetextstr db "Rec. Rate: "
+vgmratetextstr db "Recording Rate: "
 vgmratestr ds 10
 hzstr db "Hz",0
 zeroratestr db "Undefined",0
-vgminfostr db "VGM Info",0
+vgmlengthtextstr db "Length: "
+vgmlengthstr ds 12
 
 initokstr
 	db "OK\r\n",0
@@ -1737,9 +1830,29 @@ fromstr
 	db " [",0
 bystr
 	db "] by ",0
+loadingtitlestr
+	db "Loading video game music...",0
+playerwindowloading
+	PROGRESSIVELOADINGWINDOWTEMPLATE loadingtitlestr,musicprogress+1
+
+playerwindowui
+	CUSTOMUISETCOLOR ,COLOR_PANEL
+	CUSTOMUIDRAWWINDOW ,6,8,66,7
+	CUSTOMUISETCOLOR ,15
+	CUSTOMUISEPARATOR ,7,13,64,196,196,196
+	CUSTOMUIPLAYERWINDOWTITLE ,8,8
+	CUSTOMUISONGTITLE ,8,10,titlestr
+	CUSTOMUIPLAYPROGRESS ,8,11,musicprogress+1
+	CUSTOMUIPLAYTIME ,67,8
+	CUSTOMUISETCOLOR ,COLOR_PANEL_FILE
+	CUSTOMUIPRINTTEXT ,10,14,vgmchipstextstr
+	CUSTOMUIPRINTTEXT ,9,15,vgmlengthtextstr
+	CUSTOMUIPRINTTEXT ,45,14,vgmdatablocktextstr
+	CUSTOMUIPRINTTEXT ,46,15,vgmratetextstr
+	CUSTOMUIDRAWEND
 end
 
-GzipWorkBuffersStart = PROGSTART
+GzipWorkBuffersStart = SYSTEM_MEMORY_END
 vgmheadercopy = $
 vgmheadercopyend = vgmheadercopy+HEADER_SIZE_MAX
 GzipOutputBuffersStart = vgmheadercopyend
