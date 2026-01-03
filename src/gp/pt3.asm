@@ -133,6 +133,7 @@ initmidi
 	ld (ymselector),a
 .defaultdevice
 	call setuartdelay
+	call checkmiditurbosettings
 	ld a,(waitspincount)
 	or a
 	ret nz
@@ -176,6 +177,19 @@ setautouartdelay
 	ld (waitspincount),a
 	ret
 
+checkmiditurbosettings
+	ld de,(ix+GPSETTINGS.slowmidiuart)
+	ld a,d
+	or e
+	ret z
+	cp '0'
+	ret z
+	ld a,0xcd ;call opcode
+	ld (midinitport.callturnturbooff),a
+	ld a,8
+	ld (waitspincount),a
+	ret
+
 playerdeinit
 	ret
 
@@ -186,7 +200,7 @@ musicload
 ;out: hl = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
 	call ismidfile
 	jr nz,.ptfile
-	call midloadfile
+	call resetandloadmidifile
 	jp nz,cleanupvars
 	ld a,255
 	ld (isplayingmidfile),a
@@ -330,6 +344,7 @@ getconfig
 	include "common/memorystream.asm"
 	include "common/muldiv.asm"
 	include "common/opna.asm"
+	include "common/turbo.asm"
 	include "progress.asm"
 
 VSYNC_FREQ = 49
@@ -361,6 +376,8 @@ ymregaddr equ midsendbyte.regaddr
 ymdataddr equ midsendbyte.dataddr
 
 midinitport
+.callturnturbooff
+	ld hl,turnturbooff
 	ld bc,(ymregaddr)
 .ymselector=$+1
 	ld a,%11111110
@@ -410,16 +427,36 @@ midsendbyte
 	ei
 	ret
 
-midloadfile
+loadingerrorstr
+	db "Unable to load the file!",0
+badmidisignatureerrorstr
+	db "Invalid MIDI file!",0
+unsupportedmidierrorstr
+	db "Unsupported MIDI file!",0
+
+resetandloadmidifile
 ;hl = input file name
 ;out: zf=1 if loaded, zf=0 otherwise
+	push hl
 	call midinitport
 ;reset the reciever
 	ld d,255
 	call midsendbyte
-;load and parse the file
-	ex de,hl
+	pop de
+	call midloadfile
+	ret z
+	ld (ERRORSTRINGADDR),hl
+	call turnturboon
+	ld a,(memorystreamerrorcode)
+	or a
+	ret nz
+	jp memorystreamfree ;sets zf=0
+
+midloadfile
+;de = input file name
+;out: zf=1 if loaded, zf=0 and hl=error string otherwise
 	call memorystreamloadfile
+	ld hl,loadingerrorstr
 	ret nz
 	ld hl,midplayer
 	ld de,midplayer+1
@@ -430,13 +467,16 @@ midloadfile
 	ld b,midheadersigsize
 	ld de,midheadersig
 	call midchecksignature
-	jp nz,memorystreamfree ;sets zf=0
+	ld hl,badmidisignatureerrorstr
+	ret nz
 	memory_stream_read_2 c,a
 	ld (midplayer.filetype),a
 	memory_stream_read_2 c,a
 	ld (midplayer.trackcount),a
-	cp MIDMAXTRACKS+1
-	jp nc,memorystreamfree ;sets zf=0
+	add a,-MIDMAXTRACKS-1
+	sbc a,a
+	ld hl,unsupportedmidierrorstr
+	ret nz
 	memory_stream_read_2 b,c
 	ld de,VSYNC_MCS
 	call uintmul16
@@ -447,13 +487,15 @@ midloadfile
 	ld (midplayer.ticksperqnoteXupdatelen+0),hl
 	ld (midplayer.ticksperqnoteXupdatelen+2),de
 	call midloadtracks
-	jp nz,memorystreamfree ;sets zf=0
+	ld hl,unsupportedmidierrorstr
+	ret nz
 	call midsetprogressdelta
 	ld de,0
 	ld hl,14
 	call memorystreamseek
 	call midloadtracks
-	jp nz,memorystreamfree ;sets zf=0
+	ld hl,unsupportedmidierrorstr
+	ret nz
 	ld hl,DEFAULT_QNOTE_DURATION_MCS%65536
 	ld de,DEFAULT_QNOTE_DURATION_MCS/65536
 	call setticksperupdate
@@ -540,6 +582,7 @@ midmute
 
 midunload
 	call midmute
+	call turnturboon
 	jp memorystreamfree
 
 midplay

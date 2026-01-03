@@ -568,10 +568,10 @@ startplaying
 	ld (hl),0
 	inc hl
 	djnz $-3
-;disable drawplayerwindow and draw the rest of player UI
+;skip drawplayerwindow and redraw the rest of player UI
 	ld a,1
 	ld (isplaying),a
-	ld a,0xc9
+	ld a,0xc9 ;ret opcode
 	ld (drawplayerwindow),a
 	call drawplayer
 	xor a

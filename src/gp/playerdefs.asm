@@ -37,6 +37,7 @@ midiuartdelayoverride dw 0
 mididevice dw 0
 moddevice dw 0
 slowtfm dw 0
+slowmidiuart dw 0
 framelength dw 0 ;in 42 t-states units
 moonsoundstatus ds 1 ; 0 - no device, 1 - BomgeMoon or MoonSound with old firmware (wave ports not working), 2 - MoonSound OK
 tfmstatus ds 1 ; 0 - no device, 1 - found TFM

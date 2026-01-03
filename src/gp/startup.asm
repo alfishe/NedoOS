@@ -62,6 +62,11 @@ runsetup
 	ld a,(hl)
 	and 1
 	call updatecheckbox
+	ld hl,(gpsettings.slowmidiuart)
+	ld de,slowmidiuartoption
+	ld a,(hl)
+	and 1
+	call updatecheckbox
 	call redrawplayersetupui
 	ld hl,playersetupmsgtable
 	ld (currentmsgtable),hl
@@ -78,7 +83,7 @@ checkinifile
 	or h
 	jr z,.isoutdated
 	ld a,(hl)
-	cp '2'
+	cp '3'
 	ret z
 .isoutdated
 	ld hl,builtininifile
@@ -128,6 +133,8 @@ bomgemoonoption
 	dw bomgemoonoptionstr : dw bomgemoonhandler : dw bomgemoonoptiondescstr
 slowtfmoption
 	dw slowtfmoptionstr : dw slowtfmhandler : dw slowtfmoptiondescstr
+slowmidiuartoption
+	dw slowmidiuartoptionstr : dw slowmidiuarthandler : dw slowmidiuartoptiondescstr
 playersetupoptioncount=($-playersetupoptions)/6
 
 MIDI_DEVICE_WINDOW_X = 4
@@ -148,7 +155,7 @@ playersetupui
 	CUSTOMUIPRINTTEXT ,MOD_DEVICE_WINDOW_X+2,MOD_DEVICE_WINDOW_Y,moddevicestr
 	CUSTOMUIDRAWWINDOW ,MOD_DEVICE_WINDOW_X,MOD_DEVICE_WINDOW_Y,24,3
 	CUSTOMUIPRINTTEXT ,MOD_DEVICE_WINDOW_X+2,MOD_DEVICE_WINDOW_Y,moddevicestr
-	CUSTOMUIDRAWWINDOW ,MISC_OPTION_WINDOW_X,MISC_OPTION_WINDOW_Y,34,2
+	CUSTOMUIDRAWWINDOW ,MISC_OPTION_WINDOW_X,MISC_OPTION_WINDOW_Y,34,3
 	CUSTOMUIPRINTTEXT ,MISC_OPTION_WINDOW_X+2,MISC_OPTION_WINDOW_Y,miscoptionstr
 	CUSTOMUIDRAWEND
 
@@ -161,8 +168,9 @@ midioption6str db MIDI_DEVICE_WINDOW_Y+6,MIDI_DEVICE_WINDOW_X+1,"[ ] UART YM2608
 modoption1str db MOD_DEVICE_WINDOW_Y+1,MOD_DEVICE_WINDOW_X+1,"[X] Auto Select Device  ",0
 modoption2str db MOD_DEVICE_WINDOW_Y+2,MOD_DEVICE_WINDOW_X+1,"[ ] MoonSound (OPL4)    ",0
 modoption3str db MOD_DEVICE_WINDOW_Y+3,MOD_DEVICE_WINDOW_X+1,"[ ] GeneralSound        ",0
-bomgemoonoptionstr db MISC_OPTION_WINDOW_Y+1,MISC_OPTION_WINDOW_X+1,"[ ] OPL3-only Device (BomgeMoon)  ",0
-slowtfmoptionstr   db MISC_OPTION_WINDOW_Y+2,MISC_OPTION_WINDOW_X+1,"[ ] Slow TurboSound-FM            ",0
+bomgemoonoptionstr    db MISC_OPTION_WINDOW_Y+1,MISC_OPTION_WINDOW_X+1,"[ ] OPL3-only Device (BomgeMoon)  ",0
+slowtfmoptionstr      db MISC_OPTION_WINDOW_Y+2,MISC_OPTION_WINDOW_X+1,"[ ] Slow TurboSound-FM            ",0
+slowmidiuartoptionstr db MISC_OPTION_WINDOW_Y+3,MISC_OPTION_WINDOW_X+1,"[ ] MIDI UART at 3.5Mhz CPU       ",0
 
 settingsheaderstr db "GP v0.9.0 Settings",0
 setuphotkeysstr db "ESC=Save&Continue  Space=Select  Up/Down=Nagivate",0
@@ -179,6 +187,7 @@ midioption6descstr db "MIDI UART подключен через IOA YM2608.",0
 modoption3descstr db "Проигрывать через прошивку GeneralSound/NeoGS.",0
 bomgemoonoptiondescstr db "Включите, если у вас нет MoonSound, но есть карта с OPL3 чипом.",0
 slowtfmoptiondescstr db "Включите, если ваш TurboSound-FM работает плохо или не работает.",0
+slowmidiuartoptiondescstr db "Включите, если MIDI в MultiSound не работает или слышны обрывки нот.",0
 
 activeoption db 0
 inifileversionsettings dw 0
@@ -283,6 +292,15 @@ bomgemoonhandler
 slowtfmhandler
 	ld hl,(gpsettings.slowtfm)
 	ld de,slowtfmoption
+	ld a,(hl)
+	cpl
+	and 1
+	call updatecheckbox
+	jp drawsetupoptions
+
+slowmidiuarthandler
+	ld hl,(gpsettings.slowmidiuart)
+	ld de,slowmidiuartoption
 	ld a,(hl)
 	cpl
 	and 1
@@ -485,6 +503,8 @@ settingsvars
 	db 0x7E : dw gpsettings.moddevice
 	db 0x32 : dw inifileversionsettings
 	db 0x78 : dw gpsettings.slowtfm
+	db 0x78 : dw gpsettings.slowtfm
+	db 0x3C : dw gpsettings.slowmidiuart
 settingsvarcount=($-settingsvars)/3
 
 findnextchar
