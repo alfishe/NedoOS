@@ -15,6 +15,10 @@ BUFSIZE = 0x8000
 
 begin   PLAYERHEADER 0
 
+FILETYPE_MP3 = 1
+FILETYPE_MOD = 2
+FILETYPE_MID = 3
+
 isfilesupported
 ;cde = file extension
 ;out: zf=1 if this player can handle the file and the sound hardware is available, zf=0 otherwise
@@ -59,12 +63,16 @@ isfilesupported
 	sub hl,de
 	ret nz
 .initmp3vars
-	ld hl,mp3playerwindowui
+	ld hl,0
 	ld (CUSTOMUIADDR),hl
+	ld a,FILETYPE_MP3
+	ld (filetype),a
 	ret
 .initmodvars
 	ld hl,modplayerwindowloading
 	ld (CUSTOMUIADDR),hl
+	ld a,FILETYPE_MOD
+	ld (filetype),a
 	ret
 .checkmid
 	ld a,(vsversion)
@@ -79,16 +87,19 @@ isfilesupported
 .initmidvars
 	ld hl,midiplayerwindowui
 	ld (CUSTOMUIADDR),hl
+	ld a,FILETYPE_MID
+	ld (filetype),a
 	ret
 
 cleanupvars
-;only destroys af and hl
 ;out: zf=0 so this function can be used as error handler
 	xor a
 	ld (titlestr),a
 	ld (filechunkcounter+0),a
 	ld (filechunkcounter+1),a
-	inc a
+	ld (filetype),a
+	dec a
+	ld (streaminfobyte),a
 	jp initprogress
 
 isfilesupportedgsonly
@@ -129,15 +140,19 @@ checkmididevicesettings
 	ret
 
 playerinit
-;hl,ix = GPSETTINGS
+;ix = GPSETTINGS
 ;a = player page
 ;out: zf=1 if init is successful, hl=init message
-	ld (.settingsaddr),hl
-	ld a,(hl)
+	ld (.settingsaddr),ix
+	ld a,(ix+GPSETTINGS.sharedpages)
 	ld (page8000),a
-	inc hl
-	ld a,(hl)
+	ld a,(ix+GPSETTINGS.sharedpages+1)
 	ld (pageC000),a
+	ld hl,(ix+GPSETTINGS.drawprogresscallback)
+	ld (drawloadingprogress.callback),hl
+	ld hl,(ix+GPSETTINGS.drawcustomui)
+	ld (drawcustomui.callback),hl
+	call cleanupvars
 ;	call gssoftreset
 ;b==0 if no reply from GS
 ;	dec b
@@ -177,7 +192,6 @@ playerinit
 	xor a
 	ld (isfilesupported.disablemod),a
 	call checkmididevicesettings
-	call cleanupvars
 	xor a
 	ld hl,ngsinitokstr
 	ret
@@ -187,7 +201,6 @@ playerinit
 	ret nz
 	ld hl,isfilesupportedgsonly
 	ld (ISFILESUPPORTEDPROCADDR),hl
-	call cleanupvars
 	xor a
 	ld hl,gsinitokstr
 	ret
@@ -195,31 +208,19 @@ playerinit
 playerdeinit
 	ret
 
-ismodfile
-;cde = file extension
-;out: zf=1 if .mod, zf=0 otherwise
-	ld a,'m'
-	cp c
-	ret nz
-	ld a,'o'
-	cp d
-	ret nz
-	ld a,'d'
-	cp e
-	ret
-
 musicload
 ;cde = file extension
 ;hl = input file name
-;ix = draw progress callback
 ;out: hl = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
-	ld (drawloadingprogress.callback),ix
-	call ismodfile
-	ld a,1
-	jr z,$+3
-	dec a
-	ld (isplayingmodfile),a
-	ex de,hl
+	push hl
+	ld a,(filetype)
+	cp FILETYPE_MP3
+	jr nz,.skipmp3setup
+	ld hl,mp3playerwindowui
+	ld (CUSTOMUIADDR),hl
+	call setdefaultstreaminfoui
+.skipmp3setup
+	pop de
 	call openstream_file
 	or a
 	jp nz,cleanupvars
@@ -229,9 +230,27 @@ page8000=$+1
 pageC000=$+1
 	ld a,0
 	SETPGC000
-	ld a,(isplayingmodfile)
-	or a
-	jr nz,loadmod
+	ld a,(filetype)
+	cp FILETYPE_MOD
+	jr z,loadmod
+	cp FILETYPE_MID
+	jr nz,.skipmidicheck
+	ld hl,16
+	ld de,BUFADDR
+	call readstream_file
+	call checksmf0
+	jr z,.donemidicheck
+	ld hl,smf0errorui | 0x8000
+	ld (ERRORSTRINGADDR),hl
+	call closestream_file
+	jp cleanupvars
+.donemidicheck
+	ld a,(filehandle)
+	ld b,a
+	ld hl,0
+	ld de,hl
+	OS_SEEKHANDLE
+.skipmidicheck
 	ld a,(filehandle)
 	ld b,a
 	OS_GETFILESIZE
@@ -247,10 +266,25 @@ pageC000=$+1
 	xor a
 	ret
 
+checksmf0
+	ld hl,(BUFADDR)
+	ld de,"TM"
+	sub de,hl
+	ret nz
+	ld hl,(BUFADDR+2)
+	ld de,"dh"
+	sbc de,hl
+	ret nz
+	ld hl,(BUFADDR+8)
+	ld de,0
+	sbc hl,de	
+	ret
+
 TITLELENGTH = 64
 
 loadmod
 ;setup loading progress
+	ld (.savedsp),sp
 	ld a,(filehandle)
 	ld b,a
 	OS_GETFILESIZE
@@ -319,6 +353,7 @@ loadmod
 	ld a,d
 	call updateprogress
 	call drawloadingprogress
+	jr nz,.cancelloading
 	ld hl,BUFSIZE
 	ld de,BUFADDR
 	call readstream_file
@@ -347,39 +382,57 @@ loadmod
 	ld (currentposition),a
 	ld hl,DEVICE_GS_MASK
 	ret
+.cancelloading
+.savedsp=$+1
+	ld sp,0
+	call closestream_file
+;cold reset because warm reset hangs randomly if stream is not closed
+	SC 0xf4
+	WC
+	jp cleanupvars
 
 drawloadingprogress
 .callback=$+1
 	jp 0
 
-musicunload
-	call cleanupvars
-	ld a,(isplayingmodfile)
-	or a
-	jr nz,unloadmod
-	call closestream_file
-	jp gscodereset
+drawcustomui
+.callback=$+1
+	jp 0
 
-unloadmod
+musicunload
+	ld a,(filetype)
+	cp FILETYPE_MOD
+	jr z,.unloadmod
+	call closestream_file
+	ld hl,cleanupvars
+	push hl
+	ld a,(filetype)
+	cp FILETYPE_MID
+	jp nz,gscodereset
+;gscodereset didn't always work for extremely slow MIDI streams
+	ld a,C_GRST
+	out (GSCTR),a
+	ret
+.unloadmod
+;warm reset
 	SC 0xf3
 	WC
 	ret
 
 musicplay
 ;out: zf=0 if still playing, zf=1 otherwise
-isplayingmodfile=$+1
+filetype=$+1
 	ld a,0
-	or a
-	jr nz,playmod
-
+	cp FILETYPE_MOD
+	jp z,playmod
 bufferreadptr=$+1
 	ld hl,0
 bufferdataleft=$+1
 	ld bc,0
 	ld a,c
 	or b
-	jr nz,checkifcanupload
-readfilechunk
+	jr nz,.checkifcanupload
+.readfilechunk
 	ld hl,(paddingframecount)
 	ld de,150
 	sub hl,de
@@ -394,30 +447,145 @@ readfilechunk
 	inc h
 	ld c,h
 	ex de,hl
-	jr checkifcanupload
-
-uploaddataloop
+	jr .checkifcanupload
+.uploaddataloop
 	ld a,(hl)
 	out (GSDAT),a
 	WD
 	inc hl
-	djnz uploaddataloop
+	djnz .uploaddataloop
 	dec c
-	jr z,readfilechunk          ;done uploading current chunk
+	jr z,.readfilechunk          ;done uploading current chunk
 	bit 0,c
-	jr z,uploaddataloop         ;poll GS once per 512 bytes
-checkifcanupload
+	jr z,.uploaddataloop         ;poll GS once per 512 bytes
+.checkifcanupload
 	SC CMDGETFREEBUFFERSPACE
 	WC
 	WN
 	GD
 	cp 6
-	jr nc,uploaddataloop	    ;keep uploading until we have less than 1024 free buffer space
+	jr nc,.uploaddataloop       ;keep uploading until we have less than 1024 free buffer space
 	ld (bufferreadptr),hl
 	ld (bufferdataleft),bc
+	SC CMDGETSTREAMINFO
+	WC
+	WN
+	GD
+streaminfobyte=$+1
+	ld b,255
+	cp b
+	call nz,updatestreaminfo
 	YIELD
 	or 1
 	ret
+
+updatestreaminfo
+	ld (streaminfobyte),a
+	cp 255
+	jr z,.decoderidle
+	ld c,a
+;update bitrate
+	and 31
+	add a,a
+	add a,a
+	add a,a
+	add a,mp3bitratearraystr%256
+	ld l,a
+	adc a,mp3bitratearraystr/256
+	sub l
+	ld h,a
+	ld (mp3bitratetext+CUSTOMUIPRINTTEXT.straddr),hl
+	inc b
+	jr z,.forcefullupdate
+	ld a,b
+	xor c
+	and %11100000
+	ld ix,bitrateonlyui
+	jp z,drawcustomui
+.forcefullupdate
+	bit 7,c	
+	jr z,.notmpeg
+	ld hl,decodermpegstr
+	ld (mp3codectext+CUSTOMUIPRINTTEXT.straddr),hl
+	ld a,c
+	rlca
+	rlca
+	rlca
+	and 3
+	ld b,a
+	add a,a
+	add a,a
+	ld c,a
+	add a,a
+	add a,b
+	add a,c ;a*13
+	add a,mp3modes%256
+	ld l,a
+	adc a,mp3modes/256
+	sub l
+	ld h,a
+	ld (mp3modetext+CUSTOMUIPRINTTEXT.straddr),hl
+	ld ix,allstreamstatsui
+	jp drawcustomui
+.decoderidle
+	call setdefaultstreaminfoui
+	ld ix,allstreamstatsui
+	jp drawcustomui
+.notmpeg
+	bit 6,c
+	ld hl,decoderaacstr
+	jr z,$+5
+	ld hl,decoderoggstr
+	ld (mp3codectext+CUSTOMUIPRINTTEXT.straddr),hl
+	ld hl,emptyfieldstr
+	ld (mp3modetext+CUSTOMUIPRINTTEXT.straddr),hl
+	ld ix,allstreamstatsui
+	jp drawcustomui
+
+setdefaultstreaminfoui
+	ld hl,emptyfieldstr
+	ld (mp3codectext+CUSTOMUIPRINTTEXT.straddr),hl
+	ld (mp3modetext+CUSTOMUIPRINTTEXT.straddr),hl
+	ld (mp3bitratetext+CUSTOMUIPRINTTEXT.straddr),hl
+	ret
+
+mp3bitratearraystr
+	db "8Kbps  ",0
+	db "16Kbps ",0
+	db "24Kbps ",0
+	db "32Kbps ",0
+	db "40Kbps ",0
+	db "48Kbps ",0
+	db "56Kbps ",0
+	db "64Kbps ",0
+	db "80Kbps ",0
+	db "96Kbps ",0
+	db "112Kbps",0
+	db "128Kbps",0
+	db "144Kbps",0
+	db "160Kbps",0
+	db "176Kbps",0
+	db "192Kbps",0
+	db "224Kbps",0
+	db "256Kbps",0
+	db "288Kbps",0
+	db "320Kbps",0
+	db "352Kbps",0
+	db "384Kbps",0
+	db "416Kbps",0
+	db "448Kbps",0
+	; emptyfieldstr
+
+emptyfieldstr  db "-              ",0
+decoderaacstr  db "AAC (ADTS/ADIF)",0
+decoderoggstr  db "Ogg Vorbis     ",0
+decodermpegstr db "MPEG Audio     ",0
+
+mp3modes
+	db "Stereo      ",0
+	db "Joint Stereo",0
+	db "Dual Channel",0
+	db "Mono        ",0
 
 playmod
 	YIELD
@@ -586,6 +754,7 @@ paddingframedata
 	ds 381,0x55
 paddingframedata_end
 
+
 gscode
 	incbin "gscode.bin"
 gscode_end
@@ -631,10 +800,48 @@ modplayerwindowloading
 	PROGRESSIVELOADINGWINDOWTEMPLATE loadingtitlestr,musicprogress+1
 modplayerwindowui
 	PROGRESSIVEPLAYERWINDOWTEMPLATE titlestr,musicprogress+1
-mp3playerwindowui
-	PROGRESSIVEPLAYERWINDOWTEMPLATE 0,musicprogress+1
 midiplayerwindowui
 	PLAYERWINDOWTEMPLATE 0
+
+smf0error1str db "MIDI file needs to be in SMF0 format! Please convert using",0
+smf0error2str db "GN1:0 MIDI Converter http://www.gnmidi.com/gn1to0.zip",0
+errorwindowheaderstr db "Error",0
+
+smf0errorui
+	CUSTOMUIDRAWWINDOW ,7,8,60,4
+	CUSTOMUIPRINTTEXT ,9,8,errorwindowheaderstr
+	CUSTOMUIPRINTTEXT ,9,10,smf0error1str
+	CUSTOMUIPRINTTEXT ,12,11,smf0error2str
+	CUSTOMUIDRAWEND
+
+codectextstr db "Codec:",0
+bitratetextstr db "Bitrate:",0
+modetextstr db "Mode:",0
+
+mp3playerwindowui
+	CUSTOMUISETCOLOR ,COLOR_PANEL
+	CUSTOMUIDRAWWINDOW ,6,8,66,7
+	CUSTOMUISETCOLOR ,15
+	CUSTOMUISEPARATOR ,7,13,64,196,196,196
+	CUSTOMUIPLAYERWINDOWTITLE ,8,8
+	CUSTOMUISONGTITLE ,8,10,titlestr
+	CUSTOMUIPLAYPROGRESS ,8,11,musicprogress+1
+	CUSTOMUIPLAYTIME ,67,8
+	CUSTOMUISETCOLOR ,COLOR_PANEL_FILE
+	CUSTOMUIPRINTTEXT ,11,14,codectextstr
+	CUSTOMUIPRINTTEXT ,45,14,modetextstr
+	CUSTOMUIPRINTTEXT ,9,15,bitratetextstr
+allstreamstatsui
+	CUSTOMUISETCOLOR ,COLOR_PANEL_FILE
+mp3codectext
+	CUSTOMUIPRINTTEXT ,18,14,emptyfieldstr
+mp3modetext
+	CUSTOMUIPRINTTEXT ,51,14,emptyfieldstr
+bitrateonlyui
+	CUSTOMUISETCOLOR ,COLOR_PANEL_FILE
+mp3bitratetext
+	CUSTOMUIPRINTTEXT ,18,15,emptyfieldstr
+	CUSTOMUIDRAWEND
 end
 
 currentposition

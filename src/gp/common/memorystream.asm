@@ -71,6 +71,8 @@ memorystreamloadfile
 	ld a,c
 	ld (memorystreampagecount),a
 	call ON_DATA_LOADED_CALLBACK
+	ld a,MEMORYSTREAMERROR_CB_FAILED
+	ld (memorystreamerrorcode),a
 	pop bc
 	ld a,b
 	pop bc,de,hl
@@ -303,9 +305,10 @@ memorystreamgetpos
 	ld h,a
 	ret
 
-MEMORYSTREAMERROR_SUCCESS = 0
-MEMORYSTREAMERROR_FILEIO  = 1
-MEMORYSTREAMERROR_OOM     = 2
+MEMORYSTREAMERROR_SUCCESS   = 0
+MEMORYSTREAMERROR_FILEIO    = 1
+MEMORYSTREAMERROR_OOM       = 2
+MEMORYSTREAMERROR_CB_FAILED = 3
 
 memorystreamsize
 	ds 4

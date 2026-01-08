@@ -19,16 +19,15 @@ isfilesupported
 	ret
 
 cleanupvars
-;only destroys af and hl
 ;out: zf=0 so this function can be used as error handler
 	or 255
 	jp initprogress
 
 playerinit
-;hl,ix = GPSETTINGS
+;ix = GPSETTINGS
 ;a = player page
 ;out: zf=1 if init is successful, hl=init message
-	ld (.settingsaddr),hl
+	ld (.settingsaddr),ix
 	ld a,(ix+GPSETTINGS.moonsoundstatus)
 	cp 2
 	ld hl,nodevicestr
@@ -80,7 +79,6 @@ opl4tablespage=$+1
 musicload
 ;cde = file extension
 ;hl = input file name
-;ix = draw progress callback
 ;out: hl = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
 	call midloadfile
 	ld hl,DEVICE_MOONSOUND_MASK

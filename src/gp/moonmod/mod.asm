@@ -290,6 +290,7 @@ setupsampleloadingprogress
 modloadsamples
 ;input: memory stream at samples data
 ;output: memory stream position is unchanged, zf=1 if samples are loaded, zf=0 otherwise
+	ld (.savedsp),sp
 .filename=$+1
 	ld de,0
 	call openstream_file
@@ -429,6 +430,7 @@ modloadsamples
 	push ix
 	push iy
 	call drawsampleloadingprogress
+	jp nz,.cancelloading
 	pop iy
 	pop ix
 	ld a,1
@@ -469,6 +471,12 @@ modloadsamples
 	call opl4writememory
 	xor a
 	jp initprogress
+.cancelloading
+.savedsp=$+1
+	ld sp,0
+	call closestream_file
+	or 1
+	ret
 
 modloadpatterns
 ;output: pattern offsets, memory stream is positioned past patterns data

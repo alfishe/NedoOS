@@ -11,7 +11,7 @@ FILE_NAME_OFFSET = FILE_DISPLAY_INFO_OFFSET+FILE_DISPLAY_INFO_SIZE
 FILE_NAME_SIZE = SFN_SIZE
 FILE_ATTRIB_OFFSET = FILE_NAME_OFFSET+FILE_NAME_SIZE
 FILE_ATTRIB_SIZE = 1
-BROWSER_FILE_COUNT = 163
+BROWSER_FILE_COUNT = 162
 PLAYLIST_FILE_COUNT = 40
 FILE_LINE_COUNT = 22
 FILES_WINDOW_X = 0
@@ -99,10 +99,16 @@ drawprogressincremental
 	ret
 
 drawprogresscallback
+;out: zf=0 if ESC was pressed, zf=1 otherwise
+.func=$+1
+	call drawprogress
 	ld hl,drawprogressincremental
-	ld a,0xc3 ;'jp nn' op
-	ld (drawprogresscallback),a
-	jp drawprogress
+	ld (.func),hl
+	OS_GETKEY
+	sub key_esc
+	cp 1
+	sbc a,a
+	ret
 
 startplayer
 	ld hl,startupcode
@@ -123,8 +129,6 @@ startplayer
 	call setcurrentpanel
 	ld de,defaultplaylistfilename
 	call loadplaylist
-	xor a
-	ld (playlistchanged),a
 	ld hl,mainmsgtable
 	ld (currentmsgtable),hl
 	call processcommandline
@@ -389,13 +393,13 @@ removefromplaylist
 	jp drawplaylistwindow
 
 exitplayer
-	call stopplaying
-	OS_SETSYSDRV
 	call unloadplayers
-	call savedefaultplaylist
 	QUIT
 
 confirmplayerexit
+	OS_SETSYSDRV
+	call savedefaultplaylist
+	call changetocurrentfolder
 	ld hl,confirmexitmsgtable
 	ld (currentmsgtable),hl
 	ld hl,confirmexitui
@@ -463,9 +467,12 @@ playerdeinitloop
 	ret
 
 savedefaultplaylist
-	ld a,(playlistchanged)
+playlistchanged=$+1
+	ld a,0
 	or a
 	ret z
+	xor a
+	ld (playlistchanged),a
 	ld de,defaultplaylistfilename
 saveplaylist
 ;de = filename
@@ -547,14 +554,14 @@ startplaying
 	ld (devicemask),hl
 	ld (ERRORSTRINGADDR),hl
 	call drawplayer
+	ld hl,drawprogress
+	ld (drawprogresscallback.func),hl
 .filext1=$+1
 	ld bc,0
 .filext2=$+1
 	ld de,0
 .filename=$+1
 	ld hl,0
-	ld ix,drawprogresscallback
-	ld (ix),0x21 ;'ld hl,nn' op
 	call musicload
 	jp nz,drawerrorwindow
 	ld (devicemask),hl
@@ -848,6 +855,8 @@ drawerrorwindow
 	ld a,l
 	or h
 	jp z,drawui; got no text to print!
+	bit 7,h
+	jr nz,errorcustomui
 	ld b,1
 .strlenloop
 	ld a,(hl)
@@ -866,6 +875,13 @@ drawerrorwindow
 	OS_SETXY
 	ld hl,(ERRORSTRINGADDR)
 	call print_hl
+	YIELDGETKEYLOOP
+	jp drawui
+errorcustomui
+	res 7,h
+	push hl
+	pop ix
+	call drawcustomui
 	YIELDGETKEYLOOP
 	jp drawui
 
@@ -1282,6 +1298,9 @@ drawui	call drawbrowserwindow
 
 drawplayer
 	ld ix,(CUSTOMUIADDR)
+	ld a,ixh
+	or ixl
+	ret z
 drawcustomui
 ;ix = commands
 .drawloop
@@ -1583,7 +1602,6 @@ loadplayer
 	call print_hl
 	ld hl,initializing2str
 	call print_hl
-	ld hl,gpsettings
 	ld ix,gpsettings
 	ld a,(.playerpage)
 	call playerinit
@@ -1642,7 +1660,7 @@ loadplayers
 	xor a
 	ret
 
-gpsettings GPSETTINGS
+gpsettings GPSETTINGS drawprogresscallback,drawcustomui
 bomgemoonsettings dw 0
 runplayersetup db 0
 
@@ -1904,11 +1922,7 @@ runoptions
 	ld de,mainfilename
 	OS_OPENHANDLE
 	or a
-	jr z,.foundmainfile
-	ld de,currentfolder
-	OS_CHDIR
-	ret
-.foundmainfile
+	jp nz,changetocurrentfolder
 	push bc
 	push bc
 	call unloadplayers
@@ -1972,7 +1986,6 @@ playlistdatasize=$-playlistdatastart
 
 musicprogress ds 1
 playercount ds 1
-playlistchanged ds 1
 playtimestr ds 6
 currentplaytimestr ds 6
 

@@ -26,7 +26,6 @@ isfilesupported
 	ret
 
 cleanupvars
-;only destroys af and hl
 ;out: zf=0 so this function can be used as error handler
 	ld hl,playerwindowloading
 	ld (CUSTOMUIADDR),hl
@@ -37,10 +36,12 @@ cleanupvars
 	jp initprogress
 
 playerinit
-;hl,ix = GPSETTINGS
+;ix = GPSETTINGS
 ;a = player page
 ;out: zf=1 if init is successful, hl=init message
-	ld (.settingsaddr),hl
+	ld (.settingsaddr),ix
+	ld hl,(ix+GPSETTINGS.drawprogresscallback)
+	ld (drawsampleloadingprogress.callback),hl
 	ld a,(ix+GPSETTINGS.moonsoundstatus)
 	cp 2
 	ld hl,nodevicestr
@@ -130,9 +131,7 @@ ismodfile
 musicload
 ;cde = file extension
 ;hl = input file name
-;ix = draw progress callback
 ;out: hl = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
-	ld (drawsampleloadingprogress.callback),ix
 	call ismodfile
 	ex de,hl
 	jr nz,.loads3m

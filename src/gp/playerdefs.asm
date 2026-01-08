@@ -25,7 +25,8 @@ ERRORSTRINGADDR         = PLAYERSTART+0x14
 CUSTOMUIADDR            = PLAYERSTART+0x16
 
 	struct GPSETTINGS
-sharedpages ds 3
+drawprogresscallback dw 0
+drawcustomui dw 0
 usemp3 dw 0
 usemwm dw 0
 usept3 dw 0
@@ -40,9 +41,10 @@ slowtfm dw 0
 slowmidiuart dw 0
 framelength dw 0 ;in 42 t-states units
 moonsoundstatus ds 1 ; 0 - no device, 1 - BomgeMoon or MoonSound with old firmware (wave ports not working), 2 - MoonSound OK
-tfmstatus ds 1 ; 0 - no device, 1 - found TFM
+tfmstatus ds 1 ; 0 - no device, 1 - TFM, 2 - slow TFM
 opmstatus ds 1 ; 0 - no device, 1 - single YM2151, 2 - dual YM2151
 opnastatus ds 1 ; 0 - no device, 1 - found YM2608
+sharedpages ds 3
 	ends
 
 DEVICE_AY_BIT         = 0

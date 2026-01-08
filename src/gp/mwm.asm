@@ -21,7 +21,6 @@ isfilesupported
 	ret
 
 cleanupvars
-;only destroys af and hl
 ;out: zf=0 so this function can be used as error handler
 	xor a
 	ld (titlestr),a
@@ -29,12 +28,12 @@ cleanupvars
 	jp initprogress
 
 playerinit
-;hl,ix = GPSETTINGS
+;ix = GPSETTINGS
 ;a = player page
 ;out: zf=1 if init is successful, hl=init message
-	ld de,songdata_bank1
-	ld bc,3
-	ldir
+	ld a,(ix+GPSETTINGS.sharedpages+0) : ld (songdata_bank1+0),a
+	ld a,(ix+GPSETTINGS.sharedpages+1) : ld (songdata_bank1+1),a
+	ld a,(ix+GPSETTINGS.sharedpages+2) : ld (songdata_bank1+2),a
 	call cleanupvars
 	ld a,(ix+GPSETTINGS.moonsoundstatus)
 	cp 2
@@ -49,7 +48,6 @@ playerdeinit
 musicload
 ;cde = file extension
 ;hl = input file name
-;ix = draw progress callback
 ;out: hl = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
 ;
 ;First try loading wavekit with the same filename as input file.

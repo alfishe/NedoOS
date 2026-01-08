@@ -147,7 +147,7 @@ opnaloaddatablock
 	ex de,hl
 	ld e,b
 	exx
-;address in 4-bytes blocks for 1-bit RAM mode
+;address in 4-byte blocks for 1-bit RAM mode
 	srl d : rr bc
 	srl d : rr bc
 	push bc

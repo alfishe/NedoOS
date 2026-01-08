@@ -503,7 +503,6 @@ settingsvars
 	db 0x7E : dw gpsettings.moddevice
 	db 0x32 : dw inifileversionsettings
 	db 0x78 : dw gpsettings.slowtfm
-	db 0x78 : dw gpsettings.slowtfm
 	db 0x3C : dw gpsettings.slowmidiuart
 settingsvarcount=($-settingsvars)/3
 
@@ -646,14 +645,37 @@ detectmoonsound
 	YIELDGETKEYLOOP
 	ret
 
+isslowtfm
+;out: zf=0 if slow tfm, zf=1 otherwise
+	ld hl,(gpsettings.slowtfm)
+	ld a,h
+	or l
+	ret z
+	ld a,(hl)
+	cp '0'
+	ret
+
 detecttfm
 	ld hl,detectingtfmstr
 	call print_hl
+	call isslowtfm
+	jr z,.fasttfm
 	call turnturbooff
-	call istfmpresent_notimer
+;TODO: why is enabling FM output needed for NedoPC's TFM?
+	ld a,%11111000
+	ld (istfmpresent.ymselector),a
+	call istfmpresent
 	push af
 	call turnturboon
 	pop af
+	ld hl,notfoundstr
+	jp nz,print_hl
+	ld a,2
+	ld (gpsettings.tfmstatus),a
+	ld hl,foundslowstr
+	jp print_hl
+.fasttfm
+	call istfmpresent
 	ld hl,notfoundstr
 	jp nz,print_hl
 	ld a,1
@@ -805,8 +827,10 @@ trywritingtfm1
 	out (c),d
 	ret
 
-istfmpresent_notimer
+istfmpresent
+;out: zf=1 if tfm is present, zf=0 otherwise
 	ld bc,OPN_REG
+.ymselector=$+1
 	ld a,%11111100
 	out (c),a
 	ld de,0xff00
@@ -815,7 +839,9 @@ istfmpresent_notimer
 	YIELD
 	ld bc,OPN_REG
 	in a,(c)
-	and 128
+	bit 7,a
+	ret z
+	cp 254
 	ret
 
 quitifanotherinstanceisrunning
@@ -894,6 +920,8 @@ bomgemoonstr
 	db "OPL3\r\n",0
 founddualchipstr
 	db "dual!\r\n",0
+foundslowstr
+	db "slow!\r\n",0
 detectingcpustr
 	db "Running on...",0
 cpufpgastr

@@ -69,7 +69,6 @@ isfilesupported
 	ret
 
 cleanupvars
-;only destroys af and hl
 ;out: zf=0 so this function can be used as error handler
 	xor a
 	ld (titlestr),a
@@ -90,14 +89,13 @@ ismidfile
 	ret
 
 playerinit
-;hl,ix = GPSETTINGS
+;ix = GPSETTINGS
 ;a = player page
 ;out: zf=1 if init is successful, hl=init message
 	ld (playerpage),a
-	ld a,(hl)
+	ld a,(ix+GPSETTINGS.sharedpages)
 	ld (page8000),a
-	inc hl
-	ld a,(hl)
+	ld a,(ix+GPSETTINGS.sharedpages+1)
 	ld (pageC000),a
 	call initmidi
 	call cleanupvars
@@ -196,7 +194,6 @@ playerdeinit
 musicload
 ;cde = file extension
 ;hl = input file name
-;ix = draw progress callback
 ;out: hl = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
 	call ismidfile
 	jr nz,.ptfile

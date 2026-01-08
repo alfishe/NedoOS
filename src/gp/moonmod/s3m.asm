@@ -317,6 +317,7 @@ filereadoffset ds 4
 
 s3mloadsamples
 ;output: zf=1 if samples are loaded, zf=0 otherwise
+	ld (.savedsp),sp
 .filename=$+1
 	ld de,0
 	call openstream_file
@@ -513,6 +514,7 @@ s3mloadsamples
 	push ix
 	push iy
 	call drawsampleloadingprogress
+	jp nz,.cancelloading
 	pop iy
 	pop ix
 	ld a,1
@@ -552,6 +554,12 @@ s3mloadsamples
 	call opl4writememory
 	xor a
 	jp initprogress
+.cancelloading
+.savedsp=$+1
+	ld sp,0
+	call closestream_file
+	or 1
+	ret
 
 s3munload
 	call opl4mute
