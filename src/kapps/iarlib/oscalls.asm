@@ -256,6 +256,22 @@ OS_SETSCREEN:
 	ret
 	ENDMOD
 
+	MODULE OS_SETPGC000
+	PUBLIC OS_SETPGC000
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_SETPGC000:
+	push bc
+	push ix
+	push iy
+	ld a,e
+	rst 0x28
+	pop iy
+	pop ix
+	pop bc
+	ret
+	ENDMOD
+
 	MODULE OS_SETPG8000
 	PUBLIC OS_SETPG8000
 	#include "sysdefs.asm"

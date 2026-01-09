@@ -19,7 +19,6 @@ typedef struct {
 FILE *		OS_CREATEHANDLE(unsigned char * path, unsigned char flags);
 unsigned int 	OS_WRITEHANDLE(unsigned char * buffer, FILE * hnd, unsigned int count);
 unsigned int 	OS_READHANDLE(unsigned char * buffer, FILE * hnd, unsigned int count);
-unsigned int 	OS_READHANDLEMEM(unsigned int addr, FILE * hnd, unsigned int count);
 FILE *		OS_OPENHANDLE(unsigned char * path, unsigned char flags);
 unsigned int 	OS_CLOSEHANDLE(FILE * hnd);
 unsigned long	OS_GETFILESIZE(FILE * hnd);

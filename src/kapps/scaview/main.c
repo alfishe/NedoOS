@@ -192,7 +192,7 @@ void loadFile(void)
   for (counter = 0; counter < header.pagesNeeded; counter++)
   {
     OS_SETPG8000(mem[counter]);
-    OS_READHANDLEMEM(0x8000, fp1, 16384);
+    OS_READHANDLE((unsigned char *)0x8000, fp1, 16384);
     // printf("Page %02u loaded   \r", counter);
     // printf("%02u [%u]", counter, mem[counter]);
     ///////////////////////LOADER///////////////////////
