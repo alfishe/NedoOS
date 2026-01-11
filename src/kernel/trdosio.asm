@@ -1,7 +1,7 @@
 TRUE=0xff
 FALSE=0x00
 
-SECINBLK=32;16 ;TR-DOS reserves 16 sectors per block
+SECINBLK=255;32;16 ;TR-DOS reserves 16 sectors per block
 ;FILENAMESZ=9;10 for multi-block files (block # in +9)
 
 _fin
@@ -189,6 +189,9 @@ nfdelcp_nodeletedinthissector
         ld a,0xff ;fail
         ret
 nfdel_correctsystemsector
+;lx=files just deleted
+;lx=1..127: deletion with 1
+;lx=128..255: last deletion with 0
         push ix
         ld de,0x0008
         push de
@@ -204,7 +207,9 @@ nfdel_correctsystemsector
        rrca
        ld lx,a ;files just deleted 0..127
         ld hl,DOSBUF+0xe4 ;total files (including deleted ones)
-        dec (hl)
+        dec [hl] ;we can only delete the last file record
+       ;ld a,[hl]
+       ;ld [files],a ;fail if many drives!
 nfdel_firstfree=$+1
         ld hl,0
         ld (DOSBUF+0xe1),hl ;first free sector
@@ -383,7 +388,61 @@ fclose
 	ld a,[hl]
 	or a
 	ret z ;no sectors written - descriptor already saved (??? TODO)
-	;call flushdesc.
+
+       push hl ;hl = poi to TRDOSFCB
+;is this the last file?
+        ld de,0x0008
+        call rdsecDOSBUF
+       pop hl
+       push hl
+        ld a,[DOSBUF+0xe4] ;total files (including deleted ones)
+        dec a
+	ld l,TRDOSFCB.descpos
+	cp [hl]
+        jr nz,fclose_nolastfile ;not the last file        
+;cutting down the last file
+        ld l,TRDOSFCB.fn+11
+        ld c,[hl]
+        inc hl
+        ld b,[hl] ;length
+        inc hl
+        dec bc
+        inc b
+        ld a,[hl]
+        sub b
+         ld [hl],b ;sectors in file
+        inc b
+        djnz fclose_nolen0
+        push hl
+        ld l,TRDOSFCB.fn
+        ld [hl],b;0
+        ld hl,DOSBUF+0xe4 ;total files (including deleted ones)
+        dec [hl] ;we can only delete the last file record
+        pop hl
+fclose_nolen0
+        push bc ;b=sectors in file
+        ld e,a
+        ld d,0 ;de=sectors freeed
+        inc hl;ld l,TRDOSFCB.fn+14 ;trsec
+        ld c,[hl]
+        inc hl
+        ld b,[hl]
+        ld hl,(DOSBUF+0xe5) ;free sectors
+        add hl,de
+        ld (DOSBUF+0xe5),hl ;free sectors
+
+        pop af ;a=sectors in file
+        ld lx,a
+;bc=trsec
+;lx=number of sectors to add
+        call addsectors
+        ld (DOSBUF+0xe1),bc ;first free sector
+
+        ld de,0x0008
+        call wrsecDOSBUF
+fclose_nolastfile
+       pop hl ;hl = poi to TRDOSFCB
+        ;call flushdesc.
 	;ld l,1 ;OK TODO
 	;ret ;hl!=0
 ;write descriptor
@@ -904,7 +963,7 @@ flush.
 	add hl,bc
 	 ;bit 7,h
 	 ;jr nz,$ ;no free sectors
-	ld [DOSBUF+0xe5],hl ;free sectors
+	ld [DOSBUF+0xe5],hl ;free sectors ;don't check for error! because now file size is 255 sectors! (will be cut later)
         ;jr $
 	ld hl,DOSBUF+0xe4 ;files
 	ld a,[hl] ;descriptor position 0..127
@@ -986,7 +1045,7 @@ flushnblk.
 
 addsectors
 ;bc=trsec
-;lx=number of sectors
+;lx=number of sectors to add
 ;keeps a
         inc lx
         jr flush_addsectors_go
