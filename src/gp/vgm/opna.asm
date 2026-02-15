@@ -157,10 +157,6 @@ opnaloaddatablock
 	call opnawritefm2
 	ld de,0x0001
 	call opnawritefm2
-	ld de,0x1310
-	call opnawritefm2
-	ld de,0x8010
-	call opnawritefm2
 	pop hl
 	ld d,l : ld e,0x02
 	call opnawritefm2
@@ -198,8 +194,70 @@ opnaloaddatablock
 	jr nz,.uploadloop
 	exx
 	ld (memorystreamcurrentaddr),hl
-	ld de,0x8010
-	call opnawritefm2
 	ld de,0x0100
 	call opnawritefm2
 	jp turnturboon
+
+opnasettimer
+;a = rate in hz
+;output: zf=1 if timer is set, zf=0 otherwise
+;TODO: why the timers are behaving as if master clock is 4Mhz?
+	cp 14
+	ret c
+	push af
+	call settimerstep
+	ld hl,opnawaittimer
+	ld (waittimercallback),hl
+	pop af
+	ld de,0x000f
+	ld hl,0x4240
+	exx
+	ld c,a
+	ld b,0
+	cp 56
+	jr c,.usetimerb
+	ld de,18
+	call uintmul16
+	exx
+	call uintdiv32
+	xor a
+	sub l
+	ld l,a
+	sbc a,h
+	sub l
+;high 8 bits
+	ld d,l
+	rrca : rr d
+	rrca : rr d
+	ld e,0x24
+	call opnawritefm1
+;low 2 bits
+	ld d,l
+	inc e
+	call opnawritefm1
+	ld de,0x1527
+	call opnawritefm1
+	xor a
+	ret
+.usetimerb
+	ld de,288
+	call uintmul16
+	exx
+	call uintdiv32
+	xor a
+	sub l
+	ld d,a
+	ld e,0x26
+	call opnawritefm1
+	ld de,0x2a27
+	call opnawritefm1
+	xor a
+	ret
+
+opnawaittimer
+	ld bc,OPNA1_REG
+	in a,(c)
+	and 3
+	jr z,$-4
+	ld de,0x8010
+	jp opnawritefm2

@@ -495,9 +495,9 @@ updatestreaminfo
 	sub l
 	ld h,a
 	ld (mp3bitratetext+CUSTOMUIPRINTTEXT.straddr),hl
+	ld a,b
 	inc b
 	jr z,.forcefullupdate
-	ld a,b
 	xor c
 	and %11100000
 	ld ix,bitrateonlyui
@@ -803,7 +803,7 @@ modplayerwindowui
 midiplayerwindowui
 	PLAYERWINDOWTEMPLATE 0
 
-smf0error1str db "MIDI file needs to be in SMF0 format! Please convert using",0
+smf0error1str db "MIDI file must be in SMF format 0! Please convert it using",0
 smf0error2str db "GN1:0 MIDI Converter http://www.gnmidi.com/gn1to0.zip",0
 errorwindowheaderstr db "Error",0
 

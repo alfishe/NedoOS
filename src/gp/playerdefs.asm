@@ -3,15 +3,15 @@ PLAYEREND   = 0x8000
 SYSTEM_MEMORY_END = 0x200 ;must not touch memory below this address
 
 	macro PLAYERHEADER customui
-	db 0xc3 : dw playerinit      ;called once, should check if sound device is available (if possible)
-	db 0xc3 : dw playerdeinit    ;called once when the application is exiting
-	db 0xc3 : dw musicload       ;function that loads the file allocating all required resources
-	db 0xc3 : dw musicunload     ;function that frees all resources allocated in musicload and mutes the sound device
-	db 0xc3 : dw musicplay       ;function called in the main loop, should update progress variable
-	db 0xc3 : dw isfilesupported ;function to determine if this player can handle the file
-	dw playernamestr ;player name string
-	dw 0             ;address of error string
-	dw customui      ;address of custom UI elements
+	jp playerinit      ;called once, should check if sound device is available (if possible)
+	jp playerdeinit    ;called once when the application is exiting
+	jp musicload       ;function that loads the file allocating all required resources
+	jp musicunload     ;function that frees all resources allocated in musicload and mutes the sound device
+	jp musicplay       ;function called in the main loop, should update progress variable
+	jp isfilesupported ;function to determine if this player can handle the file
+	dw playernamestr   ;player name string
+	dw 0               ;address of error string
+	dw customui        ;address of custom UI elements
 	endm
 
 PLAYERINITPROCADDR      = PLAYERSTART+0x01
@@ -23,6 +23,8 @@ ISFILESUPPORTEDPROCADDR = PLAYERSTART+0x10
 PLAYERNAMESTRADDR       = PLAYERSTART+0x12
 ERRORSTRINGADDR         = PLAYERSTART+0x14
 CUSTOMUIADDR            = PLAYERSTART+0x16
+
+VSYNC_FREQ = 49 ;Vsync interrupt rate in Hz
 
 	struct GPSETTINGS
 drawprogresscallback dw 0

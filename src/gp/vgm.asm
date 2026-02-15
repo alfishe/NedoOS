@@ -1,5 +1,25 @@
 ; Video Game Music player
-; Supports AY8910, YM3526, YM3812, YMF262, YMF278B, YM2203, YM2151, YM2608.
+;
+; Supported sound chips:
+;   AY-3-8910
+;   YM3526 (OPL1), YM3812 (OPL2), YMF262 (OPL3), YMF278B (OPL4)
+;   dual YM2203 (OPN), dual YM2151 (OPM), YM2608 (OPNA)
+;   Y8950 (MSX-AUDIO), YM2612 (OPN2)
+;
+; Known mapping limitations:
+;   YM2612 -> TurboSound-FM or YM2608:
+;     - DAC channel not supported
+;   Dual YM2203 -> YM2608:
+;     - only one SSG available
+;   YM2608 -> TurboSound-FM:
+;     - no ADPCM
+;     - SSG envelope volume differs
+;   Y8950 -> MoonSound:
+;     - no ADPCM without YM2608
+;     - MoonSound + YM2608 provide full feature coverage
+;
+; Custom playback rates via hardware timers:
+;   MoonSound, TurboSound-FM, YM2608
 
 	DEVICE ZXSPECTRUM128
 	include "../_sdk/sys_h.asm"
@@ -46,12 +66,14 @@ playerinit
 	ld a,(ix+GPSETTINGS.sharedpages+2) : ld (filedatapage),a
 	ld hl,(ix+GPSETTINGS.drawprogresscallback)
 	ld (drawloadingprogress.callback),hl
-	ld a,(ix+GPSETTINGS.moonsoundstatus)
-	ld (moonsoundstatus),a
 	ld a,(ix+GPSETTINGS.tfmstatus)
 	ld (tfmstatus),a
-	cp 2
-	call nz,disableslowtfm
+	cp 1
+	call z,enablenormaltfm
+	ld a,(ix+GPSETTINGS.moonsoundstatus)
+	ld (moonsoundstatus),a
+	or a
+	call nz,usemoonsoundtimer
 	ld a,(ix+GPSETTINGS.opmstatus)
 	ld (opmstatus),a
 	ld a,(ix+GPSETTINGS.opnastatus)
@@ -64,9 +86,20 @@ playerinit
 	xor a
 	ret
 
-disableslowtfm
+enablenormaltfm
 	ld a,0x21 ;'ld hl,nn' op
 	ld (vgmopninit.callturnturbooff),a
+	ld hl,opnsettimer
+	ld (settimerproc),hl
+	ld hl,opnstoptimers
+	ld (stoptimerproc),hl
+	ret
+
+usemoonsoundtimer
+	ld hl,opl4settimer
+	ld (settimerproc),hl
+	ld hl,opl4stoptimers
+	ld (stoptimerproc),hl
 	ret
 
 	macro a_or_dw addr
@@ -78,19 +111,17 @@ disableslowtfm
 	or e
 	endm
 
-	macro set_timer wait,ticks
-	ld hl,wait
-	ld (waittimercallback),hl
-	ld hl,ticks
-	ld (waittimerstep),hl
-	endm
-
 musicload
 ;cde = file extension
 ;hl = input file name
 ;out: hl = device mask, zf=1 if the file is ready for playing, zf=0 otherwise
 	push hl
-	set_timer waittimer50hz,882
+	ld hl,waittimervsync
+	ld (waittimercallback),hl
+	ld hl,44100/VSYNC_FREQ
+	ld (waittimerstep),hl
+	ld a,COLOR_PANEL_FILE
+	ld (playerwindowui.ratelabelcolor+CUSTOMUISETCOLOR.color),a
 	ld hl,0
 	ld (waitcounterlo),hl
 	ld (samplecounterlo),hl
@@ -130,11 +161,22 @@ musicload
 	ld (ERRORSTRINGADDR),hl
 	dec a
 	ret
-
 .loadcompressed
 	call decompressfiletomemorystream
 	jp nz,cleanupvars
 .doneloading
+;setup timer
+	ld hl,(HEADER_RECORDING_RATE)
+	inc h
+	dec h
+	jr nz,donesettingtimer
+	ld a,l
+settimerproc=$+1
+	call settimerstub
+	jr nz,donesettingtimer
+	ld a,12
+	ld (playerwindowui.ratelabelcolor+CUSTOMUISETCOLOR.color),a
+donesettingtimer
 ;setup play progress
 	call initprogress
 	ld hl,(HEADER_SAMPLES_COUNT+2)
@@ -222,6 +264,11 @@ devicemask=$+1
 	ld hl,0
 	ret
 
+settimerstub
+	or 255
+stoptimerstub
+	ret
+
 checkvgmchip
 ;hl = header addr
 ;de = chip name string
@@ -267,6 +314,16 @@ checkvgmchip
 	call checkvgmchip
 	endm
 
+	macro set_device_mask devicebit
+	ld hl,devicemask+devicebit/8
+	set devicebit%8,(hl)
+	endm
+
+	macro check_device_mask devicebit
+	ld hl,devicemask+devicebit/8
+	bit devicebit%8,(hl)
+	endm
+
 inithardware
 ;out: zf=1 if hardware is found, zf=0 otherwise
 	ld hl,vgmchipsstr
@@ -293,9 +350,15 @@ inithardware
 	jp nz,.missinghardwareerror
 ;init Moonsound
 	ld c,0
+	check_vgm_chip HEADER_CLOCK_Y8950,y8950str
+	jr z,.nomsxmusic
+	push bc
+	check_device_mask DEVICE_OPNA_BIT
+	call z,initYM2608
+	pop bc
+.nomsxmusic
 	check_vgm_chip HEADER_CLOCK_YM3526,ym3526str
 	check_vgm_chip HEADER_CLOCK_YM3812,ym3812str
-	check_vgm_chip HEADER_CLOCK_Y8950,y8950str
 	ld a,c
 	ld (useYM3812),a
 	check_vgm_chip HEADER_CLOCK_YMF262,ymf262str
@@ -340,6 +403,7 @@ playerdeinit
 	define ON_DATA_LOADED_CALLBACK ondataloaded
 	define UNUSED_PAGE_ADDR page8000
 	include "common/memorystream.asm"
+	include "common/muldiv.asm"
 	include "common/opl4.asm"
 	include "vgm/opl4.asm"
 	define OPN_ENABLE_FM 1
@@ -469,7 +533,7 @@ ondataloaded
 	ld (.blockendhi),hl
 	ret
 
-waittimer50hz
+waittimervsync
 	YIELD
 	ret
 
@@ -651,14 +715,14 @@ cmdYMF278B
 
 cmdYMF262p0
 cmdYM3812
-cmdY8950
+cmdY8950_opl3
 cmdYM3526
 	memory_stream_read_2 e,d
 	jp opl4writemusiconlyfm1
 
 cmdYMF262p1
 cmdYM3812dp
-cmdY8950dp
+cmdY8950dp_opl3
 cmdYM3526dp
 	memory_stream_read_2 e,d
 	jp opl4writemusiconlyfm2
@@ -698,6 +762,9 @@ totaldatablocksizehi=$+1
 	ld (totaldatablocksizehi),a
 	ld a,e
 	ld hl,bc
+	cp 0x88
+y8950datablockhandler=$+1
+	jp z,$+3
 	cp 0x81
 opnadatablockhandler=$+1
 	jp z,$+3
@@ -888,7 +955,7 @@ cmdtable
 	db skip3           %256 ; 4E
 	db skip2           %256 ; 4F
 	db cmdSN76489      %256 ; 50
-	db cmdunsupported  %256 ; 51
+	db cmdYM2413       %256 ; 51
 	db cmdYM2612p0_tfm %256 ; 52
 	db cmdYM2612p1_tfm %256 ; 53
 	db cmdYM2151       %256 ; 54
@@ -899,7 +966,7 @@ cmdtable
 	db cmdunsupported  %256 ; 59
 	db cmdYM3812       %256 ; 5A
 	db cmdYM3526       %256 ; 5B
-	db cmdY8950        %256 ; 5C
+	db cmdY8950_opl3   %256 ; 5C
 	db skip3           %256 ; 5D
 	db cmdYMF262p0     %256 ; 5E
 	db cmdYMF262p1     %256 ; 5F
@@ -979,7 +1046,7 @@ cmdtable
 	db skip3           %256 ; A9
 	db cmdYM3812dp     %256 ; AA
 	db cmdYM3526dp     %256 ; AB
-	db cmdY8950dp      %256 ; AC
+	db cmdY8950dp_opl3 %256 ; AC
 	db skip3           %256 ; AD
 	db cmdYMF262dp0    %256 ; AE
 	db cmdYMF262dp0    %256 ; AF
@@ -1144,7 +1211,7 @@ cmdtable
 	db skip3           /256 ; 4E
 	db skip2           /256 ; 4F
 	db cmdSN76489      /256 ; 50
-	db cmdunsupported  /256 ; 51
+	db cmdYM2413       /256 ; 51
 	db cmdYM2612p0_tfm /256 ; 52
 	db cmdYM2612p1_tfm /256 ; 53
 	db cmdYM2151       /256 ; 54
@@ -1155,7 +1222,7 @@ cmdtable
 	db cmdunsupported  /256 ; 59
 	db cmdYM3812       /256 ; 5A
 	db cmdYM3526       /256 ; 5B
-	db cmdY8950        /256 ; 5C
+	db cmdY8950_opl3   /256 ; 5C
 	db skip3           /256 ; 5D
 	db cmdYMF262p0     /256 ; 5E
 	db cmdYMF262p1     /256 ; 5F
@@ -1235,7 +1302,7 @@ cmdtable
 	db skip3           /256 ; A9
 	db cmdYM3812dp     /256 ; AA
 	db cmdYM3526dp     /256 ; AB
-	db cmdY8950dp      /256 ; AC
+	db cmdY8950dp_opl3 /256 ; AC
 	db skip3           /256 ; AD
 	db cmdYMF262dp0    /256 ; AE
 	db cmdYMF262dp0    /256 ; AF
@@ -1533,16 +1600,6 @@ drawloadingprogress
 
 	include "common/gunzip.asm"
 
-	macro set_device_mask devicebit
-	ld hl,devicemask+devicebit/8
-	set devicebit%8,(hl)
-	endm
-
-	macro check_device_mask devicebit
-	ld hl,devicemask+devicebit/8
-	bit devicebit%8,(hl)
-	endm
-
 initAY8910
 	call ssginit
 	ld a,(HEADER_CLOCK_AY8910+3)
@@ -1591,8 +1648,7 @@ useYM3812=$+1
 	or 0
 	ld de,0x0005
 	call nz,opl4writefm2
-notOPL2 set_timer opl4waittimer60hz,735
-	call opl4inittimer60hz
+notOPL2
 	set_device_mask DEVICE_MOONSOUND_BIT
 	xor a
 	ret
@@ -1621,6 +1677,8 @@ opmstatus=$+1
 	ret
 
 musicunload
+stoptimerproc=$+1
+	call stoptimerstub
 	check_device_mask DEVICE_MOONSOUND_BIT
 	call nz,opl4mute
 	check_device_mask DEVICE_TFM_BIT
@@ -1650,13 +1708,88 @@ enableopna
 	ld (inithardware.opninitfunc),hl
 	ld hl,opnaloaddatablock
 	ld (opnadatablockhandler),hl
+	ld hl,y8950loaddatablock_opna
+	ld (y8950datablockhandler),hl
+	ld hl,opnasettimer
+	ld (settimerproc),hl
+	ld hl,opnastoptimers
+	ld (stoptimerproc),hl
 	set_cmd_handler 0x52,cmdYM2612p0_opna
 	set_cmd_handler 0x53,cmdYM2612p1_opna
 	set_cmd_handler 0x55,cmdYM2203_opna
 	set_cmd_handler 0x56,cmdYM2608p0_opna
 	set_cmd_handler 0x57,cmdYM2608p1_opna
+	set_cmd_handler 0x5c,cmdY8950_opna
 	set_cmd_handler 0xa5,cmdYM2203dp_opna
 	ret
+
+cmdY8950_opna
+; MSX-AUDIO is an evolutionary design: an OPL1 FM synth combined with the Delta-T engine,
+; which later became a standard component in chips such as YM2608 and YM2610.
+	memory_stream_read_2 e,d
+	ld a,e
+	cp 0x20
+	jp nc,opl4writefm1
+	cp 0x13
+	ret nc
+	sub 0x07
+	ret c
+	ld e,a
+	cp 0x09
+	jr z,.convertdeltanlo
+	cp 0x0a
+	jr z,.convertdeltanhi
+	cp 0x0b
+	jr z,.adpcmvolume
+	dec a
+	jp nz,opnawritemusiconlyfm2
+	ld a,d
+	and %00000100
+	or %11000000
+	ld d,a
+	jp opnawritectrl2
+.convertdeltanlo
+	ld a,d
+	ld (.deltan),a
+.writeconverteddeltan
+.deltan=$+1
+	ld hl,0
+;scale deltaN by 224/256
+	ld d,l
+	ld b,h
+	xor a
+	ld e,a
+	add hl,hl : rla
+	add hl,hl : rla
+	add hl,hl : rla
+	add hl,hl : rla
+	add hl,hl : rla
+	ex de,hl
+	ld c,a
+	ld a,b
+	sbc hl, de : sbc a,c
+;a:hl = deltaN*224
+	ld d,a
+	ld e,0x0a
+	call opnawritefm2
+	ld d,h
+	dec e
+	jp opnawritefm2
+.convertdeltanhi
+	ld a,d
+	ld (.deltan+1),a
+	jr .writeconverteddeltan
+.adpcmvolume
+;RE2-Y2608 is way too loud vs. MoonSound
+	srl d
+	srl d
+	srl d
+	jp opnawritefm2
+
+y8950loaddatablock_opna
+	call opnaloaddatablock
+	ld de,0xc001 ;force LR on
+	jp opnawritectrl2
 
 cmdYM2203_opna
 	memory_stream_read_2 e,d
@@ -1685,6 +1818,10 @@ cmdYM2608p1_opna
 
 cmdSN76489
 	memory_stream_read_1 a
+	ret
+
+cmdYM2413
+	memory_stream_read_2 e,d
 	ret
 
 hltodecimalstring
@@ -1842,6 +1979,8 @@ playerwindowui
 	CUSTOMUIPRINTTEXT ,10,14,vgmchipstextstr
 	CUSTOMUIPRINTTEXT ,9,15,vgmlengthtextstr
 	CUSTOMUIPRINTTEXT ,45,14,vgmdatablocktextstr
+.ratelabelcolor
+	CUSTOMUISETCOLOR ,COLOR_PANEL_FILE
 	CUSTOMUIPRINTTEXT ,46,15,vgmratetextstr
 	CUSTOMUIDRAWEND
 end

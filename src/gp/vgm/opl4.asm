@@ -191,15 +191,59 @@ opl4loadromdatablock
 	ld ix,waveheaderbuffer
 	jp opl4writememory
 
-opl4inittimer60hz
-	ld de,0x2f02
-	call opl4writefm1
-	ld de,0x2104
-	jp opl4writefm1
+settimerstep
+;a = rate in hz
+	ld de,0
+	ld l,a
+	ld h,d
+	exx
+	ld de,0
+	ld hl,44100
+	call uintdiv32
+	ld (waittimerstep),hl
+	ret
 
-opl4waittimer60hz
+opl4settimer
+;a = rate in hz
+;output: zf=1 if timer is set, zf=0 otherwise
+	cp 13
+	ret c
+	push af
+	call settimerstep
+	ld hl,opl4waittimer
+	ld (waittimercallback),hl
+	pop bc
+	ld c,b
+	ld b,0
+	ld de,81
+	ld hl,0x2102
+	cp 50
+	jr nc,$+8
+	ld de,323
+	ld hl,0x4203
+	push hl
+	call uintmul16
+	exx
+	ld de,0x000f
+	ld hl,0x4240
+	call uintdiv32
+	xor a
+	sub l
+	ld d,a
+	pop hl
+	ld e,l
+	call opl4writefm1
+	ld d,h
+	ld e,0x04
+	call opl4writefm1
+	ld d,0x80
+	call opl4writefm1
+	xor a
+	ret
+
+opl4waittimer
 	in a,(MOON_STAT)
 	rla
-	jr nc,opl4waittimer60hz
-	ld de,0x8104
+	jr nc,opl4waittimer
+	ld de,0x8004
 	jp opl4writefm1

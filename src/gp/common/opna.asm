@@ -80,7 +80,9 @@ opnastoptimers
 	ld de,0x3027
 	call opnawritefm1
 	ld de,0x0027
-	jp opnawritefm1
+	call opnawritefm1
+	ld de,0x8010
+	jp opnawritefm2
 
 opnamute
 	call opnastoptimers

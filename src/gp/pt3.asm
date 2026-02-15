@@ -344,7 +344,6 @@ getconfig
 	include "common/turbo.asm"
 	include "progress.asm"
 
-VSYNC_FREQ = 49
 BAUD_RATE = 31250
 WAIT_LOOP_TSTATES = 14
 BENCHMARK_LOOP_TSTATES = 42

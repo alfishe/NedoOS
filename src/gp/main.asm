@@ -898,8 +898,6 @@ drawplayerwindow
 	ld bc,0x4204
 	jp drawwindow
 
-TICKS_FREQ = 49
-
 getplaytimestring
 ;de = string buffer
 	push de
@@ -908,12 +906,12 @@ getplaytimestring
 	ld de,0
 	sub hl,de
 	pop de
-	ld bc,-TICKS_FREQ*60
+	ld bc,-VSYNC_FREQ*60
 	call .writefield ;minutes
 	ld a,':'
 	ld (de),a
 	inc de
-	ld bc,-TICKS_FREQ
+	ld bc,-VSYNC_FREQ
 	call .writefield ;seconds
 	xor a
 	ld (de),a
@@ -970,7 +968,7 @@ drawplaytimeincremental
 	inc hl
 	inc c
 	djnz .diffsearchloop
-	ld a,TICKS_FREQ/2
+	ld a,VSYNC_FREQ/2
 	ret
 .difffound
 	push hl
@@ -985,7 +983,7 @@ drawplaytimeincremental
 	OS_SETCOLOR
 	pop hl
 	call print_hl
-	ld a,TICKS_FREQ/2
+	ld a,VSYNC_FREQ/2
 	ret
 
 drawsongtitle
@@ -1942,7 +1940,7 @@ runoptions
 	ld sp,STACK_ADDR
 	jp startplayer
 	ent
-runoptionsodesize=$-1
+runoptionsodesize=$-runoptionsode
 
 tempmemorystart = $
 startupcode
