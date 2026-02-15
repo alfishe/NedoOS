@@ -669,7 +669,7 @@ void convert866(void)
   {
     netbuf[w - lng - 1] = netbuf[w];
   }
-  str_replace(netbuf, w, netbuf, "\\/", "/");
+  stringRepair(netbuf, w);
 }
 
 long processJson(unsigned long startPos, unsigned char limit, unsigned char queryNum)
