@@ -34,13 +34,14 @@ struct fileStruct
   unsigned int extStatus;
   unsigned char picRating[8];
   unsigned char picName[256];
-  unsigned char picType[32]; // 28102025!!!
+  unsigned char picType[32];
   unsigned char authorIds[64];
   unsigned char authorTitle[64];
   unsigned char authorRealName[64];
   unsigned char afn[128];
   unsigned char pfn[128];
   unsigned char fileName[128];
+  unsigned char hasDescription;
 } curFileStruct;
 
 struct window
@@ -58,14 +59,14 @@ struct sockaddr_in dnsaddress;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 
-unsigned char ver[] = "4.8";
+unsigned char ver[] = "4.9";
 // const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
 unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; GetPic)\r\n\r\n\0";
 unsigned char zxart[] = "zxart.ee";
 unsigned char minRating[] = "0000000000";
-unsigned char keypress, verbose, randomPic, slideShow, netDriver;
+unsigned char keypress, verbose, showDesc, randomPic, slideShow, netDriver;
 
 unsigned long contLen;
 unsigned long count = 0;
@@ -75,9 +76,8 @@ unsigned int loaded;
 
 unsigned char crlf[2] = {13, 10};
 unsigned char cmd[512];
-unsigned char link[512];
 unsigned char fileIdChar[10];
-unsigned char picture[15000];
+unsigned char picture[15500];
 unsigned char netbuf[4000];
 unsigned char curPath[128];
 
@@ -160,6 +160,7 @@ void printHelp(void)
   printf("   'D' Переключение режима ZXNETUSB/ESP-COM\n\r");
   printf("   'T' Продолжительность одного слайда в int-ах \n\r");
   printf("   'M' Минимальный рейтинг для случайного воспроизведения. \n\r");
+  printf("   'O' Описание картинки. \n\r");
   printf("   'H' Данная справочная информация\n\r");
   printf("------------------Нажмите любую кнопку--------------------\n\r");
   OS_SETCOLOR(70);
@@ -193,8 +194,8 @@ int cutHeader(unsigned int todo)
   curFileStruct.httpErr = httpError();
   if (curFileStruct.httpErr != 200)
   {
-    sprintf(link, "HTTP Error %u @ %lu(%ld)", curFileStruct.httpErr, count, curFileStruct.picId);
-    writeLog(link, "cutHeader      ");
+    sprintf(picture, "HTTP Error %u @ %lu(%ld)", curFileStruct.httpErr, count, curFileStruct.picId);
+    writeLog(picture, "cutHeader      ");
     return 0;
   }
   count1 = strstr(netbuf, "Content-Length:");
@@ -258,8 +259,8 @@ char fillPictureEsp(void)
   const unsigned char *count1;
   unsigned char firstPacket = true;
   unsigned int byte;
-  strcpy(link, netbuf);
-  sizeLink = strlen(link);
+  strcpy(picture, netbuf);
+  sizeLink = strlen(picture);
 
   do
   {
@@ -306,29 +307,8 @@ char fillPictureEsp(void)
     // putchar(byte);
   } while (byte != '>');
 
-  sendcommand(link);
+  sendcommand(picture);
 
-  /*
-  if (!getAnswer3()) // 'sendOk'
-  {
-    writeLog("Timeout when waiting 'sendOk' ", "fillPictureEsp ");
-    return false;
-  }
-
-  byte = uartReadBlock(); // CR
-  if (byte > 255)
-  {
-    writeLog("Timeout when waiting 'CR' ", "fillPictureEsp ");
-    return false;
-  }
-
-  byte = uartReadBlock(); // LF
-  if (byte > 255)
-  {
-    writeLog("Timeout when waiting 'LF' ", "fillPictureEsp ");
-    return false;
-  }
-  */
   downloaded = 0;
   firstPacket = true;
   do
@@ -570,11 +550,9 @@ int pos(unsigned char *s, unsigned char *c, unsigned int n, unsigned int startPo
 
 const char *parseJson(unsigned char *property)
 {
-  unsigned int w, lng, lngp1, findEnd, listPos;
+  unsigned int w, lng, lngp1, findEnd, listPos, counter;
   unsigned char terminator;
   int n;
-  // n = -1;
-  //  netbuf[0] = '\0';
   n = pos(picture, property, 1, 0);
   if (n == -1)
   {
@@ -617,7 +595,14 @@ const char *parseJson(unsigned char *property)
     findEnd++;
   }
   listPos = 0;
-  for (w = lngp1; w < findEnd + lngp1; w++)
+  counter = findEnd + lngp1;
+
+  if ((counter) > sizeof(netbuf) - 1)
+  {
+    counter = sizeof(netbuf - 1);
+  }
+
+  for (w = lngp1; w < counter; w++)
   {
     netbuf[listPos] = picture[w];
     listPos++;
@@ -629,7 +614,7 @@ const char *parseJson(unsigned char *property)
 void convert866(void)
 {
   unsigned int lng, targetPos, w, q = 0;
-  unsigned char bufferl[8], one, two;
+  unsigned char one, two;
   unsigned int decVal;
   lng = strlen(netbuf);
   targetPos = lng + 1;
@@ -638,32 +623,29 @@ void convert866(void)
   {
     one = netbuf[q];
     two = netbuf[q + 1];
-    if (one == 92 && two == 117)
+    if (one == 92 && two == 117) // "\u"
     {
       q = q + 2;
-      for (w = 0; w < 4; w++)
-      {
-        bufferl[w] = netbuf[q + w];
-      }
-      q = q + 4;
-      bufferl[4] = '\0';
-      decVal = (unsigned int)strtol(bufferl, NULL, 16);
 
+      decVal = (unsigned int)strtol(netbuf + q, NULL, 16);
+      q = q + 4;
       if (decVal < 1088)
       {
         decVal = decVal - 912;
       }
-      if (decVal > 1087)
+      else
       {
         decVal = decVal - 864;
       }
+
       if (decVal == 1025)
       {
-        decVal = 240;
+        decVal = 240; // "Ё"
       }
+
       if (decVal == 1105)
       {
-        decVal = 241;
+        decVal = 241; // "ё"
       }
 
       netbuf[targetPos] = decVal;
@@ -671,16 +653,23 @@ void convert866(void)
     else
     {
       netbuf[targetPos] = netbuf[q];
+
       q++;
     }
     targetPos++;
-  }
-  netbuf[targetPos] = 0;
 
+    if (targetPos == sizeof(netbuf))
+    {
+      break;
+    }
+  }
+
+  netbuf[targetPos] = 0;
   for (w = lng + 1; w < targetPos + 1; w++)
   {
     netbuf[w - lng - 1] = netbuf[w];
   }
+  str_replace(netbuf, w, netbuf, "\\/", "/");
 }
 
 long processJson(unsigned long startPos, unsigned char limit, unsigned char queryNum)
@@ -691,6 +680,7 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   switch (queryNum)
   {
   case 0:
+  case 98:
     sprintf(netbuf, "GET /api/export:zxPicture/filter:zxPictureType=standard/limit:%u/start:%lu/order:date,desc%s", limit, startPos, userAgent);
     break;
   case 1:
@@ -762,7 +752,23 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     curFileStruct.totalAmount = atol(netbuf);
     parseJson("\"authorIds\":[");
     strcpy(curFileStruct.authorIds, netbuf);
+    parseJson(",\"description\":\"");
+
+    if (netbuf[0] != '-')
+    {
+      curFileStruct.hasDescription = true;
+    }
+    else
+    {
+      curFileStruct.hasDescription = false;
+    }
     break;
+
+  case 98:
+    parseJson(",\"description\":\"");
+    convert866();
+    break;
+
   case 99: // Author info
     parseJson(",\"title\":\"");
     convert866();
@@ -773,6 +779,12 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     break;
   }
   return curFileStruct.picId;
+}
+
+void showDescription(unsigned long counter)
+{
+  processJson(counter, 1, 98);
+  puts(netbuf);
 }
 
 void printData(void)
@@ -815,6 +827,26 @@ void printData(void)
   printf(" Real name: ");
   OS_SETCOLOR(71);
   printf("%s\r\n", curFileStruct.authorRealName);
+  OS_SETCOLOR(70);
+  printf(" Description: ");
+  OS_SETCOLOR(71);
+
+  if (showDesc)
+  {
+    if (curFileStruct.hasDescription == true)
+    {
+      showDescription(count);
+    }
+    else
+    {
+      printf("none");
+    }
+  }
+  else
+  {
+    printf("disabled");
+  }
+
   OS_SETCOLOR(69);
   printf("\r\n");
   printf("\r\n");
@@ -1138,6 +1170,7 @@ void init(void)
 {
   count = 0;
   verbose = 1;
+  showDesc = false;
   randomPic = 0;
   slideShow = 0;
   strcpy(minRating, "4.1");
@@ -1286,7 +1319,7 @@ start:
   if (!result) // return HTTP error != 200
   {
     OS_SETGFX(0x86);
-    printf("[%u]Error getting pic. Next picture.\r\n", curFileStruct.httpErr);
+    printf("[%u]Error getting pic. Next picture. Incorrect format?\r\n", curFileStruct.httpErr);
     count++;
     delayLongKey(2000);
     goto start;
@@ -1350,6 +1383,10 @@ start:
       YIELD();
     }
     break;
+  case 'O':
+    showDesc = !showDesc;
+    break;
+
   default:
     OS_SETGFX(0x86);
     safeKeys(keypress);
