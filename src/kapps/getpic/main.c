@@ -680,13 +680,16 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   switch (queryNum)
   {
   case 0:
-  case 98:
     sprintf(netbuf, "GET /api/export:zxPicture/filter:zxPictureType=standard/limit:%u/start:%lu/order:date,desc%s", limit, startPos, userAgent);
     break;
   case 1:
     sprintf(netbuf, "GET /api/types:zxPicture/export:zxPicture/language:eng/start:0/limit:1/order:rand/filter:zxPictureMinRating=%s;zxPictureType=standard%s", minRating, userAgent);
     break;
-  case 99: // GET /jsonElementData/elementId:182798
+
+  case 98: // https://zxart.ee/api/export:zxPicture/limit:1/filter:zxPictureId=589855
+    sprintf(netbuf, "GET /api/export:zxPicture/limit:%u/filter:zxPictureId=%lu%s", limit, startPos, userAgent);
+    break;
+  case 99: // GET /jsonElementData/elementId:182797
     sprintf(netbuf, "GET /jsonElementData/elementId:%lu%s", startPos, userAgent);
     break;
   }
@@ -835,7 +838,7 @@ void printData(void)
   {
     if (curFileStruct.hasDescription == true)
     {
-      showDescription(count);
+      showDescription(curFileStruct.picId);
     }
     else
     {
