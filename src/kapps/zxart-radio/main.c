@@ -37,7 +37,7 @@ unsigned char userQuery[256] = "/api/export:zxMusic/limit:10/filter:zxMusicId=44
 unsigned char fileName[] = "radio/player.ovl";
 unsigned char appCmd[128] = "player.com ";
 unsigned char curPath[128];
-unsigned char ver[] = "3.9";
+unsigned char ver[] = "4.0";
 
 unsigned char queryType[64];
 unsigned char netbuf[4096];
@@ -56,7 +56,7 @@ struct sockaddr_in dnsaddress;
 
 unsigned long contLen;
 long count;
-unsigned char saveFlag, saveBak, rptFlag, netDriver, changedFormat;
+unsigned char saveFlag, saveBak, rptFlag, netDriver, changedFormat, showDesc;
 unsigned char status, key, curFormat;
 union APP_PAGES main_pg;
 union APP_PAGES player_pg;
@@ -83,6 +83,7 @@ struct fileStruct
   unsigned char authorRealName[64];
   unsigned char afn[64];
   unsigned char tfn[64];
+  unsigned char hasDescription;
 } curFileStruct;
 
 struct window
@@ -244,15 +245,21 @@ void printProgress(const char type)
 
 void printHelp(void)
 {
-  OS_SETXY(0, 14);
+  unsigned char q;
+  for (q = 13; q < 23; q++)
+  {
+    OS_SETXY(0, q);
+    spaces(80);
+  }
+
+  OS_SETXY(0, 13);
   OS_SETCOLOR(71);
   printf(" [<-] [B] Previous track          [->] [ ] Next track      \r\n");
   printf(" [S]  Stop player                 [R]  Repeat track mode   \r\n");
   printf(" [K]  Toggle saving tracks        [D]  Download track      \r\n");
   printf(" [Q]  Select Query type           [F]  Select tracks format\r\n");
   printf(" [I]  Interface ZXNETUSB/ESP32    [J]  Jump to NNNN file   \r\n");
-  printf(" [ESC] Exit to OS                 [M]  Minimal Rating(Q:2,3)\r\n");
-  printf("                                                           \r\n");
+  printf(" [O] Show description             [M]  Minimal Rating(Q:2,3)\r\n");
 }
 
 void printStatus(void)
@@ -284,63 +291,6 @@ void printStatus(void)
 
   OS_SETCOLOR(71);
   YIELD();
-}
-
-void printInfo(void)
-{
-  BDBOX(30, 2, 50, 6, 71, ' ');
-  OS_SETXY(0, 1);
-  OS_SETCOLOR(70);
-  printf(" #: ");
-  OS_SETCOLOR(71);
-  printf("%ld", count);
-  OS_SETCOLOR(70);
-  printf(" ID: ");
-  OS_SETCOLOR(71);
-  printf("%ld", curFileStruct.picId);
-  OS_SETCOLOR(70);
-  printf(" Total Tracks: ");
-  OS_SETCOLOR(71);
-  printf("%lu               \r\n", curFileStruct.totalAmount);
-  OS_SETCOLOR(70);
-  printf(" RATING: ");
-  OS_SETCOLOR(71);
-  printf("%s", curFileStruct.picRating);
-  OS_SETCOLOR(70);
-  printf(" YEAR: ");
-  OS_SETCOLOR(71);
-  printf("%u", curFileStruct.picYear);
-  OS_SETCOLOR(70);
-  printf(" DURATION: ");
-  OS_SETCOLOR(71);
-  printf("%s", curFileStruct.time);
-  printf(" \r\n\r\n");
-  OS_SETCOLOR(70);
-  printf(" AuthorsIDs ");
-  OS_SETCOLOR(71);
-  printf("%s", curFileStruct.authorIds);
-  OS_SETCOLOR(70);
-  printf(" Author: ");
-  OS_SETCOLOR(71);
-  printf("%s", curFileStruct.authorTitle);
-  OS_SETCOLOR(70);
-  printf(" Real name: ");
-  OS_SETCOLOR(71);
-  printf("%s", curFileStruct.authorRealName);
-  printf(" \r\n\r\n");
-  OS_SETCOLOR(69);
-  printf("                                                                           \r");
-  printf("   TITLE: %s\r\n", curFileStruct.trackName);
-}
-
-void refreshScreen(void)
-{
-  OS_CLS(0);
-  printInfo();
-  printProgress(0);
-  printProgress(1);
-  printHelp();
-  printStatus();
 }
 
 int pos(unsigned char *s, unsigned char *c, unsigned int n, unsigned int startPos)
@@ -611,62 +561,6 @@ const char *parseJson(unsigned char *property)
   return netbuf;
 }
 
-void convert866(void)
-{
-  unsigned int lng, targetPos, w, q = 0;
-  unsigned char buffer[8], one, two;
-  unsigned int decVal;
-  lng = strlen(netbuf);
-  targetPos = lng + 1;
-
-  while (q < lng)
-  {
-    one = netbuf[q];
-    two = netbuf[q + 1];
-    if (one == 92 && two == 117)
-    {
-      q = q + 2;
-      for (w = 0; w < 4; w++)
-      {
-        buffer[w] = netbuf[q + w];
-      }
-      q = q + 4;
-      buffer[4] = '\0';
-      decVal = (unsigned int)strtol(buffer, NULL, 16);
-
-      if (decVal < 1088)
-      {
-        decVal = decVal - 912;
-      }
-      if (decVal > 1087)
-      {
-        decVal = decVal - 864;
-      }
-      if (decVal == 1025)
-      {
-        decVal = 240;
-      }
-      if (decVal == 1105)
-      {
-        decVal = 241;
-      }
-      netbuf[targetPos] = decVal;
-    }
-    else
-    {
-      netbuf[targetPos] = netbuf[q];
-      q++;
-    }
-    targetPos++;
-  }
-  netbuf[targetPos] = '\0';
-
-  for (w = lng + 1; w < targetPos + 1; w++)
-  {
-    netbuf[w - lng - 1] = netbuf[w];
-  }
-}
-
 void nameRepair(unsigned char *pfn, unsigned int tfnSize)
 {
   str_replace(pfn, tfnSize, pfn, "\\", "_");
@@ -695,6 +589,7 @@ void stringRepair(unsigned char *pfn, unsigned int tSize)
   str_replace(pfn, tSize, pfn, "&quot;", "\"");
   str_replace(pfn, tSize, pfn, "\\/", "/");
 }
+
 void ncReplace(void)
 {
   unsigned char len;
@@ -713,6 +608,67 @@ void ncReplace(void)
       curFileStruct.tfn[len] = '_';
     }
   }
+}
+
+void convert866(void)
+{
+  unsigned int lng, targetPos, w, q = 0;
+  unsigned char one, two;
+  unsigned int decVal;
+  lng = strlen(netbuf);
+  targetPos = lng + 1;
+
+  while (q < lng)
+  {
+    one = netbuf[q];
+    two = netbuf[q + 1];
+    if (one == 92 && two == 117) // "\u"
+    {
+      q = q + 2;
+
+      decVal = (unsigned int)strtol(netbuf + q, NULL, 16);
+      q = q + 4;
+      if (decVal < 1088)
+      {
+        decVal = decVal - 912;
+      }
+      else
+      {
+        decVal = decVal - 864;
+      }
+
+      if (decVal == 1025)
+      {
+        decVal = 240; // "Ё"
+      }
+
+      if (decVal == 1105)
+      {
+        decVal = 241; // "ё"
+      }
+
+      netbuf[targetPos] = decVal;
+    }
+    else
+    {
+      netbuf[targetPos] = netbuf[q];
+
+      q++;
+    }
+    targetPos++;
+
+    if (targetPos == sizeof(netbuf))
+    {
+      break;
+    }
+  }
+
+  netbuf[targetPos] = 0;
+  for (w = lng + 1; w < targetPos + 1; w++)
+  {
+    netbuf[w - lng - 1] = netbuf[w];
+  }
+  stringRepair(netbuf, w);
 }
 
 unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned int sizeOfBuf)
@@ -956,6 +912,9 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     OS_CLOSEHANDLE(fp3);
     sprintf(netbuf, "GET /api/limit:%u/start:%lu%s%s", limit, startPos, userQuery, userAgent);
     break;
+  case 98: // http://zxart.ee/api/export:zxMusic/limit:10/filter:zxMusicId=19717
+    sprintf(netbuf, "GET /api/export:zxMusic/limit:%u/filter:zxMusicId=%lu%s", limit, startPos, userAgent);
+    break;
   case 99:
     sprintf(netbuf, "GET /jsonElementData/elementId:%lu%s", startPos, userAgent);
     break;
@@ -1017,8 +976,13 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     getchar();
     return -2;
   }
-  if (queryNum < 4)
+
+  switch (queryNum)
   {
+  case 0:
+  case 1:
+  case 2:
+  case 3:
     netbuf[0] = '\0';
     parseJson("\"id\":");
     curFileStruct.picId = atol(netbuf);
@@ -1039,17 +1003,172 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     strcpy(curFileStruct.time, netbuf);
     parseJson("\"authorIds\":[");
     strcpy(curFileStruct.authorIds, netbuf);
-  }
-  if (queryNum == 99)
-  {
+    parseJson(",\"description\":\"");
+
+    if (netbuf[0] != '-')
+    {
+      curFileStruct.hasDescription = true;
+    }
+    else
+    {
+      curFileStruct.hasDescription = false;
+    }
+    break;
+  case 98:
+    parseJson(",\"description\":\"");
+    convert866();
+    break;
+  case 99:
     parseJson(",\"title\":\"");
     convert866();
     strcpy(curFileStruct.authorTitle, netbuf);
     parseJson(",\"realName\":\"");
     convert866();
     strcpy(curFileStruct.authorRealName, netbuf);
+    break;
   }
   return curFileStruct.picId;
+}
+
+void showDescription(unsigned long counter, int atLine, unsigned char showLines)
+{
+  unsigned char byte, q, lineCount = 1, rowCount = 0;
+  unsigned int position = 0;
+  processJson(counter, 1, 98);
+
+  if (atLine != -1)
+  {
+    clearStatus();
+    for (q = atLine; q < atLine + showLines; q++)
+    {
+      OS_SETXY(0, q);
+      spaces(80);
+    }
+
+    OS_SETXY(0, atLine);
+    OS_SETCOLOR(69);
+    printf(" Description: \r\n");
+    OS_SETCOLOR(71);
+  }
+  while (42)
+  {
+    byte = netbuf[position];
+    if (byte == 0x00)
+    {
+      return;
+    }
+    if (byte == '\\')
+    {
+      position++;
+      byte = netbuf[position];
+      switch (byte)
+      {
+      case 0x00:
+        position--;
+        break;
+      case '\\':
+        putchar('\\');
+        break;
+      case 'r':
+        putchar('\r');
+        break;
+      case 'n':
+        lineCount++;
+        if (lineCount > showLines)
+        {
+          return;
+        }
+        putchar('\n');
+        rowCount = 0;
+        break;
+      default:
+        putchar(byte);
+        rowCount++;
+        break;
+      }
+    }
+    else
+    {
+      putchar(byte);
+    }
+    position++;
+    rowCount++;
+    if (rowCount > 79)
+    {
+      lineCount++;
+      if (lineCount > showLines)
+      {
+        return;
+      }
+      rowCount = 0;
+    }
+  }
+}
+
+void printInfo(void)
+{
+  BDBOX(30, 2, 50, 6, 71, ' ');
+  OS_SETXY(0, 1);
+  OS_SETCOLOR(70);
+  printf(" #: ");
+  OS_SETCOLOR(71);
+  printf("%ld", count);
+  OS_SETCOLOR(70);
+  printf(" ID: ");
+  OS_SETCOLOR(71);
+  printf("%ld", curFileStruct.picId);
+  OS_SETCOLOR(70);
+  printf(" Total Tracks: ");
+  OS_SETCOLOR(71);
+  printf("%lu               \r\n", curFileStruct.totalAmount);
+  OS_SETCOLOR(70);
+  printf(" RATING: ");
+  OS_SETCOLOR(71);
+  printf("%s", curFileStruct.picRating);
+  OS_SETCOLOR(70);
+  printf(" YEAR: ");
+  OS_SETCOLOR(71);
+  printf("%u", curFileStruct.picYear);
+  OS_SETCOLOR(70);
+  printf(" DURATION: ");
+  OS_SETCOLOR(71);
+  printf("%s", curFileStruct.time);
+  printf(" \r\n\r\n");
+  OS_SETCOLOR(70);
+  printf(" AuthorsIDs ");
+  OS_SETCOLOR(71);
+  printf("%s", curFileStruct.authorIds);
+  OS_SETCOLOR(70);
+  printf(" Author: ");
+  OS_SETCOLOR(71);
+  printf("%s", curFileStruct.authorTitle);
+  OS_SETCOLOR(70);
+  printf(" Real name: ");
+  OS_SETCOLOR(71);
+  printf("%s", curFileStruct.authorRealName);
+  printf(" \r\n\r\n");
+  OS_SETCOLOR(69);
+  printf("                                                                           \r");
+  printf("   TITLE: %s\r\n", curFileStruct.trackName);
+
+  if (showDesc)
+  {
+    if (curFileStruct.hasDescription == true)
+    {
+      showDescription(curFileStruct.picId, 13, 9);
+    }
+  }
+  OS_SETCOLOR(69);
+}
+
+void refreshScreen(void)
+{
+  OS_CLS(0);
+  printInfo();
+  printProgress(0);
+  printProgress(1);
+  printHelp();
+  printStatus();
 }
 
 unsigned char getTrack2Net(unsigned long fileId)
@@ -1422,6 +1541,7 @@ C_task main(int argc, const char *argv[])
   curFormat = 0;
   changedFormat = 0;
   rptFlag = 0;
+  showDesc = false;
   strcpy(minRating, "4.0");
 
   targetadr.family = AF_INET;
@@ -1538,7 +1658,7 @@ resume:
 rekey:
   keypress = OS_GETKEY();
 
-  switch (keypress)
+  switch (keypress) // & 0xdf сменить 251 и пр.
   {
   case 27:
   case 'e':
@@ -1688,6 +1808,13 @@ rekey:
     clearStatus();
     printStatus();
     goto rekey;
+  case 'O':
+  case 'o':
+    showDesc = !showDesc;
+    clearStatus();
+    printf("Show Description = %u", showDesc);
+    goto rekey;
+
   case 'd':
   case 'D':
     saveBak = saveFlag;

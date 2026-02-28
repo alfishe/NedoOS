@@ -77,7 +77,7 @@ unsigned int loaded;
 unsigned char crlf[2] = {13, 10};
 unsigned char cmd[512];
 unsigned char fileIdChar[10];
-unsigned char picture[15500];
+unsigned char picture[15200];
 unsigned char netbuf[4000];
 unsigned char curPath[128];
 
@@ -685,7 +685,6 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   case 1:
     sprintf(netbuf, "GET /api/types:zxPicture/export:zxPicture/language:eng/start:0/limit:1/order:rand/filter:zxPictureMinRating=%s;zxPictureType=standard%s", minRating, userAgent);
     break;
-
   case 98: // https://zxart.ee/api/export:zxPicture/limit:1/filter:zxPictureId=589855
     sprintf(netbuf, "GET /api/export:zxPicture/limit:%u/filter:zxPictureId=%lu%s", limit, startPos, userAgent);
     break;
@@ -784,10 +783,79 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   return curFileStruct.picId;
 }
 
-void showDescription(unsigned long counter)
+void showDescription(unsigned long counter, int atLine, unsigned char showLines)
 {
+  unsigned char byte, q, lineCount = 1, rowCount = 0;
+  unsigned int position = 0;
   processJson(counter, 1, 98);
-  puts(netbuf);
+
+  if (atLine != -1)
+  {
+    clearStatus();
+    for (q = atLine; q < atLine + showLines; q++)
+    {
+      OS_SETXY(0, q);
+      spaces(80);
+    }
+
+    OS_SETXY(0, atLine);
+    OS_SETCOLOR(69);
+    printf(" Description: \r\n");
+    OS_SETCOLOR(71);
+  }
+  while (42)
+  {
+    byte = netbuf[position];
+    if (byte == 0x00)
+    {
+      return;
+    }
+    if (byte == '\\')
+    {
+      position++;
+      byte = netbuf[position];
+      switch (byte)
+      {
+      case 0x00:
+        position--;
+        break;
+      case '\\':
+        putchar('\\');
+        break;
+      case 'r':
+        putchar('\r');
+        break;
+      case 'n':
+        lineCount++;
+        if (lineCount > showLines)
+        {
+          return;
+        }
+        putchar('\n');
+        rowCount = 0;
+        break;
+      default:
+        putchar(byte);
+        rowCount++;
+        break;
+      }
+    }
+    else
+    {
+      putchar(byte);
+    }
+    position++;
+    rowCount++;
+    if (rowCount > 79)
+    {
+      lineCount++;
+      if (lineCount > showLines)
+      {
+        return;
+      }
+      rowCount = 0;
+    }
+  }
 }
 
 void printData(void)
@@ -838,7 +906,9 @@ void printData(void)
   {
     if (curFileStruct.hasDescription == true)
     {
-      showDescription(curFileStruct.picId);
+      putchar('\r');
+      putchar('\n');
+      showDescription(curFileStruct.picId, -1, 15);
     }
     else
     {
