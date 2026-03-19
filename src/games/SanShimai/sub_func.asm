@@ -1,3 +1,4 @@
+;>>>1251
 ;select word from table
 ;by index
 ;in A - index HL - table
@@ -23,38 +24,44 @@ copystr_hlde:
         inc hl
         inc de
         jr copystr_hlde
+
 ;------------------------
 ;-setup interrupt
-int_set:
-        di
-        ld hl,0x0038
-        ld de,int_orig
-        ld bc,5
-        ldir
-        ld hl,0x0038
-        ld a,0xC3 ;jp
-        ld (hl),a
-        inc hl
-        ld de,int_proc
-        ld a,e
-        ld (hl),a
-        inc hl
-        ld a,d
-        ld (hl),a
-        ei
-        ret
+oldimer:
+        jp int_proc
+        jp 0x0038+3
 
+
+;-setup interrupt
+int_set:
 int_reset:
         di
         ld de,0x0038
-        ld hl,int_orig
+        ld hl,oldimer
         ld bc,3
-        ldir
+.swapimer0
+        ld a,(de)
+        ldi ;[oldimer] -> [0x0038]
+        dec hl
+        ld (hl),a ;[0x0038] -> [oldimer]
+        inc hl
+        jp pe,.swapimer0
         ei
         ret
 
+
 int_proc
+        EX DE,HL
+        EX (SP),HL ;de="hl", в стеке "de"
+        LD (on_int_jp),HL
+        LD (on_int_sp),SP
+
+        LD SP,sp_alt
         push af
+
+        push bc
+        push de ;"hl"
+        exx
         ex af,af'
         push af
         push bc
@@ -62,20 +69,56 @@ int_proc
         push hl
         push ix
         push iy
-        exx
-        push bc
-        push de
-        push hl
 
-;        ld a,1
-;        out (0xfe),a
+
+
+        ld hl, (on_int_jp)
+        ld de, on_int_jp-1
+        and a
+        sbc hl,de
+         ld hl,(on_int_jp)
+         jr nz,int_not_same_jp
+
+         ld hl,0
+prev_on_int equ $-2       
+         ld (on_int_jp),hl
+         jp insspp_exit
+
+
+int_not_same_jp
+         ld (prev_on_int),hl
+         
+
+
+         ld a,0xc9  ;ret
+         ld (int_proc),a
+
+
+
+        ld hl,(on_int_sp)
+        ld de,sp_alt
+        and a
+        sbc hl,de
+        
+        jp nc,int_proc_byp
+        di
+        halt
+
+int_proc_byp:
+
+
 
         ld a,(setpalflag)
         or a
         call nz,setpal_proc
-;       ld a,(setscreenflag)
-;       or a
-;       call nz,setscreen_proc
+
+
+;        ld a,0xf3
+;        ld (0x003f),a
+
+        call oldimer
+        di
+
         GET_KEY
         ld a,c
         ld (keyreg),a
@@ -86,29 +129,63 @@ int_proc
         ld (keymatrixix),ix
 
 
+
+
+
+        OS_GETMAINPAGES
+        di
+        ld a,e
+        ld (im_stor_4000),a
+        ld a,h
+        ld (im_stor_8000),a
+        ld a,l
+        ld (im_stor_c000),a
+
+
+        ld a,(user_scr0_low)
+        SETPG8000
+        ld a,(user_scr0_high)
+        SETPGC000
+
+
+
+
+
+
+
+
         ld a,0
 wlock equ $-1 
         and a       
         CALL nz,anim_wait
-
 
         ld a,0
 alock equ $-1 
         and a       
         CALL nz,anim_eyes
 
-;        ld a,0
-;        out (0xfe),a
 
         ld a,0
 screenswapper: equ $-1
         and a
         call nz,switchscreens
 
-        pop hl
-        pop de
-        pop bc
-        exx
+
+
+        ld a,0
+im_stor_8000 equ $-1  
+        SETPG8000
+        ld a,0
+im_stor_c000 equ $-1  
+        SETPGC000
+        ld a,0
+im_stor_4000 equ $-1        
+        SETPG4000
+
+
+
+
+insspp_exit:
         pop iy
         pop ix
         pop hl
@@ -116,18 +193,48 @@ screenswapper: equ $-1
         pop bc
         pop af
         ex af,af'
-        pop af
-int_orig ds 5
-        jp 0x0038+5        
+        exx
+        pop hl
+        pop bc
+
+        ;xor a
+        ;ld r,a
+
+        ld a,0xeb   ;ex de,hl
+;c_stor equ $-1
+         ld (int_proc),a
+        
+        pop af        
+on_int_sp=$+1
+        ld sp,0
+        pop de
+        ei
+on_int_jp=$+1
+        jp 0   
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+free_s98_file:
+
+               ld l,(hl)
+free_s98_loop
+                dec l
+                ld e,(hl)
+                push af
+                push hl
+                OS_DELPAGE
+                pop hl
+                pop af
+               jr nz,free_s98_loop
+               ret     
 
 no_mus
-          call setmusicpage
-          ld a,(music_buf)
-          ld hl,PLR_MUTE
-          OS_SETMUSIC
-          call unsetmusicpage
-          halt
-          ret 
+         call set_music_pages
+                 call PLR_MUTE
+                 ld a,(plr_page)
+                 ld hl,0
+                 OS_SETMUSIC
+         call unset_music_pages
+         halt
+         ret 
 ;==========================
 switchscreens:
         ld e,1
@@ -186,12 +293,24 @@ memoryerror
 
 
 cmd_quit
-;;      call closestream_file
         ld e,6+0x80
         OS_SETGFX
+
         call int_reset
-;;       call disablemusic
-        QUIT        
+
+        ld hl,t_s98_file00_pages_list+$FF 
+        call free_s98_file
+
+        ld b,pagestbllen
+        ld hl,pagestbl
+.getpagesloop
+        push bc,hl
+        ld e,(hl)
+        OS_DELPAGE
+        pop hl,bc
+        inc hl
+        djnz .getpagesloop
+        QUIT           
 
 ;----------------------------------------        
 load_mus
@@ -209,6 +328,8 @@ old_mus EQU $-1
         call calc_mus
 
         call no_mus
+        ld hl,t_s98_file00_pages_list+$FF 
+        call free_s98_file
         
         ;generate path to music file in 'buf'
         ld hl,mus_path1
@@ -229,33 +350,89 @@ old_mus EQU $-1
         xor a
         ld (de),a  ;string terminator
 
+        ld de,buf
+        call openstream_file
+        or a
+        jp nz,fileopenerror
 
 
-        call setmusicpage
+        ld hl,t_s98_file00_pages_list
+        ld (load_s98_file_number),hl
 
-                ld de,buf
-                call openstream_file
+
+/////------        call load_s98_file      ;de=drive/path/file
+
+; загружаем файл в память
+; и создаем таблицу
+
+                ;заполняем таблицу страниц файла
+                
+                
+load_s98_file_number_haddr = $+2 :
+load_s98_file_number = $+1 :
+                ld bc,t_s98_file00_pages_list
+                push bc
+                                
+read_file_loop:
+                OS_NEWPAGE              ;out: a=0 (OK)/!=0 (fail), e=page
+                
+                pop bc ;file tab
+                                
                 or a
-                jp nz,fileopenerror
+                jp nz,memoryerror
+                ld a,e
+                                        ;НУЖНО СЧИТАТЬ КОЛИЧЕСТВО СТРАНИЦ !!!!
+                                        ;ЧТОБЫ ПОТОМ ОСВОБОЖДАТЬ ТАБЛИЦУ !!!!
 
-                ld hl,0x3000 ;len
-                ld de,module ;addr
-                call readstream_file
-                or a
-                jp nz,filereaderror 
+1               ld (bc),a
+                inc c           ;теперь нет проверки на файлы больше 4М !!!!!
+                        
+                push bc ;file tab
+                SETPGC000
+        
+                ld de,$C000
+                ld hl,$4000
+        
+                call readstream_file    ;DE = Buffer address, HL = Number of bytes to read
+                                ;hl=actual size
+                ld a,h
+                cp $40
+                jr nc,read_file_loop    ;>= $40
+        
+read_file_exit
 
-                call closestream_file
+                pop bc ;file tab
+                ;тут можно достать количество страниц
+                ld a,c
 
-                ld a,0b00100000
-                ld (SETUP),a
-                ld hl,module
+                ld c,$FF
+                ld (bc),a
 
-                call PLR_INIT        ;init music
+                call closestream_file                                
+;-------------------------------------------------------
+; загрузили все куски музыки.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				call set_music_pages
+				ld hl,t_s98_file00_pages_list
+				ld de,0x4100         ;0x5000
+				ld bc,256
+				ldir
 
-                ld a,(music_buf)
-                ld hl,PLR_PLAY
-                OS_SETMUSIC         
-        jp unsetmusicpage
+				ld hl,t_s98_file00_pages_list
+				ld a,(hl)
+				SETPGC000
+
+				ld hl,module
+				ld (0x4001),hl
+				call PLR_INIT        ;init music
+				
+				ld a,(plr_page3)
+				SETPGC000
+
+				ld a,(plr_page)
+				ld hl,PLR_PLAY
+				OS_SETMUSIC
+				jp unset_music_pages
 
 calc_mus:
         call a_to_dec
@@ -286,71 +463,117 @@ calc_mus_f:
          ADD A,"0"
          ret
 ;------------------
-setmusicpage
-        OS_GETMAINPAGES
-        ld a,e
-        ld (tbank1),a
-        ld a,(music_buf)
+set_music_pages:
+;        OS_GETMAINPAGES
+;        ld a,e
+;        ld (zbank1),a
+;        ld a,h
+;        ld (zbank2),a
+;        ld a,l
+;        ld (zbank3),a
+        ld a,(curpg4000)
+        ld (zbank1),a
+        ld a,(curpg8000)
+        ld (zbank2),a
+        ld a,(curpgc000)
+        ld (zbank3),a
+
+        ld a,(plr_page)
         SETPG4000
+        ld a,(plr_page2)
+        SETPG8000
+        ld a,(plr_page3)
+        SETPGC000
         ret
 
-unsetmusicpage
-        ld a,(tbank1)
+unset_music_pages:
+        ld a,0
+zbank1 equ $-1
         SETPG4000
+        ld a,0
+zbank2 equ $-1
+        SETPG8000
+        ld a,0
+zbank3 equ $-1
+        SETPGC000
         ret
 
 ;---------------------
 setfontpage
-        OS_GETMAINPAGES
-        ld a,h
-        ld (tbank2),a
+;        OS_GETMAINPAGES
+;        ld a,h
+        ld a,(curpg8000)
+        ld (fbank2),a
         ld a,(font_page)
         SETPG8000
         ret
 
 unsetfontpage
-        ld a,(tbank2)
+        ld a,0
+fbank2 equ $-1
         SETPG8000
         ret
+
 ;---------------------
 store8000c000
-        OS_GETMAINPAGES
-        ld a,h
-        ld (tbank2),a
-        ld a,l
-        ld (tbank3),a
+;        OS_GETMAINPAGES
+;        ld a,h
+;        ld (tbank2),a
+;        ld a,l
+;        ld (tbank3),a
+        ld a,(curpg8000)
+        ld (ztbank2),a
+        ld a,(curpgc000)
+        ld (ztbank3),a
+
         ret
 
 restore8000c000
-        ld a,(tbank2)
+        ld a,0
+ztbank2 equ $-1
         SETPG8000
-        ld a,(tbank3)
+        ld a,0
+ztbank3 equ $-1
         SETPGC000        
         ret
 ;========================
 storec000
-        OS_GETMAINPAGES
-        ld a,l
-        ld (tbank3),a
+;        OS_GETMAINPAGES
+;        ld a,l
+        ld a,(curpgc000)
+        ld (tcbank3),a
         ret
 
 restorec000
-        ld a,(tbank3)
+        ld a,0
+tcbank3  equ $-1
         SETPGC000        
         ret
 ;========================
 store8000
-        OS_GETMAINPAGES
-        ld a,h
-        ld (tbank2),a
+;        OS_GETMAINPAGES
+;        ld a,h
+        ld a,(curpg8000)
+        ld (t8bank2),a
         ret
 
 restore8000
-        ld a,(tbank2)
+        ld a,0
+t8bank2 equ $-1
         SETPG8000        
         ret
 ;========================
+store4000l
+        ld a,(curpg4000)
+        ld (t42bank1l),a
+        ret
 
+restore4000l
+        ld a,0
+t42bank1l equ $-1
+        SETPG4000        
+        ret
+;========================
 
 
 getkey
@@ -359,14 +582,50 @@ getkey
 
 
 waitkey_a
+
         ld a,1
         ld (wlock),a
-        call waitkey
+
+        call waitkey_al
+
         push af
         xor a
         ld (wlock),a
         pop af
         ret
+
+waitkey_al:
+.waitkey_loop
+        call getkey
+        cp 's'
+        jr z,.ss_pressed
+        cp 'S'
+        jr z,.ss_pressed
+        cp NOKEY
+        jr nz,.waitkey_loop
+
+.waitkey0
+        ld (lastkey),a
+
+        call getkey
+        cp 's'
+        jr z,.ss_pressed
+        cp 'S'
+        jr z,.ss_pressed
+        cp 13
+        jr z,.waitkey1
+        cp ' '
+        jr z,.waitkey1
+        jr .waitkey0 ;  пропускаем только ENTER И SPACE
+
+.ss_pressed:
+        xor a
+        ld (lastkey),a
+.waitkey1:
+        ld a,(lastkey)
+         ret
+
+
 
 waitkey
 
@@ -388,6 +647,7 @@ waitkey0
         ;cp key_esc
         ;jp z,cmd_quit
         ;ret
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 change_cp1 ;#
@@ -1304,23 +1564,31 @@ RANDOMIZE
         LD D,(HL)
         INC HL
         PUSH HL
+
+.ll:
         call randr
+        cp d
+        jr nc,.ll
+
         LD D,HIGH LOCVARS
         LD (DE),A
         POP HL
         JP _print
 randr:
-SEED    LD HL,26356
-        LD B,H
-        ld C,L
-        DB "))))"
-        ADD HL,BC
-        LD BC,20981
-        ADD HL,BC
-        LD (SEED+1),HL
-        LD A,H
-        ADD A,D
-        JR NC,$-1
+
+        push    hl
+        push    de
+        ld      hl,0 ;(randData)
+randData: equ $-2
+        ld      a,r
+        ld      d,a
+        ld      e,(hl)
+        add     hl,de
+        add     a,l
+        xor     h
+        ld      (randData),hl
+        pop     de
+        pop     hl
         ret
 ;-------------------------------------
 MENUOFF LD A,(HL)
@@ -1503,7 +1771,7 @@ STK_MTMP EQU $-2
         INC DE ;SKIP MENUNAME NUM
         EX DE,HL
 
-;---РїРµС‡Р°С‚СЊ РЅР°Р·РІР°РЅРёСЏ РјРµРЅСЋ--
+;---печать названия меню--
 
         LD BC,(g_atpos)
         CALL _pradd
@@ -1650,14 +1918,14 @@ SELS_keyleft:
         SBC HL,BC
         ld  a,h
         or l
-        jr z,SELS3
-
+        jp z,SELS3
         ex de,hl
         ld bc,3
         and a
-        sbc hl,bc
-        ex de,hl
 
+        sbc hl,bc
+
+        ex de,hl
         ld hl,(SELS4)
         call _highlight_selected
         ld hl,g_curpos
@@ -1705,7 +1973,7 @@ SELECTED1:
         LD (g_atpos),HL        
         POP DE
         LD A,(DE)
-        LD (RESULT),A;СЃРѕС…СЂР°РЅСЏРµРј РЅРѕРјРµСЂ РІС‹Р±СЂР°РЅРЅРѕРіРѕ РјРµРЅСЋ
+        LD (RESULT),A;сохраняем номер выбранного меню
         RLCA
         RLCA
         RLCA
@@ -1757,7 +2025,7 @@ STK_STMP EQU $-2                        ;
         EX DE,HL        
 ;HL-NAME OF MENUITEM
 
-;---РїРµС‡Р°С‚СЊ РЅР°Р·РІР°РЅРёСЏ РјРµРЅСЋ--
+;---печать названия меню--
 
         LD BC,(g_atpos)
         CALL _pradd
@@ -1899,7 +2167,7 @@ SSELS_keyleft:
         SBC HL,BC
         ld  a,h
         or l
-        jr z,SSELS3
+        jp z,SSELS3
         dec de
         ld hl,(SSELS4)
         call _highlight_selected
@@ -1939,7 +2207,7 @@ SSELLL:
         pop hl
         jp TXTOUT1
 ;---------------------------------
-;Р·Р°РіР»СѓС€РєРё
+;заглушки
 EXITLIGHT
         LD B,250
         HALT
@@ -1960,15 +2228,6 @@ EXITLIGHT
 
 
 ;---------------------------
-EXITDARK
-;        LD B,250
-;        HALT
-;        DJNZ $-1
-
-       call fade_toblack 
-       CALL clear_whole_screen
-       JP begin
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;        
 TO_MENU:
         pop hl
@@ -2160,10 +2419,10 @@ _get_show_scr:
         ld h,a       
 
         ld a,(hl)
-        ld (outtyp),a
+        ld (outtyp),a ;output type
         inc hl
         ld a,(hl)
-        ld (outtype2),a
+        ld (outtype2),a ;image type p,n,8 or addition overlay if 0-16
         inc hl
 
 
@@ -2492,8 +2751,15 @@ load_eyes_main_loop:
         ex de,hl
         ld hl,(anim_stack_cursor)
         ld (hl),b ; phases
+
+        ld a,b
+        ld b,0xff
+        cp 2
+        jr z,1f
+        ld b,0xff
+1
         inc hl
-        ld (hl),0xfe ;counter 1
+        ld (hl),b ;counter 1
         inc hl
         ld (hl),0        ;counter 2
         inc hl
@@ -2570,366 +2836,271 @@ C_Time_D:
 ; D7	 D6	 D5	 D4	 D3	 D2	 D1	 D0
 ; G2	 R2	 B2	 G3	 1	 1	 R3	 B3
 palette_precalc:
+                ld hl,pal
+                ld de,pal_rgb
+
+                ld b,16
+mkpalATM3RGB
+                push bc
+                ld a,(hl)
+                inc hl
                 push hl
+                ld h,(hl)
+                ld l,a
                 push de
-                push bc
-                push af
-
-                ld b,6
-_pal_pc_l1:
-                push bc
-
-                ld a,b
-                push af ;store fase
-                add a,a ;x2
-                add a,a ;x4
-                add a,a ;x8
-                add a,a ;x16
-                add a,a ;x32
-                ld e,a
-                ld d,high _pal_bright   ;adr palette
-                ld hl,pal ;source palette
-
-                pop af
-                call _pal_transfer
-
-                pop bc
-                djnz _pal_pc_l1
-
-                pop af
-                pop bc
+                
+                call calchexcolor ;hl=color (DDp palette) ;out: ;b=B, d=R, e=G
+        
+                ld a,e ;G
+                add a,a
+                add a,a
+                add a,a
+                add a,a
+                or d ;R
                 pop de
-                pop hl 
-                ret  
-
-_pal_transfer:
-                cp 0
-                jp z,_pal_tsf_0
-                cp 1
-                jp z,_pal_tsf_1
-                cp 2
-                jp z,_pal_tsf_2
-                cp 3
-                jp z,_pal_tsf_3
-                cp 4
-                jp z,_pal_tsf_4
-                cp 5
-                jp z,_pal_tsf_5
-                cp 6
-                jp z,_pal_tsf_6
-                cp 7
-                jp z,_pal_tsf_7
-
-
-_pal_tsf_3:
-                ld b,16
-1               ld a,(hl)
-                ld (de),a
-                inc hl
+                ld c,a ;GR
+                ld a,b
+                add a,a
+                add a,a
+                add a,a
+                add a,a
+                ld (de),a ;B0
                 inc de
-                ld a,(hl)
-                or 0x1f ;b00011111
-                ld (de),a
+                ld a,c
+                ld (de),a ;GR
                 inc de
+                pop hl
                 inc hl
-                djnz 1b
+                pop bc
+                djnz mkpalATM3RGB
                 ret
+calchexcolor ;hl=color (DDp palette) ;out: ;b=B, d=R, e=G
+;keep c!!!
+;DDp palette: %grbG11RB(low),%grbG11RB(high)
+;high B, high b, low B, low b
+                ld b,0;0xff
+                ld de,0;0xffff
+                ld a,h
+               cpl
+                rra
+                rl b ;B high
+                rra
+                rl d ;R high
+                rra
+                rra
+                rra
+                rl e ;G high
+                rra
+                rl b ;b high
+                rra
+                rl d ;r high
+                rra
+                rl e ;g high
+                ld a,l
+               cpl
+                rra
+                rl b ;B low
+                rra
+                rl d ;R low
+                rra
+                rra
+                rra
+                rl e ;G low
+                rra
+                rl b ;b low
+                rra
+                rl d ;r low
+                rra
+                rl e ;g low
+;b=B
+;d=R
+;e=G
+        ret
 
-_pal_tsf_2:
-                ld b,16
-1               ld a,(hl)
-                ld (de),a
-                inc hl
-                inc de
-                ld a,(hl)
-                or 0xff
-                ld (de),a
-                inc de
-                inc hl
-                djnz 1b
-                ret
 
-_pal_tsf_1:
-                ld b,16
-1               ld a,(hl)
-                or 0x1f     ;b00011111
-                ld (de),a
-                inc hl
-                inc de
-                ld a,(hl)
-                or 0xff
-                ld (de),a
-                inc de
-                inc hl
-                djnz 1b
-                ret        
-_pal_tsf_0:
-                ld b,32
-                ld a,0xff
-1               ld (de),a
-                inc de
-                djnz 1b
-                ret
-
-_pal_tsf_4:
-                ld b,16
-1               ld a,(hl)
-                and 0x1f ;b00011111
-                ld (de),a
-                inc hl
-                inc de
-                ld a,(hl)
-                ld (de),a
-                inc de
-                inc hl
-                djnz 1b
-                ret
-
-_pal_tsf_5:
-                ld b,16
-1               ld a,(hl)
-                and 0x0c ;b00001100
-                ld (de),a
-                inc hl
-                inc de
-                ld a,(hl)
-                ld (de),a
-                inc de
-                inc hl
-                djnz 1b
-                ret        
-_pal_tsf_6:
-                ld b,16
-1               ld a,(hl)
-                and 0x0c ;b00001100
-                ld (de),a
-                inc hl
-                inc de
-                ld a,(hl)
-                and 0x1f   ;b00011111
-                ld (de),a
-                inc de
-                inc hl
-                djnz 1b
-                ret        
-_pal_tsf_7:
-                ld b,32
-                ld a,0x0c ;00001100
-1               ld (de),a
-                inc de
-                djnz 1b
-                ret
 ;===================
+recolour
+;hl=palfrom (RGB)
+;de=palto (DDp)
+;lx=brightness=0..15
+        di
+        ld (recoloursp),sp
+        ld sp,hl
+       ld h,tbright/256 ;once
+        ld hx,16
+bripalATM3
+         ;ld a,(hl) ;B0
+         ;inc hl
+         ;push hl
+         ;ld b,(hl) ;GR
+       pop bc
+       ld a,c
+         ;ld h,tbright/256
+;de=palto
+;h=tbright/256
+;lx=brightness
+;a,b = B0,GR
+         add a,lx
+        ld l,a
+        ld c,(hl) ;B colour component with brightness
+        ld a,b
+        and 0xf0
+         add a,lx
+        ld l,a
+        ld a,b
+        ld b,(hl) ;G colour component with brightness
+        add a,a
+        add a,a
+        add a,a
+        add a,a
+         add a,lx
+        ld l,a
+        ld l,(hl) ;R colour component with brightness
+
+       ld a,b ;G
+       rlca ;g??G???? ;G10
+       xor l ;R
+       and 0b10010000;0b01000010 ;R10
+       xor l;gr?G??R?
+       rlca ;r?G??R?g
+       xor c ;B
+       and 0b10100101;0b01000010 ;B10
+       xor c;rbG??RBg
+       rrca ;grbG??RB
+        or 0b00001100 ;unused bits
+        ld (de),a ;low %grbG11RB
+        inc de ;TODO ld (),a
+
+       ld a,b ;G
+       rlca ;?g??G??? ;G32
+       xor l ;R
+       and 0b01001000;0b00100001 ;R32
+       xor l;?gr?G??R
+       rlca ;gr?G??R?
+       xor c ;B
+       and 0b11010010;0b00100001 ;B32
+       xor c;grbG??RB
+        or 0b00001100 ;unused bits
+        ld (de),a ;high %grbG11RB
+        inc de ;TODO ld (),a
+
+         ;pop hl
+         ;inc hl
+         dec hx
+         jp nz,bripalATM3 ;TODO dup..edup
+recoloursp=$+1
+        ld sp,0
+        ei
+        ret
+;==========================================
+
+fade_to_sub:
+        ld (fade_tocolor),a
+        ld (fade_to_op),hl
+
+        ld hl,pal
+        ld de,temppal
+        ld bc,32
+        ldir        ;;
+
+        call palette_precalc
+
+        ld lx,8
+fade0
+        dec lx
+fade_to_op: equ $-2        
+        ld hl,pal_rgb
+        ld de,pal
+        call recolour
+        push ix
+
+	ld a,1
+	ld (setpalflag),a
+
+	halt
+	halt
+	halt
+        pop ix
+        ld a,lx
+        cp 0
+fade_tocolor: equ $-1
+        jr nz,fade0
+	halt
+	halt
+	halt
+        ret
+
+fade_from_sub:
+        ld (fade_fromcolor),a
+        ld (fade_from_op),hl
+
+
+        ld hl,pal
+        ld de,temppal
+        ld bc,32
+        ldir        ;;
+
+
+        call palette_precalc
+
+        ld lx,15
+fade_fromcolor: equ $-1
+
+
+fadew1:
+        dec lx
+fade_from_op: equ $-2
+        ld hl,pal_rgb
+        ld de,pal
+        call recolour
+        push ix
+
+	ld a,1
+	ld (setpalflag),a
+
+	halt
+	halt
+	halt
+        pop ix
+        ld a,lx
+        cp 8
+        jr nz,fadew1
+	halt
+	halt
+	halt
+
+        ld hl,temppal
+        ld bc,32
+        ld de,pal
+        ldir
+	ld a,1
+	ld (setpalflag),a
+        halt
+        ret
+;==================================
+
 fade_toblack:
-        ld hl,pal
-        ld de,temppal
-        ld bc,32
-        ldir        ;;
-
-
-
-	ld a,3 ;2
-.fade0;
-	halt
-	halt
-	halt
-	halt
-	halt
-;	halt
-       
-
-	push af
-
-        add a,a ;x2
-        add a,a ;x4
-        add a,a ;x8
-        add a,a ;x16
-        add a,a ;x32
-        ld l,a
-        ld h,high _pal_bright   ;adr palette
-        ld de,pal
-        ld bc,32 
-        ldir
-
-	ld a,1
-	ld (setpalflag),a
-
-       ;call waitkey
-
-	pop af
-	dec a
-	cp 255
-	jr nz,.fade0
-
-
-	halt
-	halt
-	halt
-	halt
-	halt
-
-       ret
-
+        ;dec lx
+        ld hl,0x2ddd
+        xor a
+        jr fade_to
 fade_towhite:
-        ld hl,pal
-        ld de,temppal
-        ld bc,32
-        ldir        ;;
+        ;inc lx
+        ld a,15
+        ld hl,0x2cdd
+fade_to:        
+        jp fade_to_sub
 
 
 
-	ld a,4 ;2
-.fade_w0;
-	halt
-	halt
-	halt
-	halt
-	halt
-;	halt
-       
-
-	push af
-
-        add a,a ;x2
-        add a,a ;x4
-        add a,a ;x8
-        add a,a ;x16
-        add a,a ;x32
-        ld l,a
-        ld h,high _pal_bright   ;adr palette
-        ld de,pal
-        ld bc,32 
-        ldir
-
-	ld a,1
-	ld (setpalflag),a
-
-       ;call waitkey
-
-	pop af
-	inc a
-	cp 8
-	jr nz,.fade_w0
-
-
-	halt
-	halt
-	halt
-	halt
-	halt
-
-       ret
-
-fade_fromwhite:
-        ld hl,pal
-        ld de,temppal
-        ld bc,32
-        ldir        ;;
-
-
-
-	ld a,6 ;2
-.fade_w1;
-	halt
-	halt
-	halt
-	halt
-	halt
-;	halt
-       
-
-	push af
-
-        add a,a ;x2
-        add a,a ;x4
-        add a,a ;x8
-        add a,a ;x16
-        add a,a ;x32
-        ld l,a
-        ld h,high _pal_bright   ;adr palette
-        ld de,pal
-        ld bc,32 
-        ldir
-
-	ld a,1
-	ld (setpalflag),a
-
-       ;call waitkey
-
-	pop af
-	dec a
-	cp 3
-	jr nz,.fade_w1
-
-
-
-	halt
-	halt
-	halt
-	halt
-	halt
-
-        ld hl,temppal
-        ld bc,32
-        ld de,pal
-        ldir
-	ld a,1
-	ld (setpalflag),a
-        halt
-
-        ret
-;------------------------------------
 fade_fromblack:
-        ld hl,pal
-        ld de,temppal
-        ld bc,32
-        ldir        ;;
-
-	ld a,0 ;2
-.fade_b1;
-	halt
-	halt
-	halt
-	halt
-	halt
-;	halt
-       
-
-	push af
-
-        add a,a ;x2
-        add a,a ;x4
-        add a,a ;x8
-        add a,a ;x16
-        add a,a ;x32
-        ld l,a
-        ld h,high _pal_bright   ;adr palette
-        ld de,pal
-        ld bc,32 
-        ldir
-
-	ld a,1
-	ld (setpalflag),a
-
-       ;call waitkey
-
-	pop af
-	inc a
-	cp 4
-	jr nz,.fade_b1
-
-	halt
-	halt
-	halt
-	halt
-	halt
-
-        ld hl,temppal
-        ld bc,32
-        ld de,pal
-        ldir
-	ld a,1
-	ld (setpalflag),a
-        halt
-
-        ret
+        ;inc lx
+        ld hl,0x2cdd
+        xor a
+        jr fade_from
+fade_fromwhite:
+        ;dec lx
+        ld a,15
+        ld hl,0x2ddd
+fade_from:
+        jp fade_from_sub

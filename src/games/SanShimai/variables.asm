@@ -1,3 +1,4 @@
+;utf8
 txt_memoryerror:    db 0x0A,"Memory allocation error!",0x0D,0x0A,0
 txt_fopenerror:     db 0x0A,"Cannot open file: ",0
 txt_fcreateerror:    db 0x0A,"Cannot create file: ",0
@@ -18,30 +19,24 @@ script_buf2:
 winpage2:    db 0 ;0x8000-0xbfff
 winpage3:    db 0 ;0xc000-0xffff
 
-music_buf:   db 0
-
+pagestbl:
 load_buf1:   db 0  ;13
 load_buf2:   db 0  ;24
-
 mem_buf1:    db 0 ;13
 mem_buf2:    db 0 ;24
-
 scr_buf1:    db 0 ;13 ;additional buffers. (reserved) !!! load sprites here !!!
 scr_buf2:    db 0 ;24 ;additional buffers. (reserved)
+font_page:   db 0;here goes font_rus
+plr_page:    db 0
+plr_page2:   db 0
+plr_page3:   db 0
+zx0_page:    db 0
+pagestbllen=$-pagestbl
+
 
 src_buf1:     db 0 ;datasource for screen output 
 src_buf2:     db 0
 
-font_page      db 0;here goes font_rus
-
-bank1:  db 0  ;current page for 4000
-bank2:  db 0  ;current page for 8000
-bank3:  db 0  ;current page for c000
-
-
-tbank1 db 0  ;temp page store for 4000
-tbank2 db 0  ;temp page store for 8000
-tbank3: db 0  ;temp page store for c000
 ;----setup---
 res_path:    db "SanShimai",0
 
@@ -61,7 +56,7 @@ intro_pic2      db "sp_001",0
 
 intro_text      db "intro.OVL",0
 
-intro_mus:      DB 34  
+intro_mus:      DB 1  
 
 menu_pic 	 db "sansi",0
 menu_mus 	 db 23
@@ -84,6 +79,8 @@ OVL		ds 13,0
 LOADED		ds 13,0	
 ;---palette----
 setpalflag:  db 0
+
+pal_rgb   ds 32,0xff
 
 stdpal:  STANDARDPAL
 pal:     ds 32,0xff 
@@ -114,11 +111,11 @@ DELAY db 0
 mus_path1:
         db "mus/",0
 mus_path2:        
-        db  "/mt_00.",0
+        db  "/ss_00.",0
 
 gfx_path1:        
 		db "gfx/",0
-gfx_ext db ".16c",0		
+gfx_ext db ".16z",0		
 
 ovl_path1:
 		db "ovl/",0	

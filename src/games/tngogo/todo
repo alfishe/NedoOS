@@ -1,0 +1,68 @@
+https://www.youtube.com/watch?v=gBn651d5W_Q
+
+				gid.Transfer98:
+				if scriptname = 'TEN_S108' then begin
+					// Hack: fix a missing graphic definition
+					pictureList[2].gfxName := 'TT_02';
+					pictureList[2].transitionStyle := ETransitionType.Crossfade;
+					pictureList[2].isSprite := TRUE;
+					pictureList[2].blackoutFirst := FALSE;
+					numPictures := 3;
+				end;
+
+
+
+			// Hack: separate dialogue lines
+			if scriptname = 'TEN_S007' then byte(src.PtrAt($1E4)^) := 1;
+			// Hack: fix graphic type
+			if scriptname = 'TEN_S069' then byte(src.PtrAt($33)^) := $4E;
+			// Hack: fix graphic type
+			if scriptname = 'TEN_S105' then byte(src.PtrAt($51)^) := $4E;
+			// Hack: fix graphic type
+			if scriptname = 'TEN_S106' then byte(src.PtrAt($3E)^) := $4E;
+
+
+
+
+☆ Notice Regarding the Bonus Disk ☆
+
+Congratulations on clearing the game “Angels' Afternoon ~Transfer Student~”!
+
+We are currently offering mail-order sales of the bonus disk for “Angels' Afternoon ~Transfer Student~”.
+
+Purchasing the bonus disk comes with the following benefits:
+
+1. Special additional CG scenes included on the disk  
+2. “Undressing / revealing” mode — lets you view all the girls’ CG images  
+3. Music mode — replay the wonderful voice lines used during the game  
+4. Plus other content, including especially beautiful original CG artwork newly drawn by “Tan”-sensei
+
+If you are interested, please send your:  
+- Full name  
+- Address  
+- Phone number  
+- Computer model used  
+
+via registered mail with cash enclosed.
+
+Price: ¥5,000 per disk (shipping included, tax included)
+
+MusicDriver HHDD ver.1.5b Copyright (C)1994,1995 by Hideki Higuchi Removed  
+Mouse Driver Version 1.0 Copyright (c) 1993 JAST  
+Memory has been freed.
+
+→A:* C:> dir …
+
+
+
+
+-Detailed strategy-
+Basically, it's a one-way story, but depending on how you answer the fortune teller's question at the beginning, the H-scene is skipped or there are characters who end up in a sleepover. The points to be careful about the strategy are as follows.
+
+1) If the fortune teller's second question is "dark place", Terumi will humiliate her in a back alley. If you make it a "bright place", you will have sex at the hotel.
+
+2) In order to see the sex scenes of "Kozue Hashimoto" and "Chie Utsumi", the fortune teller's questions 5 and 8 are a combination of "shy daughter" & "love" or "bright daughter" > "friendship", respectively.
+
+3) In order to see the sex scene with the fast food girl "Nana Hirose", you can meet her at a fast food restaurant before your date with Riza if you set questions 5 and 8 of the fortune teller to "bright daughter" and "love", respectively. Therefore, it will be an exclusive relationship with "Kozue Hashimoto" and "Chie Utsumi", so it is necessary to replay it at least twice. In addition, since Nana Hirose and the Hashimoto & Utsumi pair have sex scenes later, it seems better to play Nana Hirose on the main route and use the Hashimoto & Utsumi pair for replay.
+
+4) On the second date with "Risa Kudo", it becomes an ectic scene with Riza when he "plays pranks" in the movie theater. When she "watches a movie", the sex scene with Riza is skipped, but later there is a 4P scene in Azusa's room. Can be responded to by saving/loading.

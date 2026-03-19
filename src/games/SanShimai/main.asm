@@ -2,14 +2,44 @@
         include "../../_sdk/sys_h.asm"
         org PROGSTART
 
-module equ 0x5000
+;====================================================
+        macro NEXTCOLUMN
+        bit 6,h
+        set 6,h
+        jr z,1f;shapes_linehorR_incxok
+        ld a,h
+        xor 0x60
+        ld h,a
+        and 0x20
+        jr nz,1f;shapes_linehorR_incxok
+        inc hl
+1 ;shapes_linehorR_incxok
+        endm
+;====================================================
+        macro BRIGHTBYTE x
+_=x
+        if _>15
+_=15
+        endif
+_g0=~_&1
+_g1=(~_>>1)&1
+_g2=(~_>>2)&1
+_g3=(~_>>3)&1
+;0g20G3G3
+        ;db _
+        db (_g0<<6)+(_g2<<5)+(_g1<<3)+(_g3<<2)+(_g1<<1)+(_g3<<0)
+        endm
+;====================================================
+
+
+module equ 0xc000
 player_load = 0x4000
 
 ovl_start = 0x4000
 
 PLR_INIT  = 0x4000
 PLR_PLAY  = 0x4005
-PLR_MUTE  = 0x4007
+PLR_MUTE  = 0x4008
 
 GLOBVARS = 0x3800
 LOCVARS  = 0x3900
@@ -21,11 +51,14 @@ STK_SUB  = 0x3d64
 FONT     = 0x8000
 
 ANIM_BFF  = 0x9000
-ANIM_BFFR = 0x5000        
+
+sp_main = 0x4000
+sp_alt  = 0x3f70
 
 cmd_begin
     OS_HIDEFROMPARENT
-    ld sp,0x4000
+
+    ld sp,sp_main
     call pre_init    
 
 
@@ -41,10 +74,10 @@ begin:
         call load_mus
 
 
-        ld a,0
-intro_switch equ $-1
-        and a
-        call z,introduction
+;        ld a,0
+;intro_switch equ $-1
+;        and a
+;        call z,introduction
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; load menu picture
@@ -339,6 +372,7 @@ sub_dsk_end:
 sub_variables_start:
         include "variables.asm"
 sub_variables_end:
+        include "dzx0b.asm"
 
 
 
@@ -355,15 +389,40 @@ font_buf ds 16,0
 PUSH_DATA:  ds 256,0  ;//wait animation
 anim_stack: ds 256,0
 
-_pal_bright:
-        ds 32,0xff ;0 -min
-        ds 32,0xff ;1
-        ds 32,0xff ;2
-        ds 32,0xff ;3-to black
-        ds 32,0xff ;4-to white
-        ds 32,0xff ;5
-        ds 32,0xff ;6 -max
-        ds 32,0xff ;7 -max
+tbright:
+;brightness levels (black 0..7 less than original, 8 equal, 9..15 to white)
+;0, 1/12, 1/8, 3/16, 2/8, 3/8, 4/8, 6/8, 1
+_lev=0
+        dup 16 ;colour component level
+_antilev=15-_lev
+        BRIGHTBYTE _lev*0
+        BRIGHTBYTE _lev/12
+        BRIGHTBYTE _lev*1/8
+        BRIGHTBYTE _lev*3/16
+        BRIGHTBYTE _lev*2/8
+        BRIGHTBYTE _lev*3/8
+        BRIGHTBYTE _lev*4/8
+        BRIGHTBYTE _lev*6/8
+
+        BRIGHTBYTE _lev
+
+        BRIGHTBYTE 15-(_antilev*6/8)
+        BRIGHTBYTE 15-(_antilev*4/8)
+        BRIGHTBYTE 15-(_antilev*3/8)
+        BRIGHTBYTE 15-(_antilev*2/8)
+        BRIGHTBYTE 15-(_antilev*3/16)
+        BRIGHTBYTE 15-(_antilev*1/8)
+        BRIGHTBYTE 15
+
+_lev=_lev+1
+        edup
+
+t_s98_file00_pages_list:  ds 256,0
+                
+;db page, dw addr
+
+
+
 
 ;dw sprite adress
 ;dw sprite scr adress
@@ -383,7 +442,7 @@ buf:
 ;buf_ext             ds 538-(buf_ext-txt_setup),0
 
 cmd_end:        
-        include "ptsplay.asm"
+ 
         include "intro.eng.asm"
         include "intro.rus.asm"
 
@@ -400,11 +459,11 @@ cmd_end:
 	display "sub_dsk length ",/d,sub_dsk_end-sub_dsk_start," bytes"
 	display "sub_variables length ",/d,sub_variables_end-sub_variables_start," bytes"
 
-	display "buf length",/d,cmd_end-buf," bytes"
+	display "buf lenght",/d,cmd_end-buf," bytes"
 
 
-        savebin "SS-zx.com",cmd_begin,cmd_end-cmd_begin
-        savebin "aym_plr.bin",ptsbegin,ptsend-ptsbegin
-        savebin "intro.eng.OVL",introengbegin,introengend-introengbegin
-        savebin "intro.rus.OVL",introrusbegin,introrusend-introrusbegin
-        LABELSLIST "..\..\..\us\user.l"
+        savebin "SanShimai.com",cmd_begin,cmd_end-cmd_begin
+        savebin "SanShimai/ovl/eng10/intro.OVL",introengbegin,introengend-introengbegin
+        savebin "SanShimai/ovl/eng11/intro.OVL",introengbegin,introengend-introengbegin
+        savebin "SanShimai/ovl/rus/intro.OVL",introrusbegin,introrusend-introrusbegin
+        LABELSLIST "..\..\..\us\user.l"   

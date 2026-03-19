@@ -4,16 +4,16 @@ _MENU_SET:
         call _precache_menu
 
         push hl
-        xor a 
+        xor a
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;reset cursor position        
+;reset cursor position
        ld h,a
        ld l,h
-       ld (g_curpos),hl     
+       ld (g_curpos),hl
        pop hl
         call _menu
         CALL WINCLR2
-        
+
 
 
 SEARCH:
@@ -75,7 +75,7 @@ _flg_if:
         inc hl
         ld d,(hl)  ;goto value
         inc hl
-        
+
         and a
         jr z,flg_if_equ
         dec a ;1
@@ -87,7 +87,7 @@ _flg_if:
         dec a ;4
         jr z,flg_if_greater
         dec a  ;5
-        jr z,flg_if_not_equ        
+        jr z,flg_if_not_equ
         dec a ;6
         jr z,flg_if_not_equ
 
@@ -120,16 +120,16 @@ flg_if_greater_equ:
         ld a,b
         cp c
         jr nc,flg_if_jump
-        jr flg_if_exit        
+        jr flg_if_exit
 flg_if_less_equ:
         ld a,b
         cp c
         jr z,flg_if_jump
         jr c,flg_if_jump
-        jr flg_if_exit  
+        jr flg_if_exit
 flg_if_jump:
         ex de,hl
-flg_if_exit:        
+flg_if_exit:
         jp _print
 
 
@@ -145,7 +145,7 @@ _goto:
 
 _jtbl:
         LD E,(HL)
-        LD D,HIGH GLOBVARS 
+        LD D,HIGH GLOBVARS
         LD A,(DE)
         ADD A,A
         INC HL
@@ -180,18 +180,12 @@ _gata:
         ld de,0xc000
         ld bc,8000-320
         ldir
-        ;ld hl,0x8000
-        ;ld bc,320
-        ;ldir
+
 
         ld hl,0xa000+320
         ld de,0xe000
         ld bc,8000-320
         ldir
-        ;ld hl,0xa000
-        ;ld bc,320
-        ;ldir
-
 
         ld a,(user_scr0_high)
         SETPG8000
@@ -202,17 +196,11 @@ _gata:
         ld de,0xc000
         ld bc,8000-320
         ldir
-        ;ld hl,0x8000
-        ;ld bc,320
-        ;ldir
 
         ld hl,0xa000+320
         ld de,0xe000
         ld bc,8000-320
         ldir
-        ;ld hl,0xa000
-        ;ld bc,320
-        ;ldir
 
 
         pop bc
@@ -259,6 +247,8 @@ _flash:
 
         push bc
 
+
+
         ld hl,t_ppal
         call sel_word
         ld (.pall),hl
@@ -274,9 +264,9 @@ _flash:
         push bc
 
         ld hl,0
-.pall:  equ $-2        
+.pall:  equ $-2
         ld de,pal
-        ld bc,32 
+        ld bc,32
         ldir
 
         ld a,1
@@ -291,7 +281,7 @@ _flash:
 
         ld hl,temppal
         ld de,pal
-        ld bc,32 
+        ld bc,32
         ldir
 
         ld a,1
@@ -341,7 +331,7 @@ _SCREENOUTPUT1  ;SHOW FROM BUFFERS
                 xor a
                 ld (redraw_border),a
 .redraw_skip:
-                pop hl        
+                pop hl
         INC HL
         ld a,(hl)
         cp 8
@@ -421,8 +411,8 @@ _COPY_MEM_2_LOAD:
        ;call clear_all_stored_names_spr
 
        POP HL
-       JP _print        
-        
+       JP _print
+
 _T_CG:
         inc hl
         inc hl
@@ -443,7 +433,7 @@ _T_CG:
 ;         ld de,loadedSpr2
 ;         cp 2
 ;         jr z,.pos0a
-;         ld de,loadedSpr3 
+;         ld de,loadedSpr3
 ; .pos0a
          pop hl
 
@@ -499,6 +489,8 @@ _loadovl:
         call copystr_hlde
         xor a
         ld (DE),a
+        ld a,(gfx_mode_base)
+        ld (gfx_mode),a
         JP BEG
 _var_equal:
           ld a,(hl)
@@ -512,7 +504,7 @@ _var_equal:
           cp 0xf0
           jr z,.dialogue
           ld l,a
-          
+
           ld (hl),b
 
 
@@ -540,7 +532,7 @@ _var_equal:
           jp _print
 
 
-_var_plus:   
+_var_plus:
           ld a,(hl)
           inc hl
           ld b,(hl)
@@ -563,7 +555,7 @@ _var_plus:
           pop hl
           jp _print
 
-_var_minus:   
+_var_minus:
           ld a,(hl)
           inc hl
           ld b,(hl)
@@ -642,7 +634,7 @@ check_yoku:
            jp p,.next1
             ;yoku <0  . set to 0
            ld (hl),0
-            ret  
+            ret
 .next1:
             cp 101
             ret c
@@ -733,10 +725,45 @@ _toup_y:
 _toright_x:
         db 0
 _todown_y:
-        db 0        
+        db 0
 
 
 
+_WAV
+        inc hl
+        push hl
+        ld a,(hl)
+        push af
+        call setcorepage
+        pop af
+        and a
+        jr z,.mute
+        dec a
+        ld c,10
+        call ayfx.PLAY
+
+.mit:
+        call unsetcorepage
+        pop hl
+        inc hl
+        JP _print
+.mute:
+        
+        ld a,(mus_mode)
+        and a
+        jp z,.mit        
+
+        ld a,(tsfm_detected)
+        and a
+        call nz,set_ay1
+
+        ld hl, sfxdata
+        call   ayfx.INIT
+
+        ld a,(tsfm_detected)
+        and a
+        call nz,set_ay0
+        jp .mit
 
 _CDPLAY:
         inc hl
@@ -754,7 +781,7 @@ _T_WAIT:
         PUSH HL
         RLCA
         LD B,A
-.t1:     
+.t1:
         ld c,6
 .t2:     HALT
          dec c
@@ -774,7 +801,7 @@ _T_WAIT:
 
 _cls:
         call WINCLR2
-        jr WINCLR3        
+        jr WINCLR3
 ;;;;;-------------
 WINCLR:
         CALL WINCLR1
@@ -792,7 +819,7 @@ WINCLR1:
 WINCLR2:
         PUSH HL
         CALL _clear_textbox  ;-0-0-3423566400------------------
-        
+
 COOOR   LD BC,txt_coor
         call _pradd_p
         pop hl
@@ -810,7 +837,7 @@ _F_O
         pop hl
         jp _print
 
-_F_O_sub:        
+_F_O_sub:
                 ld a,(mem_buf3)
                 SETPGC000
                 ld hl,0xc000
@@ -842,7 +869,7 @@ _B_O:
                ld (redraw_border),a
 
                call clear_all_stored_names
-    
+
                 CALL _clear_textbox
 
 
@@ -857,10 +884,10 @@ _B_O_sub:
                 ld de,pal
                 ld hl,nblackpal
                 ld bc,32
-                ldir    
+                ldir
                 halt
                 ld a,1
-                ld (setpalflag),a                
+                ld (setpalflag),a
                 ret
 
 
@@ -879,7 +906,7 @@ _EVENT_CG:
                 inc hl,hl
                 ld a,(hl)
                 ld (outtyp),a
-                inc hl  
+                inc hl
                 inc hl ; skip gallery image ID
 
 
@@ -899,8 +926,20 @@ _EVENT_CG:
                 ld (de),a
                 inc hl
 
-                JP _print                
+                JP _print
 _gameend
         call fade_towhite
         CALL clear_whole_screen
-        jp begin                
+        jp begin
+;================
+set_ay0;
+      	ld a,0+%11111000
+        jr $+4
+set_ay1:
+	ld a,1+%11111000
+	ld bc,0xFFFD
+	out (c),a
+	in a,(c)
+	rlca
+	jr c,$-3 
+        ret

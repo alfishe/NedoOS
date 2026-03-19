@@ -16,6 +16,22 @@
 1 ;shapes_linehorR_incxok
         endm
 
+
+        macro BRIGHTBYTE x
+_=x
+        if _>15
+_=15
+        endif
+_g0=~_&1
+_g1=(~_>>1)&1
+_g2=(~_>>2)&1
+_g3=(~_>>3)&1
+;0g20G3G3
+        ;db _
+        db (_g0<<6)+(_g2<<5)+(_g1<<3)+(_g3<<2)+(_g1<<1)+(_g3<<0)
+        endm
+
+
 print_v_limit:   equ 0x17
 print_p_len:     equ 53
 txt_coor:        equ 0x1400
@@ -31,11 +47,9 @@ ovl_start = 0x4000
 
 PLR_INIT  = 0x4000
 PLR_PLAY  = 0x4005
-PLR_MUTE  = 0x4007
+PLR_MUTE  = 0x4008
 
 
-;LOCVARS  = 0x3900
-;ACTMENU  = 0x3a00
 GLOBVARS = 0x3c00 ;0x3800
 ILINK    = 0x3d00
 STK_MENU = 0x3e00
@@ -44,24 +58,24 @@ FONT     = 0x8000
 FONT2    = 0x9000
 
 ANIM_BFF  = 0x9000
-ANIM_BFFR = 0x5000        
+ANIM_BFFR = 0x5000
 
 sp_main = 0x4000
-sp_alt  = 0x3f90
+sp_alt  = 0x3f70
 
 cmd_begin
                     OS_HIDEFROMPARENT
                     ld sp,sp_main
-                    call pre_init    
-
+                    call pre_init
 
 begin:
-                        ld a,6
-                        ld (outtyp),a
+        ld a,(gfx_mode_base)
+        ld (gfx_mode),a
+        ld a,6
+        ld (outtyp),a
 
-                
-                        ld a,(menu_mus)
-                        call load_mus
+        ld a,(menu_mus)
+        call load_mus
 
 
 
@@ -84,7 +98,7 @@ _main_menu_mmm:
         push de
         ld a,(language)
         call sel_word
-        
+
         call _pre_setup
         call _pre_menu_store_bgnd
         call _draw_menu_box
@@ -92,7 +106,7 @@ _main_menu_mmm:
 
 
 
-_mmnu_r1        
+_mmnu_r1
         call _sel_menu
         cp 0xff
         jr z,_mmnu_r1 ;block esc
@@ -111,17 +125,17 @@ _gamequit
 
 _loadgame
         ld hl,loc_load_menu
-        ld de,menu_load_action        
+        ld de,menu_load_action
 
         push de
         ld a,(language)
         call sel_word
-        
+
         call _pre_setup
         call _pre_menu_store_bgnd
         call _draw_menu_box
         call _prt_menu
-        
+
         call _sel_menu
         call _pre_menu_restore_bgnd
         pop hl
@@ -171,7 +185,17 @@ _load_common:
          ld de,0x8000
          call readstream_file
          or a
-        jp nz,filereaderror 
+        jp nz,filereaderror
+
+
+        ld a,(0xffff)
+        and a
+        jp z,2f
+        cp 1
+        jp nz,1f
+2
+        ld (gfx_mode),a
+1
 
         call restore8000c000
 
@@ -179,46 +203,46 @@ _load_common:
         ld hl,32
         call readstream_file
         or a
-        jp nz,filereaderror 
+        jp nz,filereaderror
 
 
         ld de,GLOBVARS
         ld hl,256
         call readstream_file
         or a
-        jp nz,filereaderror 
+        jp nz,filereaderror
 
 
         ld de,loadedCg
         ld hl,32
         call readstream_file
         or a
-        jp nz,filereaderror 
+        jp nz,filereaderror
 
         ld de,OVL
         ld hl,32
         call readstream_file
         or a
-        jp nz,filereaderror 
+        jp nz,filereaderror
 
 
         ld de,text_pointer
         ld hl,2
         call readstream_file
         or a
-        jp nz,filereaderror 
+        jp nz,filereaderror
 
         ld de,redraw_border
         ld hl,1
         call readstream_file
         or a
-        jp nz,filereaderror 
+        jp nz,filereaderror
 
         ld de,t_mus
         ld hl,1
         call readstream_file
         or a
-        jp nz,filereaderror 
+        jp nz,filereaderror
 
         call closestream_file
 
@@ -261,7 +285,7 @@ freddd:
         ld hl,t_pal
         ld de,pal
         ld bc,32
-        ldir 
+        ldir
 
         xor a
         ld (outtyp),a
@@ -273,7 +297,7 @@ freddd:
 
         ld hl,loadedCg
         ld a,(hl)
-        and a    
+        and a
         call nz,_buffer_output
 
 
@@ -297,11 +321,11 @@ NWGAM:
         DJNZ $-2
         ld hl,FSTOVL
 
-GAMESTART1:      
+GAMESTART1:
         ld de,OVL
         call copystr_hlde
         xor a
-        ld (de),a        
+        ld (de),a
 
         call clear_whole_screen
 
@@ -359,9 +383,9 @@ _print:
         ld a,(script_buf1)
         SETPG4000
         ld a,(script_buf2)
-        SETPG8000 
+        SETPG8000
 
-        ld de,txt_buff        
+        ld de,txt_buff
         ld c,0   ;//symbol counter
 
 .p0:
@@ -381,7 +405,7 @@ _print:
         xor a
         ld (first_letter),a
         ld (text_pointer),hl
-        
+
 
 .pm0
         inc hl
@@ -411,7 +435,7 @@ _print:
 ;        jr .p1_0
 ;.p1_01:
 ;        xor a
-;        ld (just_cr),a    
+;        ld (just_cr),a
 .p1_0:
 
         push af
@@ -445,10 +469,10 @@ _print:
         ld (_type_color),hl
         pop hl
         jr .npo0
-.npo00        
+.npo00
         xor a
         ld (first_word),a
-.npo0      
+.npo0
         call _print_txt_buf_p
 
         ld a,(first_word)
@@ -548,6 +572,9 @@ _tokenTable
         db 0x06
         dw _CDPLAY
 
+        db 0x07
+        dw _WAV
+
         db 0x0b
         dw _group0b ;!!!!!!!!
 
@@ -597,7 +624,7 @@ _tokenTable0b
         dw _jtbl
         db 0x40
         dw _flg_if
-        
+
         db 0xff
 
 _tokenTable13
@@ -610,7 +637,7 @@ _tokenTable13
         db 0x04
         dw _LOAD_TO_MEM
         db 0x0f
-        dw _COPY_MEM_2_LOAD    
+        dw _COPY_MEM_2_LOAD
         db 0xff
 
 
@@ -669,7 +696,7 @@ _groups:
         ret
 .p5_8:
         pop hl
-        jp _print     
+        jp _print
 
 
 
@@ -703,7 +730,7 @@ sub_dsk_end:
 sub_variables_start:
         include "variables.asm"
 sub_variables_end:
-
+        include "dzx0b.asm"
 
 
 code_end:
@@ -722,50 +749,6 @@ t_s98_file00_pages_list:  ds 256,0
 PUSH_DATA:  ds 256,0  ;//wait animation
 CUR_DATA:   ds 128,0
 CUR_BGND_STORE: ds 128,0
-
-
-        macro BRIGHTBYTE x
-_=x
-        if _>15
-_=15
-        endif
-_g0=~_&1
-_g1=(~_>>1)&1
-_g2=(~_>>2)&1
-_g3=(~_>>3)&1
-;0g20G3G3
-        ;db _
-        db (_g0<<6)+(_g2<<5)+(_g1<<3)+(_g3<<2)+(_g1<<1)+(_g3<<0)
-        endm
-
-        align 256
-tbright
-;brightness levels (black 0..7 less than original, 8 equal, 9..15 to white)
-;0, 1/12, 1/8, 3/16, 2/8, 3/8, 4/8, 6/8, 1
-_lev=0
-        dup 16 ;colour component level
-_antilev=15-_lev
-        BRIGHTBYTE _lev*0
-        BRIGHTBYTE _lev/12
-        BRIGHTBYTE _lev*1/8
-        BRIGHTBYTE _lev*3/16
-        BRIGHTBYTE _lev*2/8
-        BRIGHTBYTE _lev*3/8
-        BRIGHTBYTE _lev*4/8
-        BRIGHTBYTE _lev*6/8
-
-        BRIGHTBYTE _lev
-
-        BRIGHTBYTE 15-(_antilev*6/8)
-        BRIGHTBYTE 15-(_antilev*4/8)
-        BRIGHTBYTE 15-(_antilev*3/8)
-        BRIGHTBYTE 15-(_antilev*2/8)
-        BRIGHTBYTE 15-(_antilev*3/16)
-        BRIGHTBYTE 15-(_antilev*1/8)
-        BRIGHTBYTE 15
-
-_lev=_lev+1
-        edup
 
         align 256
 tx
@@ -802,7 +785,7 @@ ty
         align 256
 SCTBL:          ;structure
         DW      S1, S2, S3, S4, S5, S6, S7, S8
-        dw 0xffff    
+        dw 0xffff
 
 COMTBL:         ;tree
         DW      CM1, CM2, CM3, CM4, CM5, CM6, CM7, CM8
@@ -820,38 +803,41 @@ CM8:    DW      0 ,    -1
 S1:     DW      0,-1,1, 1 ;0  - adress od menu name string
 S2:     DW      0,-1,2, 1 ;1 - goto addr.
 S3:     DW      0,-1,3, 1
-S4:     DW      0,-1,4, 1        
+S4:     DW      0,-1,4, 1
 S5:     DW      0,-1,5, 1
 S6:     DW      0,-1,6, 1
 S7:     DW      0,-1,7, 1
-S8:     DW      0,-1,8, 1        
+S8:     DW      0,-1,8, 1
         DW      0xffff
-buf:            
+buf:
          include "buf.asm"
 
 ;buf_ext             ds 538-(buf_ext-txt_setup),0
 
-cmd_end:        
-        include "ptsplay.asm"
-;        include "intro.eng.asm"
-;        include "intro.rus.asm"
+cmd_end:
+         include "page4000.asm"
 
 
-
+        display "binary length  ",/d,cmd_end-cmd_begin," bytes"
+        display "main.com code_length ",/d,code_end-cmd_begin ," bytes"
         display "main.com free space ",/d,GLOBVARS-buf," bytes"
 
-       display "main.com code_length ",/d,code_end-cmd_begin ," bytes"
 
-        display "main.com length ",/d,main_end-cmd_begin," bytes"
-        display "gf_func length ",/d,gf_func_end-gf_func_start," bytes"
-        display "sub_func length ",/d,sub_func_end-sub_func_start," bytes"
-        display "sub_vars length ",/d,sub_vars_end-sub_vars_start," bytes"
-        display "sub_dsk length ",/d,sub_dsk_end-sub_dsk_start," bytes"
-        display "sub_variables length ",/d,sub_variables_end-sub_variables_start," bytes"
 
+;        display "main.com length ",/d,main_end-cmd_begin," bytes"
+;        display "gf_func length ",/d,gf_func_end-gf_func_start," bytes"
+;        display "sub_func length ",/d,sub_func_end-sub_func_start," bytes"
+;        display "sub_vars length ",/d,sub_vars_end-sub_vars_start," bytes"
+;        display "sub_dsk length ",/d,sub_dsk_end-sub_dsk_start," bytes"
+;        display "sub_variables length ",/d,sub_variables_end-sub_variables_start," bytes"
+
+
+        display "buf location",/d,buf," bytes"
         display "buf lenght",/d,cmd_end-buf," bytes"
+
+        display "cmd_end",/d,cmd_end," bytes"
 
 
         savebin "tenkosei.com",cmd_begin,cmd_end-cmd_begin
-        savebin "aym_plr.bin",ptsbegin,ptsend-ptsbegin
-        LABELSLIST "../../../us/user.l",1
+        savebin "tenkosei/page4000.bin",page4000begin,page4000end-page4000begin
+        LABELSLIST "..\..\..\us\user.l"

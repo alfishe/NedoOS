@@ -1,6 +1,12 @@
 txt_setup:          db 0x0A,"Three Sisters' story (San Shimai)",0x0D,0x0A
                     db "(c) 1996 JAST",0x0D,0x0A
+                    db "(L) 2021 - 2025 Zorba (Transman/Triumf)",0x0D,0x0A
                     db "----------------------------------------",0x0D,0x0A
+                    db "Music powered by:",0x0D,0x0A
+                    db "> TurbosoundFM S98 driver by NEO SPECTRUMAN",0x0D,0x0A
+                    db "> ZXM-Moonsound OPL3 driver by Galstaff",0x0D,0x0A
+                    db "> ZXM-Moonsound OPL4 MIDI driver by Zorba",0x0D,0x0A
+                    db "----------------------------------------",0x0D,0x0A,0x0D,0x0A
                     db "language setup",0x0D,0x0A
                     db 0x0D,0x0A
                     db "1. English v1.0 (Sakura Soft)",0x0D,0x0A
@@ -14,6 +20,16 @@ txt_censor_setup:
                     db 0x0D,0x0A
                     db "1. Yes",0x0D,0x0A
                     db "2. No",0x0D,0x0A
+                    db 0
+mus_gfx_setup:
+                    db 0x0D,0x0A
+                    db "----------------------------------------",0x0D,0x0A
+                    db "Music set",0x0D,0x0A
+                    db 0x0D,0x0A
+                    db "1. AY",0x0D,0x0A
+                    db "2. TSFM [ s98 ]",0x0D,0x0A
+                    db "3. OPL3 board [ VGM ]",0x0D,0x0A
+                    db "4. OPL4 board [ MIDI ]",0x0D,0x0A
                     db 0
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;         
 import_push:
@@ -29,30 +45,30 @@ import_push:
         ld hl,0x8005
         ld de,PUSH_DATA
 
-        ld b,8
-import_push_loop:
+        ld b,8 ;8
+.l0:
         push bc
 
 
         push hl
         ld b,8
-import_push_iloop1:
+.l1:
         ld a,(hl)
         ld (de),a
         call DHL
         inc de
-        djnz import_push_iloop1
+        djnz .l1
         pop hl
 
         set 6,H
         push hl
         ld b,8
-import_push_iloop2:
+.l2:
         ld a,(hl)
         ld (de),a
         call DHL
         inc de
-        djnz import_push_iloop2
+        djnz .l2
         pop hl
 
         res 6,H
@@ -60,23 +76,23 @@ import_push_iloop2:
 
         push hl
         ld b,8
-import_push_iloop3:
+.l3:
         ld a,(hl)
         ld (de),a
         call DHL
         inc de
-        djnz import_push_iloop3
+        djnz .l3
         pop hl
 
         set 6,H
         push hl
         ld b,8
-import_push_iloop4:
+.l4:
         ld a,(hl)
         ld (de),a
         call DHL
         inc de
-        djnz import_push_iloop4
+        djnz .l4
         pop hl
 
         res 6,H
@@ -84,10 +100,30 @@ import_push_iloop4:
         inc hl
 
         pop bc
-        djnz import_push_loop
+        djnz .l0
         jp restore8000c000
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;         
-pre_init
+MOON_BASE = 0xc4
+MOON_REG1 = MOON_BASE
+MOON_DAT1 = MOON_BASE+1
+MOON_REG2 = MOON_BASE+2
+MOON_DAT2 = MOON_BASE+3
+MOON_STAT = MOON_BASE
+MOON_WREG = 0xc2
+MOON_WDAT = MOON_WREG+1       
+
+
+	macro switch_to_pcm_ports_c2_c3
+	in a,(MOON_REG2)
+	endm
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
+memoryerror2:
+        pop hl,bc
+        jp memoryerror
+        
+pre_init:
+        switch_to_pcm_ports_c2_c3
+
     ld e,6+0x80  //set TEXT mode  keep
     OS_SETGFX
 
@@ -105,57 +141,19 @@ pre_init
         ld a,l
         ld (winpage3),a
 
-; get music page page
+;-----------------------------------------		
+        ld b,pagestbllen
+        ld hl,pagestbl
+.getpagesloop
+        push bc,hl
         OS_NEWPAGE
         or a
-        jp nz,memoryerror
-        ld a,e
-        ld (music_buf),a
-
-; get gfx load buffer  2 pages
-        OS_NEWPAGE
-        or a
-        jp nz,memoryerror
-        ld a,e
-        ld (load_buf1),a
-
-        OS_NEWPAGE
-        or a
-        jp nz,memoryerror
-        ld a,e
-        ld (load_buf2),a
-
-; get ingame gfx buffer pages 6 pages
-        OS_NEWPAGE
-        or a
-        jp nz,memoryerror
-        ld a,e
-        ld (scr_buf1),a
-
-        OS_NEWPAGE
-        or a
-        jp nz,memoryerror
-        ld a,e
-        ld (scr_buf2),a
-
-        OS_NEWPAGE
-        or a
-        jp nz,memoryerror
-        ld a,e
-        ld (mem_buf1),a
-
-        OS_NEWPAGE
-        or a
-        jp nz,memoryerror
-        ld a,e
-        ld (mem_buf2),a
-
-        OS_NEWPAGE
-        or a
-        jp nz,memoryerror
-        ld a,e
-        ld (font_page),a
-
+        jp nz,memoryerror2
+        pop hl,bc
+        ld (hl),e
+        inc hl
+        djnz .getpagesloop
+;-----------------------------------------
 
         ld hl,txt_setup
         call print_hl
@@ -178,6 +176,38 @@ setup_is3:
          ld a,2
 setup_set:
         ld (language),a
+
+;============================
+        ld hl,mus_gfx_setup
+        call print_hl
+
+
+setup_mus_lp:
+        YIELDGETKEYLOOP
+        cp "1"
+        jr z,_set_ay
+        cp "2"
+        jr z,_set_tsfm
+        cp "3"
+        jr z,_set_msnd
+        cp "4"
+        jr z,_set_midi
+        jr setup_mus_lp
+_set_midi:
+        ld a,3
+        jr _set_mu
+_set_msnd:
+        ld a,2
+        jr _set_mu
+_set_tsfm:
+        ld a,1
+        jr _set_mu
+_set_ay:
+        xor a
+_set_mu:
+        ld (mus_mode),a
+
+;============================
 
         ld hl,txt_censor_setup
         call print_hl
@@ -206,7 +236,7 @@ setup_setc:
         ;--load music player
 
 
-              call setmusicpage
+              call set_music_pages
                 ld a,(mus_mode)
                 ld hl,mus_modes
                 call sel_word
@@ -224,7 +254,7 @@ setup_setc:
                 or a
                 jp nz,fileopenerror
 
-                ld hl,0x4000 ;len
+                ld hl,0x8000 ;len
                 ld de,player_load ;addr
                 call readstream_file
                 or a
@@ -232,7 +262,9 @@ setup_setc:
 
                 call closestream_file
 
-             call unsetmusicpage
+             call unset_music_pages
+
+
 ;load font 
 loadfont:
               call setfontpage
@@ -267,15 +299,26 @@ deb_lnk
 
 
 
-;ï¸¨á¦¬ mem_buf. é²¯ï¬¼è´¥ó²½ ë¡ª í¾§í±­ç¡½ë± ë‹Š        
+;===clear_memory bufer
         ld a,(mem_buf1)
-        SETPGC000
-        ld hl,0xc000
-        ld de,0xc001
-        ld bc,16383
-        ld (hl),0
-        ldir
+        call pg_clr
         ld a,(mem_buf2)
+        call pg_clr
+;----------------------------------------------------
+;        call palette_precalc
+        call fade_toblack
+        CALL clear_whole_screen
+
+        ld de,pal
+        ld hl,temppal
+        ld bc,32
+        ldir    
+	ld a,1
+	ld (setpalflag),a
+
+        jp introduction
+        
+pg_clr:
         SETPGC000
         ld hl,0xc000
         ld de,0xc001
@@ -295,7 +338,8 @@ introduction
         ld hl,TABLE_W
         ld (CODEPAGE),hl
 
-
+        ld a,(intro_mus)
+        call load_mus
 
         ld b,0
 introduction_loop:
@@ -327,8 +371,8 @@ introduction_pause:
 
 introduction_exit:
 ;        call clear_whole_screen
-        ld a,1
-        ld (intro_switch),a
+;        ld a,1
+;        ld (intro_switch),a
         ret
 
 
@@ -357,9 +401,9 @@ introduction_st2
 
 
         call store8000c000
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPG8000
-        ld a,(user_scr1_low) ;ok
+        ld a,(user_scr1_low)
         SETPGC000
 
         ld hl,0x8000
@@ -368,9 +412,9 @@ introduction_st2
         ldir
 
 
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPG8000
-        ld a,(user_scr1_high) ;ok
+        ld a,(user_scr1_high)
         SETPGC000
 
         ld hl,0x8000
@@ -381,9 +425,9 @@ introduction_st2
 ;        ld e,1
 ;        OS_SETSCREEN
 ;
-;        ld a,(user_scr0_low) ;ok
+;        ld a,(user_scr0_low)
 ;        SETPG8000
-;        ld a,(user_scr0_high) ;ok
+;        ld a,(user_scr0_high)
 ;        SETPGC000
 ;
 ;        ld hl,0x8000
@@ -403,9 +447,9 @@ introduction_st2
 
 
         call store8000c000
-        ld a,(user_scr1_low) ;ok
+        ld a,(user_scr1_low)
         SETPG8000
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 
         ld hl,0x8000
@@ -414,9 +458,9 @@ introduction_st2
         ldir
 
 
-        ld a,(user_scr1_high) ;ok
+        ld a,(user_scr1_high)
         SETPG8000
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
 
         ld hl,0x8000

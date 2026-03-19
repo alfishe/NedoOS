@@ -1,0 +1,41 @@
+BODY{
+  color : #eeeeee;
+  background-color : #000040;
+  line-height : 135%;
+  letter-spacing: 0.1em;
+  margin-top: 30px;
+}
+A:LINK{
+  color : #00ffff;
+  text-decoration : underline;
+}
+V:LINK{
+  color : #00bbff;
+  text-decoration : underline;
+}
+BR{
+  letter-spacing : 0;
+}
+H1{
+  font-style : normal;
+  color : #00FF00;
+  font-size : x-large;
+  font-family : "ÇlÇr ÇoÉSÉVÉbÉN","ÇlÇr ÉSÉVÉbÉN", Osaka;
+  font-weight : normal;
+  text-align : left;
+  border-color: #6666FF;
+  padding-top: 10px;
+  padding-right: 8px;
+  padding-bottom: 8px;
+  padding-left: 8px;
+  border-style : double;
+  border-top-width : 4px;
+  border-right-width : 4px;
+  border-bottom-width : 4px;
+  border-left-width : 4px;
+}
+H4{
+  font-style : normal;
+  color : #000060;
+}
+

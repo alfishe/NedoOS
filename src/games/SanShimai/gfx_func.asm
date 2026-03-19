@@ -37,7 +37,7 @@ _immed_big:
         halt
         ld a,(load_buf1)
         SETPG8000
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 
 
@@ -50,7 +50,7 @@ _immed_big:
         
         ld a,(load_buf2)
         SETPG8000
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
 
 
@@ -62,7 +62,7 @@ _immed_big:
         
         ld a,(load_buf1)
         SETPG8000
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 
 
@@ -75,7 +75,7 @@ _immed_big:
         
         ld a,(load_buf2)
         SETPG8000
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
 
 
@@ -116,7 +116,7 @@ _sidas_loop1
 
         ld a,(src_buf1)
         SETPG8000
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 
 
@@ -151,7 +151,7 @@ sidas_l1 equ $-2
 
         ld a,(src_buf2)
         SETPG8000
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
 
         ld hl,0
@@ -276,9 +276,9 @@ _memory_output_o:
 _2ndscreen_output:
         xor a
         ld (mask_mode),a
-        ld a,(user_scr1_low) ;ok
+        ld a,(user_scr1_low)
         ld (src_buf1),a
-        ld a,(user_scr1_high) ;ok
+        ld a,(user_scr1_high)
         ld (src_buf2),a 
         jr _mb_output
 _buffer_output_mask:
@@ -331,7 +331,7 @@ _immed:
         halt
         ld a,(src_buf1)
         SETPG8000
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 
         ld hl,0x8005
@@ -355,10 +355,10 @@ _immed_v1:
 
 
 
-        halt
+;        halt
         ld a,(src_buf2)
         SETPG8000
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
 
         ld hl,0x8005
@@ -383,7 +383,7 @@ _immed_v2:
         halt
         ld a,(src_buf1)
         SETPG8000
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 
         ld hl,0xa005
@@ -405,10 +405,10 @@ _immed_v3:
         pop bc 
         djnz _immed_v3
 
-        halt
+;        halt
         ld a,(src_buf2)
         SETPG8000
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000        
 
         ld hl,0xa005
@@ -456,18 +456,18 @@ _down_cpy:
         and a
         jr nz,_down_cpy_iob
 
-        push bc
+;        push bc
         ld a,(hl)
         ld (de),a
         call DHL
         ex de,hl
         call DHL
         ex de,hl
-        pop bc
+;        pop bc
         djnz _down_cpy
         ret
 _down_cpy_iob:
-        push bc
+;        push bc
 
         ex de,hl
         call _iob_byte
@@ -477,7 +477,7 @@ _down_cpy_iob:
         ex de,hl
         call DHL
         ex de,hl
-        pop bc
+;        pop bc
         djnz _down_cpy
         ret
 ;------------------------------------------------------------------        
@@ -496,6 +496,14 @@ _lftrgt:
 _lftrgt_loop        
         push bc
 
+_lftrgt_lock:
+         ld a,0        
+        xor 1
+        ld (_lftrgt_lock+1),a
+        jr z,_lftrgt_halt_skip
+        halt
+_lftrgt_halt_skip:
+
         push hl
         pop de
 
@@ -509,10 +517,10 @@ _lftrgt_loop
         push hl
         push de
 
-        halt
+
         ld a,(src_buf1)
         SETPG8000
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 
 
@@ -524,10 +532,10 @@ _lftrgt_loop
         push hl
         push de
 
-        halt
+;        halt
         ld a,(src_buf2)
         SETPG8000
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
 
         ld b,148
@@ -546,7 +554,7 @@ _lftrgt_loop
         halt
         ld a,(src_buf1)
         SETPG8000
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 
 
@@ -558,10 +566,10 @@ _lftrgt_loop
         push hl
         push de
 
-        halt
+;        halt
         ld a,(src_buf2)
         SETPG8000
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
 
         ld b,148
@@ -595,16 +603,24 @@ _sidas:
 
         ld b,30
 _sidas_loop        
+
+
+_sidas_lock:
+         ld a,0        
+        xor 1
+        ld (_sidas_lock+1),a
+        jr z,_sidas_halt_skip
+        halt
+_sidas_halt_skip:
+
+
         push bc
 
 
         ld a,(src_buf1)
         SETPG8000
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
-
-
-        halt
 
         ld hl,0
 sidas_l equ $-2        
@@ -640,7 +656,7 @@ sidas_l equ $-2
 
         ld a,(src_buf2)
         SETPG8000
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
 
         ld hl,0
@@ -701,14 +717,23 @@ _ud_nd:
 
         ld b,148/2 ;160/2
 _ud_nd_loop:        
+
+
+_ud_nd_lock:
+         ld a,0        
+        xor 1
+        ld (_ud_nd_lock+1),a
+        jr z,_ud_nd_halt_skip
         halt
+_ud_nd_halt_skip:
+
         push bc
 
 
 
         ld a,(src_buf1)
         SETPG8000
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 
 
@@ -766,7 +791,7 @@ _ud_nd_btm: equ $-2
 
         ld a,(src_buf2)
         SETPG8000
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
 
 
@@ -852,14 +877,22 @@ _dn_up:
 
         ld b,74 ;148/2
 _dn_up_loop:        
+
+
+_dn_up_lock:
+         ld a,0        
+        xor 1
+        ld (_dn_up_lock+1),a
+        jr z,_dn_up_halt_skip
         halt
+_dn_up_halt_skip:
+
+
+
         push bc
-
-
-
         ld a,(src_buf1)
         SETPG8000
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 
 
@@ -917,7 +950,7 @@ _dn_up_btm: equ $-2
 
         ld a,(src_buf2)
         SETPG8000
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
 
 
@@ -1004,12 +1037,20 @@ _jaluzi:
 
         ld b,74 ;148/2
 _jaluzi_loop:
+
+_jaluzi_lock:
+         ld a,0        
+        xor 1
+        ld (_jaluzi_lock+1),a
+        jr z,_jaluzi_halt_skip
         halt
+_jaluzi_halt_skip:
+
         push bc
 
         ld a,(src_buf1)
         SETPG8000
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 
 
@@ -1067,7 +1108,7 @@ _jaluzi_btm: equ $-2
 
         ld a,(src_buf2)
         SETPG8000
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
 
 
@@ -1156,7 +1197,15 @@ _cntsds:
 
         ld b,60  ; 256 /2 /2
 _cntsds_loop:
+
+_cntsds_lock:
+         ld a,0        
+        xor 1
+        ld (_cntsds_lock+1),a
+        jr z,_cntsds_halt_skip
         halt
+_cntsds_halt_skip:
+
         push bc
 
         ld hl,_cntsds_loop_end
@@ -1191,7 +1240,7 @@ _cntsds_loop_end:
 _cntsds_f0:
         ld a,(src_buf2)
         SETPG8000
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
 
         ld hl,0
@@ -1213,7 +1262,7 @@ _cntsds_lft: equ $-2
 
         ld a,(src_buf1)
         SETPG8000
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 
         ld hl,0
@@ -1235,7 +1284,7 @@ _cntsds_rgt: equ $-2
 _cntsds_f2:
         ld a,(src_buf2)
         SETPG8000
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
 
         ld hl,(_cntsds_lft)
@@ -1253,7 +1302,7 @@ _cntsds_f2:
 
         ld a,(src_buf1)
         SETPG8000
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 
         ld hl,(_cntsds_rgt)
@@ -1277,7 +1326,7 @@ _cntsds_f2:
 _cntsds_f1:
         ld a,(src_buf1)
         SETPG8000
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 
         ld hl,(_cntsds_lft)
@@ -1298,7 +1347,7 @@ _cntsds_f1:
 
         ld a,(src_buf2)
         SETPG8000
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
 
         ld hl,(_cntsds_rgt)
@@ -1317,7 +1366,7 @@ _cntsds_f1:
 _cntsds_f3:
         ld a,(src_buf1)
         SETPG8000
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 
         ld hl,(_cntsds_lft)
@@ -1340,7 +1389,7 @@ _cntsds_f3:
 
         ld a,(src_buf2)
         SETPG8000
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
 
         ld hl,(_cntsds_rgt)
@@ -1387,7 +1436,17 @@ _cntsds_r:
 
         ld b,64  ; 256 /2 /2
 _cntsds_loop_r:
+
+
+_cntsds_lock1:
+         ld a,0        
+        xor 1
+        ld (_cntsds_lock1+1),a
+        jr z,_cntsds_halt_skip1
         halt
+_cntsds_halt_skip1:
+
+
         push bc
 
         ld hl,_cntsds_loop_end_r
@@ -1422,7 +1481,7 @@ _cntsds_loop_end_r:
 _cntsds_f0_r:
         ld a,(src_buf2)
         SETPG8000
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
 
         ld hl,0
@@ -1449,7 +1508,7 @@ _cntsds_lft_r: equ $-2
 
         ld a,(src_buf1)
         SETPG8000
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 
         ld hl,0
@@ -1477,7 +1536,7 @@ _cntsds_rgt_r: equ $-2
 _cntsds_f2_r:
         ld a,(src_buf2)
         SETPG8000
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
 
         ld hl,(_cntsds_lft_r)
@@ -1495,7 +1554,7 @@ _cntsds_f2_r:
 
         ld a,(src_buf1)
         SETPG8000
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 
         ld hl,(_cntsds_rgt_r)
@@ -1519,7 +1578,7 @@ _cntsds_f2_r:
 _cntsds_f1_r:
         ld a,(src_buf1)
         SETPG8000
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 
         ld hl,(_cntsds_lft_r)
@@ -1540,7 +1599,7 @@ _cntsds_f1_r:
 
         ld a,(src_buf2)
         SETPG8000
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
 
         ld hl,(_cntsds_rgt_r)
@@ -1559,7 +1618,7 @@ _cntsds_f1_r:
 _cntsds_f3_r:
         ld a,(src_buf1)
         SETPG8000
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 
         ld hl,(_cntsds_lft_r)
@@ -1577,7 +1636,7 @@ _cntsds_f3_r:
 
         ld a,(src_buf2)
         SETPG8000
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
 
         ld hl,(_cntsds_rgt_r)
@@ -1658,7 +1717,7 @@ M10:
 
         ld de,font_buf
         push hl
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
         ld b,8
 _ppnz2:
@@ -1673,7 +1732,7 @@ _ppnz2:
         pop hl
 
         push hl
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
         ld b,8
 _ppnz3:
@@ -1727,14 +1786,14 @@ DHL
 ;;;;;;;;;;;;;;;;;;;;;;;
 clear_whole_screen:
         call storec000
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
         LD HL,#C000
         LD DE,#C001
         LD BC,16383
         LD [HL],L
         LDIR
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
         LD HL,#C000
         LD DE,#C001
@@ -1746,7 +1805,7 @@ clear_whole_screen:
 _clear_textbox:
         call storec000
 
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
 CLEARER_ LD HL,0xda44-160      ;D080
 CLEARER1 LD B,32
@@ -1776,7 +1835,7 @@ CLEARER3 LD B,32
         ADD HL,DE
         DJNZ 25B
 
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 CLEARER_A LD HL,0xda44-160
 CLEARER1A LD B,32
@@ -1940,7 +1999,7 @@ _line_lenght equ $-1
          set 5,h
          LD [LINE1_2],HL
 
-         ld a,(user_scr0_high) ;ok
+         ld a,(user_scr0_high)
          SETPGC000
 
          LD HL,0
@@ -1974,7 +2033,7 @@ LINELEN0 EQU $-1
          POP BC
          DJNZ 0B
 
-         ld a,(user_scr0_low) ;ok
+         ld a,(user_scr0_low)
          SETPGC000
 
          LD HL,(LINE1_1)
@@ -2020,7 +2079,7 @@ _pre_menu_store_bgnd:
         ld a,(src_buf1)
         SETPG8000
 
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 
         ld hl,0xd680
@@ -2033,7 +2092,7 @@ _pre_menu_store_bgnd:
         ldir
 
 
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
         ld hl,0xd680
         ld bc,320*7
@@ -2056,7 +2115,7 @@ _pre_menu_restore_bgnd:
         ld a,(src_buf1)
         SETPG8000
 
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPGC000
 
         ld hl,0x8000
@@ -2068,7 +2127,7 @@ _pre_menu_restore_bgnd:
         ld bc,320*7
         ldir
 
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPGC000
         ld de,0xd680
         ld bc,320*7
@@ -2081,6 +2140,13 @@ _pre_menu_restore_bgnd:
         pop hl
         pop af
         ret
+EXITDARK
+
+        call palette_precalc
+        call fade_toblack
+
+       CALL clear_whole_screen
+       JP begin
 ;;;;;;=====
 FLASH
         ld b,(hl)
@@ -2143,48 +2209,60 @@ SHAKE:
 
         call store8000c000
 
-        ld a,(user_scr0_low) ;ok
+        ld a,(user_scr0_low)
         SETPG8000
-        ld a,(user_scr1_low) ;ok
+        ld a,(user_scr1_low)
         SETPGC000
 
+                ld hl,0x8000
+                ld de,0xc000+(200-8)*40
+                ld bc,8*40
+                ldir
+        
+        
+                ld hl,0xa000
+                ld de,0xe000+(200-8)*40
+                ld bc,8*40
+                ldir
+        
         ld hl,0x8000+320
         ld de,0xc000
         ld bc,8000-320
         ldir
-        ;ld hl,0x8000
-        ;ld bc,320
-        ;ldir
+       
 
         ld hl,0xa000+320
         ld de,0xe000
         ld bc,8000-320
         ldir
-        ;ld hl,0xa000
-        ;ld bc,320
-        ;ldir
 
 
-        ld a,(user_scr0_high) ;ok
+        ld a,(user_scr0_high)
         SETPG8000
-        ld a,(user_scr1_high) ;ok
+        ld a,(user_scr1_high)
         SETPGC000
 
+                ld hl,0x8000
+                ld de,0xc000+(200-8)*40
+                ld bc,8*40
+                ldir
+        
+        
+                ld hl,0xa000
+                ld de,0xe000+(200-8)*40
+                ld bc,8*40
+                ldir
+        
         ld hl,0x8000+320
         ld de,0xc000
         ld bc,8000-320
         ldir
-        ;ld hl,0x8000
-        ;ld bc,320
-        ;ldir
+        
 
         ld hl,0xa000+320
         ld de,0xe000
         ld bc,8000-320
         ldir
-        ;ld hl,0xa000
-        ;ld bc,320
-        ;ldir
 
 
         pop bc
@@ -2491,19 +2569,10 @@ dcrspr_len dw 0      ; cutted length
 anim_wait:
         LD	A,0
         INC	A
-        AND	3
+        AND	7
         LD	(anim_wait+1),A
         RET	NZ
-
-        call store8000c000
-
-        ld a,(user_scr0_low) ;ok
-        SETPG8000
-
-        ld a,(user_scr0_high) ;ok
-        SETPGC000
-
-        
+       
         ld hl,PUSH_DATA
         ld de,0x9e23-160
 
@@ -2571,7 +2640,7 @@ export_push_iloop4:
         and 7
         ld (FASE),a
 
-        jp restore8000c000
+        ret
 ;----------------------------- 
 anim_eyes:
 
@@ -2582,21 +2651,8 @@ anim_eyes:
         RET     NZ
 
 
-
-        OS_GETMAINPAGES
-        ld a,e
-        ld (im_stor_4000),a
-        ld a,h
-        ld (im_stor_8000),a
-        ld a,l
-        ld (im_stor_c000),a
-
         ld a,(font_page)
         SETPG4000
-        ld a,(user_scr0_low) ;ok
-        SETPG8000
-        ld a,(user_scr0_high) ;ok
-        SETPGC000
 
         ld a,(anim_stack_spr_num)
 
@@ -2604,7 +2660,7 @@ anim_eyes:
 
 anim_eyes_loop:
         and a
-        jp z,anim_eyes_exit
+        ret z
         push af        
 
         ld a,(ix+8)
@@ -2618,8 +2674,8 @@ anim_eyes_loop:
 
 anim_eyes_mc:
             ;select sequence for anim
+           ld a,(ix+6); type . 2 or 3 or 5
             ld hl,anim1_seq
-            ld a,(ix+6); type . 2 or 3
             cp 2
             jr z,1f
             ld hl,anim2_seq
@@ -2690,18 +2746,6 @@ anim_eyes_loop_cont:
         dec a
         jp anim_eyes_loop
 
-anim_eyes_exit:
-        ld a,0
-im_stor_8000 equ $-1  
-        SETPG8000
-        ld a,0
-im_stor_c000 equ $-1  
-        SETPGC000
-        ld a,0
-im_stor_4000 equ $-1        
-        SETPG4000
-
-        ret
 use_seq: dw 0
 
 ;----------------------------- 

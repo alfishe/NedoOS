@@ -55,17 +55,25 @@ heroname_rus DB "Коити",0
 mus_modes
         dw s_aym
         dw s_s98
+        dw s_msnd
+        dw s_midi
 
 s_aym:  db "aym",0
 s_s98:  db "s98",0
+s_msnd: db "vgm",0
+s_midi: db "rcp",0
 
 ;==
 plr_ext
         dw e_aym
         dw e_s98
+        dw e_msnd
+        dw e_midi
 
 e_aym   db "PT3",0
 e_s98   db "s98",0
+e_msnd  db "vgm",0
+e_midi  db "rcp",0
 
 mus_plr_path db "_plr.bin",0
 ;------------------------

@@ -4,11 +4,6 @@ clear_screen:
         ret
 
 setpal_proc
-;       call makefadepixel
-;       call makewhitepixel
-;       call makefonttable
-;       ld de,(fadecolor)
-;       OS_SETBORDER
         ld de,pal
         OS_SETPAL
         xor a
@@ -30,167 +25,10 @@ print_hl
 ;---------------------------------------
 ;for 320x200
 _immed_big:
-        ld a,1
-        ld (setpalflag),a
-        call store8000c000
-
-        halt
-        ld a,(load_buf1)
-        SETPG8000
-        ld a,(user_scr0_low)
-        SETPGC000
-
-
-        ld hl,0x8000
-        ld de,0xc000
-        ld bc,8000
-        ldir
-
-
-        
-        ld a,(load_buf2)
-        SETPG8000
-        ld a,(user_scr0_high)
-        SETPGC000
-
-
-        ld hl,0x8000
-        ld de,0xc000
-        ld bc,8000
-        ldir
-
-        
-        ld a,(load_buf1)
-        SETPG8000
-        ld a,(user_scr0_low)
-        SETPGC000
-
-
-        ld hl,0xa000
-        ld de,0xe000
-        ld bc,8000
-        ldir
-
-
-        
-        ld a,(load_buf2)
-        SETPG8000
-        ld a,(user_scr0_high)
-        SETPGC000
-
-
-        ld hl,0xa000
-        ld de,0xe000
-        ld bc,8000
-        ldir
-
-        jp restore8000c000
-;-------------
-;------------------------------------------------------------------        
-; 320x200
-;left to right and right to left same time (interleave)
-;mode  ???? 
-_sidas_big:
-        xor a
-        ld (mask_mode),a
-
-        ld a,(load_buf1)
-        ld (src_buf1),a
-        ld a,(load_buf2)
-        ld (src_buf2),a
-
-        ld a,1
-        ld (setpalflag),a
-        call store8000c000
-
-
-        ld hl,0x8000
-        ld (sidas_l1),hl
-        ld hl,0x8000+39
-        ld (sidas_r1),hl
-
-        ld b,40
-_sidas_loop1       
-        push bc
-
-
-        ld a,(src_buf1)
-        SETPG8000
-        ld a,(user_scr0_low)
-        SETPGC000
-
-
-        halt
-
-        ld hl,0
-sidas_l1 equ $-2        
-        push hl
-        pop de
-        set 6,D
-
-        push hl
-        push de
-
-        ld b,200
-        call _down_cpy
-
-        pop de
-        pop hl
-        push hl
-
-        set 5,H
-        set 5,D
-
-        ld b,200
-        call _down_cpy
-
-        pop  hl
-        inc hl
-        ld (sidas_l1),hl
-
-
-        ld a,(src_buf2)
-        SETPG8000
-        ld a,(user_scr0_high)
-        SETPGC000
-
-        ld hl,0
-sidas_r1 equ $-2        
-        push hl
-        pop de
-        set 6,D
-
-        set 5,H
-        set 5,D
-
-        push hl
-        push de
-
-        ld b,200
-        call _down_cpy
-
-        pop de
-        pop hl
-        push hl
-
-        res 5,H
-        res 5,D
-
-        ld b,200
-        call _down_cpy
-
-        pop  hl
-        dec hl
-        ld (sidas_r1),hl
-
-
-        pop bc
-        dec b
-        jp nz,_sidas_loop1
-
-        jp restore8000c000
-;------------------------------------------------------------------        
-;------------------------------------------------------------------        
+		call setcorepage
+		call _immed_big_core
+		jp 	unsetcorepage
+     ;------------------------------------------------------------------        
 ;copy image to screen by mask (9 color in palette is mask)
 _iob_byte:
         ld a,(de)
@@ -240,20 +78,20 @@ _iob_right_transparent
         jr _iob_next_b   
 ;----------------------------------------
 mask_mode db 0
-_sprite_output_mask_no_pal:
-        ld a,1
-        jr _sprite_output_o
-sprite_output_no_pal:
-        xor a
-_sprite_output_o:        
-        ld (mask_mode),a
+; _sprite_output_mask_no_pal:
+        ; ld a,1
+        ; jr _sprite_output_o
+; sprite_output_no_pal:
+        ; xor a
+; _sprite_output_o:        
+        ; ld (mask_mode),a
 
-        ld a,(scr_buf1)
-        ld (src_buf1),a
-        ld a,(scr_buf2)
-        ld (src_buf2),a
+        ; ld a,(scr_buf1)
+        ; ld (src_buf1),a
+        ; ld a,(scr_buf2)
+        ; ld (src_buf2),a
 
-        jp _mb_output
+        ; jp _mb_output
 
 
 _memory2_output_mask:
@@ -263,21 +101,10 @@ _memory2_output:
         xor a
 _memory2_output_o:        
         ld (mask_mode),a
-
-        ld a,(mem_buf3)
-        ld (src_buf1),a
-        ld a,(mem_buf4)
-        ld (src_buf2),a
-
-        ld hl,mempal
-        ld de,pal
-        ld bc,32
-        ldir            ;copy palette for image in membuf
-
-        jp _mb_output
-
-
-
+		call setcorepage
+		call _memory2_output_core
+		jp unsetcorepage
+		
 _memory2_output_mask_nopal:
         ld a,1
         jr _memory2_output_o_nopal
@@ -285,13 +112,12 @@ _memory2_output_nopal:
         xor a
 _memory2_output_o_nopal:        
         ld (mask_mode),a
+		call setcorepage
+		call _memory2_output_nopal_core
+		jp unsetcorepage
+	
 
-        ld a,(mem_buf3)
-        ld (src_buf1),a
-        ld a,(mem_buf4)
-        ld (src_buf2),a
 
-        jp _mb_output
 
 _memory_output_mask:
         ld a,1
@@ -300,26 +126,21 @@ _memory_output:
         xor a
 _memory_output_o:        
         ld (mask_mode),a
+		call setcorepage
+		call _memory_output_core
+		jp unsetcorepage
 
-        ld a,(mem_buf1)
-        ld (src_buf1),a
-        ld a,(mem_buf2)
-        ld (src_buf2),a
 
-        ld hl,mempal
-        ld de,pal
-        ld bc,32
-        ldir            ;copy palette for image in membuf
 
-        jr _mb_output
-_2ndscreen_output:
-        xor a
-        ld (mask_mode),a
-        ld a,(user_scr1_low)
-        ld (src_buf1),a
-        ld a,(user_scr1_high)
-        ld (src_buf2),a 
-        jr _mb_output
+; _2ndscreen_output:
+        ; xor a
+        ; ld (mask_mode),a
+        ; ld a,(user_scr1_low)
+        ; ld (src_buf1),a
+        ; ld a,(user_scr1_high)
+        ; ld (src_buf2),a 
+        ; jr _mb_output
+		
 _buffer_output_mask:
         ld a,1
         jr _buffer_output_o
@@ -328,154 +149,11 @@ _buffer_output
 _buffer_output_o:        
         ld (mask_mode),a 
 _buffer_output_op:               
-        ld a,(load_buf1)
-        ld (src_buf1),a
-        ld a,(load_buf2)
-        ld (src_buf2),a
-_mb_output:
-        ld a,0
-outtyp equ $-1
-        jp _immed
+		call setcorepage
+		call _buffer_output_core
+		jp unsetcorepage
 
-/*        
-        cp 0x32
-        jp z,_immed
-        cp 0x36
-;        jp z,_sidas
-;        cp 0x37
-        jp z,_jaluzi
-        cp 0x38
-;        jp z,_sidas
-;        cp 0x39
-;        jp z,_cntsds
-;        cp 0x3a
-;        jp z,_dn_up
-;        cp 0x3c
-        jp z,_immed  ;_ud_nd
-        cp 0x3b
-        jp z,_jaluzi
-;        cp 0x3d
-;        jp z,_lftrgt
-        jp _jaluzi
-*/        
-;------------------------------------------------------------------        
-; 240x148
-;mode 0x32
-/*_immed:
-        ld a,1
-        ld (setpalflag),a
-        call store8000c000
-
-
-        halt
-        ld a,(src_buf1)
-        SETPG8000
-        ld a,(user_scr0_low)
-        SETPGC000
-
-        ld hl,0x8005
-        ld b,148
-        call copy_immed_line
-
-
-        halt
-        ld a,(src_buf2)
-        SETPG8000
-        ld a,(user_scr0_high)
-        SETPGC000
-
-        ld hl,0x8005
-        ld b,148
-        call copy_immed_line
-
-        halt
-        ld a,(src_buf1)
-        SETPG8000
-        ld a,(user_scr0_low)
-        SETPGC000
-
-        ld hl,0xa005
-        ld b,148
-        call copy_immed_line
-
-
-        halt
-        ld a,(src_buf2)
-        SETPG8000
-        ld a,(user_scr0_high)
-        SETPGC000        
-
-        ld hl,0xa005
-        ld b,148
-        call copy_immed_line
-
-        jp restore8000c000*/
-;---
-_immed:
-;        ld a,1
-;        ld (setpalflag),a
-        call store8000c000
-
-
-        halt
-        ld a,(src_buf1)
-        SETPG8000
-        ld a,(user_scr0_low)
-        SETPGC000
-
-        ld hl,0x8005
-        ld b,148
-        call copy_immed_line
-
-        halt
-        ld hl,0xa005
-        ld b,148
-        call copy_immed_line
-
-
-        ld a,1
-        ld (setpalflag),a
-
-        halt
-        ld a,(src_buf2)
-        SETPG8000
-        ld a,(user_scr0_high)
-        SETPGC000
-
-        halt
-        ld hl,0x8005
-        ld b,148
-        call copy_immed_line
-
-        ld hl,0xa005
-        ld b,148
-        call copy_immed_line
-
-        jp restore8000c000
-
-;------------------------------------------------------------------ 
-;pg8000 sourc
-;pgc000 dest scr
-;hl laddr
-;b - num vert lines
-copy_immed_line:
-.lp:
-        push bc
-        push hl
-        pop de
-
-        ex de,hl
-        set 6,h
-        ld bc,320
-        add hl,bc
-        ex de,hl
-
-        call _ldi_30
-        ld bc,10
-        add hl,bc
-        pop bc 
-        djnz .lp
-        ret       
+  
 ;------------------------------------------------------------------ 
 
 _ldi_30
@@ -2685,7 +2363,7 @@ dcrspr_len dw 0      ; cutted length
 anim_wait:
         LD	A,0
         INC	A
-        AND	3
+        AND	7
         LD	(anim_wait+1),A
         RET	NZ
 

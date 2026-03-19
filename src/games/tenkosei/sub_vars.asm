@@ -2,22 +2,17 @@
 gfx_modes
         dw  m_ddp
         dw  m_atm
-        dw  m_ddp2
 
 
 m_ddp   db "ddp/",0
 m_atm   db "atm/",0
-m_ddp2  db "ddp2/",0
 
 ;--------------
 ;mode_sprpos
 Modes_x:
         dw Mode1_x
         dw Mode2_x
-;        dw Mode3_x
 
-
-;Mode1_x: db 2,20,36 ;ddp_old
 Mode2_x: db 0,15,30
 Mode1_x: db 0,15,30
 
@@ -29,7 +24,6 @@ box_color_x:
 
 
 box_color1_x: db 0b11000000
-;box_color1_x: db 0b00001001 ;ddp_old
 box_color2_x: db 0b11000000
 
 
@@ -37,9 +31,6 @@ box_color2_x: db 0b11000000
 pal_mode:
         dw DDp_pal
         dw ATM_pal
-
-
-
 
 ;------------------------
 loc_modes
@@ -53,17 +44,26 @@ l_rus   db "rus/",0
 mus_modes
         dw s_aym
         dw s_s98
+        dw s_msnd
+        dw s_midi
 
 s_aym:  db "aym",0
 s_s98:  db "s98",0
+s_msnd: db "vgm",0
+s_midi: db "rcp",0
 
 ;==
 plr_ext
         dw e_aym
         dw e_s98
+        dw e_msnd
+        dw e_midi
+
 
 e_aym   db "PT3",0
 e_s98   db "s98",0
+e_msnd  db "vgm",0
+e_midi  db "rcp",0
 
 
 mus_plr_path db "_plr.bin",0
@@ -72,20 +72,20 @@ mus_plr_path db "_plr.bin",0
 loc_main_menu:
         dw menu_main_eng
         dw menu_main_rus
-loc_load_menu:        
+loc_load_menu:
         dw menu_load_eng
         dw menu_load_rus
-loc_m1_menu:        
+loc_m1_menu:
         dw menu_m1_eng
         dw menu_m1_rus
-loc_m2_menu:        
+loc_m2_menu:
         dw menu_m2_eng
         dw menu_m2_rus
 
-loc_load_menu_ingame:        
+loc_load_menu_ingame:
         dw menu_load_eng+2
         dw menu_load_rus+2
-loc_save_menu_ingame:        
+loc_save_menu_ingame:
         dw menu_save_eng
         dw menu_save_rus
 ;------------------------
@@ -127,7 +127,7 @@ menu_load_action:
           dw _load_slot3
           dw _load_slot4
 
-         
+
 ;---
 menu_save_eng:
           DB " SAVE 1",1
@@ -144,7 +144,7 @@ menu_m1_eng:
           DB "SAVE",1
           DB "LOAD",1
           DB "QUIT",0
-menu_m1_rus:          
+menu_m1_rus:
           DB "—Œ’–¿Õ»“‹",1
           DB "«¿√–”«»“‹",1
           DB "¬€’Œƒ",0
@@ -157,7 +157,7 @@ menu_m1_action:
 menu_m2_eng:
           DB "CONTINUE        ",1
           DB "QUIT            ",0
-menu_m2_rus:          
+menu_m2_rus:
           DB "¬≈–Õ”“‹—ﬂ       ",1
           DB "¬€’Œƒ           ",0
 menu_m2_action:
@@ -190,8 +190,8 @@ excite_nums:
         db "000",0
 
 lamps:    db "[OOOO]",0
-lamp_def: db "[OOOO]",0       
-daylist: 
+lamp_def: db "[OOOO]",0
+daylist:
           dw _day0
           dw _day1
           dw _day2

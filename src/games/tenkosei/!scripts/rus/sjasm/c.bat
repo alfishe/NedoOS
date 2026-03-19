@@ -1,1 +1,0 @@
-sjasmplus.exe mmm.asm --raw=ddd.obj

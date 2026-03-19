@@ -23,7 +23,7 @@ load_anim_pre_sub:
                 call openstream_file
                 or a
                 jp z,load_anim_to_load_buf_found  ;found localized image
-        
+
                 call load_gfx_sub
                 ld a,(language)
                 ld hl,loc_modes
@@ -154,31 +154,18 @@ load_gfx_to_load_buf_found:
 
 
 
-load_gfx_to_load_buf_nopal:
-        call load_gfx_pre_sub
-
-        call store8000c000
-
-        ld a,(load_buf1)
-        SETPG8000
-
-        ld a,(load_buf2)
-        SETPGC000
-
-
-         ld hl,0x8000
-         ld de,0x8000
-         call readstream_file
-         or a
-        jp nz,filereaderror 
-
-        call closestream_file
-
-        jp restore8000c000
 load_gfx_to_load_buf:
+        ld a,1
+        jr load_gfx_to_load_buf_nopal+1
+load_gfx_to_load_buf_nopal:
+        xor a
+        and a
+        push af
         call load_gfx_pre_sub
 
         call store8000c000
+        call store4000l
+
 
         ld a,(load_buf1)
         SETPG8000
@@ -186,23 +173,42 @@ load_gfx_to_load_buf:
         ld a,(load_buf2)
         SETPGC000
 
+        ld a,(zx0_page)
+        SETPG4000
+
 
          ld hl,0x8000
-         ld de,0x8000
+         ld de,0x4000
          call readstream_file
          or a
         jp nz,filereaderror 
 
-
-        ld de,pal;curpal
-        ld hl,32
-        call readstream_file
-        or a
-       jp nz,filereaderror 
-
         call closestream_file
 
+        pop af
+
+        ld hl,0x4000
+        ld bc,32
+        jp z,.no_pal
+
+        ld de,pal
+        ldir
+        jp ._skp_pal
+.no_pal
+        add hl,bc
+
+._skp_pal
+        inc hl:inc hl  ;offset to unpack 16c screen. always 7ffd
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        inc hl
+        add hl,de   ;end of zx0 file
+        ld de,0xffff        
+        call dzx0_turbo_back
+        call restore4000l
         jp restore8000c000
+
 
 load_gfx_sub:
         ld de,buf
@@ -236,57 +242,69 @@ copy_anim_name_ext:
         ret
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;image loaded in mem_buf1 and mem_buf2;
+load_gfx_to_scr_buf:
+        xor a
+        jr load_gfx_to_mem_buf+2
 load_gfx_to_mem_buf:
+        ld a,1
+        and a
+        push af
+
         call load_gfx_pre_sub
 
         call store8000c000
+        call store4000l
+
+        ld a,(zx0_page)
+        SETPG4000
+
+        pop af
+        push af
+        jp z,.scr_part1
 
         ld a,(mem_buf1)
         SETPG8000
-
         ld a,(mem_buf2)
-        SETPGC000
-
-
-         ld hl,0x8000
-         ld de,0x8000
-         call readstream_file
-         or a
-        jp nz,filereaderror 
-
-
-        ld de,mempal;curpal
-        ld hl,32
-        call readstream_file
-        or a
-       jp nz,filereaderror 
-
-        call closestream_file
-
-        jp restore8000c000
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;image loaded in mem_buf1 and mem_buf2;
-load_gfx_to_scr_buf:
-        call load_gfx_pre_sub
-
-        call store8000c000
-
+        jp .sk_s
+.scr_part1
         ld a,(scr_buf1)
         SETPG8000
-
         ld a,(scr_buf2)
+.sk_s
         SETPGC000
 
-
          ld hl,0x8000
-         ld de,0x8000
+         ld de,0x4000
          call readstream_file
          or a
         jp nz,filereaderror 
 
         call closestream_file
 
+        pop af
+
+        ld hl,0x4000
+        ld bc,32
+        jp z,.no_pal
+
+        ld de,mempal
+        ldir
+        jp ._skp_pal
+.no_pal
+        add hl,bc
+
+._skp_pal
+        inc hl:inc hl  ;offset to unpack 16c screen. always 7ffd
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        inc hl
+        add hl,de   ;end of zx0 file
+        ld de,0xffff        
+        call dzx0_turbo_back
+        call restore4000l
         jp restore8000c000
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 load_ovl_to_script_buf:
         push hl
@@ -380,5 +398,5 @@ load_big_img_dark2:
         ld de,pal
         ld hl,temppal
         ld bc,32
-        ldir    
+        ldir        
         ret
