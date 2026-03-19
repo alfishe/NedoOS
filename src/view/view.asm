@@ -737,8 +737,33 @@ load16c
         ld de,TPAL;curpal
         OS_SETPAL
         jp waitkeyquit
-
-        
+load16z:
+	call setEGA
+;        OS_NEWPAGE
+;        ld a,e
+;        ld (.pageA),a	
+        ld hl,0x8000
+        ld de,0x4000
+        call readstream_file
+        call closestream_file
+        ld hl,0x4000
+	ld de,TPAL
+        ld bc,32
+	ldir
+        inc hl:inc hl  ;offset to unpack 16c screen. always 7ffd
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        inc hl
+        add hl,de   ;end of zx0 file
+        ld de,0xffff        
+        call dzx0_	;dzx0_turbo_back
+;.pageA = $+1
+;        ld e,0
+;	OS_DELPAGE
+        ld de,TPAL;curpal
+        OS_SETPAL
+	jp waitkeyquit
 load3
 ;B,R,G
 ;hl=size
@@ -1171,6 +1196,8 @@ extlist
         db "rm",0
         dw load16c
         db "16c",0
+        dw load16z
+        db "16z",0
         dw loadmlt
         db "mlt",0
         
@@ -1192,6 +1219,8 @@ curext
         include "chr.asm"
         include "888.asm"
         include "grf.asm"
+dzx0_:
+	include "dzx0b.asm"
         include "../_sdk/file.asm"
         
 cmd_end
