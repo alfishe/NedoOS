@@ -593,7 +593,7 @@ skip_mid_scr:
                   ld (hl),e   : inc hl
                   ld (hl),d   : inc hl
 
-                                ; ORG 0x7E37 ;(6533)  ;ОБРАБОТЧИК УРОВНЯ 9 (JP Z,#7F55)
+                                ; ORG 0x7E37 ;(6533)  ;РћР‘Р РђР‘РћРўР§РРљ РЈР РћР’РќРЇ 9 (JP Z,#7F55)
                                 ; JP Z,level9_video
 
                   ld de,level9_video
@@ -1515,7 +1515,7 @@ load_vid_file_number = $+1 :
                 jr nc,.read_file_loop    ;>= $40
 
                 pop bc ;file tab
-                ;тут можно достать количество страниц
+                ;С‚СѓС‚ РјРѕР¶РЅРѕ РґРѕСЃС‚Р°С‚СЊ РєРѕР»РёС‡РµСЃС‚РІРѕ СЃС‚СЂР°РЅРёС†
                 ld a,c
                 ld c,$FF
                 ld (bc),a
@@ -1902,30 +1902,30 @@ fix_stun_ram16_2:
             ld (0x9cbc),a
             ret    
 
-CONT    EQU 254         ;служебные константы
+CONT    EQU 254         ;СЃР»СѓР¶РµР±РЅС‹Рµ РєРѕРЅСЃС‚Р°РЅС‚С‹
 COMAND  EQU 255
 
-BMODE   EQU 0           ;биты режимов
+BMODE   EQU 0           ;Р±РёС‚С‹ СЂРµР¶РёРјРѕРІ
 DMODE   EQU 1
 EXTPCK  EQU 2
 EXCMODE EQU 3
 EXCFIN  EQU 4
 
-EX_ENDSTR  EQU -1               ;"короткие" команды
+EX_ENDSTR  EQU -1               ;"РєРѕСЂРѕС‚РєРёРµ" РєРѕРјР°РЅРґС‹
 EX_NEWFRM  EQU %00011111
 EX_KEYFRM  EQU %00111111
 
 
-VIDEO   EQU 49152       ;адрес распложения видео
+VIDEO   EQU 49152       ;Р°РґСЂРµСЃ СЂР°СЃРїР»РѕР¶РµРЅРёСЏ РІРёРґРµРѕ
 
 
-FIRST1  EQU 0x4201  ;0x4000 ;       ;адрес экрана
+FIRST1  EQU 0x4201  ;0x4000 ;       ;Р°РґСЂРµСЃ СЌРєСЂР°РЅР°
 FSTATR  EQU 0x5800  ; ;x`22528+32+1
 
 
 MAXSCR  EQU 0x58 ;HIGH FIRST1 + #18
 
-SPEDE   EQU 4           ;задержка между кадрами
+SPEDE   EQU 4           ;Р·Р°РґРµСЂР¶РєР° РјРµР¶РґСѓ РєР°РґСЂР°РјРё
 
         MACRO   IDE
         INC E
@@ -2578,7 +2578,7 @@ ConvertNumberHL:
 
 dropotherapps
 ;d=pgmain0000
-;от последних id (детей) к первым (родителям), т.к. при dropapp будится родитель
+;РѕС‚ РїРѕСЃР»РµРґРЅРёС… id (РґРµС‚РµР№) Рє РїРµСЂРІС‹Рј (СЂРѕРґРёС‚РµР»СЏРј), С‚.Рє. РїСЂРё dropapp Р±СѓРґРёС‚СЃСЏ СЂРѕРґРёС‚РµР»СЊ
         ld e,0xfe ;no id 0xff
 dropotherapps0
         push de
@@ -2617,4 +2617,4 @@ cmd_end:
 
 
         savebin "robocop.com",cmd_begin,cmd_end-cmd_begin
-        LABELSLIST "..\..\us_ns2\user.l",1
+ ;       LABELSLIST "..\..\us_ns2\user.l",1

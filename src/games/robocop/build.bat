@@ -12,6 +12,6 @@ if "%currentdir%"=="" (
 cd ../../../src/
 call ..\tools\chkimg.bat sd
 rem pause
-rem  if "%makeall%"=="" ..\..\..\us\emul.exe
+
  if "%makeall%"=="" ..\us\emul.exe
 )
