@@ -1,0 +1,20 @@
+music  		db 0
+bgnd   		ds 8
+sprite 		ds 8
+scripts		ds xxx
+
+
+scripts codes 
+	#00 - wait key, then clear text
+	#01,filename - goto xxx (filename len - 8 bytes)
+	#02 - end game
+	#03,filname1,filname2,text1,#80,text2,#c0  - selector
+	#ff - end script file. load next script file
+
+
+wait            db 0
+scenario        db 1
+exitdark        db 2
+selector        db 3
+exitwhite		db 4
+end             db 255
