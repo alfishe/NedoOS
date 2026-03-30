@@ -11,7 +11,7 @@ FILE_NAME_OFFSET = FILE_DISPLAY_INFO_OFFSET+FILE_DISPLAY_INFO_SIZE
 FILE_NAME_SIZE = SFN_SIZE
 FILE_ATTRIB_OFFSET = FILE_NAME_OFFSET+FILE_NAME_SIZE
 FILE_ATTRIB_SIZE = 1
-BROWSER_FILE_COUNT = 162
+BROWSER_FILE_COUNT = 160
 PLAYLIST_FILE_COUNT = 40
 FILE_LINE_COUNT = 22
 FILES_WINDOW_X = 0
@@ -294,8 +294,8 @@ playnextfile
 	ld e,FILE_DATA_SIZE
 .wraploop
 	ld a,(hl)
-	cp FILE_ATTRIB_MUSIC
-	jp z,startplaying
+	or a ;FILE_ATTRIB_MUSIC_
+	jp m,startplaying
 	add hl,de
 	inc (ix+PANEL.currentfileindex)
 	jr .wraploop
@@ -335,8 +335,8 @@ addtoplaylist
 	ld de,FILE_NAME_OFFSET-FILE_ATTRIB_OFFSET
 	add hl,de
 	pop de
-	cp FILE_ATTRIB_MUSIC
-	ret nz
+	or a ;FILE_ATTRIB_MUSIC_
+	ret p
 	call strcopy_hltode
 	ld hl,fullpathbuffer+FILE_DATA_SIZE-2
 	sub hl,de
@@ -436,6 +436,50 @@ confirmexitui
 	CUSTOMUIPRINTTEXT ,CONFIRM_EXIT_WINDOW_X+2,CONFIRM_EXIT_WINDOW_Y+2,confirmexittext1str
 	CUSTOMUIPRINTTEXT ,CONFIRM_EXIT_WINDOW_X+2,CONFIRM_EXIT_WINDOW_Y+3,confirmexittext2str
 	CUSTOMUIPRINTTEXT ,CONFIRM_EXIT_WINDOW_X+8,CONFIRM_EXIT_WINDOW_Y+5,confirmexittext3str
+	CUSTOMUISETCOLOR
+	CUSTOMUISEPARATOR ,CONFIRM_EXIT_WINDOW_X+1,CONFIRM_EXIT_WINDOW_Y+8,45,196,196,196
+	CUSTOMUIVERTICALLINE ,CONFIRM_EXIT_WINDOW_X+47,CONFIRM_EXIT_WINDOW_Y+1,7
+	CUSTOMUIDRAWEND
+
+hotkeystartstr db 205,205,205,205,205,0
+spacing7str db 205,205,205,205,205,205,205,0
+hotkeyendstr db 205,205,205,205,188,0
+optionshotkey1str db "O" ,0
+optionshotkey2str db "ptions",0
+playhotkey1str db " Enter ",0
+playhotkey2str db "Play",0
+addremovehotkey1str db " Space ",0
+addremovehotkey2str db "Add/Remove",0
+saveplaylisthotkey1str db "S",0
+saveplaylisthotkey2str db "ave Playlist",0
+
+hotkeybarui
+	CUSTOMUISETCOLOR ,COLOR_DEFAULT
+	CUSTOMUIPRINTTEXT ,0,24,hotkeystartstr
+	CUSTOMUISETCOLOR ,COLOR_CURSOR
+	CUSTOMUIPRINTTEXT ,255,255,optionshotkey1str
+	CUSTOMUISETCOLOR ,COLOR_PANEL_DIR
+	CUSTOMUIPRINTTEXT ,255,255,optionshotkey2str
+	CUSTOMUISETCOLOR ,COLOR_DEFAULT
+	CUSTOMUIPRINTTEXT ,255,255,spacing7str
+	CUSTOMUISETCOLOR ,COLOR_CURSOR
+	CUSTOMUIPRINTTEXT ,255,255,playhotkey1str
+	CUSTOMUISETCOLOR ,COLOR_PANEL_DIR
+	CUSTOMUIPRINTTEXT ,255,255,playhotkey2str
+	CUSTOMUISETCOLOR ,COLOR_DEFAULT
+	CUSTOMUIPRINTTEXT ,255,255,spacing7str
+	CUSTOMUISETCOLOR ,COLOR_CURSOR
+	CUSTOMUIPRINTTEXT ,255,255,addremovehotkey1str
+	CUSTOMUISETCOLOR ,COLOR_PANEL_DIR
+	CUSTOMUIPRINTTEXT ,255,255,addremovehotkey2str
+	CUSTOMUISETCOLOR ,COLOR_DEFAULT
+	CUSTOMUIPRINTTEXT ,255,255,spacing7str
+	CUSTOMUISETCOLOR ,COLOR_CURSOR
+	CUSTOMUIPRINTTEXT ,255,255,saveplaylisthotkey1str
+	CUSTOMUISETCOLOR ,COLOR_PANEL_DIR
+	CUSTOMUIPRINTTEXT ,255,255,saveplaylisthotkey2str
+	CUSTOMUISETCOLOR ,COLOR_DEFAULT
+	CUSTOMUIPRINTTEXT ,255,255,hotkeyendstr
 	CUSTOMUIDRAWEND
 
 drawdialog
@@ -534,8 +578,8 @@ startplaying
 	jp z,changetofolder
 	cp FILE_ATTRIB_DRIVE
 	jp z,changedrive
-	cp FILE_ATTRIB_MUSIC
-	ret nz
+	or a ;FILE_ATTRIB_MUSIC_
+	ret p
 	ld a,(browserpanel.isinactive)
 	or a
 	ld de,FILE_NAME_OFFSET-FILE_ATTRIB_OFFSET
@@ -1150,9 +1194,9 @@ currentfileindex=$+1
 	ld de,COLOR_CURSOR
 	ret z
 	ld a,(ix+FILE_ATTRIB_OFFSET-FILE_DISPLAY_INFO_OFFSET)
-	cp FILE_ATTRIB_MUSIC
+	or a ;FILE_ATTRIB_MUSIC_
 	ld de,COLOR_PANEL_FILE
-	ret z
+	ret m
 	cp FILE_ATTRIB_DRIVE
 	ld de,COLOR_PANEL_DRIVE
 	ret z
@@ -1283,12 +1327,8 @@ redraw	ld e,7
 drawui	call drawbrowserwindow
 	call drawplaylistwindow
 	call drawdialog
-	ld de,COLOR_DEFAULT
-	OS_SETCOLOR
-	ld de,24*256+1
-	OS_SETXY
-	ld hl,hotkeystr
-	call print_hl
+	ld ix,hotkeybarui
+	call drawcustomui
 	ld a,(isplaying)
 	or a
 	ret z
@@ -1324,6 +1364,7 @@ drawcustomui
 	jp .playprogress
 	jp .songtitle
 	jp .separator
+	jp .verticalline
 .finalizecmd
 	pop ix
 .commandsizeoffset=$+1
@@ -1343,6 +1384,7 @@ drawcustomui
 	db CUSTOMUIPLAYPROGRESS
 	db CUSTOMUISONGTITLE
 	db CUSTOMUISEPARATOR
+	db CUSTOMUIVERTICALLINE
 .drawwindow
 	ld e,(ix+CUSTOMUIDRAWWINDOW.topleftx)
 	ld d,(ix+CUSTOMUIDRAWWINDOW.toplefty)
@@ -1352,7 +1394,10 @@ drawcustomui
 .printtext
 	ld e,(ix+CUSTOMUIPRINTTEXT.posx)
 	ld d,(ix+CUSTOMUIPRINTTEXT.posy)
+	ld hl,1
+	add hl,de
 	ld hl,(ix+CUSTOMUIPRINTTEXT.straddr)
+	jp c,print_hl
 	push hl
 	OS_SETXY
 	pop hl
@@ -1430,6 +1475,23 @@ drawcustomui
 	pop de
 	pop bc
 	jp drawwindowline
+.verticalline
+	ld e,(ix+CUSTOMUIVERTICALLINE.posx)
+	ld d,(ix+CUSTOMUIVERTICALLINE.posy)
+	ld b,(ix+CUSTOMUIVERTICALLINE.height)
+	ld a,(ix+CUSTOMUIVERTICALLINE.linechar)
+.linedrawloop
+	push bc
+	push de
+	OS_SETXY
+.linechar=$+1
+	ld a,0
+	PRCHAR
+	pop de
+	pop bc
+	inc d
+	djnz .linedrawloop
+	ret
 
 skipword_hl
 	ld a,(hl)
@@ -1525,8 +1587,6 @@ loadingstr
 	db "LOADING...",0
 errorwindowheaderstr
 	db "Error",0
-hotkeystr
-	db "O=Options  Arrows+Tab=Navigate  Enter=Play  Space=Add/Remove  S=Save Playlist",0
 drivedata
 	db "E: - IDE Master p.1                   E:",0,0,0,0,0,0,0,0,0,0,0,FILE_ATTRIB_DRIVE
 	db "F: - IDE Master p.2                   F:",0,0,0,0,0,0,0,0,0,0,0,FILE_ATTRIB_DRIVE

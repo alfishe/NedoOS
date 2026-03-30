@@ -91,7 +91,8 @@ CUSTOM_UI_CMD_PLAY_TIME            = 5 ;shows elapsed time in mm:ss format
 CUSTOM_UI_CMD_PLAY_PROGRESS        = 6 ;shows progress bar or loading message
 CUSTOM_UI_CMD_SONG_TITLE           = 7 ;prints song title or filename if string is empty
 CUSTOM_UI_CMD_SEPARATOR            = 8 ;draws a visual separator
-CUSTOM_UI_CMD_COUNT                = 9 ;number of custom UI commands
+CUSTOM_UI_CMD_VERTICAL_LINE        = 9 ;draw vertical line
+CUSTOM_UI_CMD_COUNT                = 10;number of custom UI commands
 
 	struct CUSTOMUIDRAWEND
 cmd db CUSTOM_UI_CMD_COUNT
@@ -163,12 +164,23 @@ leftchar db 199
 rightchar db 182
 	ends
 
+	struct CUSTOMUIVERTICALLINE
+cmd db CUSTOM_UI_CMD_VERTICAL_LINE
+posx db 0
+posy db 0
+height db 0
+linechar db 179
+	ends
+
 	macro PROGRESSIVEPLAYERWINDOWTEMPLATE songtitle,progresscounter
 	CUSTOMUIPLAYERWINDOW ,6,8,66,4
 	CUSTOMUIPLAYERWINDOWTITLE ,8,8
 	CUSTOMUISONGTITLE ,8,10,songtitle
 	CUSTOMUIPLAYPROGRESS ,8,11,progresscounter
 	CUSTOMUIPLAYTIME ,67,8
+	CUSTOMUISETCOLOR
+	CUSTOMUISEPARATOR ,7,14,66,196,196,196
+	CUSTOMUIVERTICALLINE ,74,9,5
 	CUSTOMUIDRAWEND
 	endm
 
@@ -178,6 +190,9 @@ rightchar db 182
 	CUSTOMUISONGTITLE ,14,10,songtitle
 	CUSTOMUIPLAYPROGRESS ,255
 	CUSTOMUIPLAYTIME ,61,8
+	CUSTOMUISETCOLOR
+	CUSTOMUISEPARATOR ,13,13,54,196,196,196
+	CUSTOMUIVERTICALLINE ,68,9,4
 	CUSTOMUIDRAWEND
 	endm
 
@@ -188,5 +203,8 @@ rightchar db 182
 	CUSTOMUIPRINTTEXT ,8,8,windowtitlestr
 	CUSTOMUISONGTITLE ,8,10,0
 	CUSTOMUIPLAYPROGRESS ,8,11,progresscounter,7
+	CUSTOMUISETCOLOR
+	CUSTOMUISEPARATOR ,7,14,66,196,196,196
+	CUSTOMUIVERTICALLINE ,74,9,5
 	CUSTOMUIDRAWEND
 	endm

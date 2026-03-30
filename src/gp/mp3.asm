@@ -400,12 +400,12 @@ drawcustomui
 	jp 0
 
 musicunload
+	ld hl,cleanupvars
+	push hl
 	ld a,(filetype)
 	cp FILETYPE_MOD
 	jr z,.unloadmod
 	call closestream_file
-	ld hl,cleanupvars
-	push hl
 	ld a,(filetype)
 	cp FILETYPE_MID
 	jp nz,gscodereset
@@ -831,6 +831,9 @@ mp3playerwindowui
 	CUSTOMUIPRINTTEXT ,11,14,codectextstr
 	CUSTOMUIPRINTTEXT ,45,14,modetextstr
 	CUSTOMUIPRINTTEXT ,9,15,bitratetextstr
+	CUSTOMUISETCOLOR
+	CUSTOMUISEPARATOR ,7,17,66,196,196,196
+	CUSTOMUIVERTICALLINE ,74,9,8
 allstreamstatsui
 	CUSTOMUISETCOLOR ,COLOR_PANEL_FILE
 mp3codectext
