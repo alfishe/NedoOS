@@ -1292,6 +1292,9 @@ LOADSFX:
 		inc hl ;sfx num
         push hl
 
+        xor a
+        ld (wlock),a
+
         ld a,(hl)
         push af
         call setcorepage
@@ -1302,11 +1305,14 @@ LOADSFX:
         ld ix,ayfx.afxChDesc
 .wait_for_end
         xor a
-        and a,(ix+1)
-        and a,(ix+5)
-        and a,(ix+9)
+        or (ix+1)
+        or (ix+5)
+        or (ix+9)
         jr nz,.wait_for_end
         call unsetcorepage
+
+        ld a,1
+        ld (wlock),a
         pop hl
 		inc hl
 		jp _print_ovl
