@@ -238,7 +238,7 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 			printf(" creating error.");
 			exit(0);
 		}
-		
+
 		OS_CLOSEHANDLE(fp2);
 
 		fp2 = OS_OPENHANDLE(fileNamePtr, 0x80);
@@ -412,14 +412,14 @@ char loadPageFromDisk(unsigned char *filepath, unsigned int volume)
 	}
 	volumeOffsets[volume + 1] = volumeOffsets[volume] + loaded;
 
-	/*
+	
 	clean = loaded + 128;
 	do
 	{
 		netbuf[loaded] = 0;
 		loaded++;
 	} while (loaded < clean);
-*/
+
 	return true;
 }
 
@@ -673,11 +673,13 @@ unsigned int renderPage(unsigned int bufPos)
 				navi.lastLine = counter;
 				return bufPos;
 			}
-			colCount++;
-			if (colCount < 78)
+
+			if (colCount == 78)
 			{
-				putchar(byte);
+				break;
 			}
+			putchar(byte);
+			colCount++;
 		}
 		while (42)
 		{
