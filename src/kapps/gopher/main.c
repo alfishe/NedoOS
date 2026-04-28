@@ -113,6 +113,7 @@ struct time
 unsigned char nvext[1024];
 unsigned char netbuf[31768];
 unsigned char heap[1500];
+unsigned char colors[25];
 FILE *fp2;
 
 void clearNetBuf(unsigned int const size)
@@ -412,12 +413,15 @@ char loadPageFromDisk(unsigned char *filepath, unsigned int volume)
 	}
 	volumeOffsets[volume + 1] = volumeOffsets[volume] + loaded;
 
-	
 	clean = loaded + 128;
 	do
 	{
 		netbuf[loaded] = 0;
 		loaded++;
+		if (loaded == sizeof(netbuf))
+		{
+			break;
+		}
 	} while (loaded < clean);
 
 	return true;
@@ -507,13 +511,15 @@ void newPage(void)
 
 void renderType(unsigned char linkType)
 {
-	OS_SETCOLOR(70);
+	OS_SETCOLOR(70); // Ярко-желтый
 
 	switch (linkType)
 	{
 	case 'i':
+		colors[navi.lastLine] = 7;
+		OS_SETCOLOR(7);
 		putchar(' ');
-		break;
+		return;
 	case '0':
 		putchar(21); // plain text
 		putchar(' ');
@@ -563,10 +569,13 @@ void renderType(unsigned char linkType)
 		putchar(' ');
 		break;
 	default:
+		colors[navi.lastLine] = 7;
+		OS_SETCOLOR(7);
 		putchar(linkType);
-		break;
+		return;
 	}
-	OS_SETCOLOR(7);
+	colors[navi.lastLine] = 5;
+	OS_SETCOLOR(5);
 }
 
 unsigned int renderPlain(unsigned int bufPos)
@@ -639,9 +648,13 @@ unsigned int renderPlain(unsigned int bufPos)
 
 unsigned int renderPage(unsigned int bufPos)
 {
+	// colCount = Максимальная длинна строки
+
 	unsigned char counter = 0, colCount = 0;
 	unsigned char byte = 0;
+	int a = 0;
 
+	navi.lastLine = 0;
 	link.type = '1';
 
 	OS_CLS(0);
@@ -651,7 +664,7 @@ unsigned int renderPage(unsigned int bufPos)
 	byte = netbuf[bufPos];
 	renderType(byte);
 
-	OS_SETCOLOR(7);
+	// OS_SETCOLOR(7);
 	do
 	{
 		while (42)
@@ -684,12 +697,13 @@ unsigned int renderPage(unsigned int bufPos)
 		while (42)
 		{
 			bufPos++;
-			if (netbuf[bufPos] == 10)
+			if (netbuf[bufPos] == 10) // CR
 			{
 				colCount = 0;
 				counter++;
+				navi.lastLine = counter;
 				bufPos++;
-				if (netbuf[bufPos] == '.')
+				if (netbuf[bufPos] == '.') // Конец документа
 				{
 					navi.maxPage = navi.page;
 					navi.lastLine = counter;
@@ -703,6 +717,13 @@ unsigned int renderPage(unsigned int bufPos)
 			}
 		}
 	} while (counter < screenHeight);
+	/*
+		do
+		{
+			printf("colors[%u]=%u ", a, colors[a]);
+			a++;
+		} while (a < 25);
+	*/
 	navi.lastLine = counter;
 	return bufPos;
 }
@@ -1720,10 +1741,10 @@ void navigationPage(char keypress)
 
 	if (link.type == '1')
 	{
-		for (counter = 1; counter < 79; counter++)
+		for (counter = 1; counter < 80; counter++)
 		{
 			OS_SETXY(counter, navi.prevLineSelect);
-			OS_PRATTR(7);
+			OS_PRATTR(colors[navi.prevLineSelect - 1]);
 		}
 
 		if (mouse.cursYpos == navi.prevLineSelect)
@@ -1731,7 +1752,7 @@ void navigationPage(char keypress)
 			OS_SETXY(mouse.cursXpos, mouse.cursYpos);
 			mouse.oldAtr = OS_GETATTR();
 		}
-		for (counter = 1; counter < 79; counter++)
+		for (counter = 1; counter < 80; counter++)
 		{
 			OS_SETXY(counter, navi.lineSelect);
 			OS_PRATTR(15);
