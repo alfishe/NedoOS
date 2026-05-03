@@ -252,14 +252,16 @@ void printHelp(void)
     spaces(80);
   }
 
-  OS_SETXY(0, 13);
+  OS_SETXY(0, 12);
   OS_SETCOLOR(71);
+  spaces(80);
+  printf("\r\n");
   printf(" [<-] [B] Previous track          [->] [ ] Next track      \r\n");
   printf(" [S]  Stop player                 [R]  Repeat track mode   \r\n");
   printf(" [K]  Toggle saving tracks        [D]  Download track      \r\n");
   printf(" [Q]  Select Query type           [F]  Select tracks format\r\n");
   printf(" [I]  Interface ZXNETUSB/ESP32    [J]  Jump to NNNN file   \r\n");
-  printf(" [O] Show description             [M]  Minimal Rating(Q:2,3)\r\n");
+  printf(" [O]  Show description            [M]  Minimal Rating(Q:2,3)\r\n");
 }
 
 void printStatus(void)
@@ -1155,7 +1157,7 @@ void printInfo(void)
   {
     if (curFileStruct.hasDescription == true)
     {
-      showDescription(curFileStruct.picId, 13, 9);
+      showDescription(curFileStruct.picId, 12, 10);
     }
   }
   OS_SETCOLOR(69);
