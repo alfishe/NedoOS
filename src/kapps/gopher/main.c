@@ -31,7 +31,7 @@ unsigned int espRetry = 5;
 unsigned long factor, timerok, count = 0;
 unsigned int magic = 15;
 
-unsigned char uVer[] = "1.7";
+unsigned char uVer[] = "1.6";
 unsigned char curPath[128];
 unsigned char cmd[512];
 unsigned int pageOffsets[128];
@@ -589,7 +589,12 @@ unsigned int renderPlain(unsigned int bufPos)
 	unsigned int counter = 0;
 	unsigned int colCount = 0;
 	unsigned int byte;
-	char justWrapped = false; /* Флаг: был ли перенос строки автоматическим */
+	char justWrapped = false;
+
+	/* Переменные для логики Word Wrap (объявлены строго вверху) */
+	unsigned int lookAheadPos;
+	unsigned int wordLength;
+	unsigned int nextByte;
 
 	link.type = '0';
 
@@ -612,19 +617,15 @@ unsigned int renderPlain(unsigned int bufPos)
 		// 2. Обработка явного переноса строки (\r или \n)
 		if (byte == 0xd || byte == 0xa)
 		{
-			// Если перенос строки встретился РЕАЛЬНО в тексте, и это НЕ стык 
-			// после 80-го символа ? мы обязаны его напечатать (включая пустые строки в начале)
 			if (!justWrapped)
 			{
 				putchar('\n');
 				counter++;
 			}
-			
 			colCount = 0;
-			justWrapped = false; /* Сбрасываем флаг, так как обработали перенос */
+			justWrapped = false;
 			bufPos++;
 			
-			// Схлопываем Windows-перенос \r\n
 			if (byte == 0xd && netbuf[bufPos] == 0xa)
 			{
 				bufPos++;
@@ -632,27 +633,62 @@ unsigned int renderPlain(unsigned int bufPos)
 			continue;
 		}
 
-		// 3. Вывод обычного символа
+		// 3. ЛОГИКА WORD WRAP: Проверка начала нового слова
+		// Если текущий символ НЕ пробел/табуляция, и мы не в самом начале строки
+		if (byte != ' ' && byte != '\t' && colCount > 0)
+		{
+			// Проверяем, был ли предыдущий символ пробелом (то есть сейчас начинается слово)
+			// или если мы стоим на самом первом символе буфера
+			if (bufPos == 0 || netbuf[bufPos - 1] == ' ' || netbuf[bufPos - 1] == '\t')
+			{
+				// Сканируем вперед, чтобы узнать длину слова
+				wordLength = 0;
+				lookAheadPos = bufPos;
+				
+				while (lookAheadPos < sizeof(netbuf))
+				{
+					nextByte = netbuf[lookAheadPos];
+					// Слово заканчивается на пробеле, переносе строки или конце буфера
+					if (nextByte == 0 || nextByte == ' ' || nextByte == '\t' || nextByte == 0xd || nextByte == 0xa)
+					{
+						break;
+					}
+					wordLength++;
+					lookAheadPos++;
+				}
+
+				// ИСПРАВЛЕНИЕ: Если слово целиком ПОМЕЩАЕТСЯ на экран (<= 80), 
+				// но НЕ помещается в остаток текущей строки, переносим его целиком.
+				// (Если слово само по себе длиннее 80 символов, например, ссылка, 
+				// мы его не переносим, иначе консоль зависнет. Оно просто разрежется).
+				if (wordLength <= 80 && (colCount + wordLength) > 80)
+				{
+					putchar('\n');
+					counter++;
+					colCount = 0;
+					justWrapped = true; // Консоль перешла на новую строку
+				}
+			}
+		}
+
+		// 4. Вывод текущего символа
 		putchar(byte);
 		colCount++;
 		bufPos++;
-		justWrapped = false; /* Напечатали обычный символ ? сбрасываем флаг автопереноса */
+		justWrapped = false; 
 
-		// 4. Логика автопереноса консоли
+		// 5. Логика автопереноса консоли (для очень длинных слов/ссылок > 80 символов)
 		if (colCount >= 80)
 		{
 			counter++;
 			colCount = 0;
-			justWrapped = true; /* Запоминаем, что консоль САМА перенесла строку */
+			justWrapped = true; 
 		}
 
 	} while (counter < screenHeight);
 
 	return bufPos;
 }
-
-
-
 
 /**
  * Renders a page of gopher directory entries from the network buffer to the screen.
