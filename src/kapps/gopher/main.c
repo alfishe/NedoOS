@@ -31,7 +31,7 @@ unsigned int espRetry = 5;
 unsigned long factor, timerok, count = 0;
 unsigned int magic = 15;
 
-unsigned char uVer[] = "1.6";
+unsigned char uVer[] = "1.7";
 unsigned char curPath[128];
 unsigned char cmd[512];
 unsigned int pageOffsets[128];
@@ -116,13 +116,13 @@ unsigned char heap[1500];
 unsigned char colors[25];
 FILE *fp2;
 
-void clearNetBuf(unsigned int const size)
+void clearNetBuf(unsigned int size)
 {
-	unsigned int counter;
-	for (counter = 0; counter < size; counter++)
+	if (size > sizeof(netbuf))
 	{
-		netbuf[counter] = 0;
+		size = sizeof(netbuf);
 	}
+	memset(netbuf, 0, size);
 }
 
 void spaces(unsigned char number)
@@ -578,10 +578,18 @@ void renderType(unsigned char linkType)
 	OS_SETCOLOR(5);
 }
 
+/**
+ * Renders a page of plain text from the network buffer to the screen.
+ *
+ * @param bufPos The starting position in the netbuf buffer to begin rendering from.
+ * @return The new buffer position after rendering the page.
+ */
 unsigned int renderPlain(unsigned int bufPos)
 {
-	unsigned int counter = 0, colCount = 0;
-	unsigned int flag = true;
+	unsigned int counter = 0;
+	unsigned int colCount = 0;
+	unsigned int byte;
+	char justWrapped = false; /* Флаг: был ли перенос строки автоматическим */
 
 	link.type = '0';
 
@@ -590,69 +598,74 @@ unsigned int renderPlain(unsigned int bufPos)
 	OS_SETCOLOR(7);
 	OS_SETXY(0, 1);
 
-	counter = 0;
 	do
 	{
-		unsigned int byte;
 		byte = netbuf[bufPos];
+		
+		// 1. Конец данных
 		if (byte == 0)
 		{
 			navi.maxPage = navi.page;
 			return bufPos;
 		}
 
-		if (colCount == 80)
+		// 2. Обработка явного переноса строки (\r или \n)
+		if (byte == 0xd || byte == 0xa)
 		{
-			counter++;
-			colCount = 0;
-		}
-
-		if (byte == 0xd)
-		{
-			if (colCount != 80)
-			{
-				putchar('\r');
-				flag = true;
-			}
-			else
-			{
-				flag = false;
-			}
-
-			bufPos++;
-			colCount = 0;
-			continue;
-		}
-
-		if (byte == 0xa)
-		{
-			if (flag)
+			// Если перенос строки встретился РЕАЛЬНО в тексте, и это НЕ стык 
+			// после 80-го символа ? мы обязаны его напечатать (включая пустые строки в начале)
+			if (!justWrapped)
 			{
 				putchar('\n');
+				counter++;
 			}
-
+			
+			colCount = 0;
+			justWrapped = false; /* Сбрасываем флаг, так как обработали перенос */
 			bufPos++;
-			counter++;
-			flag = true;
+			
+			// Схлопываем Windows-перенос \r\n
+			if (byte == 0xd && netbuf[bufPos] == 0xa)
+			{
+				bufPos++;
+			}
 			continue;
 		}
 
+		// 3. Вывод обычного символа
 		putchar(byte);
-
 		colCount++;
 		bufPos++;
+		justWrapped = false; /* Напечатали обычный символ ? сбрасываем флаг автопереноса */
+
+		// 4. Логика автопереноса консоли
+		if (colCount >= 80)
+		{
+			counter++;
+			colCount = 0;
+			justWrapped = true; /* Запоминаем, что консоль САМА перенесла строку */
+		}
 
 	} while (counter < screenHeight);
+
 	return bufPos;
 }
 
+
+
+
+/**
+ * Renders a page of gopher directory entries from the network buffer to the screen.
+ *
+ * @param bufPos The starting position in the netbuf buffer to begin rendering from.
+ * @return The new buffer position after rendering the page.
+ */
 unsigned int renderPage(unsigned int bufPos)
 {
 	// colCount = Максимальная длинна строки
 
 	unsigned char counter = 0, colCount = 0;
 	unsigned char byte = 0;
-	int a = 0;
 
 	navi.lastLine = 0;
 	link.type = '1';
@@ -664,10 +677,9 @@ unsigned int renderPage(unsigned int bufPos)
 	byte = netbuf[bufPos];
 	renderType(byte);
 
-	// OS_SETCOLOR(7);
 	do
 	{
-		while (42)
+		for (;;)
 		{
 			bufPos++;
 
@@ -687,23 +699,23 @@ unsigned int renderPage(unsigned int bufPos)
 				return bufPos;
 			}
 
-			if (colCount == 78)
+			if (colCount == screenWidth - 2)
 			{
 				break;
 			}
 			putchar(byte);
 			colCount++;
 		}
-		while (42)
+		for (;;)
 		{
 			bufPos++;
-			if (netbuf[bufPos] == 10) // CR
+			if (netbuf[bufPos] == 10) // LF
 			{
 				colCount = 0;
 				counter++;
 				navi.lastLine = counter;
 				bufPos++;
-				if (netbuf[bufPos] == '.') // Конец документа
+				if (bufPos + 1 < sizeof(netbuf) && netbuf[bufPos] == '.') // Конец документа
 				{
 					navi.maxPage = navi.page;
 					navi.lastLine = counter;
@@ -717,13 +729,6 @@ unsigned int renderPage(unsigned int bufPos)
 			}
 		}
 	} while (counter < screenHeight);
-	/*
-		do
-		{
-			printf("colors[%u]=%u ", a, colors[a]);
-			a++;
-		} while (a < 25);
-	*/
 	navi.lastLine = counter;
 	return bufPos;
 }
@@ -821,18 +826,28 @@ unsigned char inputBox(struct window w, const char *prefilled)
 	OS_SETXY(w.x + 1, w.y + 1);
 	OS_SETCOLOR(w.back);
 	putchar(219);
-
 	cmd[0] = 0;
-
 	counter = strlen(prefilled);
 	if (counter != 0)
 	{
-		strcpy(cmd, prefilled);
-		goto skipKeys;
+		strncpy(cmd, prefilled, sizeof(cmd) - 1);
 	}
 
-	do
+	for (;;)
 	{
+		// Переносим отрисовку в начало цикла!
+		// Если prefilled был не пустой, он сразу нарисуется при первом входе.
+		OS_SETXY(w.x + 1, w.y + 1);
+		printf("%s", cmd);
+		putchar(219);
+		if (byte == 0x08)
+		{
+			putchar(' ');
+			byte = 0; // Сбрасываем, чтобы пробел не печатался вечно
+		}
+
+		YIELD(); // Уступаем квант времени ОС перед ожиданием нажатия
+
 		byte = OS_GETKEY();
 		if (byte != 0)
 		{
@@ -846,7 +861,6 @@ unsigned char inputBox(struct window w, const char *prefilled)
 				}
 				break;
 			case 0x0d:
-
 				if (counter == 0)
 				{
 					return false;
@@ -855,15 +869,10 @@ unsigned char inputBox(struct window w, const char *prefilled)
 				{
 					return true;
 				}
-
 			case 31:
-				break;
 			case 250:
-				break;
 			case 249:
-				break;
 			case 248:
-				break;
 			case 251: // Right
 				break;
 			case 252: // Del
@@ -884,18 +893,9 @@ unsigned char inputBox(struct window w, const char *prefilled)
 				}
 				break;
 			}
-		skipKeys:
-			OS_SETXY(w.x + 1, w.y + 1);
-			printf("%s", cmd);
-			putchar(219);
-			if (byte == 0x08)
-			{
-				putchar(' ');
-			}
 		}
-		YIELD();
-	} while (42);
-	return false;
+	}
+	// return false; здесь больше не нужен, компилятор не будет ругаться
 }
 
 void pusHistory(void)
@@ -1032,7 +1032,7 @@ char getFileEsp(unsigned char *fileNamePtr)
 
 	if ((strlen(link.path) == 1 && link.path[0] == '/') || strlen(link.path) == 0)
 	{
-		strcpy(link.path, "\r\n");
+		strncpy(link.path, "\r\n", sizeof(link.path) - 1);
 	}
 	else
 	{
@@ -1041,7 +1041,8 @@ char getFileEsp(unsigned char *fileNamePtr)
 
 	sprintf(cmd, "AT+CIPSTART=\"TCP\",\"%s\",%u", link.host, link.port);
 	sendcommand(cmd);
-	do
+
+	for (;;) // Try until endo of the days recieve CONNECT or ERROR
 	{
 		getAnswer3(); // CONNECT or ERROR or link is not valid
 
@@ -1056,7 +1057,7 @@ char getFileEsp(unsigned char *fileNamePtr)
 				return false;
 			}
 		}
-	} while (42); // Try until endo of the days recieve CONNECT or ERROR
+	}
 
 	getAnswer3(); // OK
 
@@ -1137,7 +1138,7 @@ char getFileNet(unsigned char *fileNamePtr)
 	}
 	saveBuf(fileNamePtr, 00, 0);
 	clearStatus();
-	do
+	for (;;)
 	{
 		todo = tcpRead(socket, 3);
 		if (todo < 1)
@@ -1148,7 +1149,7 @@ char getFileNet(unsigned char *fileNamePtr)
 		downloaded = downloaded + todo;
 		printf("%lu kb    \r", downloaded / 1024);
 		saveBuf(fileNamePtr, 01, todo);
-	} while (42);
+	}
 	saveBuf(fileNamePtr, 02, 00);
 	clearStatus();
 	netShutDown(socket, 0);
@@ -1215,7 +1216,7 @@ unsigned char selectorProcessor(void)
 	}
 	SelectedPos = startSearch + counter1;
 
-	strcpy(link.prevHost, link.host);
+	strncpy(link.prevHost, link.host, sizeof(link.prevHost) - 1);
 	link.nexType = link.type;
 	link.type = netbuf[SelectedPos];
 
@@ -1296,7 +1297,7 @@ char extractName(void)
 
 		if (inputBox(curWin, navi.fileName))
 		{
-			strcpy(navi.fileName, cmd);
+			strncpy(navi.fileName, cmd, sizeof(navi.fileName) - 1);
 		}
 		else
 		{
@@ -1389,7 +1390,7 @@ unsigned char mediaProcessorExt(void)
 
 	next = 1;
 	curPosition = 0;
-	do
+	for (;;)
 	{
 		// n = -1;
 		n = pos(nvext, extLow, next, curPosition);
@@ -1410,7 +1411,7 @@ unsigned char mediaProcessorExt(void)
 		else
 		{
 			counter = 0;
-			do
+			for (;;)
 			{
 				byte = nvext[n + counter];
 				if (byte == 0x0d)
@@ -1445,10 +1446,9 @@ unsigned char mediaProcessorExt(void)
 					return true;
 				}
 				counter++;
-			} while (42);
+			}
 		}
-	} while (42);
-	return false;
+	}
 }
 
 void doLink(char backSpace)
@@ -1623,10 +1623,10 @@ void enterDomain(void)
 
 	if (inputBox(curWin, ""))
 	{
-		strcpy(link.prevHost, link.host);
+		strncpy(link.prevHost, link.host, sizeof(link.prevHost) - 1);
 		link.type = '1';
-		strcpy(link.host, cmd);
-		strcpy(link.path, "/");
+		strncpy(link.host, cmd, sizeof(link.host) - 1);
+		strncpy(link.path, "/", sizeof(link.path) - 1);
 		link.port = 70;
 		doLink(false);
 	}
