@@ -14,6 +14,8 @@
 #define false 0
 #define screenHeight 23
 #define screenWidth 80
+#define MAX_PAGES_TOTAL 200
+#define NETBUF_SIZE 30000
 
 unsigned int RBR_THR = 0xf8ef;
 unsigned int IER = 0xf9ef;
@@ -31,11 +33,13 @@ unsigned int espRetry = 5;
 unsigned long factor, timerok, count = 0;
 unsigned int magic = 15;
 
-unsigned char uVer[] = "1.6";
+unsigned char uVer[] = "1.8";
 unsigned char curPath[128];
 unsigned char cmd[512];
-unsigned int pageOffsets[128];
-unsigned long volumeOffsets[16];
+unsigned long volumeOffsets[32];
+unsigned int pageOffsets[MAX_PAGES_TOTAL];
+unsigned char pageVolumes[MAX_PAGES_TOTAL];
+
 unsigned char crlf[2] = {13, 10};
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 
@@ -78,6 +82,7 @@ struct navigationStruct
 	unsigned int history;
 	unsigned int saveAs;
 	unsigned char fileName[128];
+	unsigned char silentRender; // 0 - нормальный вывод, 1 - тихий расчет смещений
 } navi;
 
 struct linkStruct
@@ -111,7 +116,7 @@ struct time
 } clock;
 
 unsigned char nvext[1024];
-unsigned char netbuf[31768];
+unsigned char netbuf[NETBUF_SIZE];
 unsigned char heap[1500];
 unsigned char colors[25];
 FILE *fp2;
@@ -394,8 +399,6 @@ char loadPageFromDisk(unsigned char *filepath, unsigned int volume)
 	{
 		if ((sizeof(netbuf) - loaded) < 513)
 		{
-			clearStatus();
-			printf("Файл слишком большой, будет загружаться частями (%ld kb)...", link.size / 1024);
 			break;
 		}
 
@@ -505,10 +508,13 @@ void newPage(void)
 	navi.prevLineSelect = 2;
 	navi.bufPos = 0;
 	navi.nextBufPos = 0;
-	volumeOffsets[0] = 0;
 	navi.lastLine = 0;
+	navi.silentRender = 0;
+	navi.volume = 0;
+	volumeOffsets[0] = 0;
+	memset(pageOffsets, 0, sizeof(pageOffsets));
+	memset(pageVolumes, 0, sizeof(pageVolumes));
 }
-
 void renderType(unsigned char linkType)
 {
 	OS_SETCOLOR(70); // Ярко-желтый
@@ -577,6 +583,21 @@ void renderType(unsigned char linkType)
 	colors[navi.lastLine] = 5;
 	OS_SETCOLOR(5);
 }
+/**
+ * Вспомогательная функция: горячая подгрузка следующего тома прямо во время рендера.
+ * Вынесена отдельно, чтобы не перегружать регистровый контекст основного цикла renderPlain.
+ */
+static unsigned char switchInternalVolume(void)
+{
+	if (navi.volume < navi.maxVolume)
+	{
+		navi.volume++;
+		OS_SETSYSDRV();
+		loadPageFromDisk("browser/current.txt", navi.volume);
+		return 1; // Успешно переключили
+	}
+	return 0; // Конец всего файла
+}
 
 /**
  * Renders a page of plain text from the network buffer to the screen.
@@ -586,32 +607,54 @@ void renderType(unsigned char linkType)
  */
 unsigned int renderPlain(unsigned int bufPos)
 {
-	unsigned int counter = 0;
-	unsigned int colCount = 0;
-	unsigned int byte;
-	char justWrapped = false;
-
-	/* Переменные для логики Word Wrap (объявлены строго вверху) */
 	unsigned int lookAheadPos;
-	unsigned int wordLength;
-	unsigned int nextByte;
+	unsigned char counter = 0;
+	unsigned char colCount = 0;
+	unsigned char byte;
+	unsigned char wordLength;
+	unsigned char nextByte;
+	char justWrapped = 0;
+
+	// Кэшируем флаг silentRender в быструю переменную
+	unsigned char isSilent = navi.silentRender;
 
 	link.type = '0';
 
-	OS_CLS(0);
-	mainWinDraw();
-	OS_SETCOLOR(7);
-	OS_SETXY(0, 1);
+	if (!isSilent)
+	{
+		OS_CLS(0);
+		mainWinDraw();
+
+		clearStatus();
+		// Быстрый расчет позиции для статус-бара через сдвиг
+		printf(" Position: %u/%lu kb | Page: %u ",
+			   (unsigned int)((volumeOffsets[navi.volume] + bufPos) >> 10),
+			   (unsigned long)(link.size >> 10), navi.page + 1);
+
+		OS_SETCOLOR(7);
+		OS_SETXY(0, 1);
+	}
 
 	do
 	{
 		byte = netbuf[bufPos];
-		
-		// 1. Конец данных
+
+		// 1. КОНЕЦ ДАННЫХ В ТЕКУЩЕМ БУФЕРЕ (ГОРЯЧАЯ СКЛЕЙКА ТОМОВ)
 		if (byte == 0)
 		{
-			navi.maxPage = navi.page;
-			return bufPos;
+			// Пытаемся подгрузить следующий том прямо на лету
+			if (switchInternalVolume())
+			{
+				bufPos = 0; // Новый том читаем с самого начала
+				justWrapped = 0;
+				continue; // Продолжаем рендерить эту же страницу без разрывов!
+			}
+			else
+			{
+				// Если томов больше нет ? это реальный конец файла
+				navi.maxPage = navi.page;
+				return bufPos;
+			}
 		}
 
 		// 2. Обработка явного переноса строки (\r или \n)
@@ -619,13 +662,14 @@ unsigned int renderPlain(unsigned int bufPos)
 		{
 			if (!justWrapped)
 			{
-				putchar('\n');
+				if (!isSilent)
+					putchar('\n');
 				counter++;
 			}
 			colCount = 0;
-			justWrapped = false;
+			justWrapped = 0;
 			bufPos++;
-			
+
 			if (byte == 0xd && netbuf[bufPos] == 0xa)
 			{
 				bufPos++;
@@ -633,59 +677,77 @@ unsigned int renderPlain(unsigned int bufPos)
 			continue;
 		}
 
-		// 3. ЛОГИКА WORD WRAP: Проверка начала нового слова
-		// Если текущий символ НЕ пробел/табуляция, и мы не в самом начале строки
+		// 3. ЛОГИКА WORD WRAP (ПЕРЕНОС СЛОВ)
 		if (byte != ' ' && byte != '\t' && colCount > 0)
 		{
-			// Проверяем, был ли предыдущий символ пробелом (то есть сейчас начинается слово)
-			// или если мы стоим на самом первом символе буфера
 			if (bufPos == 0 || netbuf[bufPos - 1] == ' ' || netbuf[bufPos - 1] == '\t')
 			{
-				// Сканируем вперед, чтобы узнать длину слова
 				wordLength = 0;
 				lookAheadPos = bufPos;
-				
-				while (lookAheadPos < sizeof(netbuf))
+
+				while (1)
 				{
 					nextByte = netbuf[lookAheadPos];
-					// Слово заканчивается на пробеле, переносе строки или конце буфера
+
+					// Если слово уперлось в конец буфера текущего тома, заглядываем в следующий!
+					if (nextByte == 0 && navi.volume < navi.maxVolume)
+					{
+						// Для Z80 накладно грузить весь диск ради проверки слова,
+						// поэтому если слово обрывается буфером ? мы считаем его длинным
+						// и разрешаем перенос, либо прерываем поиск.
+						break;
+					}
+
 					if (nextByte == 0 || nextByte == ' ' || nextByte == '\t' || nextByte == 0xd || nextByte == 0xa)
 					{
 						break;
 					}
 					wordLength++;
 					lookAheadPos++;
+
+					if (wordLength > 80)
+					{
+						break;
+					}
 				}
 
-				// ИСПРАВЛЕНИЕ: Если слово целиком ПОМЕЩАЕТСЯ на экран (<= 80), 
-				// но НЕ помещается в остаток текущей строки, переносим его целиком.
-				// (Если слово само по себе длиннее 80 символов, например, ссылка, 
-				// мы его не переносим, иначе консоль зависнет. Оно просто разрежется).
-				if (wordLength <= 80 && (colCount + wordLength) > 80)
+				if (wordLength <= 80 && wordLength > (80 - colCount))
 				{
-					putchar('\n');
+					if ((unsigned char)(counter + 1) >= (unsigned char)screenHeight)
+					{
+						return bufPos;
+					}
+
+					if (!isSilent)
+						putchar('\n');
 					counter++;
 					colCount = 0;
-					justWrapped = true; // Консоль перешла на новую строку
+					justWrapped = 1;
 				}
 			}
 		}
 
 		// 4. Вывод текущего символа
-		putchar(byte);
+		if (!isSilent)
+			putchar(byte);
 		colCount++;
 		bufPos++;
-		justWrapped = false; 
+		justWrapped = 0;
 
-		// 5. Логика автопереноса консоли (для очень длинных слов/ссылок > 80 символов)
+		// 5. Логика автопереноса по ширине экрана (80 символов)
 		if (colCount >= 80)
 		{
 			counter++;
 			colCount = 0;
-			justWrapped = true; 
+			justWrapped = 1;
+
+			while (netbuf[bufPos] == ' ' || netbuf[bufPos] == '\t')
+			{
+				bufPos++;
+			}
 		}
 
-	} while (counter < screenHeight);
+	} while (counter < (unsigned char)screenHeight);
 
 	return bufPos;
 }
@@ -1798,72 +1860,92 @@ void navigationPage(char keypress)
 
 void navigationPlain(char keypress)
 {
+	unsigned int curPage = navi.page; // Локальная копия для ускорения Z80
+
 	switch (keypress)
 	{
 	case 248: // Left
 	case 250: // Up
-
-		if (navi.page == 0)
+		if (curPage == 0)
 		{
-			if (navi.volume == 0)
-			{
-				break;
-			}
-			navi.volume--;
-			newPage();
-			OS_SETSYSDRV();
-			loadPageFromDisk("browser/current.txt", navi.volume);
-			navi.nextBufPos = renderPlain(navi.nextBufPos);
+			// Мы на самой первой странице ? идти назад некуда
 			break;
 		}
-		navi.page--;
-		navi.nextBufPos = pageOffsets[navi.page];
-		navi.lineSelect = screenHeight;
-		navi.nextBufPos = renderPlain(navi.nextBufPos);
+
+		// 1. Сдвигаем указатель страницы назад
+		curPage--;
+		navi.page = curPage;
+
+		// 2. Достаем сохраненный для ЭТОЙ страницы том
+		navi.volume = pageVolumes[curPage];
+
+		OS_SETSYSDRV();
+		loadPageFromDisk("browser/current.txt", navi.volume);
+
+		// 3. Рендерим строго с сохраненного для этой страницы смещения
+		navi.nextBufPos = renderPlain(pageOffsets[curPage]);
 		break;
+
 	case 251: // Right
 	case 249: // down
-		if (navi.page == navi.maxPage)
+		if (curPage == navi.maxPage)
 		{
-			if (navi.volume == navi.maxVolume)
-			{
-				break;
-			}
-			navi.volume++;
-			newPage();
-			OS_SETSYSDRV();
-			loadPageFromDisk("browser/current.txt", navi.volume);
-			navi.nextBufPos = renderPlain(navi.nextBufPos);
+			// Достигли физического конца файла
 			break;
 		}
-		navi.page++;
-		pageOffsets[navi.page] = navi.nextBufPos;
-		navi.lineSelect = 1;
-		navi.nextBufPos = renderPlain(navi.nextBufPos);
+
+		// 1. СНАЧАЛА сохраняем данные ТЕКУЩЕЙ страницы, прежде чем уйти с нее
+		if (curPage < MAX_PAGES_TOTAL)
+		{
+			pageVolumes[curPage] = navi.volume;
+			// Следующая страница начнется там, где закончилась текущая
+			pageOffsets[curPage + 1] = navi.nextBufPos;
+		}
+
+		// 2. Только теперь шагаем вперед
+		curPage++;
+		navi.page = curPage;
+
+		// 3. Запоминаем том для новой страницы (на случай если renderPlain переключит его)
+		if (curPage < MAX_PAGES_TOTAL)
+		{
+			pageVolumes[curPage] = navi.volume;
+		}
+
+		// 4. Отрисовываем следующую страницу
+		navi.nextBufPos = renderPlain(pageOffsets[curPage]);
 		break;
-	case 0x08: // BS
+
+	case 0x08: // BS (Назад в историю)
 		if (navi.history > 1)
 		{
 			popHistory();
 			doLink(true);
 		}
 		break;
-	case 31: // screen redraw
-		renderPlain(pageOffsets[navi.page]);
+
+	case 31: // Перерисовка текущей страницы
+		OS_SETSYSDRV();
+		loadPageFromDisk("browser/current.txt", navi.volume);
+		renderPlain(pageOffsets[curPage]);
 		break;
+
 	case 'h':
 	case 'H':
 		goHome(false);
 		break;
+
 	case 'd':
 	case 'D':
 		enterDomain();
 		break;
+
 	case 's':
 	case 'S':
 		navi.saveAs = !navi.saveAs;
 		mainWinDraw();
 		break;
+
 	case 'i':
 	case 'I':
 		netDriver = !netDriver;
@@ -1874,6 +1956,7 @@ void navigationPlain(char keypress)
 			espReBoot();
 		}
 		break;
+
 	case 'm':
 	case 'M':
 		mouse.classic = !mouse.classic;
