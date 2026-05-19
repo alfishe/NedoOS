@@ -9,6 +9,7 @@
 #include <graphic.h>
 #include <ctype.h>
 #include <math.h>
+
 ///
 #define true 1
 #define false 0
@@ -33,7 +34,7 @@ unsigned int espRetry = 5;
 unsigned long factor, timerok, count = 0;
 unsigned int magic = 15;
 
-unsigned char uVer[] = "1.8";
+unsigned char uVer[] = "1.9";
 unsigned char curPath[128];
 unsigned char cmd[512];
 unsigned long volumeOffsets[32];
@@ -671,40 +672,45 @@ unsigned int renderPlain(unsigned int bufPos)
 			continue;
 		}
 
-		// 3. ЛОГИКА WORD WRAP (ПЕРЕНОС СЛОВ)
+		// 3. ОПТИМИЗИРОВАННАЯ ЛОГИКА WORD WRAP (ПЕРЕНОС СЛОВ)
 		if (byte != ' ' && byte != '\t' && colCount > 0)
 		{
+			// Проверка на начало слова: буфер только начался ИЛИ предыдущий символ был пробелом/табом
 			if (bufPos == 0 || netbuf[bufPos - 1] == ' ' || netbuf[bufPos - 1] == '\t')
 			{
-				wordLength = 0;
 				lookAheadPos = bufPos;
 
+				// Быстрый линейный поиск конца слова
+				// Z80 быстрее обрабатывает инкремент указателя, чем постоянное сложение lookAheadPos + wordLength
 				while (1)
 				{
 					nextByte = netbuf[lookAheadPos];
 
-					// Если слово уперлось в конец буфера текущего тома, заглядываем в следующий!
-					if (nextByte == 0 && navi.volume < navi.maxVolume)
+					// Агрегированная проверка на терминаторы (0, пробельные символы и перенос)
+					// Компиляторы под Z80 генерируют отличный код, когда проверки идут "от меньшего к большему"
+					if (nextByte <= '\t') // Покрывает \0 (0) и \t (9)
 					{
-						// Для Z80 накладно грузить весь диск ради проверки слова,
-						// поэтому если слово обрывается буфером ? мы считаем его длинным
-						// и разрешаем перенос, либо прерываем поиск.
-						break;
+						if (nextByte == 0 || nextByte == '\t')
+							break;
+					}
+					else if (nextByte <= ' ') // Покрывает \n (10), \r (13) и пробел (32)
+					{
+						if (nextByte == ' ' || nextByte == 0xd || nextByte == 0xa)
+							break;
 					}
 
-					if (nextByte == 0 || nextByte == ' ' || nextByte == '\t' || nextByte == 0xd || nextByte == 0xa)
-					{
-						break;
-					}
-					wordLength++;
 					lookAheadPos++;
 
-					if (wordLength > 80)
+					// Если слово длиннее, чем ширина экрана, нет смысла искать дальше
+					if ((unsigned int)(lookAheadPos - bufPos) > 80)
 					{
 						break;
 					}
 				}
 
+				wordLength = (unsigned char)(lookAheadPos - bufPos);
+
+				// Проверяем, помещается ли слово на текущей строке
 				if (wordLength <= 80 && wordLength > (80 - colCount))
 				{
 					if ((unsigned char)(counter + 1) >= (unsigned char)screenHeight)
@@ -751,10 +757,11 @@ unsigned int renderPlain(unsigned int bufPos)
  */
 unsigned int renderPage(unsigned int bufPos)
 {
-	// colCount = Максимальная длинна строки
-
-	unsigned char counter = 0, colCount = 0;
-	unsigned char byte = 0;
+	unsigned char counter = 0;
+	unsigned char colCount = 0;
+	unsigned char byte;
+	// Переходим на быстрые указатели вместо индексации массива
+	register unsigned char *ptr = netbuf + bufPos;
 
 	navi.lastLine = 0;
 	link.type = '1';
@@ -763,63 +770,79 @@ unsigned int renderPage(unsigned int bufPos)
 	mainWinDraw();
 	OS_SETXY(0, 1);
 
-	byte = netbuf[bufPos];
-	renderType(byte);
+	// Отрисовка типа для самой первой строки
+	renderType(*ptr);
 
 	do
 	{
-		for (;;)
+		// Цикл 1: Чтение и вывод видимой части имени ссылки до знака табуляции
+		while (1)
 		{
-			bufPos++;
+			ptr++;
+			byte = *ptr;
 
-			byte = netbuf[bufPos];
-
-			if (byte == 9)
+			if (byte == 9) // \t - Конец отображаемого имени
 			{
 				putchar('\r');
 				putchar('\n');
 				break;
 			}
 
-			if (byte == 0)
+			if (byte == 0) // Конец данных в буфере
 			{
 				navi.maxPage = navi.page;
 				navi.lastLine = counter;
-				return bufPos;
+				return (unsigned int)(ptr - netbuf);
 			}
 
-			if (colCount == SCREEN_WIDTH - 2)
+			// Ограничиваем вывод шириной экрана
+			if (colCount < (unsigned char)(SCREEN_WIDTH - 3))
 			{
-				break;
+				putchar(byte);
+				colCount++;
 			}
-			putchar(byte);
-			colCount++;
 		}
-		for (;;)
+
+		// Цикл 2: Быстрый пропуск служебной информации ссылки (селектор, хост, порт) до конца строки
+		while (1)
 		{
-			bufPos++;
-			if (netbuf[bufPos] == 10) // LF
+			ptr++;
+			byte = *ptr;
+
+			if (byte == 0) // Защита от зависания при битом буфере
+			{
+				navi.maxPage = navi.page;
+				navi.lastLine = counter;
+				return (unsigned int)(ptr - netbuf);
+			}
+
+			if (byte == 10) // LF - Конец строки достигнут
 			{
 				colCount = 0;
 				counter++;
 				navi.lastLine = counter;
-				bufPos++;
-				if (bufPos + 1 < sizeof(netbuf) && netbuf[bufPos] == '.') // Конец документа
+				ptr++;
+
+				// Проверка на маркер конца Gopher-документа (строка со знаком точки)
+				if (*ptr == '.' && *(ptr + 1) < 32)
 				{
 					navi.maxPage = navi.page;
 					navi.lastLine = counter;
-					return bufPos;
+					return (unsigned int)(ptr - netbuf);
 				}
-				if (counter < screenHeight)
+
+				// Рисуем иконку типа, только если строка помещается на экран
+				if (counter < (unsigned char)screenHeight)
 				{
-					renderType(netbuf[bufPos]);
+					renderType(*ptr);
 				}
 				break;
 			}
 		}
-	} while (counter < screenHeight);
+	} while (counter < (unsigned char)screenHeight);
+
 	navi.lastLine = counter;
-	return bufPos;
+	return (unsigned int)(ptr - netbuf);
 }
 
 void reDraw(void)
@@ -881,7 +904,16 @@ void errorBox(struct window w, const char *message)
 unsigned char inputBox(struct window w, const char *prefilled)
 {
 	unsigned char wcount, tempx, tittleStart;
-	unsigned char byte, counter;
+	unsigned char byte;
+
+	// Переменные редактора (объявлены строго в начале функции для IAR)
+	unsigned char cmdLen;	  // Полная текущая длина строки cmd
+	unsigned char cursorPos;  // Позиция курсора в строке (от 0 до cmdLen)
+	unsigned char viewOffset; // Смещение просмотра для скроллинга длинного текста
+	unsigned char visibleLen; // Сколько символов строки физически влезает в окно
+	unsigned char i;		  // Индекс для циклов отрисовки
+	unsigned char printPos;	  // Текущий индекс символа для вывода на экран
+
 	w.h++;
 	OS_SETXY(w.x, w.y - 1);
 	BDBOX(w.x, w.y, w.w + 1, w.h, w.back, 32);
@@ -912,79 +944,148 @@ unsigned char inputBox(struct window w, const char *prefilled)
 	tittleStart = w.x + (w.w / 2) - (strlen(w.tittle) / 2);
 	OS_SETXY(tittleStart, w.y);
 	printf("[%s]", w.tittle);
-	OS_SETXY(w.x + 1, w.y + 1);
-	OS_SETCOLOR(w.back);
-	putchar(219);
+
+	// Инициализация строки cmd
 	cmd[0] = 0;
-	counter = strlen(prefilled);
-	if (counter != 0)
+	cmdLen = strlen(prefilled);
+	if (cmdLen != 0)
 	{
 		strncpy(cmd, prefilled, sizeof(cmd) - 1);
+		cmd[sizeof(cmd) - 1] = 0; // Гарантированный ноль на конце
 	}
+
+	// Настройка начального состояния курсора и скроллинга
+	cursorPos = cmdLen;
+	viewOffset = 0;
+	visibleLen = w.w - 1; // Доступная ширина внутри рамки под текст и курсор
 
 	for (;;)
 	{
-		// Переносим отрисовку в начало цикла!
-		// Если prefilled был не пустой, он сразу нарисуется при первом входе.
-		OS_SETXY(w.x + 1, w.y + 1);
-		printf("%s", cmd);
-		putchar(219);
-		if (byte == 0x08)
+		// 1. АВТОСКРОЛЛИНГ: Корректируем окно видимости текста относительно курсора
+		if (cursorPos < viewOffset)
 		{
-			putchar(' ');
-			byte = 0; // Сбрасываем, чтобы пробел не печатался вечно
+			viewOffset = cursorPos;
+		}
+		else if (cursorPos - viewOffset >= visibleLen)
+		{
+			viewOffset = cursorPos - visibleLen + 1;
 		}
 
-		YIELD(); // Уступаем квант времени ОС перед ожиданием нажатия
+		// 2. ОТРИСОВКА СТРОКИ С ПОБИТОВОЙ ИНВЕРСИЕЙ ЦВЕТА КУРСOРА (Для NedoOS)
+		OS_SETXY(w.x + 1, w.y + 1);
+
+		for (i = 0; i < visibleLen; i++)
+		{
+			printPos = viewOffset + i;
+
+			// Если в этой позиции находится курсор ? считаем инверсный байт атрибута
+			if (printPos == cursorPos)
+			{
+				// Меняем местами биты 0-2 (INK) и 3-5 (PAPER), сохраняя биты 6-7 (Bright/Flash)
+				OS_SETCOLOR((unsigned char)((w.text & 0xC0) |		 // Сохраняем BRIGHT и FLASH
+											((w.text & 0x07) << 3) | // Сдвигаем старый INK на место PAPER
+											((w.text & 0x38) >> 3)	 // Сдвигаем старый PAPER на место INK
+											));
+			}
+			else
+			{
+				OS_SETCOLOR(w.text); // Стандартный цвет окна (например, тот самый 207)
+			}
+
+			// Выводим символ или пробел на месте курсора
+			if (printPos < cmdLen)
+			{
+				putchar(cmd[printPos]);
+			}
+			else
+			{
+				putchar(' '); // Зачищаем хвост строки или рисуем инверсный курсор-пробел в конце
+			}
+		}
+		// Восстанавливаем цвет по умолчанию после завершения строки
+		OS_SETCOLOR(w.text);
+
+		YIELD(); // Обязательно уступаем квант времени ОС NedoOS
 
 		byte = OS_GETKEY();
 		if (byte != 0)
 		{
 			switch (byte)
 			{
-			case 0x08:
-				if (counter > 0)
+			case 248: // Left (Стрелка влево)
+				if (cursorPos > 0)
 				{
-					counter--;
-					cmd[counter] = 0;
+					cursorPos--;
 				}
 				break;
-			case 0x0d:
-				if (counter == 0)
+
+			case 251: // Right (Стрелка вправо)
+				if (cursorPos < cmdLen)
+				{
+					cursorPos++;
+				}
+				break;
+
+			case 0x08: // Backspace (Удаление символа СЛЕВА от курсора)
+				if (cursorPos > 0 && cmdLen > 0)
+				{
+					// Сдвигаем хвост строки влево на 1 символ
+					for (i = cursorPos - 1; i < cmdLen; i++)
+					{
+						cmd[i] = cmd[i + 1];
+					}
+					cursorPos--;
+					cmdLen--;
+				}
+				break;
+
+			case 252: // Delete (Удаление символа В ПОЗИЦИИ курсора)
+				if (cursorPos < cmdLen && cmdLen > 0)
+				{
+					// Сдвигаем хвост строки начиная от курсора
+					for (i = cursorPos; i < cmdLen; i++)
+					{
+						cmd[i] = cmd[i + 1];
+					}
+					cmdLen--;
+				}
+				break;
+
+			case 0x0d: // Enter (Подтверждение ввода)
+				if (cmdLen == 0)
 				{
 					return false;
 				}
-				else
-				{
-					return true;
-				}
-			case 31:
-			case 250:
-			case 249:
-			case 248:
-			case 251: // Right
-				break;
-			case 252: // Del
-				OS_SETXY(w.x + 1, w.y + 1);
-				spaces(counter + 1);
-				cmd[0] = 0;
-				counter = 0;
-				break;
-			case 27:
+				return true;
+
+			case 27: // Esc (Полная очистка и выход)
 				cmd[0] = 0;
 				return false;
-			default:
-				if (counter < w.w - 1)
+
+			case 31:  // Игнорируем служебные клавиши навигации основного экрана
+			case 250: // Up
+			case 249: // Down
+				break;
+
+			default: // ВВОД СИМВОЛА (С поддержкой вставки в середину строки)
+				// Проверяем, есть ли место в массиве cmd и влезает ли символ
+				if (cmdLen < (sizeof(cmd) - 2) && byte >= 32)
 				{
-					cmd[counter] = byte;
-					counter++;
-					cmd[counter] = 0;
+					// Раздвигаем строку вправо, освобождая место под символ
+					for (i = cmdLen; i > cursorPos; i--)
+					{
+						cmd[i] = cmd[i - 1];
+					}
+					// Вставляем символ в позицию курсора
+					cmd[cursorPos] = byte;
+					cursorPos++;
+					cmdLen++;
+					cmd[cmdLen] = 0; // Корректно закрываем строку нулем
 				}
 				break;
 			}
 		}
 	}
-	// return false; здесь больше не нужен, компилятор не будет ругаться
 }
 
 void pusHistory(void)
@@ -992,6 +1093,7 @@ void pusHistory(void)
 	FILE *hf;
 	unsigned int structSize;
 	unsigned long filePos;
+
 	if (link.type == '7')
 	{
 		return;
@@ -999,29 +1101,38 @@ void pusHistory(void)
 
 	navi.history++;
 	structSize = sizeof(struct linkStruct);
-	filePos = structSize * (navi.history - 1);
+	filePos = (unsigned long)structSize * (navi.history - 1);
 
 	OS_SETSYSDRV();
 
-	hf = OS_CREATEHANDLE("browser/ng_hist.dat", 0x80);
-	if (((int)hf) & 0xff)
+	// ОПТИМИЗАЦИЯ: Пересоздаем файл только ПРИ САМОЙ ПЕРВОЙ записи в историю.
+	// В остальных случаях - сразу открываем на запись.
+	if (navi.history == 1)
 	{
-		clearStatus();
-		printf("browser/ng_hist.dat creating error.");
-		exit(0);
+		hf = OS_CREATEHANDLE("browser/ng_hist.dat", 0x80);
+		if (((int)hf) & 0xff)
+		{
+			clearStatus();
+			printf("History create error.");
+			exit(0);
+		}
+		OS_CLOSEHANDLE(hf);
 	}
-	OS_CLOSEHANDLE(hf);
 
 	hf = OS_OPENHANDLE("browser/ng_hist.dat", 0x80);
 	if (((int)hf) & 0xff)
 	{
 		clearStatus();
-		printf("browser/ng_hist.dat opening error.");
+		printf("History open error.");
 		exit(0);
 	}
+
 	OS_SEEKHANDLE(hf, filePos);
+	
+	// Безопасное копирование и запись через heap
 	memcpy(&heap, &link, structSize);
 	OS_WRITEHANDLE(heap, hf, structSize);
+	
 	OS_CLOSEHANDLE(hf);
 }
 
@@ -1030,22 +1141,35 @@ void popHistory(void)
 	FILE *hf;
 	unsigned int structSize;
 	unsigned long filePos;
+
+	if (navi.history == 0)
+	{
+		return;
+	}
+
 	navi.history--;
 	structSize = sizeof(struct linkStruct);
-	filePos = structSize * (navi.history - 1);
+	filePos = (unsigned long)structSize * (navi.history - 1);
+
 	OS_SETSYSDRV();
 	hf = OS_OPENHANDLE("browser/ng_hist.dat", 0x80);
 	if (((int)hf) & 0xff)
 	{
 		clearStatus();
-		printf("browser/ng_hist.dat opening error.");
+		printf("History open error.");
 		exit(0);
 	}
 
 	OS_SEEKHANDLE(hf, filePos);
-	OS_READHANDLE(netbuf, hf, structSize);
+	
+	// ИСПРАВЛЕНИЕ БАГА: Читаем данные в буфер heap вместо netbuf!
+	// Ваша обертка примет heap так же, как принимает его в pusHistory,
+	// а netbuf с текстом страницы останется в полной безопасности.
+	OS_READHANDLE(heap, hf, structSize);
+	OS_CLOSEHANDLE(hf);
 
-	memcpy(&link, netbuf, structSize);
+	// Переносим данные из heap обратно в рабочую структуру link
+	memcpy(&link, heap, structSize);
 }
 
 void goHome(char backSpace)
@@ -1728,6 +1852,7 @@ void enterDomain(void)
 void navigationPage(char keypress)
 {
 	unsigned char counter;
+	unsigned char oldColor; // Вынесли объявление в начало функции по стандарту C89
 
 	switch (keypress)
 	{
@@ -1830,18 +1955,24 @@ void navigationPage(char keypress)
 
 	if (link.type == '1')
 	{
-		for (counter = 1; counter < SCREEN_WIDTH; counter++)
+		oldColor = colors[navi.prevLineSelect - 1];
+
+		// Возвращаем исходную логику: явно переставляем X для каждого символа строки
+		for (counter = 1; counter < (unsigned char)SCREEN_WIDTH; counter++)
 		{
 			OS_SETXY(counter, navi.prevLineSelect);
-			OS_PRATTR(colors[navi.prevLineSelect - 1]);
+			OS_PRATTR(oldColor);
 		}
 
+		// Коррекция аппаратного или программного курсора мыши NedoOS
 		if (mouse.cursYpos == navi.prevLineSelect)
 		{
 			OS_SETXY(mouse.cursXpos, mouse.cursYpos);
 			mouse.oldAtr = OS_GETATTR();
 		}
-		for (counter = 1; counter < SCREEN_WIDTH; counter++)
+
+		// Включаем выделение для новой активной строки
+		for (counter = 1; counter < (unsigned char)SCREEN_WIDTH; counter++)
 		{
 			OS_SETXY(counter, navi.lineSelect);
 			OS_PRATTR(15);
