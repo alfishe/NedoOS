@@ -13,7 +13,7 @@
 #define true 1
 #define false 0
 #define screenHeight 23
-#define screenWidth 80
+#define SCREEN_WIDTH 80
 #define MAX_PAGES_TOTAL 200
 #define NETBUF_SIZE 30000
 
@@ -82,7 +82,6 @@ struct navigationStruct
 	unsigned int history;
 	unsigned int saveAs;
 	unsigned char fileName[128];
-	unsigned char silentRender; // 0 - нормальный вывод, 1 - тихий расчет смещений
 } navi;
 
 struct linkStruct
@@ -104,7 +103,7 @@ struct window
 	unsigned char h;
 	unsigned char text;
 	unsigned char back;
-	unsigned char tittle[80];
+	unsigned char tittle[SCREEN_WIDTH];
 } curWin;
 
 struct time
@@ -289,7 +288,7 @@ void mainWinDraw(void)
 {
 	OS_SETCOLOR(207);
 	OS_SETXY(0, 0);
-	spaces(80);
+	spaces(SCREEN_WIDTH);
 	OS_SETXY(0, 0);
 	printf("NedoGopher %s", uVer);
 
@@ -414,6 +413,8 @@ char loadPageFromDisk(unsigned char *filepath, unsigned int volume)
 	{
 		navi.maxVolume = volume;
 	}
+
+	// Стандартный ночной расчет, без опасных условий
 	volumeOffsets[volume + 1] = volumeOffsets[volume] + loaded;
 
 	clean = loaded + 128;
@@ -509,9 +510,9 @@ void newPage(void)
 	navi.bufPos = 0;
 	navi.nextBufPos = 0;
 	navi.lastLine = 0;
-	navi.silentRender = 0;
 	navi.volume = 0;
-	volumeOffsets[0] = 0;
+
+	memset(volumeOffsets, 0, sizeof(volumeOffsets));
 	memset(pageOffsets, 0, sizeof(pageOffsets));
 	memset(pageVolumes, 0, sizeof(pageVolumes));
 }
@@ -615,25 +616,19 @@ unsigned int renderPlain(unsigned int bufPos)
 	unsigned char nextByte;
 	char justWrapped = 0;
 
-	// Кэшируем флаг silentRender в быструю переменную
-	unsigned char isSilent = navi.silentRender;
-
 	link.type = '0';
 
-	if (!isSilent)
-	{
-		OS_CLS(0);
-		mainWinDraw();
+	OS_CLS(0);
+	mainWinDraw();
 
-		clearStatus();
-		// Быстрый расчет позиции для статус-бара через сдвиг
-		printf(" Position: %u/%lu kb | Page: %u ",
-			   (unsigned int)((volumeOffsets[navi.volume] + bufPos) >> 10),
-			   (unsigned long)(link.size >> 10), navi.page + 1);
+	clearStatus();
+	// Быстрый расчет позиции для статус-бара через сдвиг
+	printf(" Position: %u/%lu kb | Page: %u ",
+		   (unsigned int)((volumeOffsets[navi.volume] + bufPos) >> 10),
+		   (unsigned long)(link.size >> 10), navi.page + 1);
 
-		OS_SETCOLOR(7);
-		OS_SETXY(0, 1);
-	}
+	OS_SETCOLOR(7);
+	OS_SETXY(0, 1);
 
 	do
 	{
@@ -662,8 +657,7 @@ unsigned int renderPlain(unsigned int bufPos)
 		{
 			if (!justWrapped)
 			{
-				if (!isSilent)
-					putchar('\n');
+				putchar('\n');
 				counter++;
 			}
 			colCount = 0;
@@ -717,9 +711,7 @@ unsigned int renderPlain(unsigned int bufPos)
 					{
 						return bufPos;
 					}
-
-					if (!isSilent)
-						putchar('\n');
+					putchar('\n');
 					counter++;
 					colCount = 0;
 					justWrapped = 1;
@@ -728,8 +720,7 @@ unsigned int renderPlain(unsigned int bufPos)
 		}
 
 		// 4. Вывод текущего символа
-		if (!isSilent)
-			putchar(byte);
+		putchar(byte);
 		colCount++;
 		bufPos++;
 		justWrapped = 0;
@@ -797,7 +788,7 @@ unsigned int renderPage(unsigned int bufPos)
 				return bufPos;
 			}
 
-			if (colCount == screenWidth - 2)
+			if (colCount == SCREEN_WIDTH - 2)
 			{
 				break;
 			}
@@ -1090,7 +1081,7 @@ void errNoConnect(void)
 	}
 
 	curWin.w = 50;
-	curWin.x = 80 / 2 - curWin.w / 2 - 1;
+	curWin.x = SCREEN_WIDTH / 2 - curWin.w / 2 - 1;
 	curWin.y = 10;
 	curWin.h = 1;
 	curWin.text = 215;
@@ -1384,7 +1375,7 @@ char extractName(void)
 	if (navi.saveAs)
 	{
 		curWin.w = 61;
-		curWin.x = 80 / 2 - curWin.w / 2 - 1;
+		curWin.x = SCREEN_WIDTH / 2 - curWin.w / 2 - 1;
 		curWin.y = 10;
 		curWin.h = 1;
 		curWin.text = 103;
@@ -1600,7 +1591,7 @@ void doLink(char backSpace)
 		return;
 	case '7': // search input
 		curWin.w = 40;
-		curWin.x = 80 / 2 - curWin.w / 2 - 1;
+		curWin.x = SCREEN_WIDTH / 2 - curWin.w / 2 - 1;
 		curWin.y = 10;
 		curWin.h = 1;
 		curWin.text = 95;
@@ -1712,7 +1703,7 @@ void activate(void)
 void enterDomain(void)
 {
 	curWin.w = 40;
-	curWin.x = 80 / 2 - curWin.w / 2 - 1;
+	curWin.x = SCREEN_WIDTH / 2 - curWin.w / 2 - 1;
 	curWin.y = 10;
 	curWin.h = 1;
 	curWin.text = 207;
@@ -1839,7 +1830,7 @@ void navigationPage(char keypress)
 
 	if (link.type == '1')
 	{
-		for (counter = 1; counter < 80; counter++)
+		for (counter = 1; counter < SCREEN_WIDTH; counter++)
 		{
 			OS_SETXY(counter, navi.prevLineSelect);
 			OS_PRATTR(colors[navi.prevLineSelect - 1]);
@@ -1850,7 +1841,7 @@ void navigationPage(char keypress)
 			OS_SETXY(mouse.cursXpos, mouse.cursYpos);
 			mouse.oldAtr = OS_GETATTR();
 		}
-		for (counter = 1; counter < 80; counter++)
+		for (counter = 1; counter < SCREEN_WIDTH; counter++)
 		{
 			OS_SETXY(counter, navi.lineSelect);
 			OS_PRATTR(15);
@@ -1860,7 +1851,7 @@ void navigationPage(char keypress)
 
 void navigationPlain(char keypress)
 {
-	unsigned int curPage = navi.page; // Локальная копия для ускорения Z80
+	unsigned int curPage = navi.page;
 
 	switch (keypress)
 	{
@@ -1868,21 +1859,20 @@ void navigationPlain(char keypress)
 	case 250: // Up
 		if (curPage == 0)
 		{
-			// Мы на самой первой странице ? идти назад некуда
 			break;
 		}
 
-		// 1. Сдвигаем указатель страницы назад
 		curPage--;
 		navi.page = curPage;
 
-		// 2. Достаем сохраненный для ЭТОЙ страницы том
+		// Восстанавливаем том, на котором страница НАЧИНАЕТСЯ
 		navi.volume = pageVolumes[curPage];
 
 		OS_SETSYSDRV();
+		// Принудительно перечитываем именно тот том, с которого страница начинается
 		loadPageFromDisk("browser/current.txt", navi.volume);
 
-		// 3. Рендерим строго с сохраненного для этой страницы смещения
+		// Рендерим со смещения этой страницы
 		navi.nextBufPos = renderPlain(pageOffsets[curPage]);
 		break;
 
@@ -1890,33 +1880,33 @@ void navigationPlain(char keypress)
 	case 249: // down
 		if (curPage == navi.maxPage)
 		{
-			// Достигли физического конца файла
 			break;
 		}
 
-		// 1. СНАЧАЛА сохраняем данные ТЕКУЩЕЙ страницы, прежде чем уйти с нее
+		// Запоминаем, где закончилась текущая страница
 		if (curPage < MAX_PAGES_TOTAL)
 		{
-			pageVolumes[curPage] = navi.volume;
-			// Следующая страница начнется там, где закончилась текущая
 			pageOffsets[curPage + 1] = navi.nextBufPos;
+			pageVolumes[curPage + 1] = navi.volume; // Фиксируем том НАЧАЛА следующей страницы
 		}
 
-		// 2. Только теперь шагаем вперед
 		curPage++;
 		navi.page = curPage;
 
-		// 3. Запоминаем том для новой страницы (на случай если renderPlain переключит его)
-		if (curPage < MAX_PAGES_TOTAL)
+		// Если при рендере предыдущей страницы произошел switchInternalVolume,
+		// то navi.volume уже равен новому тому, а данные находятся в буфере netbuf.
+		// Но если мы заходим на страницу, которая требует другого тома, подгружаем его:
+		if (navi.volume != pageVolumes[curPage])
 		{
-			pageVolumes[curPage] = navi.volume;
+			navi.volume = pageVolumes[curPage];
+			OS_SETSYSDRV();
+			loadPageFromDisk("browser/current.txt", navi.volume);
 		}
 
-		// 4. Отрисовываем следующую страницу
 		navi.nextBufPos = renderPlain(pageOffsets[curPage]);
 		break;
 
-	case 0x08: // BS (Назад в историю)
+	case 0x08: // BS
 		if (navi.history > 1)
 		{
 			popHistory();
@@ -1924,12 +1914,11 @@ void navigationPlain(char keypress)
 		}
 		break;
 
-	case 31: // Перерисовка текущей страницы
+	case 31: // Перерисовка
 		OS_SETSYSDRV();
 		loadPageFromDisk("browser/current.txt", navi.volume);
 		renderPlain(pageOffsets[curPage]);
 		break;
-
 	case 'h':
 	case 'H':
 		goHome(false);
