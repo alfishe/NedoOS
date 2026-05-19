@@ -94,6 +94,7 @@ struct limit
 	int second;
 	int total;
 	int curline;
+	int oldline; // <-- ДОБАВЛЕНО: Предыдущая активная строка
 	int curOpt;
 	int headLng;
 	int curPage;
@@ -423,7 +424,16 @@ void simpleBox(struct window w)
 unsigned char inputBox(struct window w, const char *prefilled)
 {
 	unsigned char wcount, tempx, tittleStart;
-	unsigned char byte, counter;
+	unsigned char byte;
+
+	// Переменные редактора (объявлены строго в начале функции для IAR)
+	unsigned char cmdLen;	  // Полная текущая длина строки cmd
+	unsigned char cursorPos;  // Позиция курсора в строке (от 0 до cmdLen)
+	unsigned char viewOffset; // Смещение просмотра для скроллинга длинного текста
+	unsigned char visibleLen; // Сколько символов строки физически влезает в окно
+	unsigned char i;		  // Индекс для циклов отрисовки
+	unsigned char printPos;	  // Текущий индекс символа для вывода на экран
+
 	w.h++;
 	OS_SETXY(w.x, w.y - 1);
 	BDBOX(w.x, w.y, w.w + 1, w.h, w.back, 32);
@@ -454,90 +464,148 @@ unsigned char inputBox(struct window w, const char *prefilled)
 	tittleStart = w.x + (w.w / 2) - (strlen(w.tittle) / 2);
 	OS_SETXY(tittleStart, w.y);
 	printf("[%s]", w.tittle);
-	OS_SETXY(w.x + 1, w.y + 1);
-	OS_SETCOLOR(w.back);
-	putchar(219);
 
+	// Инициализация строки cmd
 	cmd[0] = 0;
-
-	counter = strlen(prefilled);
-	if (counter != 0)
+	cmdLen = strlen(prefilled);
+	if (cmdLen != 0)
 	{
-		strcpy(cmd, prefilled);
-		goto skipKeys;
+		strncpy(cmd, prefilled, sizeof(cmd) - 1);
+		cmd[sizeof(cmd) - 1] = 0; // Гарантированный ноль на конце
 	}
 
-	do
+	// Настройка начального состояния курсора и скроллинга
+	cursorPos = cmdLen;
+	viewOffset = 0;
+	visibleLen = w.w - 1; // Доступная ширина внутри рамки под текст и курсор
+
+	for (;;)
 	{
+		// 1. АВТОСКРОЛЛИНГ: Корректируем окно видимости текста относительно курсора
+		if (cursorPos < viewOffset)
+		{
+			viewOffset = cursorPos;
+		}
+		else if (cursorPos - viewOffset >= visibleLen)
+		{
+			viewOffset = cursorPos - visibleLen + 1;
+		}
+
+		// 2. ОТРИСОВКА СТРОКИ С ПОБИТОВОЙ ИНВЕРСИЕЙ ЦВЕТА КУРСOРА (Для NedoOS)
+		OS_SETXY(w.x + 1, w.y + 1);
+
+		for (i = 0; i < visibleLen; i++)
+		{
+			printPos = viewOffset + i;
+
+			// Если в этой позиции находится курсор ? считаем инверсный байт атрибута
+			if (printPos == cursorPos)
+			{
+				// Меняем местами биты 0-2 (INK) и 3-5 (PAPER), сохраняя биты 6-7 (Bright/Flash)
+				OS_SETCOLOR((unsigned char)((w.text & 0xC0) |		 // Сохраняем BRIGHT и FLASH
+											((w.text & 0x07) << 3) | // Сдвигаем старый INK на место PAPER
+											((w.text & 0x38) >> 3)	 // Сдвигаем старый PAPER на место INK
+											));
+			}
+			else
+			{
+				OS_SETCOLOR(w.text); // Стандартный цвет окна (например, тот самый 207)
+			}
+
+			// Выводим символ или пробел на месте курсора
+			if (printPos < cmdLen)
+			{
+				putchar(cmd[printPos]);
+			}
+			else
+			{
+				putchar(' '); // Зачищаем хвост строки или рисуем инверсный курсор-пробел в конце
+			}
+		}
+		// Восстанавливаем цвет по умолчанию после завершения строки
+		OS_SETCOLOR(w.text);
+
+		YIELD(); // Обязательно уступаем квант времени ОС NedoOS
+
 		byte = OS_GETKEY();
-		/*
-		clearStatus();
-		OS_SETCOLOR(103);
-		printf("key = %u", byte);
-		*/
 		if (byte != 0)
 		{
 			switch (byte)
 			{
-			case 0x08:
-				if (counter > 0)
+			case 248: // Left (Стрелка влево)
+				if (cursorPos > 0)
 				{
-					counter--;
-					cmd[counter] = 0;
+					cursorPos--;
 				}
 				break;
-			case 0x0d:
 
-				if (counter == 0)
+			case 251: // Right (Стрелка вправо)
+				if (cursorPos < cmdLen)
+				{
+					cursorPos++;
+				}
+				break;
+
+			case 0x08: // Backspace (Удаление символа СЛЕВА от курсора)
+				if (cursorPos > 0 && cmdLen > 0)
+				{
+					// Сдвигаем хвост строки влево на 1 символ
+					for (i = cursorPos - 1; i < cmdLen; i++)
+					{
+						cmd[i] = cmd[i + 1];
+					}
+					cursorPos--;
+					cmdLen--;
+				}
+				break;
+
+			case 252: // Delete (Удаление символа В ПОЗИЦИИ курсора)
+				if (cursorPos < cmdLen && cmdLen > 0)
+				{
+					// Сдвигаем хвост строки начиная от курсора
+					for (i = cursorPos; i < cmdLen; i++)
+					{
+						cmd[i] = cmd[i + 1];
+					}
+					cmdLen--;
+				}
+				break;
+
+			case 0x0d: // Enter (Подтверждение ввода)
+				if (cmdLen == 0)
 				{
 					return false;
 				}
-				else
-				{
-					return true;
-				}
+				return true;
 
-			case 31:
-				break;
-			case 250:
-				break;
-			case 249:
-				break;
-			case 248:
-				break;
-			case 251: // Right
-				break;
-			case 252: // Del
-				OS_SETXY(w.x + 1, w.y + 1);
-				spaces(counter + 1);
-				cmd[0] = 0;
-				counter = 0;
-				break;
-			case 27:
+			case 27: // Esc (Полная очистка и выход)
 				cmd[0] = 0;
 				return false;
 
-			default:
-				if (counter < w.w - 1)
+			case 31:  // Игнорируем служебные клавиши навигации основного экрана
+			case 250: // Up
+			case 249: // Down
+				break;
+
+			default: // ВВОД СИМВОЛА (С поддержкой вставки в середину строки)
+				// Проверяем, есть ли место в массиве cmd и влезает ли символ
+				if (cmdLen < (sizeof(cmd) - 2) && byte >= 32)
 				{
-					cmd[counter] = byte;
-					counter++;
-					cmd[counter] = 0;
+					// Раздвигаем строку вправо, освобождая место под символ
+					for (i = cmdLen; i > cursorPos; i--)
+					{
+						cmd[i] = cmd[i - 1];
+					}
+					// Вставляем символ в позицию курсора
+					cmd[cursorPos] = byte;
+					cursorPos++;
+					cmdLen++;
+					cmd[cmdLen] = 0; // Корректно закрываем строку нулем
 				}
 				break;
 			}
-		skipKeys:
-			OS_SETXY(w.x + 1, w.y + 1);
-			printf("%s", cmd);
-			putchar(219);
-			if (byte == 0x08)
-			{
-				putchar(' ');
-			}
 		}
-		YIELD();
-	} while (42);
-	return false;
+	}
 }
 
 void sendReqdialog(void)
@@ -678,62 +746,75 @@ char *insert_string(const char *original, const char *to_insert, unsigned int po
 	return new_string;
 }
 
+// Функция вставки без использования malloc (безопасно для Z80)
+void inject_option_suffix(char *fname, int option)
+{
+	int counter = strlen(fname);
+	while (counter > 0)
+	{
+		counter--;
+		if (fname[counter] == '.')
+		{
+			char ext_backup[16];
+			strcpy(ext_backup, &fname[counter]);					 // Сохраняем расширение (например, ".tap")
+			sprintf(&fname[counter], "-%02d%s", option, ext_backup); // Соединяем обратно
+			return;
+		}
+	}
+}
+
 int cutHeader(void)
 {
 	unsigned char *count1;
 	int counter;
+	int max_len;
 
 	httpErr = httpError();
-	if (httpError() != 200)
+	if (httpErr != 200)
 	{
 		clearStatus();
 		printf("HTTP response:[%u]", httpErr);
 		return 0;
 	}
+
 	count1 = strstr(netbuf, "Content-Length:");
 	if (count1 == NULL)
 	{
 		clearStatus();
 		printf("contLen not found");
 		contLen = 0;
-		httpErr = 999; // bad kostil
+		httpErr = 999;
 		return 0;
 	}
 	contLen = atol(count1 + 15);
-	// printf("Content-Length: %lu \n\r", contLen);
 
-	count1 = strstr(netbuf, "Content-Disposition: attachment; filename="); // 42
-																		   // Content-Disposition: attachment; filename="WED_PRO.TRD"
+	count1 = strstr(netbuf, "Content-Disposition: attachment; filename=");
 	if (count1 != NULL)
 	{
-		strncpy(link.fname, count1 + 43, 64);
-		strcat(link.fname, "\0");
+		// Безопасное копирование имени файла из кавычек
+		strncpy(link.fname, count1 + 43, sizeof(link.fname) - 1);
+		link.fname[sizeof(link.fname) - 1] = 0;
+
 		counter = 0;
-		while (link.fname[counter] != '\"')
+		max_len = strlen(link.fname);
+		while (counter < max_len && link.fname[counter] != '\"')
 		{
 			counter++;
 		}
-		link.fname[counter] = 0;
+		link.fname[counter] = 0; // Обрезаем на закрывающей кавычке
 		link.hasName = true;
 	}
 	else
 	{
-		strncpy(link.fname, table[limiter.curline].file, 57);
+		// Сборка имени по умолчанию
+		strncpy(link.fname, table[limiter.curline].file, sizeof(link.fname) - 6);
+		link.fname[sizeof(link.fname) - 6] = 0;
 		strcat(link.fname, ".");
 		strcat(link.fname, table[limiter.curline].ext);
 
-		counter = strlen(link.fname);
-		while (counter != 0)
+		if (table[limiter.curline].option > 1)
 		{
-			counter--;
-			if (link.fname[counter] == '.' && table[limiter.curline].option > 1)
-			{
-				const char *new_string;
-				char temp[65];
-				sprintf(temp, "-%02d", limiter.curOpt);
-				new_string = insert_string(link.fname, temp, counter);
-				strcpy(link.fname, new_string);
-			}
+			inject_option_suffix(link.fname, limiter.curOpt);
 		}
 		link.hasName = false;
 	}
@@ -743,19 +824,15 @@ int cutHeader(void)
 	{
 		clearStatus();
 		printf("end of header not found\r\n");
+		return 0;
 	}
-	else
-	{
-		// printf("header %u bytes\r\n", ((unsigned int)count1 - (unsigned int)netbuf + 4));
-	}
+
 	return ((unsigned int)count1 - (unsigned int)netbuf + 4);
 }
 
 void downDialog(void)
 {
 	unsigned int nameLong;
-
-	mainWinDraw();
 
 	nameLong = strlen(link.fname);
 	if (nameLong < 21)
@@ -768,12 +845,56 @@ void downDialog(void)
 	}
 	curWin.x = 39 - curWin.w / 2;
 	curWin.y = 10;
-	curWin.h = 4;
+	curWin.h = 6;
 	curWin.text = 223;
 	curWin.back = 223;
 	simpleBox(curWin);
-	OS_SETXY(38 - nameLong / 2, curWin.y);
+
+	// Красиво центрируем заголовок в рамке окошка (строка 10)
+	OS_SETXY(curWin.x + (curWin.w / 2) - ((nameLong + 2) / 2), curWin.y);
 	printf("[%s]", link.fname);
+}
+
+void drawProgressBar(unsigned long downloaded, unsigned long total)
+{
+	unsigned char width;
+	unsigned char filled;
+	unsigned char i;
+	unsigned int percent;
+
+	if (total == 0)
+		return;
+
+	// Вычисляем доступную ширину шкалы внутри окошка (минус скобки и отступы)
+	width = curWin.w - 7;
+
+	// Считаем проценты и сколько символов закрасить
+	percent = (unsigned int)((downloaded * 100) / total);
+	if (percent > 100)
+		percent = 100;
+
+	filled = (unsigned char)((downloaded * width) / total);
+	if (filled > width)
+		filled = width;
+
+	// Позиционируем на 12-ю строку, со смещением внутрь окна
+	OS_SETXY(curWin.x + 2, 12);
+	OS_SETCOLOR(curWin.text); // Используем цвет окна (223)
+	putchar('[');
+
+	// Рисуем закрашенную часть полосы
+	for (i = 0; i < filled; i++)
+	{
+		putchar(219);
+	}
+
+	// Рисуем пустую часть
+	for (i = filled; i < width; i++)
+	{
+		putchar('.');
+	}
+	//printf("] %3u%%", percent);
+	putchar(']');
 }
 
 char getFileEsp(void)
@@ -815,31 +936,11 @@ char getFileEsp(void)
 		byte = uartReadBlock();
 	} while (byte != '>');
 
-	// sendcommandNrn(link.path);
 	sendcommand(link.path);
-	/*
-		count = 0;
-		do
-		{
-			byte = uartReadBlock();
-			if (byte == sendOk[count])
-			{
-				count++;
-				// putchar(byte);
-			}
-			else
-			{
-				count = 0;
-			}
-		} while (count < strlen(sendOk));
 
-		uartReadBlock(); // CR
-		uartReadBlock(); // LF
-	*/
 	firstPacket = true;
 	do
 	{
-		unsigned char temp[64];
 		limiter.headLng = 0;
 		todo = recvHead();
 
@@ -898,16 +999,15 @@ char getFileEsp(void)
 		downloaded = downloaded + todo;
 		down = downloaded / 1024;
 		OS_SETCOLOR(223);
-		sprintf(temp, "%4u  of %4u kb", down, fileSize1);
-		OS_SETXY(38 - strlen(temp) / 2, 11);
-		puts(temp);
+		// ИНДИКАТОР: Рисуем заполняющийся прогресс-бар
+		drawProgressBar(downloaded, contLen);
+
 		saveBuf(link.fname, 01, todo);
 		drawClock();
 	} while (downloaded < contLen);
 	sendcommand("AT+CIPCLOSE");
 	getAnswer3(); // CLOSED
 	getAnswer3(); // OK
-	mainWinDraw();
 	return true;
 }
 
@@ -944,7 +1044,6 @@ char getFileNet(void)
 	firstPacket = true;
 	do
 	{
-		unsigned char temp[64];
 		limiter.headLng = 0;
 		todo = tcpRead(socket, 1);
 		testOperation("OS_WIZNETREAD", todo);
@@ -987,9 +1086,10 @@ char getFileNet(void)
 		downloaded = downloaded + todo;
 		down = downloaded / 1024;
 		OS_SETCOLOR(223);
-		sprintf(temp, "%4u  of %4u kb", down, fileSize1);
-		OS_SETXY(38 - strlen(temp) / 2, 11);
-		puts(temp);
+
+		// ИНДИКАТОР: Рисуем заполняющийся прогресс-бар
+		drawProgressBar(downloaded, contLen);
+
 		saveBuf(link.fname, 01, todo);
 		drawClock();
 	} while (downloaded < contLen);
@@ -1004,8 +1104,57 @@ char getFileNet(void)
 		puts("File download error!");
 		waitKey();
 	}
-	mainWinDraw();
 	return true;
+}
+
+void renderSingleLine(unsigned char index, unsigned char isSelected)
+{
+	unsigned char line = 2 + (index * 2);
+
+	if (index >= limiter.total)
+	{
+		// Если элемента под таким индексом нет ? просто зачищаем эти две строки
+		OS_SETCOLOR(206);
+		OS_SETXY(2, line);
+		spaces(76);
+		OS_SETXY(2, line + 1);
+		spaces(76);
+		return;
+	}
+
+	// Установка цвета: если строка выбрана ? красим в инверсный (121), иначе ? чередуем (206/207)
+	if (isSelected)
+	{
+		OS_SETCOLOR(121);
+	}
+	else
+	{
+		OS_SETCOLOR((index % 2 == 0) ? 206 : 207);
+	}
+
+	// Отрисовка первой текстовой строки (Имя + Расширение + Размер + Опции + Год)
+	OS_SETXY(2, line);
+	spaces(76); // Очищаем строку нужным цветом перед выводом
+	OS_SETXY(2, line);
+	printf("%s ", table[index].name);
+	OS_SETXY(48, line);
+	printf("%s  %6lu  %u  %4u", table[index].ext, table[index].size, table[index].option, table[index].year);
+
+	// Отрисовка второй текстовой строки (Имя физического файла)
+	OS_SETXY(2, line + 1);
+	spaces(76); // Очищаем
+	OS_SETXY(5, line + 1);
+	printf("%s ", table[index].file);
+}
+
+void renderResult(char currentLine)
+{
+	unsigned char counter;
+	// На экран физически влезает только 10 двухстрочных элементов (строки 2-21)
+	for (counter = 0; counter < 10; counter++)
+	{
+		renderSingleLine(counter, (counter == currentLine));
+	}
 }
 
 char getFile(unsigned char number)
@@ -1029,6 +1178,9 @@ char getFile(unsigned char number)
 			break;
 		}
 	}
+	// ВОССТАНОВЛЕНИЕ ИНТЕРФЕЙСА ПОСЛЕ СКАЧИВАНИЯ
+	mainWinDraw();
+	renderResult(limiter.curline);
 	return result;
 }
 
@@ -1270,107 +1422,112 @@ int findLimiters(int n)
 void fillTable(void)
 {
 	int counter = 0;
+	int len;
 	limiter.second = -1;
 	limiter.total = 0;
+
 	do
 	{
-		if (findLimiters(limiter.second) != -2)
-		{
-			table[counter].id = atol(buf + limiter.first);
-			limiter.total++;
-		}
+		// ID
+		if (findLimiters(limiter.second) == -2)
+			break;
+		table[counter].id = atol(buf + limiter.first);
+		limiter.total++;
 
-		if (findLimiters(limiter.second) != -2)
-		{
-			strncpy(table[counter].name, buf + limiter.first, limiter.second - limiter.first + 1);
-			strcat(table[counter].name, "\0");
-			table[counter].name[limiter.second - limiter.first + 1] = 0;
-		}
-		if (findLimiters(limiter.second) != -2)
-		{
-			strncpy(table[counter].file, buf + limiter.first, limiter.second - limiter.first - 3);
-			strcat(table[counter].file, "\0");
-			table[counter].file[limiter.second - limiter.first - 3] = 0;
-			strncpy(table[counter].ext, buf + limiter.second - 2, 3);
-			strcat(table[counter].ext, "\0");
-		}
+		// Name
+		if (findLimiters(limiter.second) == -2)
+			break;
+		len = limiter.second - limiter.first + 1;
+		if (len > 511)
+			len = 511; // Защита буфера name[512]
+		strncpy(table[counter].name, buf + limiter.first, len);
+		table[counter].name[len] = 0;
 
-		if (findLimiters(limiter.second) != -2)
-		{
-			table[counter].size = atol(buf + limiter.first);
-		}
+		// File & Ext
+		if (findLimiters(limiter.second) == -2)
+			break;
+		len = limiter.second - limiter.first - 3;
+		if (len > 511)
+			len = 511; // Защита буфера file[512]
+		if (len < 0)
+			len = 0;
+		strncpy(table[counter].file, buf + limiter.first, len);
+		table[counter].file[len] = 0;
 
-		if (findLimiters(limiter.second) != -2)
-		{
-			table[counter].option = atoi(buf + limiter.first);
-		}
+		strncpy(table[counter].ext, buf + limiter.second - 2, 3);
+		table[counter].ext[3] = 0; // Правильное закрытие строки из 3 символов
 
-		if (findLimiters(limiter.second) != -2)
-		{
-			table[counter].year = atoi(buf + limiter.first);
-		}
+		// Size
+		if (findLimiters(limiter.second) == -2)
+			break;
+		table[counter].size = atol(buf + limiter.first);
+
+		// Option
+		if (findLimiters(limiter.second) == -2)
+			break;
+		table[counter].option = atoi(buf + limiter.first);
+
+		// Year
+		if (findLimiters(limiter.second) == -2)
+			break;
+		table[counter].year = atoi(buf + limiter.first);
 
 		limiter.second++;
 		counter++;
 	} while (counter < 12);
 }
 
-void renderResult(char currentLine)
+// Выносим логику поиска в отдельную подфункцию
+char triggerSearch(void)
 {
-	int counter, line = 2;
+	limiter.total = 0;
+	limiter.curline = 0;
+	curWin.w = 40;
+	curWin.x = 80 / 2 - curWin.w / 2 - 1;
+	curWin.y = 10;
+	curWin.h = 1;
+	curWin.text = 103;
+	curWin.back = 103;
+	strcpy(curWin.tittle, "Введите поисковый запрос");
 
-	for (counter = 0; counter < limiter.total; counter++)
+	if (inputBox(curWin, ""))
 	{
-		// printf("[%lu] ", table[counter].id);
-
-		if (counter == currentLine)
-		{
-			OS_SETCOLOR(121);
-			OS_SETXY(2, line);
-			spaces(76);
-			OS_SETXY(2, line + 1);
-			spaces(76);
-		}
-		else
-		{
-			if (counter % 2 == 0)
-			{
-				OS_SETCOLOR(206);
-			}
-			else
-			{
-				OS_SETCOLOR(207);
-			}
-		}
-		OS_SETXY(2, line);
-		spaces(76);
-		OS_SETXY(2, line);
-		printf("%s ", table[counter].name);
-		OS_SETXY(48, line);
-		printf("%s  %6lu  %u  %4u", table[counter].ext, table[counter].size, table[counter].option, table[counter].year);
-		line++;
-		OS_SETXY(2, line);
-		spaces(76);
-		OS_SETXY(5, line);
-		printf("%s ", table[counter].file);
-		line++;
+		strcpy(search, cmd);
+		limiter.curPage = 0;
+		drawSearch();
 	}
+	else
+	{
+		mainWinDraw();
+		OS_SETXY(32, 11);
+		OS_SETCOLOR(206);
+		puts("No results found");
+		return false;
+	}
+
+	if (makeRequest(search) < 2)
+	{
+		mainWinDraw();
+		OS_SETXY(32, 11);
+		OS_SETCOLOR(206);
+		puts("No results found");
+		return false;
+	}
+
+	OS_SETXY(1, 2);
 	OS_SETCOLOR(206);
-	for (counter = limiter.total; counter < 10; counter++)
-	{
-		OS_SETXY(2, line);
-		spaces(76);
-		line++;
-		OS_SETXY(2, line);
-		spaces(76);
-		line++;
-	}
+	fillTable();
+	return true;
 }
 
 char getKey(void)
 {
 	char key;
 	key = OS_GETKEY();
+
+	// ЗАПОМИНАЕМ старую позицию курсора перед обработкой нажатия
+	limiter.oldline = limiter.curline;
+
 	switch (key)
 	{
 	case 27: // escape - exit
@@ -1378,6 +1535,7 @@ char getKey(void)
 		OS_SETGFX(-1);
 		exit(0);
 		break;
+
 	case 's':
 	case 'ы':
 	case 'Ы':
@@ -1424,7 +1582,12 @@ char getKey(void)
 		OS_SETXY(1, 2);
 		OS_SETCOLOR(206);
 		fillTable();
+
+		// ПОСЛЕ ПОИСКА: Перерисовываем экран и выводим ВСЕ новые результаты
+		mainWinDraw();
+		renderResult(limiter.curline);
 		break;
+
 	case 'h':
 	case 'H':
 	case 'р':
@@ -1432,23 +1595,29 @@ char getKey(void)
 		limiter.total = 0;
 		limiter.curline = 0;
 		curHost++;
-		if (curHost > 1)
+		if (curHost > 1) // Специально пропускаем hood.speccy.cz, как вы и задумывали
 		{
 			curHost = 0;
 		}
 		strcpy(link.host, hosts[curHost]);
+
+		// ПРИ СМЕНЕ ХОСТА: Полная очистка экрана и перерисовка таблицы
 		mainWinDraw();
+		renderResult(limiter.curline);
 		break;
+
 	case 'q':
 	case 'Q':
 	case 'Й':
 	case 'й':
-	case 250:
+	case 250: // СТРЕЛКА ВВЕРХ (или 'q')
 		if (limiter.total != 0)
 		{
+			// Вычисляем максимум элементов на экране (не больше total и не больше 10)
+			unsigned char maxLines = (limiter.total > 10) ? 10 : limiter.total;
 			if (limiter.curline < 1)
 			{
-				limiter.curline = limiter.total - 1;
+				limiter.curline = maxLines - 1;
 			}
 			else
 			{
@@ -1456,14 +1625,16 @@ char getKey(void)
 			}
 		}
 		break;
+
 	case 'a':
 	case 'A':
 	case 'ф':
 	case 'Ф':
-	case 249:
+	case 249: // СТРЕЛКА ВНИЗ (или 'a')
 		if (limiter.total != 0)
 		{
-			if (limiter.curline > limiter.total - 2)
+			unsigned char maxLines = (limiter.total > 10) ? 10 : limiter.total;
+			if (limiter.curline >= maxLines - 1)
 			{
 				limiter.curline = 0;
 			}
@@ -1473,9 +1644,9 @@ char getKey(void)
 			}
 		}
 		break;
-	case 248: // left
-	case 'o':
 
+	case 248: // СТРЕЛКА ВЛЕВО (Предыдущая страница)
+	case 'o':
 		if (limiter.curPage != 0 && limiter.total != 0)
 		{
 			limiter.curPage--;
@@ -1489,13 +1660,15 @@ char getKey(void)
 				limiter.curline = 0;
 				break;
 			}
-			// OS_SETXY(1, 2);
-			// OS_SETCOLOR(206);
 			fillTable();
 			limiter.curline = 0;
+
+			// ПРИ СМЕНЕ СТРАНИЦЫ: Полная перерисовка результатов
+			renderResult(limiter.curline);
 		}
 		break;
-	case 251: // right
+
+	case 251: // СТРЕЛКА ВПРАВО (Следующая страница)
 	case 'p':
 		if (limiter.total != 0)
 		{
@@ -1507,13 +1680,15 @@ char getKey(void)
 				drawPage();
 				makeRequest(search);
 			}
-			// OS_SETXY(1, 2);
-			// OS_SETCOLOR(206);
 			fillTable();
 			limiter.curline = 0;
+
+			// ПРИ СМЕНЕ СТРАНИЦЫ: Полная перерисовка результатов
+			renderResult(limiter.curline);
 		}
 		break;
-	case 13:
+
+	case 13: // ENTER
 		if (limiter.total != 0)
 		{
 			getFile(limiter.curline);
@@ -1523,17 +1698,24 @@ char getKey(void)
 			goto fuckingoto;
 		}
 		break;
+
 	default:
 		break;
 	}
 
+	// ОПТИМИЗИРОВАННЫЙ БЛОК ОТРИСОВКИ:
 	if (key != 0)
 	{
-		renderResult(limiter.curline);
+		// Если это обычное перемещение курсора вверх/вниз в пределах текущей таблицы
+		if (limiter.curline != limiter.oldline)
+		{
+			renderSingleLine(limiter.oldline, false); // Снимаем подсветку со старой строки
+			renderSingleLine(limiter.curline, true);  // Подсвечиваем новую строку
+		}
 	}
 	else
 	{
-		YIELD();
+		YIELD(); // Если клавиша не нажата, отдаем квант времени ОС NedoOS
 	}
 	return key;
 }
