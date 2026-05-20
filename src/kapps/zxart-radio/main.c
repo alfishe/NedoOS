@@ -1439,6 +1439,10 @@ void printInfo(void)
 void refreshScreen(void)
 {
   OS_CLS(0);
+  OS_SETCOLOR(71);
+  OS_SETCOLOR(95);
+  printf("                           ZXART.EE radio for %s                           ", interfaces[netDriver]);
+  OS_SETCOLOR(6);
   printInfo();
   printProgress(0);
   printProgress(1);
@@ -1945,13 +1949,6 @@ C_task main(int argc, const char *argv[])
   strcpy(queryType, "from newest to oldest");
 
   initQueryMenu();
-
-  OS_CLS(0);
-  OS_SETCOLOR(71);
-  OS_SETCOLOR(95);
-  printf("                           ZXART.EE radio for %s                           ", interfaces[netDriver]);
-  OS_SETCOLOR(6);
-  printStatus();
 
 start:
   OS_SETSYSDRV();
