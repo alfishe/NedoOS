@@ -1839,7 +1839,7 @@ int showQueryMenu(int currentSelect)
 
         if (q == currentSelect)
         {
-          OS_SETCOLOR(69);
+          OS_SETCOLOR(188);
         }
         else
         {
