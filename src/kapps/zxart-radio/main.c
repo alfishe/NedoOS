@@ -33,13 +33,14 @@ const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char minRating[] = "0000000000";
 const unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; Radio)\r\n\r\n\0";
 const unsigned char cmdlist1[] = "GET /file/id:";
-unsigned char userQuery[256] = "/api/export:zxMusic/limit:10/filter:zxMusicId=44816";
+unsigned char userQuery[256] = "/export:zxMusic/filter:zxMusicId=44816";
+unsigned char defQuery[] = "/export:zxMusic/filter:zxMusicId=44816";
 unsigned char fileName[] = "radio/player.ovl";
 unsigned char appCmd[128] = "player.com ";
 unsigned char curPath[128];
-unsigned char ver[] = "4.0";
+unsigned char ver[] = "4.2";
 
-unsigned char queryType[64];
+unsigned char queryType[50];
 unsigned char netbuf[4096];
 unsigned char dataBuffer[8192];
 unsigned char crlf[2] = {13, 10};
@@ -47,8 +48,13 @@ unsigned char formats[4][4] = {"pt3", "pt2", "tfc", "ts"};
 unsigned char interfaces[2][8] = {"NedoNET", "ESP-COM"};
 unsigned char cmd[256];
 unsigned char link[512];
-unsigned char toLog[256];
 unsigned char queryNum;
+
+/* Массив строк для нашего меню (всего 6 вариантов) */
+/* 0, 1, 2 ? системные, 3, 4, 5 ? из файла user.que */
+unsigned char menuQueries[6][64];
+unsigned char totalMenuLines;
+/* Сколько всего строк доступно для выбора (от 3 до 6) */
 
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
@@ -96,6 +102,7 @@ struct window
   unsigned char back;
   unsigned char tittle[80];
 } curWin;
+
 /*
 void writeLog(char *logline)
 {
@@ -245,13 +252,6 @@ void printProgress(const char type)
 
 void printHelp(void)
 {
-  unsigned char q;
-  for (q = 13; q < 23; q++)
-  {
-    OS_SETXY(0, q);
-    spaces(80);
-  }
-
   OS_SETXY(0, 12);
   OS_SETCOLOR(71);
   spaces(80);
@@ -363,10 +363,19 @@ int cutHeader(unsigned int todo)
   return todo - headlng;
 }
 
-unsigned char inputBox(struct window w, unsigned const char *prefilled)
+unsigned char inputBox(struct window w, const char *prefilled)
 {
   unsigned char wcount, tempx, tittleStart;
-  unsigned char byte, counter;
+  unsigned char byte;
+
+  // Переменные редактора (объявлены строго в начале функции для IAR)
+  unsigned char cmdLen;     // Полная текущая длина строки cmd
+  unsigned char cursorPos;  // Позиция курсора в строке (от 0 до cmdLen)
+  unsigned char viewOffset; // Смещение просмотра для скроллинга длинного текста
+  unsigned char visibleLen; // Сколько символов строки физически влезает в окно
+  unsigned char i;          // Индекс для циклов отрисовки
+  unsigned char printPos;   // Текущий индекс символа для вывода на экран
+
   w.h++;
   OS_SETXY(w.x, w.y - 1);
   BDBOX(w.x, w.y, w.w + 1, w.h, w.back, 32);
@@ -397,84 +406,148 @@ unsigned char inputBox(struct window w, unsigned const char *prefilled)
   tittleStart = w.x + (w.w / 2) - (strlen(w.tittle) / 2);
   OS_SETXY(tittleStart, w.y);
   printf("[%s]", w.tittle);
-  OS_SETXY(w.x + 1, w.y + 1);
-  OS_SETCOLOR(w.back);
-  putchar(219);
 
+  // Инициализация строки cmd
   cmd[0] = 0;
-
-  counter = strlen(prefilled);
-  if (counter != 0)
+  cmdLen = strlen(prefilled);
+  if (cmdLen != 0)
   {
-    strcpy(cmd, prefilled);
-    goto skipKeys;
+    strncpy(cmd, prefilled, sizeof(cmd) - 1);
+    cmd[sizeof(cmd) - 1] = 0; // Гарантированный ноль на конце
   }
 
-  do
+  // Настройка начального состояния курсора и скроллинга
+  cursorPos = cmdLen;
+  viewOffset = 0;
+  visibleLen = w.w - 1; // Доступная ширина внутри рамки под текст и курсор
+
+  for (;;)
   {
+    // 1. АВТОСКРОЛЛИНГ: Корректируем окно видимости текста относительно курсора
+    if (cursorPos < viewOffset)
+    {
+      viewOffset = cursorPos;
+    }
+    else if (cursorPos - viewOffset >= visibleLen)
+    {
+      viewOffset = cursorPos - visibleLen + 1;
+    }
+
+    // 2. ОТРИСОВКА СТРОКИ С ПОБИТОВОЙ ИНВЕРСИЕЙ ЦВЕТА КУРСOРА (Для NedoOS)
+    OS_SETXY(w.x + 1, w.y + 1);
+
+    for (i = 0; i < visibleLen; i++)
+    {
+      printPos = viewOffset + i;
+
+      // Если в этой позиции находится курсор ? считаем инверсный байт атрибута
+      if (printPos == cursorPos)
+      {
+        // Меняем местами биты 0-2 (INK) и 3-5 (PAPER), сохраняя биты 6-7 (Bright/Flash)
+        OS_SETCOLOR((unsigned char)((w.text & 0xC0) |        // Сохраняем BRIGHT и FLASH
+                                    ((w.text & 0x07) << 3) | // Сдвигаем старый INK на место PAPER
+                                    ((w.text & 0x38) >> 3)   // Сдвигаем старый PAPER на место INK
+                                    ));
+      }
+      else
+      {
+        OS_SETCOLOR(w.text); // Стандартный цвет окна (например, тот самый 207)
+      }
+
+      // Выводим символ или пробел на месте курсора
+      if (printPos < cmdLen)
+      {
+        putchar(cmd[printPos]);
+      }
+      else
+      {
+        putchar(' '); // Зачищаем хвост строки или рисуем инверсный курсор-пробел в конце
+      }
+    }
+    // Восстанавливаем цвет по умолчанию после завершения строки
+    OS_SETCOLOR(w.text);
+
+    YIELD(); // Обязательно уступаем квант времени ОС NedoOS
+
     byte = OS_GETKEY();
     if (byte != 0)
     {
       switch (byte)
       {
-      case 0x08:
-        if (counter > 0)
+      case 248: // Left (Стрелка влево)
+        if (cursorPos > 0)
         {
-          counter--;
-          cmd[counter] = 0;
+          cursorPos--;
         }
         break;
-      case 0x0d:
+      case 251: // Right (Стрелка вправо)
+        if (cursorPos < cmdLen)
+        {
+          cursorPos++;
+        }
+        break;
 
-        if (counter == 0)
+      case 0x08: // Backspace (Удаление символа СЛЕВА от курсора)
+        if (cursorPos > 0 && cmdLen > 0)
+        {
+          // Сдвигаем хвост строки влево на 1 символ
+          for (i = cursorPos - 1; i < cmdLen; i++)
+          {
+            cmd[i] = cmd[i + 1];
+          }
+          cursorPos--;
+          cmdLen--;
+        }
+        break;
+
+      case 252: // Delete (Удаление символа В ПОЗИЦИИ курсора)
+        if (cursorPos < cmdLen && cmdLen > 0)
+        {
+          // Сдвигаем хвост строки начиная от курсора
+          for (i = cursorPos; i < cmdLen; i++)
+          {
+            cmd[i] = cmd[i + 1];
+          }
+          cmdLen--;
+        }
+        break;
+
+      case 0x0d: // Enter (Подтверждение ввода)
+
+        if (cmdLen == 0)
         {
           return false;
         }
-        else
-        {
-          return true;
-        }
+        return true;
 
-      case 31:
-        break;
-      case 250:
-        break;
-      case 249:
-        break;
-      case 248:
-        break;
-      case 251: // Right
-        break;
-      case 252: // Del
-        OS_SETXY(w.x + 1, w.y + 1);
-        spaces(counter + 1);
-        cmd[0] = 0;
-        counter = 0;
-        break;
-      case 27:
+      case 27: // Esc (Полная очистка и выход)
         cmd[0] = 0;
         return false;
-      default:
-        if (counter < w.w - 1)
+
+      case 31:  // Игнорируем служебные клавиши навигации основного экрана
+      case 250: // Up
+      case 249: // Down
+        break;
+
+      default: // ВВОД СИМВОЛА (С поддержкой вставки в середину строки)
+        // Проверяем, есть ли место в массиве cmd и влезает ли символ
+        if (cmdLen < (sizeof(cmd) - 2) && byte >= 32)
         {
-          cmd[counter] = byte;
-          counter++;
-          cmd[counter] = 0;
+          // Раздвигаем строку вправо, освобождая место под символ
+          for (i = cmdLen; i > cursorPos; i--)
+          {
+            cmd[i] = cmd[i - 1];
+          }
+          // Вставляем символ в позицию курсора
+          cmd[cursorPos] = byte;
+          cursorPos++;
+          cmdLen++;
+          cmd[cmdLen] = 0; // Корректно закрываем строку нулем
         }
         break;
       }
-    skipKeys:
-      OS_SETXY(w.x + 1, w.y + 1);
-      printf("%s", cmd);
-      putchar(219);
-      if (byte == 0x08)
-      {
-        putchar(' ');
-      }
     }
-    YIELD();
-  } while (42);
-  return false;
+  }
 }
 
 char *str_replace(char *dst, int num, const char *str, const char *orig, const char *rep)
@@ -509,9 +582,10 @@ char *str_replace(char *dst, int num, const char *str, const char *orig, const c
 const char *parseJson(unsigned char *property)
 {
   unsigned int w, lng, lngp1, findEnd, listPos;
+  unsigned int maxSafeLimit; /* Объявление строго до исполняемого кода */
   unsigned char terminator;
   int n;
-  // n = -1;
+
   netbuf[0] = 0;
   n = pos(dataBuffer, property, 1, 0);
   if (n == -1)
@@ -519,6 +593,7 @@ const char *parseJson(unsigned char *property)
     strcpy(netbuf, "-");
     return netbuf;
   }
+
   lng = n - 1 + strlen(property);
   if (dataBuffer[lng] == ':')
   {
@@ -536,8 +611,16 @@ const char *parseJson(unsigned char *property)
   findEnd = 1;
   lngp1 = lng + 1;
 
+  /* Вычисляем предел безопасности на основе размера dataBuffer (8192 байта) */
+  maxSafeLimit = sizeof(dataBuffer) - lngp1 - 1;
+
   while (42)
   {
+    /* Защитный барьер: если буфер битый или усечен, выходим до зависания */
+    if (findEnd >= maxSafeLimit)
+    {
+      break;
+    }
 
     if ((dataBuffer[lngp1 + findEnd] == ','))
     {
@@ -553,9 +636,22 @@ const char *parseJson(unsigned char *property)
     }
     findEnd++;
   }
+
+  /* Если вышли по аварийному лимиту ? отдаем маркер ошибки */
+  if (findEnd >= maxSafeLimit)
+  {
+    strcpy(netbuf, "-");
+    return netbuf;
+  }
+
   listPos = 0;
   for (w = lngp1; w < findEnd + lngp1; w++)
   {
+    /* Защищаем netbuf (4096 байт) от случайного переполнения */
+    if (listPos >= sizeof(netbuf) - 1)
+    {
+      break;
+    }
     netbuf[listPos] = dataBuffer[w];
     listPos++;
   }
@@ -565,31 +661,185 @@ const char *parseJson(unsigned char *property)
 
 void nameRepair(unsigned char *pfn, unsigned int tfnSize)
 {
-  str_replace(pfn, tfnSize, pfn, "\\", "_");
-  str_replace(pfn, tfnSize, pfn, "/", "_");
-  str_replace(pfn, tfnSize, pfn, ":", "_");
-  str_replace(pfn, tfnSize, pfn, "*", "_");
-  str_replace(pfn, tfnSize, pfn, "?", "_");
-  str_replace(pfn, tfnSize, pfn, "<", "_");
-  str_replace(pfn, tfnSize, pfn, ">", "_");
-  str_replace(pfn, tfnSize, pfn, "|", "_");
-  str_replace(pfn, tfnSize, pfn, " ", "_");
-  str_replace(pfn, tfnSize, pfn, "&#039;", "'");
-  str_replace(pfn, tfnSize, pfn, "&amp;", "&");
-  str_replace(pfn, tfnSize, pfn, "&quot;", "'");
-  str_replace(pfn, tfnSize, pfn, "&gt;", ")");
-  str_replace(pfn, tfnSize, pfn, "&lt;", "(");
-  str_replace(pfn, tfnSize, pfn, "\"", "'");
+  unsigned int i;
+  unsigned int j;
+  unsigned char c;
+
+  i = 0;
+  /* Цикл по всей строке, пока не встретим конец Си-строки или не упремся в лимит размера */
+  while (pfn[i] != '\0' && i < tfnSize)
+  {
+    c = pfn[i];
+
+    /* 1. Быстрая замена запрещенных в именах файлов символов (в один проход) */
+    if (c == '\\' || c == '/' || c == ':' || c == '*' || c == '?' ||
+        c == '<' || c == '>' || c == '|' || c == ' ' || c == '\"')
+    {
+      pfn[i] = '_';
+      i++;
+      continue;
+    }
+
+    /* 2. Обработка HTML-сущностей, специфичных для имен файлов */
+    if (c == '&')
+    {
+      /* Замена &#039; на одиночную кавычку ' */
+      if (strncmp((const char *)(pfn + i), "&#039;", 6) == 0)
+      {
+        pfn[i] = '\'';
+        /* Сдвигаем хвост строки влево на 5 символов */
+        j = i + 1;
+        while ((pfn[j] = pfn[j + 5]) != '\0')
+        {
+          j++;
+        }
+        i++;
+        continue;
+      }
+      /* Замена &quot; на одиночную кавычку ' */
+      if (strncmp((const char *)(pfn + i), "&quot;", 6) == 0)
+      {
+        pfn[i] = '\'';
+        j = i + 1;
+        while ((pfn[j] = pfn[j + 5]) != '\0')
+        {
+          j++;
+        }
+        i++;
+        continue;
+      }
+      /* Замена &amp; на значок & */
+      if (strncmp((const char *)(pfn + i), "&amp;", 5) == 0)
+      {
+        pfn[i] = '&';
+        j = i + 1;
+        while ((pfn[j] = pfn[j + 4]) != '\0')
+        {
+          j++;
+        }
+        i++;
+        continue;
+      }
+      /* Замена &gt; на закрывающую скобку ) */
+      if (strncmp((const char *)(pfn + i), "&gt;", 4) == 0)
+      {
+        pfn[i] = ')';
+        j = i + 1;
+        while ((pfn[j] = pfn[j + 3]) != '\0')
+        {
+          j++;
+        }
+        i++;
+        continue;
+      }
+      /* Замена &lt; на открывающую скобку ( */
+      if (strncmp((const char *)(pfn + i), "&lt;", 4) == 0)
+      {
+        pfn[i] = '(';
+        j = i + 1;
+        while ((pfn[j] = pfn[j + 3]) != '\0')
+        {
+          j++;
+        }
+        i++;
+        continue;
+      }
+    }
+
+    i++;
+  }
 }
 
 void stringRepair(unsigned char *pfn, unsigned int tSize)
 {
-  str_replace(pfn, tSize, pfn, "&#039;", "'");
-  str_replace(pfn, tSize, pfn, "&amp;", "&");
-  str_replace(pfn, tSize, pfn, "&gt;", ">");
-  str_replace(pfn, tSize, pfn, "&lt;", "<");
-  str_replace(pfn, tSize, pfn, "&quot;", "\"");
-  str_replace(pfn, tSize, pfn, "\\/", "/");
+  unsigned int i;
+  unsigned int j;
+  unsigned char c;
+
+  i = 0;
+  while (pfn[i] != '\0' && i < tSize)
+  {
+    c = pfn[i];
+
+    if (c == '&')
+    {
+      /* Замена &#039; на ' */
+      if (strncmp((const char *)(pfn + i), "&#039;", 6) == 0)
+      {
+        pfn[i] = '\'';
+        j = i + 1;
+        while ((pfn[j] = pfn[j + 5]) != '\0')
+        {
+          j++;
+        }
+        i++;
+        continue;
+      }
+      /* Замена &quot; на " */
+      if (strncmp((const char *)(pfn + i), "&quot;", 6) == 0)
+      {
+        pfn[i] = '\"';
+        j = i + 1;
+        while ((pfn[j] = pfn[j + 5]) != '\0')
+        {
+          j++;
+        }
+        i++;
+        continue;
+      }
+      /* Замена &amp; на & */
+      if (strncmp((const char *)(pfn + i), "&amp;", 5) == 0)
+      {
+        pfn[i] = '&';
+        j = i + 1;
+        while ((pfn[j] = pfn[j + 4]) != '\0')
+        {
+          j++;
+        }
+        i++;
+        continue;
+      }
+      /* Замена &gt; на > */
+      if (strncmp((const char *)(pfn + i), "&gt;", 4) == 0)
+      {
+        pfn[i] = '>';
+        j = i + 1;
+        while ((pfn[j] = pfn[j + 3]) != '\0')
+        {
+          j++;
+        }
+        i++;
+        continue;
+      }
+      /* Замена &lt; на < */
+      if (strncmp((const char *)(pfn + i), "&lt;", 4) == 0)
+      {
+        pfn[i] = '<';
+        j = i + 1;
+        while ((pfn[j] = pfn[j + 3]) != '\0')
+        {
+          j++;
+        }
+        i++;
+        continue;
+      }
+    }
+
+    /* Замена экранированного слеша \/ на обычный / */
+    if (c == '\\' && pfn[i + 1] == '/')
+    {
+      pfn[i] = '/';
+      j = i + 1;
+      while ((pfn[j] = pfn[j + 1]) != '\0')
+      {
+        j++;
+      }
+      i++;
+      continue;
+    }
+
+    i++;
+  }
 }
 
 void ncReplace(void)
@@ -880,7 +1130,6 @@ unsigned int getFileEsp(void)
 
 long processJson(unsigned long startPos, unsigned char limit, unsigned char queryNum)
 {
-  FILE *fp3;
   unsigned int tSize;
   const unsigned char *countl;
   unsigned char result;
@@ -902,16 +1151,6 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     break;
 
   case 3:
-    fp3 = OS_OPENHANDLE("../ini/user.que", 0x80);
-    if (((int)fp3) & 0xff)
-    {
-      fp3 = OS_CREATEHANDLE("../ini/user.que", 0x80);
-      OS_WRITEHANDLE(userQuery, fp3, sizeof(userQuery));
-      OS_CLOSEHANDLE(fp3);
-      fp3 = OS_OPENHANDLE("../ini/user.que", 0x80);
-    }
-    OS_READHANDLE(userQuery, fp3, sizeof(userQuery));
-    OS_CLOSEHANDLE(fp3);
     sprintf(netbuf, "GET /api/limit:%u/start:%lu%s%s", limit, startPos, userQuery, userAgent);
     break;
   case 98: // http://zxart.ee/api/export:zxMusic/limit:10/filter:zxMusicId=19717
@@ -1035,7 +1274,10 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
 void showDescription(unsigned long counter, int atLine, unsigned char showLines)
 {
   unsigned char byte, q, lineCount = 1, rowCount = 0;
+  unsigned char insideTag = 0; /* 1 - если мы внутри HTML-тега */
   unsigned int position = 0;
+
+  /* Запрос данных с сервера */
   processJson(counter, 1, 98);
 
   if (atLine != -1)
@@ -1049,41 +1291,68 @@ void showDescription(unsigned long counter, int atLine, unsigned char showLines)
 
     OS_SETXY(0, atLine);
     OS_SETCOLOR(69);
-    printf(" Description: \r\n");
+    printf(" Description:\r\n");
     OS_SETCOLOR(71);
   }
-  while (42)
+
+  /* Читаем netbuf (4096 байт) */
+  while (position < 4096)
   {
     byte = netbuf[position];
     if (byte == 0x00)
     {
       return;
     }
+
+    /* Логика фильтрации HTML-тегов (<pre>, </pre> или <\/pre>) */
+    if (byte == '<')
+    {
+      insideTag = 1;
+      position++;
+      continue;
+    }
+
+    if (insideTag == 1)
+    {
+      if (byte == '>')
+      {
+        insideTag = 0;
+      }
+      position++;
+      continue; /* Пропускаем внутренности тега целиком */
+    }
+
+    /* Обработка JSON-экранирования управляющих символов */
     if (byte == '\\')
     {
       position++;
+      if (position >= 4096)
+        return;
+
       byte = netbuf[position];
       switch (byte)
       {
       case 0x00:
-        position--;
-        break;
+        return;
       case '\\':
         putchar('\\');
+        rowCount++;
         break;
       case 'r':
         putchar('\r');
+        rowCount = 0;
         break;
       case 'n':
+        putchar('\n');
         lineCount++;
+        rowCount = 0;
         if (lineCount > showLines)
         {
           return;
         }
-        putchar('\n');
-        rowCount = 0;
         break;
       default:
+        /* Если это просто экранированный символ (например, \/ в <\/pre>) */
         putchar(byte);
         rowCount++;
         break;
@@ -1092,17 +1361,21 @@ void showDescription(unsigned long counter, int atLine, unsigned char showLines)
     else
     {
       putchar(byte);
+      rowCount++;
     }
+
     position++;
-    rowCount++;
-    if (rowCount > 79)
+
+    /* Перенос строки по достижению края экрана NedoOS (80 символов) */
+    if (rowCount >= 80)
     {
+      putchar('\n');
       lineCount++;
+      rowCount = 0;
       if (lineCount > showLines)
       {
         return;
       }
-      rowCount = 0;
     }
   }
 }
@@ -1381,98 +1654,7 @@ long trackSelector(unsigned char mode)
   }
   return count;
 }
-/*
-unsigned char testPlayer(void)
-{
-  union APP_PAGES player2_pg;
-  player2_pg.l = OS_GETAPPMAINPAGES(player_pg.pgs.pId);
-  if (errno == 0)
-  {
-    return 1;
-  }
-  else
-  {
-    return 0;
-  }
-}
-*/
-/*
-void infoBox(struct window w, const char *message)
-{
-  unsigned char wcount, tempx, tittleStart;
 
-  w.h++;
-  OS_SETXY(w.x, w.y - 1);
-  BDBOX(w.x, w.y, w.w + 1, w.h, w.back, 32);
-  OS_SETXY(w.x, w.y);
-  OS_SETCOLOR(w.text);
-  putchar(201);
-  for (wcount = 0; wcount < w.w; wcount++)
-  {
-    putchar(205);
-  }
-  putchar(187);
-  OS_SETXY(w.x, w.y + w.h);
-  putchar(200);
-  for (wcount = 0; wcount < w.w; wcount++)
-  {
-    putchar(205);
-  }
-  putchar(188);
-
-  tempx = w.x + w.w + 1;
-  for (wcount = 1; wcount < w.h; wcount++)
-  {
-    OS_SETXY(w.x, w.y + wcount);
-    putchar(186);
-    OS_SETXY(tempx, w.y + wcount);
-    putchar(186);
-  }
-  tittleStart = w.x + (w.w / 2) - (strlen(w.tittle) / 2);
-  OS_SETXY(tittleStart, w.y);
-  printf("[%s]", w.tittle);
-
-  OS_SETXY(w.x + 1, w.y + 1);
-  OS_SETCOLOR(w.back);
-  tittleStart = w.x + (w.w / 2) - (strlen(message) / 2);
-  OS_SETXY(tittleStart, w.y + 1);
-  printf("%s", message);
-}
-*/
-/*
-char optionsMenu(void)
-{
-  unsigned char options[7][16] = {"Music format", "Plaing queue", "Net interface", "Keep files", "Minimal rating", "", ""};
-  char line = 0;
-
-  //  curFormat++;
-  //  queryNum++; //  скопировать строки
-  //  netDriver++;
-  //  saveFlag++;
-  //  minRating++;
-
-  strcpy(curWin.tittle, "Radio options");
-  curWin.w = 22;
-  curWin.x = 39 - curWin.w / 2;
-  curWin.y = 7;
-  curWin.h = 7;
-  curWin.text = 95;
-  curWin.back = 95;
-  infoBox(curWin, "");
-  curWin.x++;
-  curWin.y++;
-  OS_SETCOLOR(95);
-  while (strlen(options[line]) != 0)
-  {
-    OS_SETXY(curWin.x, curWin.y + line);
-    printf("%s", options[line]);
-    line++;
-  }
-
-  getchar();
-  return true;
-}
-*/
 void refreshQueryNames(int queryNum)
 {
   switch (queryNum)
@@ -1524,6 +1706,182 @@ char readParamFromIni(void)
 
   OS_CHDIR(curPath);
   return curNet;
+}
+
+void initQueryMenu(void)
+{
+  FILE *fp3;
+  unsigned int i, j, bytesRead;
+  unsigned char fileBuf[256]; /* Временный буфер для чтения всего файла */
+
+  /* 1. Заполняем первые 3 захардкоженных имени */
+  strcpy((char *)menuQueries[0], "From newest to oldest");
+  strcpy((char *)menuQueries[1], "Random most voted tracks");
+  strcpy((char *)menuQueries[2], "Random play");
+
+  /* По умолчанию доступно только 3 системных пункта */
+  totalMenuLines = 3;
+
+  /* 2. Работа с файловой системой NedoOS по вашему паттерну */
+  fp3 = OS_OPENHANDLE("../ini/user.que", 0x80);
+
+  /* Проверка ошибки открытия в стиле NedoOS */
+  if (((int)fp3) & 0xff)
+  {
+    /* Если файла нет, создаем его и записываем дефолтный запрос */
+    fp3 = OS_CREATEHANDLE("../ini/user.que", 0x80);
+
+    /* Записываем дефолтную строку. Добавим \r\n, чтобы файл был готов к многострочности */
+    strcpy((char *)fileBuf, defQuery);
+    OS_WRITEHANDLE(fileBuf, fp3, strlen((const char *)fileBuf));
+    OS_CLOSEHANDLE(fp3);
+    /* Переоткрываем для последующего чтения */
+    fp3 = OS_OPENHANDLE("../ini/user.que", 0x80);
+  }
+
+  /* Обнуляем буфер перед чтением */
+  memset(fileBuf, 0, sizeof(fileBuf));
+
+  /* Читаем содержимое файла в буфер */
+  bytesRead = OS_READHANDLE(fileBuf, fp3, sizeof(fileBuf) - 1);
+  OS_CLOSEHANDLE(fp3);
+
+  /* 3. Парсим буфер файла на отдельные строки */
+  i = 0;
+  while (i < bytesRead && totalMenuLines < 6)
+  {
+    /* Пропускаем пустые символы и мусор между строками */
+    if (fileBuf[i] == '\r' || fileBuf[i] == '\n' || fileBuf[i] == ' ')
+    {
+      i++;
+      continue;
+    }
+
+    /* Копируем очередную строку в массив menuQueries */
+    j = 0;
+    while (i < bytesRead && fileBuf[i] != '\r' && fileBuf[i] != '\n' && j < 63)
+    {
+      menuQueries[totalMenuLines][j] = fileBuf[i];
+      i++;
+      j++;
+    }
+    menuQueries[totalMenuLines][j] = '\0'; /* Закрываем Си-строку */
+
+    /* Если строка получилась не пустой, добавляем пункт в меню */
+    if (strlen((const char *)menuQueries[totalMenuLines]) > 0)
+    {
+      totalMenuLines++;
+    }
+  }
+}
+
+int showQueryMenu(int currentSelect)
+{
+  unsigned char q, key, needRedraw;
+  unsigned char winW = 71; /* Расширили окно до 71 символа */
+  unsigned char winH = totalMenuLines;
+  unsigned char winX = (80 - winW) / 2; /* Чистое математическое центрирование */
+  unsigned char winY = 12 - winH / 2;
+
+  /* Коды символов рамки */
+  unsigned char sym_tl = 201;
+  unsigned char sym_tr = 187;
+  unsigned char sym_bl = 200;
+  unsigned char sym_br = 188;
+  unsigned char sym_h = 205;
+  unsigned char sym_v = 186;
+
+  if (currentSelect >= totalMenuLines)
+  {
+    currentSelect = 0;
+  }
+
+  /* --- ОДНОКРАТНАЯ ОТРИСОВКА ФОНА И РАМКИ ПРИ ОТКРЫТИИ --- */
+  OS_SETCOLOR(103);
+
+  /* 1. Верхняя линия рамки */
+  OS_SETXY(winX - 1, winY - 1);
+  putchar(sym_tl);
+  for (q = 0; q < winW; q++)
+    putchar(sym_h);
+  putchar(sym_tr);
+
+  /* 2. Тело окна: боковые грани рамки и заливка фона */
+  for (q = 0; q < winH; q++)
+  {
+    OS_SETXY(winX - 1, winY + q);
+    putchar(sym_v);
+
+    spaces(winW);
+
+    OS_SETXY(winX + winW, winY + q);
+    putchar(sym_v);
+  }
+
+  /* 3. Нижняя линия рамки */
+  OS_SETXY(winX - 1, winY + winH);
+  putchar(sym_bl);
+  for (q = 0; q < winW; q++)
+    putchar(sym_h);
+  putchar(sym_br);
+  /* ------------------------------------------------------ */
+
+  needRedraw = 1;
+
+  while (42)
+  {
+    if (needRedraw)
+    {
+      for (q = 0; q < winH; q++)
+      {
+        /* Оставляем 1 символ отступа слева */
+        OS_SETXY(winX + 1, winY + q);
+
+        if (q == currentSelect)
+        {
+          OS_SETCOLOR(69);
+        }
+        else
+        {
+          OS_SETCOLOR(103);
+        }
+
+        /* Печатаем строку шириной 68 символов. Теперь справа останется ровно 2 символа запаса! */
+        printf("%-68s", menuQueries[q]);
+      }
+
+      needRedraw = 0;
+    }
+
+    key = OS_GETKEY();
+
+    if (key == 250 || key == 'A' || key == 'a')
+    {
+      if (currentSelect > 0)
+      {
+        currentSelect--;
+        needRedraw = 1;
+      }
+    }
+    else if (key == 249 || key == 'B' || key == 'b')
+    {
+      if (currentSelect < totalMenuLines - 1)
+      {
+        currentSelect++;
+        needRedraw = 1;
+      }
+    }
+    else if (key == 13)
+    {
+      return currentSelect;
+    }
+    else if (key == 27)
+    {
+      return -1;
+    }
+  }
+
+  return -1;
 }
 
 C_task main(int argc, const char *argv[])
@@ -1583,7 +1941,11 @@ C_task main(int argc, const char *argv[])
   }
 
   OS_HIDEFROMPARENT();
+
   strcpy(queryType, "from newest to oldest");
+
+  initQueryMenu();
+
   OS_CLS(0);
   OS_SETCOLOR(71);
   OS_SETCOLOR(95);
@@ -1593,7 +1955,7 @@ C_task main(int argc, const char *argv[])
 
 start:
   OS_SETSYSDRV();
-  printHelp();
+  refreshScreen();
   curFileStruct.fileSize = 0;
 
   iddqd = processJson(count, 1, queryNum); // Query for track info
@@ -1631,9 +1993,6 @@ start:
     strcpy(curFileStruct.authorTitle, "-");
     strcpy(curFileStruct.authorRealName, "-");
   }
-
-  /////////////////////////////////////////////////
-  // optionsMenu();
 
 replay:
 
@@ -1700,40 +2059,83 @@ rekey:
     goto replay;
   case 'q':
   case 'Q':
+  {
+    int selectedIndex;
     OS_DROPAPP(pId);
     clearStatus();
     printf("Player stopped...");
-    queryNum++;
-    if (queryNum > 3)
+
+    /* 1. Открываем наше новое меню и получаем индекс выбранной строки (0..5) */
+    /* В качестве начальной позиции передаем queryNum, но если выбран кастомный, */
+    /* курсор встанет на первую кастомную строку (индекс 3) */
+    selectedIndex = showQueryMenu(queryNum > 2 ? 3 : queryNum);
+    OS_SETCOLOR(71); /* Сразу восстанавливаем стандартный цвет интерфейса плеера */
+    /* 2. Если пользователь подтвердил выбор нажатием Enter (а не отменил через ESC) */
+    if (selectedIndex != -1)
     {
-      queryNum = 0;
+
+      /* 3. Распределяем queryNum по вашей логике */
+      if (selectedIndex <= 2)
+      {
+        /* Выбраны системные строки 0, 1 или 2 */
+        queryNum = selectedIndex;
+      }
+      else
+      {
+        /* Выбрана любая кастомная строка (3, 4 или 5) -> взводим признак пользовательского запроса */
+        queryNum = 3;
+      }
+
+      /* 4. Бесшовно копируем текст выбранной строки в буфер userQuery */
+      /* Теперь плеер при формировании URL запроса возьмет именно актуальный текст */
+      strncpy((char *)userQuery, (const char *)menuQueries[selectedIndex], sizeof(userQuery) - 1);
+      userQuery[sizeof(userQuery) - 1] = '\0'; /* Гарантируем нуль-терминатор в конце */
+      /* 5. Обновляем текстовую строку названия запроса на главном экране */
+      refreshQueryNames(queryNum);
+
+      /* 6. Перезапускаем плеер: сбрасываем счетчики и прыгаем на инициализацию соединения */
+      OS_DROPAPP(pId);
+      count = 0; /* Начинаем проигрывание с первого трека новой выборки */
+      changedFormat = 0;
+      goto start;
     }
-    refreshQueryNames(queryNum);
-    count = 0;
-    changedFormat = 0;
-    printStatus();
+
+    /* Если пользователь нажал ESC ? просто аккуратно перерисовываем главный экран */
+    /* и продолжаем играть текущий трек, как будто ничего не произошло */
     goto start;
+  }
   case 'j':
   case 'J':
+    /* Инициализируем структуру напрямую без математики и strcpy */
     curWin.w = 22;
-    curWin.x = 80 / 2 - curWin.w / 2 - 2;
+    curWin.x = 27; /* Заранее посчитано: 80 / 2 - 22 / 2 - 2 */
     curWin.y = 14;
     curWin.h = 1;
     curWin.text = 103;
     curWin.back = 103;
+
+    /* Вместо тяжелой strcpy просто перенаправляем указатель на статическую строку */
+    /* (Если в вашей структуре tittle объявлен как массив, например char tittle[32], */
+    /* то возвращаем strcpy(curWin.tittle, "Track number:"); иначе ? пишем как ниже) */
     strcpy(curWin.tittle, "Track number:");
+
     if (inputBox(curWin, ""))
     {
-      sscanf(cmd, "%ld", &count);
+      OS_SETCOLOR(71);
+
+      /* Железная оптимизация размера: выкидываем sscanf, используем быстрый atol */
+      count = atol((const char *)cmd);
+
       OS_DROPAPP(pId);
-      if (count > curFileStruct.totalAmount - 1)
+
+      if (count >= curFileStruct.totalAmount)
       {
         count = curFileStruct.totalAmount - 1;
       }
+
       changedFormat = 0;
       goto start;
     }
-    printHelp();
     break;
   case 'm':
   case 'M':
@@ -1748,6 +2150,7 @@ rekey:
     if (inputBox(curWin, ""))
     {
       char counter;
+      OS_SETCOLOR(71);
       for (counter = 0; counter < strlen(cmd); counter++)
       {
         if ((((cmd[counter] < '0') || (cmd[counter] > '9'))) && cmd[counter] != '.')
@@ -1767,6 +2170,7 @@ rekey:
       }
       refreshScreen();
     }
+    OS_SETCOLOR(71);
     break;
   case 'f':
   case 'F':
@@ -1846,6 +2250,7 @@ rekey:
     netDriver = !netDriver;
     if (netDriver == 1)
     {
+      unsigned char q;
       clearStatus();
       printf("    ESP-COM mode enabled...");
       BDBOX(1, 14, 80, 8, 71, ' ');
@@ -1853,6 +2258,13 @@ rekey:
       loadEspConfig();
       uart_init(divider);
       espReBoot();
+
+      for (q = 13; q < 23; q++)
+      {
+        OS_SETXY(0, q);
+        spaces(80);
+      }
+
       printHelp();
     }
     else
@@ -1874,34 +2286,6 @@ rekey:
   }
   curTimer = time();
   curFileStruct.curPos = (curTimer - startTimer) / 50;
-  /*
-    if ((curTimer - oldTimer) > 49)
-    {
-      alive = testPlayer();
-      sprintf(toLog, ",%u", alive);
-      //writeLog(toLog);
-    }
-    if (alive == 0 && !changedFormat)
-    {
-      if (rptFlag == 1)
-      {
-        goto resume;
-      }
-      //writeLog("\r\nalive == 0. Next track please.\r\n");
-      printProgress(2);
-      count = trackSelector(0);
-      goto start;
-    }
-
-    if (alive == 1 && ((curTimer - oldTimer) > 49))
-    {
-      sprintf(toLog, ".%u", curFileStruct.trackInSeconds - curFileStruct.curPos);
-      //writeLog(toLog);
-      printProgress(1);
-      oldTimer = curTimer;
-    }
-  */
-
   remainTime = curFileStruct.trackInSeconds - curFileStruct.curPos;
 
   if ((remainTime < cutOff) && !changedFormat)
