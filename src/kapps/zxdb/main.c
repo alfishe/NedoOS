@@ -501,11 +501,15 @@ unsigned char inputBox(struct window w, const char *prefilled)
 			// Если в этой позиции находится курсор ? считаем инверсный байт атрибута
 			if (printPos == cursorPos)
 			{
-				// Меняем местами биты 0-2 (INK) и 3-5 (PAPER), сохраняя биты 6-7 (Bright/Flash)
-				OS_SETCOLOR((unsigned char)((w.text & 0xC0) |		 // Сохраняем BRIGHT и FLASH
-											((w.text & 0x07) << 3) | // Сдвигаем старый INK на место PAPER
-											((w.text & 0x38) >> 3)	 // Сдвигаем старый PAPER на место INK
-											));
+				OS_SETCOLOR((unsigned char)(
+					// 1. Формируем новый PAPER (из старого INK)
+					((w.text & 0x40) << 1) | // Старый BRIGHT_INK (6) двигаем на место BRIGHT_PAPER (7)
+					((w.text & 0x07) << 3) | // Старый INK (2-0) двигаем на место PAPER (5-3)
+
+					// 2. Формируем новый INK (из старого PAPER)
+					((w.text & 0x80) >> 1) | // Старый BRIGHT_PAPER (7) двигаем на место BRIGHT_INK (6)
+					((w.text & 0x38) >> 3)	 // Старый PAPER (5-3) двигаем на место INK (2-0)
+					));
 			}
 			else
 			{
@@ -893,7 +897,7 @@ void drawProgressBar(unsigned long downloaded, unsigned long total)
 	{
 		putchar('.');
 	}
-	//printf("] %3u%%", percent);
+	// printf("] %3u%%", percent);
 	putchar(']');
 }
 
