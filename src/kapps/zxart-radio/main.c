@@ -2058,9 +2058,6 @@ rekey:
   case 'Q':
   {
     int selectedIndex;
-    OS_DROPAPP(pId);
-    clearStatus();
-    printf("Player stopped...");
 
     /* 1. Открываем наше новое меню и получаем индекс выбранной строки (0..5) */
     /* В качестве начальной позиции передаем queryNum, но если выбран кастомный, */
@@ -2070,17 +2067,26 @@ rekey:
     /* 2. Если пользователь подтвердил выбор нажатием Enter (а не отменил через ESC) */
     if (selectedIndex != -1)
     {
+      OS_DROPAPP(pId);
+      clearStatus();
+      printf("Player stopped...");
 
-      /* 3. Распределяем queryNum по вашей логике */
+      /* 3. Распределяем queryNum и копируем текст по вашей логике */
       if (selectedIndex <= 2)
       {
         /* Выбраны системные строки 0, 1 или 2 */
         queryNum = selectedIndex;
+        /* Для системных режимов userQuery обычно не нужен, */
+        /* но если нужно, можно его обнулить: userQuery[0] = '\0'; */
       }
       else
       {
-        /* Выбрана любая кастомная строка (3, 4 или 5) -> взводим признак пользовательского запроса */
+        /* Выбрана кастомная строка из файла (индексы 3, 4, 5) */
         queryNum = 3;
+
+        /* Копируем текст выбранного запроса в буфер userQuery только для кастомных пунктов */
+        strncpy((char *)userQuery, (const char *)menuQueries[selectedIndex], sizeof(userQuery) - 1);
+        userQuery[sizeof(userQuery) - 1] = '\0';
       }
 
       /* 4. Бесшовно копируем текст выбранной строки в буфер userQuery */
@@ -2099,7 +2105,8 @@ rekey:
 
     /* Если пользователь нажал ESC ? просто аккуратно перерисовываем главный экран */
     /* и продолжаем играть текущий трек, как будто ничего не произошло */
-    goto start;
+    refreshScreen();
+    goto rekey;
   }
   case 'j':
   case 'J':
@@ -2133,7 +2140,11 @@ rekey:
       changedFormat = 0;
       goto start;
     }
-    break;
+    else
+    {
+      refreshScreen();
+      goto rekey;
+    }
   case 'm':
   case 'M':
     curWin.w = 22;
@@ -2167,8 +2178,11 @@ rekey:
       }
       refreshScreen();
     }
-    OS_SETCOLOR(71);
-    break;
+    else
+    {
+      refreshScreen();
+      goto rekey;
+    }
   case 'f':
   case 'F':
     OS_DROPAPP(pId);
