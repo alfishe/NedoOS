@@ -90,6 +90,8 @@ struct fileStruct
   unsigned char afn[64];
   unsigned char tfn[64];
   unsigned char hasDescription;
+  unsigned char totalMin; // Общие минуты трека
+  unsigned char totalSec; // Общие секунды трека
 } curFileStruct;
 
 struct window
@@ -181,73 +183,106 @@ void clearStatus(void)
   spaces(79);
   putchar('\r');
 }
-/*
-void clearNetbuf(void)
+
+void progressInit(void)
 {
-  int counter = 0;
-  for (counter = 0; counter < sizeof(netbuf); counter++)
-  {
-    netbuf[counter] = 0;
-  }
-}
-*/
-void printProgress(const char type)
-{
-  unsigned char bar, minutes, seconds;
+  unsigned int minutes;
+  unsigned char seconds;
   const unsigned char *position;
-  long barLenght;
-  int timer;
-  switch (type)
+
+  minutes = (unsigned int)atoi(curFileStruct.time);
+  position = (strstr(curFileStruct.time, ":")) + 1;
+  seconds = (unsigned char)atoi(position);
+
+  // Сохраняем общее время для быстрой отрисовки справа
+  curFileStruct.totalMin = (unsigned char)minutes;
+  curFileStruct.totalSec = seconds;
+
+  curFileStruct.trackInSeconds = (minutes * 60) + seconds;
+  curFileStruct.curPos = 0;
+  curFileStruct.startBar = 0;
+}
+
+void drawProgressbar(unsigned char x, unsigned char y, unsigned char width, unsigned char progress)
+{
+  unsigned char filled_len = (unsigned char)(((unsigned int)width * progress) / 100);
+  unsigned char empty_len = width - filled_len;
+  unsigned char i;
+
+  // 1. Быстро рисуем заполненную часть
+  if (filled_len > 0)
   {
-  case 0: // print empty bar
-    OS_SETXY(5, 10);
-    OS_SETCOLOR(70);
-    printf("%02d:%02d", 0, 0);
-    OS_SETXY(14, 10);
     OS_SETCOLOR(71);
-    for (bar = 0; bar < 50; bar++)
+    OS_SETXY(x, y);
+    i = filled_len;
+    while (i--)
+    {
+      putchar(178);
+    }
+  }
+
+  // 2. Быстро дорисовываем пустую часть
+  if (empty_len > 0)
+  {
+    OS_SETCOLOR(71);
+    OS_SETXY((unsigned char)(x + filled_len), y);
+    i = empty_len;
+    while (i--)
     {
       putchar(176);
     }
-    putchar(' ');
-    putchar(' ');
-    minutes = atoi(curFileStruct.time);
-    position = (strstr(curFileStruct.time, ":")) + 1;
-    seconds = atoi(position);
-    curFileStruct.trackInSeconds = minutes * 60 + seconds;
-    curFileStruct.curPos = 0;
-    curFileStruct.startBar = 0;
-    break;
-  case 1: // print progress bar
-
-    OS_SETXY(5, 10);
-    OS_SETCOLOR(70);
-    timer = floor(curFileStruct.curPos / 60);
-    printf("%02d:%02u", timer, (curFileStruct.curPos - (timer * 60)));
-
-    barLenght = (curFileStruct.curPos * 50 / curFileStruct.trackInSeconds);
-    if (barLenght > 49)
-    {
-      barLenght = 50;
-    }
-    OS_SETXY(14 + curFileStruct.startBar, 10);
-    OS_SETCOLOR(71);
-    for (bar = 0; bar < barLenght - curFileStruct.startBar; bar++)
-    {
-      putchar(178);
-    }
-    OS_SETXY(0, 0);
-    curFileStruct.startBar = bar;
-    break;
-  case 2: // print full bar
-    OS_SETXY(14, 10);
-    OS_SETCOLOR(71);
-    for (bar = 0; bar < 50; bar++)
-    {
-      putchar(178);
-    }
-    break;
   }
+}
+
+// Вспомогательная быстрая функция для вывода двух цифр (замена медленного printf("%02d"))
+void print2Digits(unsigned char value)
+{
+  putchar((unsigned char)('0' + (value / 10)));
+  putchar((unsigned char)('0' + (value % 10)));
+}
+
+void printProgress(const char type)
+{
+  unsigned int timer;
+
+  // 1. Рисуем текущее время СЛЕВА
+  OS_SETXY(5, 10);
+  OS_SETCOLOR(70);
+
+  if (type == 0)
+  {
+    print2Digits(0);
+    putchar(':');
+    print2Digits(0);
+  }
+  else
+  {
+    timer = curFileStruct.curPos / 60;
+    print2Digits((unsigned char)timer);
+    putchar(':');
+    print2Digits((unsigned char)(curFileStruct.curPos - (timer * 60)));
+  }
+
+  // 2. Рисуем прогресс-бар ПО ЦЕНТРУ
+  if (type == 0)
+  {
+    drawProgressbar(14, 10, 50, 0);
+  }
+  else if (type == 1)
+  {
+    drawProgressbar(14, 10, 50, (unsigned char)(((unsigned int)curFileStruct.curPos * 100) / curFileStruct.trackInSeconds));
+  }
+  else
+  {
+    drawProgressbar(14, 10, 50, 100);
+  }
+
+  // 3. Рисуем общее время СПРАВА (встаем встык после бара: 14 + 50 + 1 пробел = 65)
+  OS_SETXY(68, 10);
+  OS_SETCOLOR(70);
+  print2Digits(curFileStruct.totalMin);
+  putchar(':');
+  print2Digits(curFileStruct.totalSec);
 }
 
 void printHelp(void)
@@ -1449,8 +1484,6 @@ void refreshScreen(void)
   printf("                           ZXART.EE radio for %s                           ", interfaces[netDriver]);
   OS_SETCOLOR(6);
   printInfo();
-  printProgress(0);
-  printProgress(1);
   printHelp();
   printStatus();
 }
@@ -1995,11 +2028,9 @@ start:
     strcpy(curFileStruct.authorTitle, "-");
     strcpy(curFileStruct.authorRealName, "-");
   }
+  progressInit();
 
 replay:
-
-  // errn = getTrack2(iddqd); // Downloading the track
-
   errn = getTrack3(iddqd);
 
   if (errn == 0)
