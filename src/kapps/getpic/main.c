@@ -38,8 +38,8 @@ struct fileStruct
   unsigned char authorIds[64];
   unsigned char authorTitle[64];
   unsigned char authorRealName[64];
-  unsigned char afn[128];
-  unsigned char pfn[128];
+  unsigned char afn[120];
+  unsigned char pfn[120];
   unsigned char fileName[128];
   unsigned char hasDescription;
 } curFileStruct;
@@ -59,14 +59,14 @@ struct sockaddr_in dnsaddress;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 
-unsigned char ver[] = "4.9";
+unsigned char ver[] = "5.0";
 // const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
 unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; GetPic)\r\n\r\n\0";
 unsigned char zxart[] = "zxart.ee";
 unsigned char minRating[] = "0000000000";
-unsigned char keypress, verbose, showDesc, randomPic, slideShow, netDriver;
+unsigned char keypress, verbose, infoPressed, showDesc, randomPic, slideShow, netDriver;
 
 unsigned long contLen;
 unsigned long count = 0;
@@ -77,7 +77,7 @@ unsigned int loaded;
 unsigned char crlf[2] = {13, 10};
 unsigned char cmd[512];
 unsigned char fileIdChar[10];
-unsigned char picture[15200];
+unsigned char picture[14000];
 unsigned char netbuf[4000];
 unsigned char curPath[128];
 
@@ -434,32 +434,185 @@ char fillPictureNet(void)
 
 void nameRepair(unsigned char *pfn, unsigned int tfnSize)
 {
+  unsigned int i;
+  unsigned int j;
+  unsigned char c;
 
-  str_replace(pfn, tfnSize, pfn, "\\", "_");
-  str_replace(pfn, tfnSize, pfn, "/", "_");
-  str_replace(pfn, tfnSize, pfn, ":", "_");
-  str_replace(pfn, tfnSize, pfn, "*", "_");
-  str_replace(pfn, tfnSize, pfn, "?", "_");
-  str_replace(pfn, tfnSize, pfn, "<", "_");
-  str_replace(pfn, tfnSize, pfn, ">", "_");
-  str_replace(pfn, tfnSize, pfn, "|", "_");
-  str_replace(pfn, tfnSize, pfn, " ", "_");
-  str_replace(pfn, tfnSize, pfn, "&#039;", "'");
-  str_replace(pfn, tfnSize, pfn, "&amp;", "&");
-  str_replace(pfn, tfnSize, pfn, "&quot;", "'");
-  str_replace(pfn, tfnSize, pfn, "&gt;", ")");
-  str_replace(pfn, tfnSize, pfn, "&lt;", "(");
-  str_replace(pfn, tfnSize, pfn, "\"", "'");
+  i = 0;
+  /* Цикл по всей строке, пока не встретим конец Си-строки или не упремся в лимит размера */
+  while (pfn[i] != '\0' && i < tfnSize)
+  {
+    c = pfn[i];
+
+    /* 1. Быстрая замена запрещенных в именах файлов символов (в один проход) */
+    if (c == '\\' || c == '/' || c == ':' || c == '*' || c == '?' ||
+        c == '<' || c == '>' || c == '|' || c == ' ' || c == '\"')
+    {
+      pfn[i] = '_';
+      i++;
+      continue;
+    }
+
+    /* 2. Обработка HTML-сущностей, специфичных для имен файлов */
+    if (c == '&')
+    {
+      /* Замена &#039; на одиночную кавычку ' */
+      if (strncmp((const char *)(pfn + i), "&#039;", 6) == 0)
+      {
+        pfn[i] = '\'';
+        /* Сдвигаем хвост строки влево на 5 символов */
+        j = i + 1;
+        while ((pfn[j] = pfn[j + 5]) != '\0')
+        {
+          j++;
+        }
+        i++;
+        continue;
+      }
+      /* Замена &quot; на одиночную кавычку ' */
+      if (strncmp((const char *)(pfn + i), "&quot;", 6) == 0)
+      {
+        pfn[i] = '\'';
+        j = i + 1;
+        while ((pfn[j] = pfn[j + 5]) != '\0')
+        {
+          j++;
+        }
+        i++;
+        continue;
+      }
+      /* Замена &amp; на значок & */
+      if (strncmp((const char *)(pfn + i), "&amp;", 5) == 0)
+      {
+        pfn[i] = '&';
+        j = i + 1;
+        while ((pfn[j] = pfn[j + 4]) != '\0')
+        {
+          j++;
+        }
+        i++;
+        continue;
+      }
+      /* Замена &gt; на закрывающую скобку ) */
+      if (strncmp((const char *)(pfn + i), "&gt;", 4) == 0)
+      {
+        pfn[i] = ')';
+        j = i + 1;
+        while ((pfn[j] = pfn[j + 3]) != '\0')
+        {
+          j++;
+        }
+        i++;
+        continue;
+      }
+      /* Замена &lt; на открывающую скобку ( */
+      if (strncmp((const char *)(pfn + i), "&lt;", 4) == 0)
+      {
+        pfn[i] = '(';
+        j = i + 1;
+        while ((pfn[j] = pfn[j + 3]) != '\0')
+        {
+          j++;
+        }
+        i++;
+        continue;
+      }
+    }
+
+    i++;
+  }
 }
 
 void stringRepair(unsigned char *pfn, unsigned int tSize)
 {
-  str_replace(pfn, tSize, pfn, "&#039;", "'");
-  str_replace(pfn, tSize, pfn, "&amp;", "&");
-  str_replace(pfn, tSize, pfn, "&gt;", ">");
-  str_replace(pfn, tSize, pfn, "&lt;", "<");
-  str_replace(pfn, tSize, pfn, "&quot;", "\"");
-  str_replace(pfn, tSize, pfn, "\\/", "/");
+  unsigned int i;
+  unsigned int j;
+  unsigned char c;
+
+  i = 0;
+  while (pfn[i] != '\0' && i < tSize)
+  {
+    c = pfn[i];
+
+    if (c == '&')
+    {
+      /* Замена &#039; на ' */
+      if (strncmp((const char *)(pfn + i), "&#039;", 6) == 0)
+      {
+        pfn[i] = '\'';
+        j = i + 1;
+        while ((pfn[j] = pfn[j + 5]) != '\0')
+        {
+          j++;
+        }
+        i++;
+        continue;
+      }
+      /* Замена &quot; на " */
+      if (strncmp((const char *)(pfn + i), "&quot;", 6) == 0)
+      {
+        pfn[i] = '\"';
+        j = i + 1;
+        while ((pfn[j] = pfn[j + 5]) != '\0')
+        {
+          j++;
+        }
+        i++;
+        continue;
+      }
+      /* Замена &amp; на & */
+      if (strncmp((const char *)(pfn + i), "&amp;", 5) == 0)
+      {
+        pfn[i] = '&';
+        j = i + 1;
+        while ((pfn[j] = pfn[j + 4]) != '\0')
+        {
+          j++;
+        }
+        i++;
+        continue;
+      }
+      /* Замена &gt; на > */
+      if (strncmp((const char *)(pfn + i), "&gt;", 4) == 0)
+      {
+        pfn[i] = '>';
+        j = i + 1;
+        while ((pfn[j] = pfn[j + 3]) != '\0')
+        {
+          j++;
+        }
+        i++;
+        continue;
+      }
+      /* Замена &lt; на < */
+      if (strncmp((const char *)(pfn + i), "&lt;", 4) == 0)
+      {
+        pfn[i] = '<';
+        j = i + 1;
+        while ((pfn[j] = pfn[j + 3]) != '\0')
+        {
+          j++;
+        }
+        i++;
+        continue;
+      }
+    }
+
+    /* Замена экранированного слеша \/ на обычный / */
+    if (c == '\\' && pfn[i + 1] == '/')
+    {
+      pfn[i] = '/';
+      j = i + 1;
+      while ((pfn[j] = pfn[j + 1]) != '\0')
+      {
+        j++;
+      }
+      i++;
+      continue;
+    }
+
+    i++;
+  }
 }
 
 void ncReplace(void)
@@ -550,20 +703,23 @@ int pos(unsigned char *s, unsigned char *c, unsigned int n, unsigned int startPo
 
 const char *parseJson(unsigned char *property)
 {
-  unsigned int w, lng, lngp1, findEnd, listPos, counter;
+  unsigned int w, lng, lngp1, findEnd, listPos;
+  unsigned int maxSafeLimit; /* Объявление строго до исполняемого кода */
   unsigned char terminator;
   int n;
+
+  netbuf[0] = 0;
   n = pos(picture, property, 1, 0);
   if (n == -1)
   {
     strcpy(netbuf, "-");
-    // printf("Property %s not found", property);
     return netbuf;
   }
+
   lng = n - 1 + strlen(property);
   if (picture[lng] == ':')
   {
-    terminator = 0;
+    terminator = '\0';
   }
   if (picture[lng] == '\"')
   {
@@ -577,12 +733,20 @@ const char *parseJson(unsigned char *property)
   findEnd = 1;
   lngp1 = lng + 1;
 
+  /* Вычисляем предел безопасности на основе размера picture (8192 байта) */
+  maxSafeLimit = sizeof(picture) - lngp1 - 1;
+
   while (42)
   {
+    /* Защитный барьер: если буфер битый или усечен, выходим до зависания */
+    if (findEnd >= maxSafeLimit)
+    {
+      break;
+    }
 
     if ((picture[lngp1 + findEnd] == ','))
     {
-      if (terminator == 0)
+      if (terminator == '\0')
       {
         break;
       }
@@ -594,16 +758,22 @@ const char *parseJson(unsigned char *property)
     }
     findEnd++;
   }
-  listPos = 0;
-  counter = findEnd + lngp1;
 
-  if ((counter) > sizeof(netbuf) - 1)
+  /* Если вышли по аварийному лимиту ? отдаем маркер ошибки */
+  if (findEnd >= maxSafeLimit)
   {
-    counter = sizeof(netbuf - 1);
+    strcpy(netbuf, "-");
+    return netbuf;
   }
 
-  for (w = lngp1; w < counter; w++)
+  listPos = 0;
+  for (w = lngp1; w < findEnd + lngp1; w++)
   {
+    /* Защищаем netbuf (4096 байт) от случайного переполнения */
+    if (listPos >= sizeof(netbuf) - 1)
+    {
+      break;
+    }
     netbuf[listPos] = picture[w];
     listPos++;
   }
@@ -611,67 +781,77 @@ const char *parseJson(unsigned char *property)
   return netbuf;
 }
 
+// Сверхбыстрый парсинг одной HEX-цифры без библиотек
+unsigned char hex2val(unsigned char c)
+{
+  if (c >= '0' && c <= '9')
+    return c - '0';
+  if (c >= 'a' && c <= 'f')
+    return c - 'a' + 10;
+  if (c >= 'A' && c <= 'F')
+    return c - 'A' + 10;
+  return 0;
+}
+
 void convert866(void)
 {
-  unsigned int lng, targetPos, w, q = 0;
-  unsigned char one, two;
+  unsigned int src = 0; // Индекс чтения
+  unsigned int dst = 0; // Индекс записи (работаем в одном буфере!)
   unsigned int decVal;
-  lng = strlen(netbuf);
-  targetPos = lng + 1;
 
-  while (q < lng)
+  while (netbuf[src] != 0)
   {
-    one = netbuf[q];
-    two = netbuf[q + 1];
-    if (one == 92 && two == 117) // "\u"
+    // Проверяем маркер "\u" (92 ? это '\', 117 ? это 'u')
+    if (netbuf[src] == 92 && netbuf[src + 1] == 117)
     {
-      q = q + 2;
+      src += 2; // Пропускаем "\u"
 
-      decVal = (unsigned int)strtol(netbuf + q, NULL, 16);
-      q = q + 4;
-      if (decVal < 1088)
+      // Быстро собираем 16-битное число из 4 HEX-символов вместо strtol
+      decVal = ((unsigned int)hex2val(netbuf[src]) << 12) |
+               ((unsigned int)hex2val(netbuf[src + 1]) << 8) |
+               ((unsigned int)hex2val(netbuf[src + 2]) << 4) |
+               (unsigned int)hex2val(netbuf[src + 3]);
+      src += 4; // Пропускаем 4 HEX-цифры
+
+      // Конвертация Юникода кириллицы (0x0400-0x04FF) в CP866
+      if (decVal == 0x0401)
+      { // Буква 'Ё'
+        netbuf[dst++] = 240;
+      }
+      else if (decVal == 0x0451)
+      { // Буква 'ё'
+        netbuf[dst++] = 241;
+      }
+      else if (decVal >= 0x0410 && decVal <= 0x043F)
       {
-        decVal = decVal - 912;
+        // А..Я и а..п (Юникод 1040..1087) -> CP866 (128..175)
+        netbuf[dst++] = (unsigned char)(decVal - 912);
+      }
+      else if (decVal >= 0x0440 && decVal <= 0x044F)
+      {
+        // р..я (Юникод 1088..1103) -> CP866 (224..239)
+        netbuf[dst++] = (unsigned char)(decVal - 864);
+      }
+      else if (decVal < 128)
+      {
+        // На случай, если в \u закодирована базовая латиница
+        netbuf[dst++] = (unsigned char)decVal;
       }
       else
       {
-        decVal = decVal - 864;
+        netbuf[dst++] = '?'; // Неподдерживаемый символ
       }
-
-      if (decVal == 1025)
-      {
-        decVal = 240; // "Ё"
-      }
-
-      if (decVal == 1105)
-      {
-        decVal = 241; // "ё"
-      }
-
-      netbuf[targetPos] = decVal;
     }
     else
     {
-      netbuf[targetPos] = netbuf[q];
-
-      q++;
-    }
-    targetPos++;
-
-    if (targetPos == sizeof(netbuf))
-    {
-      break;
+      // Обычные ASCII символы просто копируем на месте
+      netbuf[dst++] = netbuf[src++];
     }
   }
 
-  netbuf[targetPos] = 0;
-  for (w = lng + 1; w < targetPos + 1; w++)
-  {
-    netbuf[w - lng - 1] = netbuf[w];
-  }
-  stringRepair(netbuf, w);
+  netbuf[dst] = 0;           // Корректно закрываем строку нуля-терминатором
+  stringRepair(netbuf, dst); // Если функция stringRepair еще нужна, вызываем её здесь
 }
-
 long processJson(unsigned long startPos, unsigned char limit, unsigned char queryNum)
 {
   unsigned int tSize;
@@ -860,8 +1040,22 @@ void showDescription(unsigned long counter, int atLine, unsigned char showLines)
 
 void printData(void)
 {
+  long idkfa;
+  if (!verbose && !infoPressed)
+  {
+    return;
+  }
   OS_SETGFX(0x86);
   OS_CLS(0);
+
+  idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
+  if (idkfa < 0)
+  {
+    printf("[%u]Error can't parse authorIds(%s).\r\n", curFileStruct.httpErr, curFileStruct.authorIds);
+    strcpy(curFileStruct.authorTitle, "ErrorGet");
+    strcpy(curFileStruct.authorRealName, "Error Getting Name");
+  }
+
   OS_SETCOLOR(70);
   printf(" #: ");
   OS_SETCOLOR(71);
@@ -949,14 +1143,22 @@ void printData(void)
   {
     puts("Manual show");
   }
-
   // YIELD();
 }
 
 unsigned char inputBox(struct window w, const char *prefilled)
 {
   unsigned char wcount, tempx, tittleStart;
-  unsigned char byte, counter;
+  unsigned char byte;
+
+  // Переменные редактора (объявлены строго в начале функции для IAR)
+  unsigned char cmdLen;     // Полная текущая длина строки cmd
+  unsigned char cursorPos;  // Позиция курсора в строке (от 0 до cmdLen)
+  unsigned char viewOffset; // Смещение просмотра для скроллинга длинного текста
+  unsigned char visibleLen; // Сколько символов строки физически влезает в окно
+  unsigned char i;          // Индекс для циклов отрисовки
+  unsigned char printPos;   // Текущий индекс символа для вывода на экран
+
   w.h++;
   OS_SETXY(w.x, w.y - 1);
   BDBOX(w.x, w.y, w.w + 1, w.h, w.back, 32);
@@ -987,84 +1189,153 @@ unsigned char inputBox(struct window w, const char *prefilled)
   tittleStart = w.x + (w.w / 2) - (strlen(w.tittle) / 2);
   OS_SETXY(tittleStart, w.y);
   printf("[%s]", w.tittle);
-  OS_SETXY(w.x + 1, w.y + 1);
-  OS_SETCOLOR(w.back);
-  putchar(219);
 
+  // Инициализация строки cmd
   cmd[0] = 0;
-
-  counter = strlen(prefilled);
-  if (counter != 0)
+  cmdLen = strlen(prefilled);
+  if (cmdLen != 0)
   {
-    strcpy(cmd, prefilled);
-    goto skipKeys;
+    strncpy(cmd, prefilled, sizeof(cmd) - 1);
+    cmd[sizeof(cmd) - 1] = 0; // Гарантированный ноль на конце
   }
 
-  do
+  // Настройка начального состояния курсора и скроллинга
+  cursorPos = cmdLen;
+  viewOffset = 0;
+  visibleLen = w.w - 1; // Доступная ширина внутри рамки под текст и курсор
+
+  for (;;)
   {
+    // 1. АВТОСКРОЛЛИНГ: Корректируем окно видимости текста относительно курсора
+    if (cursorPos < viewOffset)
+    {
+      viewOffset = cursorPos;
+    }
+    else if (cursorPos - viewOffset >= visibleLen)
+    {
+      viewOffset = cursorPos - visibleLen + 1;
+    }
+
+    // 2. ОТРИСОВКА СТРОКИ С ПОБИТОВОЙ ИНВЕРСИЕЙ ЦВЕТА КУРСOРА (Для NedoOS)
+    OS_SETXY(w.x + 1, w.y + 1);
+
+    for (i = 0; i < visibleLen; i++)
+    {
+      printPos = viewOffset + i;
+
+      // Если в этой позиции находится курсор ? считаем инверсный байт атрибута
+      if (printPos == cursorPos)
+      {
+        // 1. Формируем новый PAPER (из старого INK)
+        OS_SETCOLOR((unsigned char)(
+            // 1. Формируем новый PAPER (из старого INK)
+            ((w.text & 0x40) << 1) | // Старый BRIGHT_INK (6) двигаем на место BRIGHT_PAPER (7)
+            ((w.text & 0x07) << 3) | // Старый INK (2-0) двигаем на место PAPER (5-3)
+
+            // 2. Формируем новый INK (из старого PAPER)
+            ((w.text & 0x80) >> 1) | // Старый BRIGHT_PAPER (7) двигаем на место BRIGHT_INK (6)
+            ((w.text & 0x38) >> 3)   // Старый PAPER (5-3) двигаем на место INK (2-0)
+            ));
+      }
+      else
+      {
+        OS_SETCOLOR(w.text); // Стандартный цвет окна (например, тот самый 207)
+      }
+
+      // Выводим символ или пробел на месте курсора
+      if (printPos < cmdLen)
+      {
+        putchar(cmd[printPos]);
+      }
+      else
+      {
+        putchar(' '); // Зачищаем хвост строки или рисуем инверсный курсор-пробел в конце
+      }
+    }
+    // Восстанавливаем цвет по умолчанию после завершения строки
+    OS_SETCOLOR(w.text);
+
+    YIELD(); // Обязательно уступаем квант времени ОС NedoOS
+
     byte = OS_GETKEY();
     if (byte != 0)
     {
       switch (byte)
       {
-      case 0x08:
-        if (counter > 0)
+      case 248: // Left (Стрелка влево)
+        if (cursorPos > 0)
         {
-          counter--;
-          cmd[counter] = 0;
+          cursorPos--;
         }
         break;
-      case 0x0d:
+      case 251: // Right (Стрелка вправо)
+        if (cursorPos < cmdLen)
+        {
+          cursorPos++;
+        }
+        break;
 
-        if (counter == 0)
+      case 0x08: // Backspace (Удаление символа СЛЕВА от курсора)
+        if (cursorPos > 0 && cmdLen > 0)
+        {
+          // Сдвигаем хвост строки влево на 1 символ
+          for (i = cursorPos - 1; i < cmdLen; i++)
+          {
+            cmd[i] = cmd[i + 1];
+          }
+          cursorPos--;
+          cmdLen--;
+        }
+        break;
+
+      case 252: // Delete (Удаление символа В ПОЗИЦИИ курсора)
+        if (cursorPos < cmdLen && cmdLen > 0)
+        {
+          // Сдвигаем хвост строки начиная от курсора
+          for (i = cursorPos; i < cmdLen; i++)
+          {
+            cmd[i] = cmd[i + 1];
+          }
+          cmdLen--;
+        }
+        break;
+
+      case 0x0d: // Enter (Подтверждение ввода)
+
+        if (cmdLen == 0)
         {
           return false;
         }
-        else
-        {
-          return true;
-        }
+        return true;
 
-      case 31:
-        break;
-      case 250:
-        break;
-      case 249:
-        break;
-      case 248:
-        break;
-      case 251: // Right
-        break;
-      case 252: // Del
-        OS_SETXY(w.x + 1, w.y + 1);
-        spaces(counter + 1);
-        cmd[0] = 0;
-        counter = 0;
-        break;
-      case 27:
+      case 27: // Esc (Полная очистка и выход)
         cmd[0] = 0;
         return false;
-      default:
-        if (counter < w.w - 1)
+
+      case 31:  // Игнорируем служебные клавиши навигации основного экрана
+      case 250: // Up
+      case 249: // Down
+        break;
+
+      default: // ВВОД СИМВОЛА (С поддержкой вставки в середину строки)
+        // Проверяем, есть ли место в массиве cmd и влезает ли символ
+        if (cmdLen < (sizeof(cmd) - 2) && byte >= 32)
         {
-          cmd[counter] = byte;
-          counter++;
-          cmd[counter] = 0;
+          // Раздвигаем строку вправо, освобождая место под символ
+          for (i = cmdLen; i > cursorPos; i--)
+          {
+            cmd[i] = cmd[i - 1];
+          }
+          // Вставляем символ в позицию курсора
+          cmd[cursorPos] = byte;
+          cursorPos++;
+          cmdLen++;
+          cmd[cmdLen] = 0; // Корректно закрываем строку нулем
         }
         break;
       }
-    skipKeys:
-      OS_SETXY(w.x + 1, w.y + 1);
-      printf("%s", cmd);
-      putchar(219);
-      if (byte == 0x08)
-      {
-        putchar(' ');
-      }
     }
-    YIELD();
-  } while (42);
-  return false;
+  }
 }
 
 void safeKeys(unsigned char keypress)
@@ -1246,6 +1517,7 @@ void init(void)
   showDesc = false;
   randomPic = 0;
   slideShow = 0;
+  infoPressed = false;
   strcpy(minRating, "4.1");
   targetadr.family = AF_INET;
   targetadr.porth = 00;
@@ -1357,18 +1629,8 @@ start:
     delayLongKey(2000);
     goto start;
   }
-  if (verbose)
-  {
-    idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
-    if (idkfa < 0)
-    {
-      OS_SETGFX(0x86);
-      printf("[%u]Error can't parse authorIds(%s).\r\n", curFileStruct.httpErr, curFileStruct.authorIds);
-      strcpy(curFileStruct.authorTitle, "ErrorGet");
-      strcpy(curFileStruct.authorRealName, "Error Getting Name");
-    }
-    printData();
-  }
+
+  printData();
 
   if (strcmp(curFileStruct.picType, "standard") != 0)
   {
@@ -1379,6 +1641,7 @@ start:
     goto start;
   }
   sprintf(netbuf, "GET /file/id:%ld%s", iddqd, userAgent);
+
   switch (netDriver)
   {
   case 0:
@@ -1450,7 +1713,9 @@ start:
     count++;
     break;
   case 'I':
+    infoPressed = true;
     printData();
+    infoPressed = false;
     while (OS_GETKEY() == 0)
     {
       YIELD();
