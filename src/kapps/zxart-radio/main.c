@@ -902,65 +902,76 @@ void ncReplace(void)
   }
 }
 
+// Сверхбыстрый парсинг одной HEX-цифры без библиотек
+unsigned char hex2val(unsigned char c)
+{
+  if (c >= '0' && c <= '9')
+    return c - '0';
+  if (c >= 'a' && c <= 'f')
+    return c - 'a' + 10;
+  if (c >= 'A' && c <= 'F')
+    return c - 'A' + 10;
+  return 0;
+}
+
 void convert866(void)
 {
-  unsigned int lng, targetPos, w, q = 0;
-  unsigned char one, two;
+  unsigned int src = 0; // Индекс чтения
+  unsigned int dst = 0; // Индекс записи (работаем в одном буфере!)
   unsigned int decVal;
-  lng = strlen(netbuf);
-  targetPos = lng + 1;
 
-  while (q < lng)
+  while (netbuf[src] != 0)
   {
-    one = netbuf[q];
-    two = netbuf[q + 1];
-    if (one == 92 && two == 117) // "\u"
+    // Проверяем маркер "\u" (92 ? это '\', 117 ? это 'u')
+    if (netbuf[src] == 92 && netbuf[src + 1] == 117)
     {
-      q = q + 2;
+      src += 2; // Пропускаем "\u"
 
-      decVal = (unsigned int)strtol(netbuf + q, NULL, 16);
-      q = q + 4;
-      if (decVal < 1088)
+      // Быстро собираем 16-битное число из 4 HEX-символов вместо strtol
+      decVal = ((unsigned int)hex2val(netbuf[src]) << 12) |
+               ((unsigned int)hex2val(netbuf[src + 1]) << 8) |
+               ((unsigned int)hex2val(netbuf[src + 2]) << 4) |
+               (unsigned int)hex2val(netbuf[src + 3]);
+      src += 4; // Пропускаем 4 HEX-цифры
+
+      // Конвертация Юникода кириллицы (0x0400-0x04FF) в CP866
+      if (decVal == 0x0401)
+      { // Буква 'Ё'
+        netbuf[dst++] = 240;
+      }
+      else if (decVal == 0x0451)
+      { // Буква 'ё'
+        netbuf[dst++] = 241;
+      }
+      else if (decVal >= 0x0410 && decVal <= 0x043F)
       {
-        decVal = decVal - 912;
+        // А..Я и а..п (Юникод 1040..1087) -> CP866 (128..175)
+        netbuf[dst++] = (unsigned char)(decVal - 912);
+      }
+      else if (decVal >= 0x0440 && decVal <= 0x044F)
+      {
+        // р..я (Юникод 1088..1103) -> CP866 (224..239)
+        netbuf[dst++] = (unsigned char)(decVal - 864);
+      }
+      else if (decVal < 128)
+      {
+        // На случай, если в \u закодирована базовая латиница
+        netbuf[dst++] = (unsigned char)decVal;
       }
       else
       {
-        decVal = decVal - 864;
+        netbuf[dst++] = '?'; // Неподдерживаемый символ
       }
-
-      if (decVal == 1025)
-      {
-        decVal = 240; // "Ё"
-      }
-
-      if (decVal == 1105)
-      {
-        decVal = 241; // "ё"
-      }
-
-      netbuf[targetPos] = decVal;
     }
     else
     {
-      netbuf[targetPos] = netbuf[q];
-
-      q++;
-    }
-    targetPos++;
-
-    if (targetPos == sizeof(netbuf))
-    {
-      break;
+      // Обычные ASCII символы просто копируем на месте
+      netbuf[dst++] = netbuf[src++];
     }
   }
 
-  netbuf[targetPos] = 0;
-  for (w = lng + 1; w < targetPos + 1; w++)
-  {
-    netbuf[w - lng - 1] = netbuf[w];
-  }
-  stringRepair(netbuf, w);
+  netbuf[dst] = 0;           // Корректно закрываем строку нуля-терминатором
+  stringRepair(netbuf, dst); // Если функция stringRepair еще нужна, вызываем её здесь
 }
 
 unsigned char saveBuf(unsigned long fileId, unsigned char operation, unsigned int sizeOfBuf)
