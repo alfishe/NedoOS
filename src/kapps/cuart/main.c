@@ -359,12 +359,29 @@ void simpleBox(struct Window *w)
   }
 }
 
+void dialogSaving(void)
+{
+  struct Window alertWin;
+  const char *savingFile[] = {"Saving buffer.log to disk."};
+
+  alertWin.x = 25;
+  alertWin.y = 10;
+  alertWin.w = 30;
+  alertWin.h = 3;
+  alertWin.color = MAKE_COLOR(BR_INK, BLUE, WHITE);
+  alertWin.title = "Please Wait";
+  alertWin.wrap_text = 1;
+  alertWin.lines = savingFile; // Передаем нашу сплошную строку
+  simpleBox(&alertWin);
+}
+
 void saveBuff(void)
 {
   int len;
   unsigned long size;
   FILE *fp1;
   unsigned char crlf[2] = {13, 10};
+  OS_SETSYSDRV();
   fp1 = OS_OPENHANDLE("buffer.log", 0x80);
   if (((int)fp1) & 0xff)
   {
@@ -639,6 +656,12 @@ void handleKey(unsigned char key)
     directMode = !directMode;
     updateStatus(divider, directMode);
     return; // Выходим, чтобы этот байт не улетел в UART
+  case 124:
+    dialogSaving();
+    saveBuff();
+    delay(200);
+    screenRedraw();
+    return;
   case 246: // PgUp
     if (current_page > 0)
     {
@@ -751,9 +774,6 @@ void handleKey(unsigned char key)
       input_needs_redraw = 1;
     }
     break;
-  case 19:
-    saveBuff();
-    break;
   case 27:
     exit(0);
     break;
@@ -815,7 +835,9 @@ C_task main(void)
   OS_CLS(0);
   if (!loopback_enabled)
   {
+    OS_GETPATH((unsigned int)&curPath);
     loadEspConfig();
+    OS_CHDIR(curPath);
     uart_init(divider);
   }
   OS_HIDEFROMPARENT();
