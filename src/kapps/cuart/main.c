@@ -15,24 +15,62 @@
 #define WIN_RIGHT 80
 #define STATUS_ROW 23
 #define INPUT_ROW 24
-
 #define SCREEN_HEIGHT 22
+
+////////////windows systen definitions////////
+
+// Базовые цвета (0-7)
+#define BLACK 0
+#define BLUE 1
+#define RED 2
+#define MAGENTA 3
+#define GREEN 4
+#define CYAN 5
+#define YELLOW 6
+#define WHITE 7
+
+// Флаги яркости (биты 6 и 7)
+#define BR_NORMAL 0x00
+#define BR_INK 0x40   // Повышенная яркость тона (6 бит)
+#define BR_PAPER 0x80 // Повышенная яркость фона (7 бит)
+#define BR_BOTH 0xC0  // Повышенная яркость всего
+
+// Макрос сборки цвета для OS_SETCOLOR
+#define MAKE_COLOR(bright, paper, ink) ((unsigned char)((bright) | ((paper) << 3) | (ink)))
+
+// Готовые преднастроенные комбинации для окон (примеры)
+#define COL_DIALOG_NORMAL MAKE_COLOR(BR_BOTH, MAGENTA, WHITE) // Как на скрине
+#define COL_DIALOG_ALERT MAKE_COLOR(BR_BOTH, RED, YELLOW)
+
+struct Window
+{
+  unsigned char x;
+  unsigned char y;
+  unsigned char w;
+  unsigned char h;
+  unsigned char color;      // Наш собранный байт цвета (BBPPPIII)
+  const char *title;        // Указатель на заголовок (NULL, если нет)
+  const char **lines;       // Флаг wrap_text=0: массив строк. Флаг wrap_text=1: lines[0] - это вся большая строка.
+  unsigned char line_count; // Для wrap_text=0: число строк. Для wrap_text=1: не используется.
+  unsigned char wrap_text;  // 1 - включить автоперенос по словам, 0 - выключить
+};
+
+/////////////////////////////////////////////
 
 // --- ПЕРЕМЕННЫЕ ДЛЯ СТРОКИ ВВОДА КОМАНДЫ ---
 int cmdpos = 0;
 int cmd_cur = 0;
-unsigned char cmd[128];
-const unsigned char prefix[] = "CMD:> ";
-
 // --- НАСТРОЙКИ ЭМУЛЯЦИИ UART ---
 unsigned char loopback_enabled = 0;
 unsigned char sim_uart_buf[256];
 int sim_uart_wptr = 0;
 int sim_uart_rptr = 0;
-
 // --- БУФЕР ДАННЫХ UART ---
 unsigned char netbuf[24000];
 unsigned char uVer[] = "2.0";
+const unsigned char prefix[] = "CMD:> ";
+unsigned char cmd[256];
+
 int bufferPos = 0;
 int endPos = 0;
 int curpos = 0;
@@ -134,6 +172,189 @@ void getdata(void)
     {
       endPos = bufferPos;
       bufferPos = 0;
+    }
+  }
+}
+
+void simpleBox(struct Window *w)
+{
+  unsigned char wcount;
+  unsigned char tempx;
+  unsigned char inner_w;
+  unsigned char inner_h;
+  unsigned char title_len;
+  unsigned char title_x;
+
+  // Переменные для встроенной оптимизированной очистки фона
+  unsigned char h_count;
+  unsigned char w_count;
+  unsigned char current_y;
+
+  // Переменные для алгоритма Word Wrap с отступами
+  const char *text_ptr;       // Указатель на текущий обрабатываемый символ
+  const char *word_start;     // Указатель на начало текущего слова
+  unsigned char word_len;     // Длина текущего слова
+  unsigned char current_line; // Текущая строка внутри окна (0 .. inner_h-1)
+  unsigned char current_col;  // Текущая колонка внутри окна (0 .. inner_w-1)
+
+  // Вычисляем доступную ширину и высоту для текста
+  // inner_w уменьшен на 4 (2 символа под рамки + 2 символа под отступы слева и справа)
+  inner_w = w->w - 4;
+  inner_h = w->h - 2;
+
+  // 1. ВСТРОЕННАЯ И ОПТИМИЗИРОВАННАЯ ОЧИСТКА ФОНА (вместо BDBOX)
+  OS_SETCOLOR(w->color);
+  h_count = inner_h;
+  current_y = w->y + 1;
+
+  while (h_count > 0)
+  {
+    OS_SETXY(w->x, current_y);
+    w_count = w->w;
+    while (w_count > 0)
+    {
+      putchar(32); // Заливаем строку пробелами
+      w_count--;
+    }
+    current_y++;
+    h_count--;
+  }
+
+  // 2. ОТРИСОВКА ВЕРХНЕЙ ГРАНИ РАМКИ
+  OS_SETXY(w->x, w->y);
+  putchar(201); // Левый верхний угол
+  // Рамка по-прежнему рисуется на всю ширину w->w (минус углы)
+  for (wcount = 0; wcount < (w->w - 2); wcount++)
+  {
+    putchar(205);
+  }
+  putchar(187); // Правый верхний угол
+
+  // Интегрированная отрисовка заголовка
+  if (w->title != NULL)
+  {
+    title_len = (unsigned char)strlen(w->title);
+    // Проверяем, влезает ли заголовок в рамку
+    if (title_len + 2 <= (w->w - 2))
+    {
+      // Центрируем заголовок строго посередине верхней рамки
+      title_x = w->x + 1 + (((w->w - 2) - (title_len + 2)) / 2);
+      OS_SETXY(title_x, w->y);
+      putchar('[');
+      printf("%s", w->title);
+      putchar(']');
+    }
+  }
+
+  // 3. ОТРИСОВКА НИЖНЕЙ ГРАНИ РАМКИ
+  OS_SETXY(w->x, w->y + w->h - 1);
+  putchar(200); // Левый нижний угол
+  for (wcount = 0; wcount < (w->w - 2); wcount++)
+  {
+    putchar(205);
+  }
+  putchar(188); // Правый нижний угол
+
+  // 4. ОТРИСОВКА БОКОВЫХ ГРАНЕЙ РАМКИ
+  tempx = w->x + w->w - 1;
+  for (wcount = 1; wcount <= inner_h; wcount++)
+  {
+    OS_SETXY(w->x, w->y + wcount);
+    putchar(186); // Левая вертикальная линия
+    OS_SETXY(tempx, w->y + wcount);
+    putchar(186); // Правая вертикальная линия
+  }
+
+  // 5. ОТРИСОВКА СОДЕРЖИМОГО ОКНА
+  if (w->lines != NULL)
+  {
+    if (w->wrap_text == 1)
+    {
+      // === РЕЖИМ УМНОГО ПЕРЕНОСА ПО СЛОВАМ ===
+      text_ptr = w->lines[0];
+      current_line = 0;
+      current_col = 0;
+
+      // Сдвигаем x на +2: 1 символ рамки + 1 символ отступа для красоты
+      OS_SETXY(w->x + 2, w->y + 1 + current_line);
+
+      while (*text_ptr != '\0' && current_line < inner_h)
+      {
+        // Пропускаем ведущие пробелы в самом начале строки
+        if (current_col == 0 && *text_ptr == ' ')
+        {
+          text_ptr++;
+          continue;
+        }
+
+        // Высчитываем длину следующего слова
+        word_start = text_ptr;
+        word_len = 0;
+        while (*text_ptr != '\0' && *text_ptr != ' ' && *text_ptr != '\n')
+        {
+          word_len++;
+          text_ptr++;
+        }
+
+        if (word_len > 0)
+        {
+          // Если слово не помещается в строку ? переносим курсор
+          if (current_col + word_len > inner_w && current_col > 0)
+          {
+            current_line++;
+            current_col = 0;
+            if (current_line >= inner_h)
+              break; // Превышена высота окна
+
+            // Сдвиг на +2 при переходе на новую строку
+            OS_SETXY(w->x + 2, w->y + 1 + current_line);
+          }
+
+          // Посимвольный вывод слова на экран
+          while (word_start < text_ptr && current_col < inner_w)
+          {
+            putchar(*word_start);
+            word_start++;
+            current_col++;
+          }
+        }
+
+        // Обработка разделителей
+        if (*text_ptr == '\n')
+        {
+          // Жесткий перевод строки
+          current_line++;
+          current_col = 0;
+          if (current_line >= inner_h)
+            break;
+
+          OS_SETXY(w->x + 2, w->y + 1 + current_line);
+          text_ptr++;
+        }
+        else if (*text_ptr == ' ')
+        {
+          // Пробел между словами
+          if (current_col < inner_w)
+          {
+            putchar(' ');
+            current_col++;
+          }
+          text_ptr++;
+        }
+      }
+    }
+    else
+    {
+      // === КЛАССИЧЕСКИЙ ПОСТРОЧНЫЙ ВЫВОД (МАССИВ СТРОК) ===
+      for (wcount = 0; wcount < w->line_count; wcount++)
+      {
+        if (wcount < inner_h)
+        {
+          // Для обычных строк тоже делаем отступ в 2 символа от края
+          OS_SETXY(w->x + 2, w->y + 1 + wcount);
+          printf("%s", w->lines[wcount]);
+        }
+      }
     }
   }
 }
@@ -424,14 +645,14 @@ void handleKey(unsigned char key)
       current_page--;
       need_screen_redraw = 1;
     }
-    break;
+    return;
   case 247: // PgDn
     if (current_page < total_pages - 1)
     {
       current_page++;
       need_screen_redraw = 1;
     }
-    break;
+    return;
   }
 
   if (directMode == 1)
@@ -586,8 +807,10 @@ void handleKey(unsigned char key)
     break;
   }
 }
+
 C_task main(void)
 {
+
   OS_SETGFX(0x86);
   OS_CLS(0);
   if (!loopback_enabled)
@@ -595,12 +818,14 @@ C_task main(void)
     loadEspConfig();
     uart_init(divider);
   }
+  OS_HIDEFROMPARENT();
   screenRedraw();
   page_offsets[0] = 0;
   current_page = 0;
   total_pages = 1;
   cmd[0] = 0;
   cmdpos = 0;
+
   while (1)
   {
     key = OS_GETKEY();
