@@ -375,6 +375,41 @@ void dialogSaving(void)
   simpleBox(&alertWin);
 }
 
+void dialogHello(void)
+{
+  struct Window menuWin;
+
+  const char *menu_lines[] = {
+      "Утилита для работы с оборудованием через COM-порт.",
+      "Для нормальной работы требуется поддержка сигналов",
+      "RTS/CTS, иначе возможно выпадение байтов.", 
+      "             Основные клавишии:",
+      "F1-F10 - Выбор делителя 1,2,3,4,6,8,12,24,48,96",
+      "End = Переключения режима команд/прямого ввода",
+      "PgUp - прокрутка вверх на экран назад",
+      "PgDn - прокрутка вверх на экран вперед",
+      "CTRL+S  Сохранение буфера на диск в bin\\buffer.log",
+      "CTRL+T - testQueue(); получить время по NTP",
+      "ALT+U   Отправка \"AT+CIPUPDATE\" для обновления ПО"};
+
+  menuWin.x = 12;
+  menuWin.y = 6;
+  menuWin.w = 54;
+  menuWin.h = 12;
+
+  // Синий фон, белые буквы, максимальная яркость
+  menuWin.color = MAKE_COLOR(BR_BOTH, BLUE, WHITE);
+  menuWin.title = " Добро пожаловать! ";
+
+  // Передаем массив и настраиваем классический построчный режим
+  menuWin.lines = menu_lines;
+  menuWin.line_count = 10; // Обязательно указываем точное число строк!
+  menuWin.wrap_text = 0;  // ВЫКЛЮЧАЕМ автоперенос слов
+
+  // Отрисовка
+  simpleBox(&menuWin);
+}
+
 void saveBuff(void)
 {
   int len;
@@ -676,6 +711,12 @@ void handleKey(unsigned char key)
       need_screen_redraw = 1;
     }
     return;
+  case 62: // CTRL+T
+    testQueue();
+    break;
+  case 21:
+    sendcommand("AT+CIUPDATE");
+    break;
   }
 
   if (directMode == 1)
@@ -741,7 +782,7 @@ void handleKey(unsigned char key)
     uart_init(divider);
     updateStatus(divider, directMode);
     break;
-  case 13:
+  case 13: // Enter
     if (cmdpos > 0)
     {
       if (loopback_enabled)
@@ -774,10 +815,10 @@ void handleKey(unsigned char key)
       input_needs_redraw = 1;
     }
     break;
-  case 27:
+  case 27: // ESC
     exit(0);
     break;
-  case 8:
+  case 8: // BackSpase
     if (cmd_cur > 0)
     {
       int i;
@@ -803,12 +844,6 @@ void handleKey(unsigned char key)
       cmd_cur++;
       input_needs_redraw = 1;
     }
-    break;
-  case 28:
-    testQueue();
-    break;
-  case 21:
-    sendcommand("AT+CIUPDATE");
     break;
   default:
     if (key >= 32 && cmdpos < 70)
@@ -841,7 +876,12 @@ C_task main(void)
     uart_init(divider);
   }
   OS_HIDEFROMPARENT();
+
   screenRedraw();
+  dialogHello();
+  getchar();
+  screenRedraw();
+
   page_offsets[0] = 0;
   current_page = 0;
   total_pages = 1;
@@ -853,6 +893,8 @@ C_task main(void)
     key = OS_GETKEY();
     if (key != 0)
     {
+      printf("key=%u", key);
+      getchar();
       handleKey(key);
     }
     getdata();
