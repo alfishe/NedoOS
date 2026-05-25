@@ -893,8 +893,6 @@ C_task main(void)
     key = OS_GETKEY();
     if (key != 0)
     {
-      printf("key=%u", key);
-      getchar();
       handleKey(key);
     }
     getdata();
