@@ -261,9 +261,7 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok == 0)
 			{
-				sprintf(cmd, "[NO AFC]receiving timeout.[c=%lu]", count);
-				writeLog(cmd, "uartReadBlock  ");
-				return 0xffff;
+				break;
 			}
 			timerok = timerok - 1;
 			disable_interrupt();
@@ -277,9 +275,7 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok == 0)
 			{
-				sprintf(cmd, "[ATM2 COM]receiving timeout.[c=%lu]", count);
-				writeLog(cmd, "uartReadBlock  ");
-				return 0xffff;
+				break;
 			}
 			timerok = timerok - 1;
 			disable_interrupt();
@@ -301,9 +297,7 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok == 0)
 			{
-				sprintf(cmd, "[AFC]receiving timeout.[c=%lu]", count);
-				writeLog(cmd, "uartReadBlock  ");
-				return 0xffff;
+				break;
 			}
 			timerok = timerok - 1;
 		}
@@ -314,9 +308,7 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok == 0)
 			{
-				sprintf(cmd, "[ATM2IOESP]receiving timeout.[c=%lu]", count);
-				writeLog(cmd, "uartReadBlock  ");
-				return 0xffff;
+				break;
 			}
 			timerok = timerok - 1;
 			disable_interrupt();
@@ -329,8 +321,8 @@ unsigned int uartReadBlock(void)
 		output(0xfb, RBR_THR);
 		return input(0xfa);
 	}
-	puts("Error, Unknown COM port");
-	getchar();
+	sprintf(cmd, "[Com:%u]receiving timeout.[c=%lu]", comType, count);
+	writeLog(cmd, "uartReadBlock  ");
 	return 0xffff;
 }
 
@@ -348,9 +340,7 @@ char getdataEsp(unsigned int counted)
 			{
 				if (timerok == 0)
 				{
-					sprintf(cmd, "[NO AFC]Timeout.[Downloaded:%u of %u]", counter, counted);
-					writeLog(cmd, "getDataEsp     ");
-					return false;
+					break;
 				}
 				timerok = timerok - 1;
 				disable_interrupt();
@@ -370,9 +360,7 @@ char getdataEsp(unsigned int counted)
 			{
 				if (timerok == 0)
 				{
-					sprintf(cmd, "[ATM2 COM]Timeout.[Downloaded:%u of %u]", counter, counted);
-					writeLog(cmd, "getDataEsp     ");
-					return false;
+					break;
 				}
 				timerok = timerok - 1;
 				disable_interrupt();
@@ -398,47 +386,48 @@ char getdataEsp(unsigned int counted)
 			{
 				if (timerok == 0)
 				{
-					sprintf(cmd, "[AFC]Timeout.[Downloaded:%u of %u]", counter, counted);
-					writeLog(cmd, "getDataEsp     ");
-					return false;
-				}
-				timerok = timerok - 1;
-			}
-			netbuf[counter] = input(RBR_THR);
-		}
-		return true;
-	case 3: // ATM2IOESP
-		for (counter = 0; counter < counted; counter++)
-		{
-			timerok = factor;
-			while (42)
-			{
-				if (timerok == 0)
-				{
-					sprintf(cmd, "[ATM2IOESP]Timeout.[Downloaded:%u of %u]", counter, counted);
-					writeLog(cmd, "getDataEsp     ");
-					return false;
-				}
-
-				timerok = timerok - 1;
-
-				output(0xfb, LSR);
-				if ((1 & input(0xfa)) != 0)
-				{
 					break;
 				}
-				disable_interrupt();
-				output(0xfb, MCR);
-				output(0xfa, 2);
-				output(0xfa, 0);
-				enable_interrupt();
+				timerok = timerok - 1;
+				netbuf[counter] = input(RBR_THR);
 			}
-			output(0xfb, RBR_THR);
-			netbuf[counter] = input(0xfa);
+			return true;
+		case 3: // ATM2IOESP
+			for (counter = 0; counter < counted; counter++)
+			{
+				timerok = factor;
+				while (42)
+				{
+					if (timerok == 0)
+					{
+						break;
+					}
+
+					timerok = timerok - 1;
+
+					output(0xfb, LSR);
+					if ((1 & input(0xfa)) != 0)
+					{
+						break;
+					}
+					disable_interrupt();
+					output(0xfb, MCR);
+					output(0xfa, 2);
+					output(0xfa, 0);
+					enable_interrupt();
+				}
+				output(0xfb, RBR_THR);
+				netbuf[counter] = input(0xfa);
+				return true;
+			}
 		}
+		sprintf(cmd, "[Com:%u]Timeout.[Downloaded:%u of %u]", comType, counter, counted);
+		writeLog(cmd, "getDataEsp     ");
+		return false;
 	}
-	return true;
+	return false;
 }
+
 void sendcommand(const char *commandline)
 {
 	unsigned int count, cmdLen;
