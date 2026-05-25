@@ -966,7 +966,10 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
 void showDescription(unsigned long counter, int atLine, unsigned char showLines)
 {
   unsigned char byte, q, lineCount = 1, rowCount = 0;
+  unsigned char insideTag = 0; /* 1 - если мы внутри HTML-тега */
   unsigned int position = 0;
+
+  /* Запрос данных с сервера */
   processJson(counter, 1, 98);
 
   if (atLine != -1)
@@ -980,41 +983,68 @@ void showDescription(unsigned long counter, int atLine, unsigned char showLines)
 
     OS_SETXY(0, atLine);
     OS_SETCOLOR(69);
-    printf(" Description: \r\n");
+    printf(" Description:\r\n");
     OS_SETCOLOR(71);
   }
-  while (42)
+
+  /* Читаем netbuf (4096 байт) */
+  while (position < 4096)
   {
     byte = netbuf[position];
     if (byte == 0x00)
     {
       return;
     }
+
+    /* Логика фильтрации HTML-тегов (<pre>, </pre> или <\/pre>) */
+    if (byte == '<')
+    {
+      insideTag = 1;
+      position++;
+      continue;
+    }
+
+    if (insideTag == 1)
+    {
+      if (byte == '>')
+      {
+        insideTag = 0;
+      }
+      position++;
+      continue; /* Пропускаем внутренности тега целиком */
+    }
+
+    /* Обработка JSON-экранирования управляющих символов */
     if (byte == '\\')
     {
       position++;
+      if (position >= 4096)
+        return;
+
       byte = netbuf[position];
       switch (byte)
       {
       case 0x00:
-        position--;
-        break;
+        return;
       case '\\':
         putchar('\\');
+        rowCount++;
         break;
       case 'r':
         putchar('\r');
+        rowCount = 0;
         break;
       case 'n':
+        putchar('\n');
         lineCount++;
+        rowCount = 0;
         if (lineCount > showLines)
         {
           return;
         }
-        putchar('\n');
-        rowCount = 0;
         break;
       default:
+        /* Если это просто экранированный символ (например, \/ в <\/pre>) */
         putchar(byte);
         rowCount++;
         break;
@@ -1023,17 +1053,21 @@ void showDescription(unsigned long counter, int atLine, unsigned char showLines)
     else
     {
       putchar(byte);
+      rowCount++;
     }
+
     position++;
-    rowCount++;
-    if (rowCount > 79)
+
+    /* Перенос строки по достижению края экрана NedoOS (80 символов) */
+    if (rowCount >= 80)
     {
+      putchar('\n');
       lineCount++;
+      rowCount = 0;
       if (lineCount > showLines)
       {
         return;
       }
-      rowCount = 0;
     }
   }
 }
