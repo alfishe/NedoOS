@@ -66,12 +66,13 @@ unsigned char buffer[] = "0000000000";
 unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; GetPic)\r\n\r\n\0";
 unsigned char zxart[] = "zxart.ee";
 unsigned char minRating[] = "0000000000";
-unsigned char keypress, verbose, infoPressed, showDesc, randomPic, slideShow, netDriver;
+unsigned char keypress, verbose, infoPressed, showDesc, randomPic, netDriver;
 
 unsigned long contLen;
 unsigned long count = 0;
 unsigned int headlng;
 unsigned int slideShowTime = 0;
+unsigned int userInts;
 unsigned int loaded;
 
 unsigned char crlf[2] = {13, 10};
@@ -1169,7 +1170,7 @@ void printData(void)
   printf(" Mode : ");
   OS_SETCOLOR(71);
 
-  if (slideShow)
+  if (slideShowTime != 0)
   {
     printf("Slide-show, %u ints \r\n", slideShowTime);
   }
@@ -1400,16 +1401,24 @@ void safeKeys(unsigned char keypress)
     curWin.text = 103;
     curWin.back = 103;
     strcpy(curWin.tittle, "Slide time(ints)");
+
     if (inputBox(curWin, ""))
     {
-      sscanf(cmd, "%u", &slideShowTime);
-      if (slideShowTime == 0)
+      sscanf(cmd, "%u", &userInts);
+
+      if (userInts == 0)
       {
-        slideShowTime = 1;
+        userInts = 250;
       }
       OS_CLS(0);
       OS_SETCOLOR(70);
-      printf("Slide duration set to %u ints.", slideShowTime);
+      
+      if (slideShowTime != 0)
+      {
+        slideShowTime = userInts;
+      }
+
+      printf("Slide duration set to %u ints.", userInts);
       delayLong(500);
       OS_CLS(0);
     }
@@ -1440,22 +1449,20 @@ void safeKeys(unsigned char keypress)
     }
     break;
   case 'A':
-    slideShow = !slideShow;
     OS_SETCOLOR(70);
-    if (slideShow == 1)
+
+    if (slideShowTime == 0)
     {
+      slideShowTime = userInts;
       if (verbose == 1)
         printf("    SlideShow mode enabled...\r\n\r\n");
-      slideShowTime = 150;
-      delayLong(500);
     }
     else
     {
-      if (verbose == 1)
-        printf("    Manual mode enabled...\r\n\r\n");
+      printf("    Manual mode enabled...\r\n\r\n");
       slideShowTime = 0;
-      delayLong(500);
     }
+    delayLong(500);
     break;
   case 'D':
     netDriver = !netDriver;
@@ -1550,7 +1557,7 @@ void init(void)
   verbose = 1;
   showDesc = false;
   randomPic = 0;
-  slideShow = 0;
+  userInts = 250;
   infoPressed = false;
   strcpy(minRating, "4.1");
   targetadr.family = AF_INET;
