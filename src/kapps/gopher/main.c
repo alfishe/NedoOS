@@ -34,7 +34,7 @@ unsigned int espRetry = 5;
 unsigned long factor, timerok, count = 0;
 unsigned int magic = 15;
 
-unsigned char uVer[] = "1.9";
+unsigned char uVer[] = "2.0";
 unsigned char curPath[128];
 unsigned char cmd[512];
 unsigned long volumeOffsets[32];
@@ -334,18 +334,24 @@ void initMouse(void)
 unsigned char OS_SHELL(const char *command)
 {
 	unsigned char fileName[] = "term.com";
-	unsigned char appCmd[128] = "term.com ";
+	unsigned char appCmd[128];
 	unsigned int shellSize, loop;
 	unsigned char pgbak;
 	union APP_PAGES shell_pg;
 	union APP_PAGES main_pg;
 	FILE *fp3;
+	unsigned char *targetAddr;
+	unsigned int cmdLen; /* Переменная для точной длины */
+
+	/* Безопасное построение командной строки */
+	strcpy((char *)appCmd, "term.com ");
+	/* 128 всего - 9 (term.com ) - 1 (для гарантированного нуля) = 118 */
+	strncat((char *)appCmd, command, 118);
+
 	main_pg.l = OS_GETMAINPAGES();
 	pgbak = main_pg.pgs.window_3;
-
 	OS_GETPATH((unsigned int)&curPath);
 	OS_SETSYSDRV();
-	strcat(appCmd, command);
 
 	fp3 = OS_OPENHANDLE(fileName, 0x80);
 	if (((int)fp3) & 0xff)
@@ -357,33 +363,48 @@ unsigned char OS_SHELL(const char *command)
 	}
 
 	shellSize = OS_GETFILESIZE(fp3);
-
 	OS_CHDIR(curPath);
 
 	OS_NEWAPP((unsigned int)&shell_pg);
 	shell_pg.l = OS_GETAPPMAINPAGES(shell_pg.pgs.pId);
-	SETPG32KHIGH(shell_pg.pgs.window_0);
-	memcpy((unsigned char *)(0xC080), (unsigned char *)(&appCmd), strlen(appCmd) + 1);
 
+	/* Включаем страницу нового процесса в верхнее окно */
+	SETPG32KHIGH(shell_pg.pgs.window_0);
+
+	/* ИСПРАВЛЕНИЕ: Считаем точную длину строки с учетом терминатора */
+	cmdLen = strlen((char *)appCmd) + 1;
+
+	/* Копируем в память процесса ТОЛЬКО саму строку и её завершающий ноль */
+	memcpy((unsigned char *)(0xC080), appCmd, cmdLen);
+
+	/* ОПТИМИЗАЦИЯ ЗАГРУЗКИ */
 	loop = 0;
+	targetAddr = (unsigned char *)0xC100;
+
 	while (loop < shellSize)
 	{
-		unsigned int loaded, adr;
-		loaded = OS_READHANDLE(cmd, fp3, sizeof(cmd) - 1);
-		adr = 0xC100 + loop;
-		memcpy((unsigned char *)(adr), &cmd, loaded);
-		loop = loop + loaded;
+		unsigned int loaded;
+		loaded = OS_READHANDLE(targetAddr, fp3, shellSize - loop);
+
+		if (loaded == 0)
+			break;
+
+		loop += loaded;
+		targetAddr += loaded;
 	}
+
 	OS_CLOSEHANDLE(fp3);
 	SETPG32KHIGH(pgbak);
+
 	OS_RUNAPP(shell_pg.pgs.pId);
 	return shell_pg.pgs.pId;
 }
 
 char loadPageFromDisk(unsigned char *filepath, unsigned int volume)
 {
-	unsigned int todo = 0;
-	unsigned long clean = 0, loaded = 0;
+	unsigned int todo;
+	unsigned int loaded = 0; /* Изменили long на 16-битный int */
+	unsigned int cleanMax;
 	FILE *fp1;
 
 	fp1 = OS_OPENHANDLE(filepath, 0x80);
@@ -391,43 +412,52 @@ char loadPageFromDisk(unsigned char *filepath, unsigned int volume)
 	{
 		clearStatus();
 		printf("%s opening error. ", filepath);
-		return false;
+		return false; /* false/true (0/1) в стиле C89 */
 	}
+
 	OS_SEEKHANDLE(fp1, volumeOffsets[volume]);
 
+	/* Цикл чтения: убрали лишние проверки и 32-битные вычисления */
 	do
 	{
-		if ((sizeof(netbuf) - loaded) < 513)
+		/* sizeof(netbuf) - loaded ? это 16-битная арифметика, Z80 делает её мгновенно */
+		if ((sizeof(netbuf) - loaded) < 512)
 		{
 			break;
 		}
 
 		todo = OS_READHANDLE(netbuf + loaded, fp1, 512);
-		loaded = loaded + todo;
+		loaded += todo;
 
-	} while (todo != 0 && errno == 0);
+	} while (todo != 0);
+
 	OS_CLOSEHANDLE(fp1);
 
-	netbuf[loaded + 1] = 0;
+	/* Безопасно закрываем строку нулем строго на границе данных */
+	if (loaded < sizeof(netbuf))
+	{
+		netbuf[loaded] = 0;
+	}
 
-	if (todo == 0 && errno == 0)
+	if (todo == 0)
 	{
 		navi.maxVolume = volume;
 	}
 
-	// Стандартный ночной расчет, без опасных условий
+	/* Смещение для следующего тома (16-битное или 32-битное сложение, зависит от типа массива) */
 	volumeOffsets[volume + 1] = volumeOffsets[volume] + loaded;
 
-	clean = loaded + 128;
-	do
+	/* Элегантная и быстрая очистка хвоста (максимум 128 байт) без long-арифметики */
+	cleanMax = loaded + 128;
+	if (cleanMax > sizeof(netbuf) || cleanMax < loaded) /* Защита от переполнения 16 бит */
 	{
-		netbuf[loaded] = 0;
-		loaded++;
-		if (loaded == sizeof(netbuf))
-		{
-			break;
-		}
-	} while (loaded < clean);
+		cleanMax = sizeof(netbuf);
+	}
+
+	while (loaded < cleanMax)
+	{
+		netbuf[loaded++] = 0; /* Компилятор преобразует в эффективный инкремент указателя */
+	}
 
 	return true;
 }
@@ -500,6 +530,7 @@ void init(void)
 	initMouse();
 	clock.oldMinutes = 255;
 }
+
 void newPage(void)
 {
 	navi.page = 0;
@@ -517,6 +548,7 @@ void newPage(void)
 	memset(pageOffsets, 0, sizeof(pageOffsets));
 	memset(pageVolumes, 0, sizeof(pageVolumes));
 }
+
 void renderType(unsigned char linkType)
 {
 	OS_SETCOLOR(70); // Ярко-желтый
@@ -1140,7 +1172,7 @@ void pusHistory(void)
 	OS_CLOSEHANDLE(hf);
 }
 
-void popHistory(void)
+char popHistory(void)
 {
 	FILE *hf;
 	unsigned int structSize;
@@ -1148,7 +1180,7 @@ void popHistory(void)
 
 	if (navi.history == 0)
 	{
-		return;
+		return false;
 	}
 
 	navi.history--;
@@ -1174,6 +1206,7 @@ void popHistory(void)
 
 	// Переносим данные из heap обратно в рабочую структуру link
 	memcpy(&link, heap, structSize);
+	return true;
 }
 
 void goHome(char backSpace)
@@ -1403,103 +1436,120 @@ char getFile(unsigned char *fileNamePtr)
 
 unsigned char selectorProcessor(void)
 {
-	unsigned int startSearch = 0, lineSearch = 0, SelectedPos, counter1 = 0;
-	unsigned char byte;
+	unsigned int lineSearch = 0;
+	unsigned char *p;
+	unsigned int counter;
 
-	if (link.type == '0' || navi.lineSelect > navi.lastLine) // Если текущая страница текстовая, нечего по ней тыкать или тыкнули ниже низа.
+	/* 1. Быстрые входные проверки */
+	if (link.type == '0' || navi.lineSelect > navi.lastLine || navi.lineSelect == 0)
 	{
-		// clearStatus();
-		// printf("[%c]Cтраница текстовая или [%u>%u]тыкнули ниже низа.", link.type, navi.lineSelect, navi.lastLine);
 		return false;
 	}
 
-	startSearch = pageOffsets[navi.page];
+	/* Ставим указатель на начало нужной страницы в netbuf */
+	p = netbuf + pageOffsets[navi.page];
 
-	do
+	/* 2. Поиск начала выбранной строки (пропускаем n-1 строк) */
+	if (navi.lineSelect > 1)
 	{
-		byte = netbuf[startSearch + counter1];
-
-		if (byte == 0x0a)
+		do
 		{
-			lineSearch++;
-		}
-		counter1++;
-
-	} while (lineSearch < navi.lineSelect - 1);
-
-	if (counter1 == 1)
-	{
-		counter1 = 0;
+			if (*p == 0)
+				return false; /* Защита от выхода за данные */
+			if (*p == 0x0a)
+			{
+				lineSearch++;
+			}
+			p++;
+		} while (lineSearch < navi.lineSelect - 1);
 	}
-	SelectedPos = startSearch + counter1;
 
-	strncpy(link.prevHost, link.host, sizeof(link.prevHost) - 1);
+	/* Сохраняем историю типа */
+	strncpy((char *)link.prevHost, (char *)link.host, sizeof(link.prevHost) - 1);
 	link.nexType = link.type;
-	link.type = netbuf[SelectedPos];
+	link.type = *p;
 
+	/* Проверяем тип элемента (информационный, точка или конец) */
 	if (link.type == 'i' || link.type == '.' || link.type == 0)
 	{
 		link.type = link.nexType;
 		return false;
 	}
 
-	counter1 = 1; // Пропускаем  заголовок селектора
-	do
+	/* 3. Пропускаем видимое имя (ищем первый таб 0x09) */
+	while (*p != 9 && *p != 0x0a && *p != 0)
 	{
-		byte = netbuf[SelectedPos + counter1];
-		counter1++;
-	} while (byte != 9);
-
-	SelectedPos = SelectedPos + counter1;
-	counter1 = 0; // Извлекаем путь к селектору
-
-	while (netbuf[SelectedPos + counter1] != 9)
-	{
-		link.path[counter1] = netbuf[SelectedPos + counter1];
-		counter1++;
+		p++;
 	}
-	link.path[counter1] = 0;
+	if (*p != 9)
+		return false; /* Битый формат строки */
+	p++;			  /* Шаг за таб */
 
-	SelectedPos = SelectedPos + counter1 + 1;
-	counter1 = 0; // Извлекаем хост селектора
-	do
+	/* 4. Извлекаем путь (path) до следующего таба */
+	counter = 0;
+	while (*p != 9 && *p != 0x0a && *p != 0)
 	{
-		link.host[counter1] = netbuf[SelectedPos + counter1];
-		counter1++;
-	} while (netbuf[SelectedPos + counter1] != 9);
-	link.host[counter1] = 0;
+		if (counter < sizeof(link.path) - 1)
+		{
+			link.path[counter++] = *p;
+		}
+		p++;
+	}
+	link.path[counter] = 0;
+	if (*p != 9)
+		return false;
+	p++; /* Шаг за таб */
 
-	SelectedPos = SelectedPos + counter1 + 1;
-	link.port = atoi(netbuf + SelectedPos);
+	/* 5. Извлекаем хост (host) */
+	counter = 0;
+	while (*p != 9 && *p != 0x0a && *p != 0)
+	{
+		if (counter < sizeof(link.host) - 1)
+		{
+			link.host[counter++] = *p;
+		}
+		p++;
+	}
+	link.host[counter] = 0;
+	if (*p != 9)
+		return false;
+	p++; /* Шаг за таб */
+
+	/* 6. Извлекаем порт (парсим прямо с текущей позиции указателя) */
+	link.port = atoi((const char *)p);
+
 	return true;
 }
 
 char extractName(void)
 {
-	unsigned int counter, counter2 = 0, lng, byte, source;
-	unsigned char ext2[128];
-	const unsigned char *count1;
+	unsigned char *p;
+	unsigned char *pDot;
+	unsigned int counter;
 
-	lng = strlen(link.path);
+	/* 1. Извлекаем чистое имя файла из пути (ищем конец строки и идем назад) */
+	p = (unsigned char *)link.path + strlen((const char *)link.path);
 
-	for (counter = lng - 1; counter != 0; counter--)
+	while (p > (unsigned char *)link.path)
 	{
-		byte = link.path[counter];
-		if (byte == '/' || byte == ':')
+		p--;
+		if (*p == '/' || *p == ':')
 		{
+			p++; /* Встаем на первый символ после разделителя */
 			break;
 		}
-
-		counter2++;
 	}
-	source = lng - counter2;
+	/* Теперь p указывает на начало имени файла внутри link.path */
 
-	for (counter = 0; counter < counter2; counter++)
+	/* Безопасно копируем имя файла в navi.fileName */
+	counter = 0;
+	while (*p && counter < sizeof(navi.fileName) - 1)
 	{
-		navi.fileName[counter] = link.path[source + counter];
+		navi.fileName[counter++] = *p++;
 	}
-	navi.fileName[counter2] = 0;
+	navi.fileName[counter] = 0;
 
+	/* 2. Обработка ручного ввода (Save As) */
 	if (navi.saveAs)
 	{
 		curWin.w = 61;
@@ -1508,23 +1558,25 @@ char extractName(void)
 		curWin.h = 1;
 		curWin.text = 103;
 		curWin.back = 103;
-		strcpy(curWin.tittle, "Введите имя файла");
-
-		// navi.fileName[64] = 0;
+		strcpy((char *)curWin.tittle, "Введите имя файла");
 
 		if (inputBox(curWin, navi.fileName))
 		{
-			strncpy(navi.fileName, cmd, sizeof(navi.fileName) - 1);
+			strncpy((char *)navi.fileName, (const char *)cmd, sizeof(navi.fileName) - 1);
+			navi.fileName[sizeof(navi.fileName) - 1] = 0; /* Гарантируем нуль */
 		}
 		else
 		{
 			return false;
 		}
 	}
-	else // Play It
+	/* 3. Автоматическое определение (Play It) */
+	else
 	{
-		count1 = strstr(navi.fileName, ".");
-		if (count1 == NULL)
+		/* Ищем ПОСЛЕДНЮЮ точку с конца имени файла */
+		pDot = (unsigned char *)strrchr((const char *)navi.fileName, '.');
+
+		if (pDot == NULL)
 		{
 			clearStatus();
 			printf("Ошибка определения типа файла, не найдено расширение. [%s]", navi.fileName);
@@ -1533,9 +1585,16 @@ char extractName(void)
 		}
 		else
 		{
-			strcpy(ext2, count1 + 1);
-			strcpy(navi.fileName, "current.");
-			strcat(navi.fileName, ext2);
+			/* Маленький буфер строго под 3 буквы расширения + нуль-терминатор */
+			char ext[4];
+
+			/* Безопасно копируем расширение во временный буфер, пока navi.fileName еще цел */
+			strncpy(ext, (const char *)(pDot + 1), 3);
+			ext[3] = 0; /* Гарантируем нуль-терминатор для расширения */
+
+			/* Теперь можно смело затирать navi.fileName, расширение уже спасено */
+			strcpy((char *)navi.fileName, "current.");
+			strcat((char *)navi.fileName, ext);
 		}
 	}
 	return true;
@@ -1569,103 +1628,117 @@ int pos(unsigned char *s, unsigned char *c, unsigned int n, unsigned int startPo
 
 unsigned char mediaProcessorExt(void)
 {
-	// unsigned char ext[65];
 	unsigned char extLow[4];
-	unsigned char extUp[4];
-	unsigned char byte;
-	const unsigned char *count1;
-	unsigned int counter, counter2, next, curPosition;
-	int n;
+	const unsigned char *pDot;
+	const unsigned char *pDb;
+	const unsigned char *pLineStart;
+	unsigned char *pCmd;
+	unsigned int i;
 
-	count1 = strstr(navi.fileName, ".");
-	if (count1 == NULL)
+	/* 1. Поиск расширения с конца строки */
+	pDot = (const unsigned char *)strrchr((const char *)navi.fileName, '.');
+	if (pDot == NULL)
 	{
 		clearStatus();
 		printf("Ошибка определения типа файла, не найдено расширение. [%s]", navi.fileName);
 		waitKey();
+		return false;
 	}
 
-	counter = strlen(navi.fileName);
-	do
+	/* 2. Извлекаем расширение строго в нижнем регистре (макс 3 символа) */
+	pDot++;
+	for (i = 0; i < 3; i++)
 	{
-		counter--;
-		if (navi.fileName[counter] == '.')
-		{
-
-			for (counter2 = 0; counter2 < 3; counter2++)
-			{
-				extLow[counter2] = tolower(navi.fileName[counter + counter2 + 1]);
-				extUp[counter2] = toupper(navi.fileName[counter + counter2 + 1]);
-			}
-			extUp[3] = 0;
-			extLow[3] = 0;
-			// printf("[%s]\r\n[%s]\r\n", extLow, extUp);
+		/* Заканчиваем, если строка кончилась, пробел, точка или спецсимволы */
+		if (pDot[i] == 0 || pDot[i] == 0x0d || pDot[i] == 0x0a || pDot[i] == ' ' || pDot[i] == '.')
 			break;
-		}
+		extLow[i] = (unsigned char)tolower(pDot[i]);
+	}
+	extLow[i] = 0;
 
-	} while (counter != 0);
+	/* Если расширение было из пробелов или пустое, дополняем до реального сравнения */
+	if (extLow[0] == 0)
+		return false;
 
-	next = 1;
-	curPosition = 0;
-	for (;;)
+	/* 3. Сканируем базу данных nvext */
+	pDb = (const unsigned char *)nvext;
+
+	while (*pDb != 0)
 	{
-		// n = -1;
-		n = pos(nvext, extLow, next, curPosition);
-		curPosition = n;
-		if (n == -1)
+		pLineStart = pDb; /* Запоминаем начало текущей строки базы */
+
+		/* Бежим по элементам внутри ОДНОЙ строки базы данных */
+		while (*pDb != 0x0d && *pDb != 0x0a && *pDb != 0)
 		{
-			curPosition = 0;
-			n = pos(nvext, extUp, next, curPosition);
-			curPosition = n;
-			if (n == -1)
+			/* Сравниваем текущее слово в базе с нашим extLow */
+			i = 0;
+			while (extLow[i] != 0 && tolower(pDb[i]) == extLow[i])
 			{
-				clearStatus();
-				printf("[ext]не найдено соответствие к расширению [%s][%s]", extLow, extUp);
-				waitKey();
-				return false;
+				i++;
 			}
-		}
-		else
-		{
-			counter = 0;
-			for (;;)
+
+			/* Проверяем, честное ли совпадение: наше расширение закончилось,
+			   А в базе после него идёт ЛИБО запятая, ЛИБО двоеточие */
+			if (extLow[i] == 0 && (pDb[i] == ':' || pDb[i] == ','))
 			{
-				byte = nvext[n + counter];
-				if (byte == 0x0d)
+				/* НАШЛИ! Теперь нужно найти двоеточие ':' в этой строке, чтобы дойти до команды */
+				while (*pDb != ':' && *pDb != 0x0d && *pDb != 0x0a && *pDb != 0)
 				{
-					next++;
-					break;
+					pDb++;
 				}
 
-				if (byte == ':')
+				if (*pDb == ':')
 				{
-					counter++;
-					counter2 = 0;
+					pDb++; /* Шаг за двоеточие */
+					while (*pDb == ' ')
+						pDb++; /* Пропускаем пробелы перед командой */
 
-					while (nvext[n + counter] == ' ')
+					/* 4. Копируем имя исполняемого файла в буфер cmd */
+					pCmd = (unsigned char *)cmd;
+					while (*pDb != 0x0d && *pDb != 0x0a && *pDb != 0)
 					{
-						counter++;
+						*pCmd++ = *pDb++;
 					}
+					*pCmd++ = ' ';
+					*pCmd = 0;
 
-					do
-					{
-						byte = nvext[n + counter];
-						cmd[counter2] = byte;
-						counter++;
-						counter2++;
-					} while (byte != 0x0d);
-					cmd[counter2 - 1] = ' ';
-					cmd[counter2] = 0;
-					strcat(cmd, " ");
-					strcat(cmd, curPath);
-					strcat(cmd, "/current.");
-					strcat(cmd, extLow);
+					/* 5. Сборка финальной командной строки */
+					strcat((char *)cmd, (const char *)curPath);
+					strcat((char *)cmd, "/current.");
+					strcat((char *)cmd, (const char *)extLow);
+
 					return true;
 				}
-				counter++;
 			}
+
+			/* Если в текущей позиции строки совпадения нет, прыгаем к следующему расширению за запятую */
+			while (*pDb != ',' && *pDb != ':' && *pDb != 0x0d && *pDb != 0x0a && *pDb != 0)
+			{
+				pDb++;
+			}
+			if (*pDb == ',')
+				pDb++; /* Перешагиваем запятую, продолжаем внутренний цикл */
+			else
+				break; /* Если уперлись в двоеточие или конец строки ? выходим из внутреннего цикла */
 		}
+
+		/* На случай неудачи: восстанавливаем указатель на начало строки и мотаем её до самого конца \r\n */
+		pDb = pLineStart;
+		while (*pDb != 0x0d && *pDb != 0)
+		{
+			pDb++;
+		}
+		if (*pDb == 0x0d)
+			pDb++;
+		if (*pDb == 0x0a)
+			pDb++;
 	}
+
+	/* Если пробежали всю базу и ничего не нашли */
+	clearStatus();
+	printf("[ext] Не найдена команда для расширения [%s]", extLow);
+	waitKey();
+	return false;
 }
 
 void doLink(char backSpace)
@@ -2116,159 +2189,112 @@ void navigation(unsigned char keypress)
 unsigned char getMouse(void)
 {
 	unsigned long mouseRaw;
-	unsigned int mouseMove;
 	unsigned int mouseButtons;
-	int mouseScroll = 0;
-	int mouseXpos;
-	int mouseYpos;
+	unsigned char mX, mY;
 	int dx, dy;
+
 	mouseRaw = OS_GETMOUSE();
+	mouseButtons = (unsigned int)mouseRaw; /* HL: L = кнопки/колесо, H = кнопка клавиатуры */
 
-	mouseMove = mouseRaw >> 16;
-	mouseButtons = mouseRaw;
+	mX = (unsigned char)(mouseRaw >> 16); /* Регистр E */
+	mY = (unsigned char)(mouseRaw >> 24); /* Регистр D */
 
-	if (mouseMove != mouse.prevMouseMove)
+	if (mX != mouse.mouseXpos || mY != mouse.mouseYpos)
 	{
 		OS_SETXY(mouse.cursXpos, mouse.cursYpos);
 		OS_PRATTR(mouse.oldAtr);
-		mouse.prevMouseMove = mouseMove;
-
-		mouse.prevMouseXpos = mouse.mouseXpos;
-		mouse.prevMouseYpos = mouse.mouseYpos;
-
-		mouse.mouseXpos = mouseRaw >> 16;
-		mouse.mouseYpos = mouseRaw >> 24;
 
 		if (mouse.classic)
 		{
-			mouse.cursXpos = mouse.mouseXpos / 3;
-			mouse.cursYpos = 25 - mouse.mouseYpos / 10;
+			/* Пропорциональная точная интерполяция на 80x25 */
+			mouse.cursXpos = (unsigned char)((mX * 80) >> 8);
+			mouse.cursYpos = (unsigned char)(24 - ((mY * 25) >> 8));
+
+			mouse.mouseXpos = mX;
+			mouse.mouseYpos = mY;
 		}
 		else
 		{
-			mouseXpos = mouse.mouseXpos - mouse.prevMouseXpos;
-			mouseYpos = mouse.mouseYpos - mouse.prevMouseYpos;
+			/* Относительный режим */
+			int mouseXpos = (int)mX - (int)mouse.mouseXpos;
+			int mouseYpos = (int)mY - (int)mouse.mouseYpos;
 
-			dx = abs(mouseXpos / 2);
-			dy = abs(mouseYpos / 2);
+			mouse.mouseXpos = mX;
+			mouse.mouseYpos = mY;
 
-			if (dx == 0)
-				dx = 1;
-			if (dy == 0)
-				dy = 1;
-			if (dx > 3)
+			if (mouseXpos < -128)
+				mouseXpos += 256;
+			else if (mouseXpos > 128)
+				mouseXpos -= 256;
+
+			if (mouseYpos < -128)
+				mouseYpos += 256;
+			else if (mouseYpos > 128)
+				mouseYpos -= 256;
+
+			dx = 1;
+			if (mouseXpos > 6 || mouseXpos < -6)
+				dx = 2;
+			if (mouseXpos > 15 || mouseXpos < -15)
 				dx = 3;
-			if (dy > 2)
+
+			dy = 1;
+			if (mouseYpos > 6 || mouseYpos < -6)
 				dy = 2;
+			if (mouseYpos > 15 || mouseYpos < -15)
+				dy = 3;
 
-			if (mouseXpos < -250)
-			{
-				mouseXpos = 1;
-			}
-			else if (mouseXpos > 250)
-			{
-				mouseXpos = -1;
-			}
-
-			if (mouseYpos < -254)
-			{
-				mouseYpos = 1;
-			}
-			else if (mouseYpos > 254)
-			{
-				mouseYpos = -1;
-			}
-
-			if (mouseXpos < 0)
-			{
-				mouse.cursXpos = mouse.cursXpos - dx;
-			}
-			else if (mouseXpos > 0)
-			{
-				mouse.cursXpos = mouse.cursXpos + dx;
-			}
+			if (mouseXpos > 0)
+				mouse.cursXpos += dx;
+			else if (mouseXpos < 0)
+				mouse.cursXpos -= dx;
 
 			if (mouse.divider == 0)
 			{
 				if (mouseYpos > 0)
-				{
-					mouse.cursYpos = mouse.cursYpos - dy;
-				}
+					mouse.cursYpos -= dy;
 				else if (mouseYpos < 0)
-				{
-					mouse.cursYpos = mouse.cursYpos + dy;
-				}
-				mouse.divider = 2;
+					mouse.cursYpos += dy;
+				mouse.divider = 1;
 			}
-			mouse.divider--;
-			// clearStatus();
-			// printf("dx=%d dy=%d X=%d Y=%d", dx, dy, mouse.mouseXpos, mouse.mouseYpos);
+			else
+			{
+				mouse.divider--;
+			}
 
 			if (mouse.cursXpos > 79)
-			{
 				mouse.cursXpos = 79;
-			}
-			if (mouse.cursYpos > 24)
-			{
-				mouse.cursYpos = 24;
-			}
-
 			if (mouse.cursXpos < 0)
-			{
 				mouse.cursXpos = 0;
-			}
+			if (mouse.cursYpos > 24)
+				mouse.cursYpos = 24;
 			if (mouse.cursYpos < 0)
-			{
 				mouse.cursYpos = 0;
-			}
 		}
+
 		OS_SETXY(mouse.cursXpos, mouse.cursYpos);
 		mouse.oldAtr = OS_GETATTR();
 		OS_PRATTR(215);
 	}
 
-	if (mouseButtons != mouse.prevMouseButtons)
-	{
+	/* Сохраняем физические кнопки */
+	mouse.mmb = (mouseButtons >> 2) & 1;
+	mouse.rmb = (mouseButtons >> 1) & 1;
+	mouse.lmb = mouseButtons & 1;
 
-		mouse.prevWheel = mouse.wheel;
-		mouse.wheel = (mouseButtons >> 4) & 15;
-		mouse.mmb = (mouseButtons >> 2) & 1;
-		mouse.rmb = (mouseButtons >> 1) & 1;
-		mouse.lmb = mouseButtons & 1;
-	}
-
-	// clearStatus();
-	// printf("lmb:[%d] rmb:[%d] mmb:[%d] wheel:[%02d] X:[%03d] Y:[%03d] cursX:[%02d] cursY:[%02d]", mouse.lmb, mouse.rmb, mouse.mmb, mouse.wheel, mouse.mouseXpos, mouse.mouseYpos, mouse.cursXpos, mouse.cursYpos);
+	/* Записываем текущее значение колеса (0..15) */
+	mouse.wheel = (mouseButtons >> 4) & 15;
 
 	OS_SETXY(mouse.cursXpos, mouse.cursYpos);
 
-	mouseScroll = mouse.wheel - mouse.prevWheel;
-
-	if (mouseScroll < -12)
-	{
-		mouseScroll = 1;
-	}
-	else if (mouseScroll > 12)
-	{
-		mouseScroll = -1;
-	}
-
-	if (mouseScroll < 0)
-	{
-		navigation(248); // Left
-	}
-	else if (mouseScroll > 0)
-	{
-		navigation(251); // Right
-	}
-	mouse.prevWheel = mouse.wheel;
-
-	return mouseButtons >> 8;
+	/* Возвращает код символа с клавиатуры (из регистра H) */
+	return (unsigned char)(mouseButtons >> 8);
 }
 
 C_task main(int argc, const char *argv[])
 {
 	unsigned char keypress;
+
 	OS_SETGFX(0x86);
 	OS_CLS(0);
 	OS_SETSYSDRV();
@@ -2300,8 +2326,11 @@ C_task main(int argc, const char *argv[])
 		}
 		else if (mouse.rmb == 0)
 		{
-			popHistory();
-			doLink(true);
+			if (navi.history > 1)
+			{
+				popHistory();
+				doLink(true);
+			}
 		}
 
 		if (keypress != 0)
@@ -2310,9 +2339,11 @@ C_task main(int argc, const char *argv[])
 
 			//	printf("keypress [%d]", keypress);
 		}
+		
 		YIELD();
 		drawClock();
 	} while (keypress != 27);
+
 	OS_DELETE("browser/current.gph");
 	OS_DELETE("browser/current.txt");
 	OS_DELETE("browser/ng_hist.dat");
