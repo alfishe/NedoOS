@@ -325,56 +325,79 @@ void infoBox(const unsigned char *message)
 unsigned char OS_SHELL(const unsigned char *command)
 {
 	unsigned char fileName[] = "bin/cmd.com";
-	unsigned char appCmd[128] = "cmd.com ";
-	unsigned int shellSize, loaded, loop, adr;
+	unsigned char appCmd[128];
+	unsigned int shellSize, loop;
 	unsigned char pgbak;
 	union APP_PAGES shell_pg;
 	union APP_PAGES main_pg;
 	FILE *fp3;
+	unsigned char *targetAddr;
+	unsigned int cmdLen;
+
+	/* Безопасное построение командной строки */
+	strcpy((char *)appCmd, "cmd.com ");
+	/* 128 всего - 8 ("cmd.com ") - 1 (для '\0') = 119 символов максимум */
+	strncat((char *)appCmd, (const char *)command, 119);
+
 	main_pg.l = OS_GETMAINPAGES();
 	pgbak = main_pg.pgs.window_3;
 	OS_GETPATH((unsigned int)&curPath);
 	OS_CHDIR("/");
 
-	strcat(appCmd, command);
 	fp3 = OS_OPENHANDLE(fileName, 0x80);
-	if (((int)fp3) & 0xff)
+	if (fp3 == NULL || (((int)fp3) & 0xFF) != 0)
 	{
 		clearStatus();
 		AT(1, 24);
-		printf("%s", fileName);
-		printf(" not found.");
+		printf("%s not found.", fileName);
 		getchar();
 		exit(0);
 	}
 
 	shellSize = OS_GETFILESIZE(fp3);
-
 	OS_CHDIR(curPath);
 
 	OS_NEWAPP((unsigned int)&shell_pg);
 	shell_pg.l = OS_GETAPPMAINPAGES(shell_pg.pgs.pId);
+	
+	/* Включаем страницу шелла */
 	SETPG32KHIGH(shell_pg.pgs.window_0);
-	memcpy((unsigned char *)(0xC080), (unsigned char *)(&appCmd), strlen(appCmd) + 1);
+	
+	/* Копируем ASCIIZ строку параметров строго по её фактической длине */
+	cmdLen = strlen((char *)appCmd) + 1;
+	memcpy((unsigned char *)(0xC080), appCmd, cmdLen);
 
+	/* СВЕРХБЫСТРАЯ ЗАГРУЗКА БЕЗ ПРОМЕЖУТОЧНОГО БУФЕРА */
 	loop = 0;
+	targetAddr = (unsigned char *)0xC100;
+
 	while (loop < shellSize)
 	{
-		loaded = OS_READHANDLE(netbuf, fp3, sizeof(netbuf));
-		adr = 0xC100 + loop;
-		memcpy((unsigned char *)(adr), &netbuf, loaded);
-		loop = loop + loaded;
+		unsigned int loaded;
+		/* Читаем порцию напрямую в ОЗУ процесса, сколько осталось до конца */
+		loaded = OS_READHANDLE(targetAddr, fp3, shellSize - loop);
+		if (loaded == 0)
+		{
+			break; /* Защита от зависания при ошибке диска/FAT */
+		}
+		loop += loaded;
+		targetAddr += loaded;
 	}
+
 	OS_CLOSEHANDLE(fp3);
 	SETPG32KHIGH(pgbak);
+	
 	clearStatus();
 	AT(1, 24);
 	printf("Shell [pId:%u][%s][%s]", shell_pg.pgs.pId, curPath, appCmd);
 	AT(1, 24);
 	delay(300);
+	
 	OS_RUNAPP(shell_pg.pgs.pId);
+	
 	AT(1, 4);
 	OS_WAITPID(shell_pg.pgs.pId);
+	
 	return shell_pg.pgs.pId;
 }
 
