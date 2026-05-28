@@ -1648,35 +1648,55 @@ int getTrack3(long iddqd)
 unsigned char runPlayer(void)
 {
   FILE *fp2;
-  unsigned long playerSize, loaded, loop;
+  unsigned int loop;
+  unsigned int loaded;
+  unsigned int to_read;
+  unsigned long playerSize;
   unsigned char pgbak;
+
   clearStatus();
   printf("Running player...");
-  sprintf(appCmd, "player.com %s", curFileStruct.fileName);
+
+  /* ASCIIZ командная строка для NedoOS (лимит 127 символов + '\0') */
+  /* Из 128 байт вычитаем длину "player.com " (11 байт), остается 116 */
+  sprintf(appCmd, "player.com %.116s", curFileStruct.fileName);
+
   player_pg.l = OS_GETMAINPAGES();
   pgbak = main_pg.pgs.window_3;
-  loop = 0;
+
   OS_GETPATH((unsigned int)&curPath);
   OS_SETSYSDRV();
+
   fp2 = OS_OPENHANDLE(fileName, 0x80);
-  if (((int)fp2) & 0xff)
+  if (fp2 == NULL || (((int)fp2) & 0xFF) != 0)
   {
     clearStatus();
-    printf("%s", fileName);
-    printf(" not found.");
+    printf("%s not found.", fileName);
     exit(0);
   }
+
   playerSize = OS_GETFILESIZE(fp2);
   OS_CHDIR(curPath);
   OS_NEWAPP((unsigned int)&player_pg);
   SETPG32KHIGH(player_pg.pgs.window_3);
-  memcpy((char *)(0xC080), &appCmd, sizeof(appCmd));
 
+  /* Копируем ASCIIZ строку в системную область плеера вместе с '\0' */
+  memcpy((char *)0xC080, appCmd, strlen(appCmd) + 1);
+
+  loop = 0;
   do
   {
-    loaded = OS_READHANDLE(dataBuffer, fp2, sizeof(dataBuffer));
-    memcpy((char *)(0xC100 + loop), &dataBuffer, loaded);
-    loop = loop + loaded;
+    /* 16-битная арифметика для Z80 вместо тяжелой 32-битной */
+    to_read = ((playerSize - loop) > sizeof(dataBuffer)) ? sizeof(dataBuffer) : (unsigned int)(playerSize - loop);
+
+    loaded = OS_READHANDLE(dataBuffer, fp2, to_read);
+    if (loaded == 0)
+    {
+      break; /* Предотвращаем вечный цикл, если FAT32 вернет ошибку */
+    }
+
+    memcpy((char *)(0xC100 + loop), dataBuffer, loaded);
+    loop += loaded;
   } while (loop < playerSize);
 
   OS_CLOSEHANDLE(fp2);
