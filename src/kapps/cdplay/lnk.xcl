@@ -1,7 +1,7 @@
--cZ80 //–ø—Ä–æ—Ü–µ—Å—Å–æ—Ä, –ø–æ–¥ –∫–æ—Ç–æ—Ä—ã–π —Å–æ–±–∏—Ä–∞–µ–º
+-cZ80 //Ø‡ÆÊ•··Æ‡, ØÆ§ ™Æ‚Æ‡Î© ·Æ°®‡†•¨
 -Ilist
--Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-7FFF //—Å–µ–≥–º–µ–Ω—Ç—ã –ø–∞–º—è—Ç–∏ —Å –∫–æ–Ω—Å—Ç–∞–Ω—Ç–∞–º–∏ –∏ –∫–æ–¥–æ–º
--Z(DATA)DATA0,IDATA0,UDATA0,ECSTR,NO_INIT,CSTACK+200,FREESEG=8000-FBFF //—Å–µ–≥–º–µ–Ω—Ç—ã —Å—Ç–µ–∫–∞, –ø–µ—Ä–µ–º–µ–Ω–Ω—ã—Ö –∏ —Ç.–ø.
--e_medium_write=_formatted_write //–∫–æ–Ω—Ñ–∏–≥—É—Ä–∞—Ü–∏—è printf/sprintf  
--e_medium_read=_formatted_read //–∫–æ–Ω—Ñ–∏–≥—É—Ä–∞—Ü–∏—è scanf/sscanf 
+-Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-F000 //·•£¨•≠‚Î Ø†¨Ô‚® · ™Æ≠·‚†≠‚†¨® ® ™Æ§Æ¨
+-Z(DATA)DATA0,IDATA0,UDATA0,ECSTR,NO_INIT,CSTACK+512 //·•£¨•≠‚Î ·‚•™†, Ø•‡•¨•≠≠ÎÂ ® ‚.Ø.
+-e_medium_write=_formatted_write //™Æ≠‰®£„‡†Ê®Ô printf/sprintf  
+-e_medium_read=_formatted_read //™Æ≠‰®£„‡†Ê®Ô scanf/sscanf 
 
