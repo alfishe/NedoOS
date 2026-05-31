@@ -144,7 +144,7 @@ C_task main(int argc, char *argv[])
   {
     printf("Are you sure you want to delete '%s' and ALL its contents? (y/N): ", safe_target_dir);
     response = getchar();
-    printf("\n");
+    printf("%c\n", response);
 
     if (response != 'y' && response != 'Y')
     {
