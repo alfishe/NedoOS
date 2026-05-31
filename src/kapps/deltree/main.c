@@ -5,6 +5,7 @@
 #include <osfs.h>
 
 char force_delete;
+char silent_mode;
 
 /* ГЛОБАЛЬНАЯ ПЕРЕМЕННАЯ: Спасает стек Z80 от переполнения.
    Теперь структура занимает память один раз, а не плодится на каждом уровне рекурсии! */
@@ -22,7 +23,8 @@ unsigned char delete_tree_recursive(const char *dir_name)
   /* Пытаемся зайти внутрь целевой папки */
   if (OS_CHDIR((unsigned char *)dir_name) != 0)
   {
-    printf("Error: Cannot enter folder %s\n", dir_name);
+    if (!silent_mode)
+      printf("Error: Cannot enter folder %s\n", dir_name);
     return 1;
   }
 
@@ -74,7 +76,8 @@ unsigned char delete_tree_recursive(const char *dir_name)
     /* Уничтожаем цель */
     if (is_dir)
     {
-      printf("Folder -> %s\n", local_name);
+      if (!silent_mode)
+        printf("Folder -> %s\n", local_name);
 
       /* Рекурсивно очищаем подпапку (чистая рекурсия, стек тратит всего пару байт) */
       delete_tree_recursive(local_name);
@@ -87,7 +90,8 @@ unsigned char delete_tree_recursive(const char *dir_name)
     }
     else
     {
-      printf("Deleting: %s\n", local_name);
+      if (!silent_mode)
+        printf("Deleting: %s\n", local_name);
       OS_DELETE((unsigned char *)local_name);
     }
   }
@@ -96,7 +100,8 @@ unsigned char delete_tree_recursive(const char *dir_name)
   OS_CHDIR((unsigned char *)"..");
 
   /* Удаляем саму папку */
-  printf("Removing empty folder: %s\n", dir_name);
+  if (!silent_mode)
+    printf("Removing empty folder: %s\n", dir_name);
   OS_DELETE((unsigned char *)dir_name);
 
   return 0;
@@ -112,18 +117,24 @@ C_task main(int argc, char *argv[])
   os_initstdio();
 
   force_delete = 0;
+  silent_mode = 0;
   target_dir_ptr = NULL;
 
   if (argc < 2)
   {
-    printf("Usage: deltree [-y] <directory_name>\n");
-    return 0;
+    printf("Usage: deltree [-y] [-s]<directory_name>\n");
+    return 255;
   }
 
   for (i = 1; i < argc; i++)
   {
     if (strcmp(argv[i], "-y") == 0 || strcmp(argv[i], "-Y") == 0)
     {
+      force_delete = 1;
+    }
+    else if (strcmp(argv[i], "-s") == 0 || strcmp(argv[i], "-S") == 0)
+    {
+      silent_mode = 1;
       force_delete = 1;
     }
     else
@@ -134,8 +145,9 @@ C_task main(int argc, char *argv[])
 
   if (target_dir_ptr == NULL)
   {
-    printf("Error: No directory specified.\n");
-    return 0;
+    if (!silent_mode)
+      printf("Error: No directory specified.\n");
+    return 255;
   }
 
   strcpy(safe_target_dir, target_dir_ptr);
@@ -149,17 +161,20 @@ C_task main(int argc, char *argv[])
     if (response != 'y' && response != 'Y')
     {
       printf("Deletion cancelled.\n");
-      return 0;
+      return 255;
     }
   }
 
-  printf("Starting deltree for: %s\n", safe_target_dir);
-  printf("-----------------------------------------\n");
-
+  if (!silent_mode)
+  {
+    printf("Starting deltree for: %s\n", safe_target_dir);
+    printf("-----------------------------------------\n");
+  }
   delete_tree_recursive(safe_target_dir);
-
-  printf("-----------------------------------------\n");
-  printf("Done!\n");
-
+  if (!silent_mode)
+  {
+    printf("-----------------------------------------\n");
+    printf("Done!\n");
+  }
   return 0;
 }
