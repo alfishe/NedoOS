@@ -10,6 +10,15 @@
 #define VIEW_HEIGHT 12       /* Сколько треков одновременно видно в окне */
 #define MAX_READ_ATTEMPTS 10 // Опционально: защита от бесконечного цикла, если диск поврежден
 
+struct params
+{
+    unsigned char current_track;
+    unsigned char is_playing;
+    unsigned char is_paused;
+    unsigned char is_foreground;
+
+} set;
+
 struct coordinates
 {
     unsigned char winX;
@@ -98,7 +107,7 @@ const unsigned char cmd_atapi_stop[12] = {0x4E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x
 unsigned int hddstat, hddcmd, hddhead, hddcylhi, hddcyllo, hddsec, hddcount, hdderr, hdddatlo, hdddathi, hddupr, hdduprON, hddupr1, hddupr0;
 
 unsigned char buffer[3096];
-unsigned char uVer[] = "1.1";
+unsigned char uVer[] = "1.2";
 
 /* Глобальные переменные для управления интерфейсом */
 unsigned char ui_selected_idx = 0;  /* Подсвеченный курсором трек (индекс в массиве, 0-based) */
@@ -368,10 +377,15 @@ char sendAtapiPacket(const unsigned char *packet, char channel)
 {
     unsigned char counter;
 
-    /* 1. Ждем, пока освободится шина */
-    if (waitBsy(channel) == 0xFF)
-        return false;
+    disable_interrupt();
 
+    /* 1. Ждем, пока освободится шина */
+
+    if (waitBsy(channel) == 0xFF)
+    {
+        enable_interrupt();
+        return false;
+    }
     /* 2. Посылаем ATA-команду "Принять ATAPI-пакет" (0xA0) */
     output(hddhead, channel);
     output(hddcmd, 0xA0);
@@ -379,6 +393,7 @@ char sendAtapiPacket(const unsigned char *packet, char channel)
     /* 3. Ждем, пока привод выставит DRQ (запросит пакет) */
     if (waitDrq(channel) == 0xFF)
     {
+        enable_interrupt();
         return false;
     }
 
@@ -390,6 +405,7 @@ char sendAtapiPacket(const unsigned char *packet, char channel)
         output(hdddathi, packet[counter + 1]); /* Нечетный байт (младший на шине) */
         output(hdddatlo, packet[counter]);     /* Четный байт (старший на шине) */
     }
+    enable_interrupt();
 
     return true;
 }
@@ -454,6 +470,11 @@ void init(void)
     statPos.winX = 25;
     statPos.winY = 16;
     statPos.color = 223;
+
+    set.current_track = 1;
+    set.is_playing = 0;
+    set.is_paused = 0;
+    set.is_foreground = 1;
 }
 
 /* Функция чтения TOC с CD-ROM */
@@ -479,7 +500,7 @@ char readCdToc(char channel)
 
     memset(&cd_toc, 0, sizeof(ATAPI_TOC));
     ptr = (unsigned char *)&cd_toc;
-
+    disable_interrupt();
     for (i = 0; i < words_to_read; i++)
     {
         unsigned char low = input(hdddatlo);
@@ -506,7 +527,7 @@ char readCdToc(char channel)
             break;
         }
     }
-
+    enable_interrupt();
     return true;
 }
 
@@ -591,7 +612,6 @@ char pauseAudio(unsigned char mode)
 
 char readCdPosition(char channel)
 {
-    /* ИСПРАВЛЕНО: Добавлены скобки [] и const убран, если sendAtapiPacket ожидает обычный указатель */
     unsigned char cmd_read_sub[] = {
         0x42, 0x02, 0x40, 0x01, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00};
 
@@ -800,19 +820,8 @@ char playTrackFromTime(unsigned char track_num, unsigned long current_seconds)
     return sendAtapiPacket(cmd_play, slave);
 }
 
-/* Главная функция плеера */
-void runVisualPlayer(void)
+void drawStaticScreen(void)
 {
-    unsigned char key;
-    unsigned char needRedraw = 1;
-    unsigned char current_track = 1;
-    unsigned char is_playing = 0;
-    unsigned char is_paused = 0;
-    unsigned int position_timer = 0;
-    unsigned char total_tracks = 0;
-    int anim_counter = 0;
-    int attempts = 0;
-
     /* ТЕПЕРЬ ОЧИЩАЕМ ЭКРАН И РИСУЕМ НАЧИСТО ВСЕ СТАТИЧЕСКИЕ ЭЛЕМЕНТЫ */
     OS_CLS(0);
 
@@ -838,7 +847,23 @@ void runVisualPlayer(void)
     printf(" [Space] Pause [S] Stop [T] Reread TOC [1-9] Track [<-][->] FFD/FBD [Q] Quit ");
 
     /* Первоначальный вывод статуса, чтобы окно не было пустым до старта */
-    drawPlayerStatus(statPos, current_track, is_playing, is_paused);
+    drawPlayerStatus(statPos, set.current_track, set.is_playing, set.is_paused);
+}
+
+/* Главная функция плеера */
+void runVisualPlayer(void)
+{
+    unsigned char start_m = 0;
+    unsigned char start_s = 0;
+    unsigned char key;
+    unsigned char needRedraw = 1;
+
+    unsigned int position_timer = 0;
+    unsigned char total_tracks = 0;
+    int anim_counter = 0;
+    int attempts = 0;
+
+    drawStaticScreen();
 
     while (!readCdToc(slave))
     {
@@ -859,7 +884,7 @@ void runVisualPlayer(void)
         }
     }
     clearStatus();
-    current_track = cd_toc.first_track;
+    set.current_track = cd_toc.first_track;
     ui_selected_idx = 0;
     total_tracks = (cd_toc.last_track - cd_toc.first_track) + 1;
 
@@ -966,7 +991,7 @@ void runVisualPlayer(void)
             }
 
             /* Обновляем инфо-панель */
-            drawPlayerStatus(statPos, current_track, is_playing, is_paused);
+            drawPlayerStatus(statPos, set.current_track, set.is_playing, set.is_paused);
             needRedraw = 0;
         }
 
@@ -1001,11 +1026,11 @@ void runVisualPlayer(void)
             }
             else if (key == 13)
             {
-                current_track = cd_toc.tracks[ui_selected_idx].track_number;
-                if (playTrack(current_track))
+                set.current_track = cd_toc.tracks[ui_selected_idx].track_number;
+                if (playTrack(set.current_track))
                 {
-                    is_playing = 1;
-                    is_paused = 0;
+                    set.is_playing = 1;
+                    set.is_paused = 0;
                 }
                 needRedraw = 1;
             }
@@ -1014,7 +1039,7 @@ void runVisualPlayer(void)
                 unsigned char selected = key - '0';
                 if (selected >= cd_toc.first_track && selected <= cd_toc.last_track)
                 {
-                    current_track = selected;
+                    set.current_track = selected;
                     ui_selected_idx = selected - cd_toc.first_track;
 
                     if (ui_selected_idx < ui_scroll_offset || ui_selected_idx >= ui_scroll_offset + winPos.winH)
@@ -1022,10 +1047,10 @@ void runVisualPlayer(void)
                         ui_scroll_offset = (ui_selected_idx >= winPos.winH) ? (ui_selected_idx - winPos.winH + 1) : 0;
                     }
 
-                    if (playTrack(current_track))
+                    if (playTrack(set.current_track))
                     {
-                        is_playing = 1;
-                        is_paused = 0;
+                        set.is_playing = 1;
+                        set.is_paused = 0;
                     }
                     needRedraw = 1;
                 }
@@ -1034,24 +1059,24 @@ void runVisualPlayer(void)
             {
                 if (sendAtapiPacket(cmd_atapi_stop, slave))
                 {
-                    is_playing = 0;
-                    is_paused = 0;
+                    set.is_playing = 0;
+                    set.is_paused = 0;
                     needRedraw = 1;
                 }
             }
             else if (key == ' ')
             {
-                if (is_playing)
+                if (set.is_playing)
                 {
-                    if (!is_paused)
+                    if (!set.is_paused)
                     {
                         if (pauseAudio(0))
-                            is_paused = 1;
+                            set.is_paused = 1;
                     }
                     else
                     {
                         if (pauseAudio(1))
-                            is_paused = 0;
+                            set.is_paused = 0;
                     }
                     needRedraw = 1;
                 }
@@ -1060,7 +1085,7 @@ void runVisualPlayer(void)
             {
                 if (readCdToc(slave))
                 {
-                    current_track = cd_toc.first_track;
+                    set.current_track = cd_toc.first_track;
                     ui_selected_idx = 0;
                     ui_scroll_offset = 0;
                     total_tracks = (cd_toc.last_track - cd_toc.first_track) + 1;
@@ -1075,11 +1100,11 @@ void runVisualPlayer(void)
             else if (key == '>' || key == 251)
             {
                 /* Перемотка ВПЕРЕД на 15 секунд */
-                if (is_playing)
+                if (set.is_playing)
                 {
                     unsigned long cur_sec;
                     unsigned long total_sec;
-                    unsigned char idx = current_track - cd_toc.first_track;
+                    unsigned char idx = set.current_track - cd_toc.first_track;
 
                     /* Считаем текущую и максимальную длину трека */
                     cur_sec = ((unsigned long)cd_pos.rel_m * 60) + cd_pos.rel_s;
@@ -1089,7 +1114,7 @@ void runVisualPlayer(void)
                     /* Мотаем вперед, если не вылетаем за границы трека */
                     if (cur_sec + 15 < total_sec)
                     {
-                        if (playTrackFromTime(current_track, cur_sec + 15))
+                        if (playTrackFromTime(set.current_track, cur_sec + 15))
                         {
                             cd_pos.rel_m = (unsigned char)((cur_sec + 15) / 60);
                             cd_pos.rel_s = (unsigned char)((cur_sec + 15) % 60);
@@ -1101,14 +1126,14 @@ void runVisualPlayer(void)
             else if (key == '<' || key == 248)
             {
                 /* Перемотка НАЗАД на 15 секунд */
-                if (is_playing)
+                if (set.is_playing)
                 {
                     unsigned long cur_sec;
                     cur_sec = ((unsigned long)cd_pos.rel_m * 60) + cd_pos.rel_s;
 
                     if (cur_sec > 15)
                     {
-                        if (playTrackFromTime(current_track, cur_sec - 15))
+                        if (playTrackFromTime(set.current_track, cur_sec - 15))
                         {
                             cd_pos.rel_m = (unsigned char)((cur_sec - 15) / 60);
                             cd_pos.rel_s = (unsigned char)((cur_sec - 15) % 60);
@@ -1117,7 +1142,7 @@ void runVisualPlayer(void)
                     else
                     {
                         /* Если от начала трека прошло меньше 15 сек ? прыгаем в самый старт */
-                        if (playTrackFromTime(current_track, 0))
+                        if (playTrackFromTime(set.current_track, 0))
                         {
                             cd_pos.rel_m = 0;
                             cd_pos.rel_s = 0;
@@ -1126,10 +1151,16 @@ void runVisualPlayer(void)
                     needRedraw = 1;
                 }
             }
+            else if (key == 31)
+            {
+                drawStaticScreen();
+                needRedraw = 1;
+                set.is_foreground = 1;
+            }
         }
 
         /* 3. ДИНАМИЧЕСКИЙ ОПРОС СОСТОЯНИЯ ПРИВОДА */
-        if (is_playing && !is_paused)
+        if (set.is_playing && !set.is_paused)
         {
             position_timer++;
             if (position_timer >= 50)
@@ -1140,22 +1171,22 @@ void runVisualPlayer(void)
                     if (cd_pos.track_number >= cd_toc.first_track && cd_pos.track_number <= cd_toc.last_track)
                     {
                         /* 1. ОТСЛЕЖИВАНИЕ АВТОМАТИЧЕСКОЙ СМЕНЫ ТРЕКА */
-                        if (current_track != cd_pos.track_number)
+                        if (set.current_track != cd_pos.track_number)
                         {
                             /* Проверяем: если привод ушел в Lead-Out (0xAA) или за предел треков, диск кончился */
                             if (cd_pos.track_number == 0xAA || (cd_pos.track_number - cd_toc.first_track) >= total_tracks)
                             {
-                                is_playing = 0;
-                                is_paused = 0;
-                                current_track = cd_toc.first_track;
+                                set.is_playing = 0;
+                                set.is_paused = 0;
+                                set.current_track = cd_toc.first_track;
                                 ui_selected_idx = 0;
                                 ui_scroll_offset = 0;
                             }
                             else
                             {
                                 /* На диске есть следующий трек ? переключаемся на него */
-                                current_track = cd_pos.track_number;
-                                ui_selected_idx = current_track - cd_toc.first_track;
+                                set.current_track = cd_pos.track_number;
+                                ui_selected_idx = set.current_track - cd_toc.first_track;
 
                                 /* Автоскроллинг списка */
                                 if (ui_selected_idx < ui_scroll_offset || ui_selected_idx >= ui_scroll_offset + winPos.winH)
@@ -1171,14 +1202,14 @@ void runVisualPlayer(void)
                                 }
 
                                 /* Запускаем законный следующий трек */
-                                if (playTrack(current_track))
+                                if (playTrack(set.current_track))
                                 {
-                                    is_playing = 1;
-                                    is_paused = 0;
+                                    set.is_playing = 1;
+                                    set.is_paused = 0;
                                 }
                                 else
                                 {
-                                    is_playing = 0;
+                                    set.is_playing = 0;
                                 }
                             }
 
@@ -1189,15 +1220,15 @@ void runVisualPlayer(void)
                         if (cd_pos.audio_status == 0x13 || cd_pos.audio_status == 0x00)
                         {
                             /* Если мы ДО ЭТОГО считали, что плеер играет, но статус стал СТОП */
-                            if (is_playing)
+                            if (set.is_playing)
                             {
                                 /* Проверяем, не доиграл ли самый последний трек */
-                                if (current_track == cd_toc.last_track || cd_pos.track_number == 0xAA)
+                                if (set.current_track == cd_toc.last_track || cd_pos.track_number == 0xAA)
                                 {
                                     /* Диск полностью завершен: сбрасываем статус в STOPPED и выбираем 1-й трек */
-                                    is_playing = 0;
-                                    is_paused = 0;
-                                    current_track = cd_toc.first_track;
+                                    set.is_playing = 0;
+                                    set.is_paused = 0;
+                                    set.current_track = cd_toc.first_track;
                                     ui_selected_idx = 0;
                                     ui_scroll_offset = 0;
                                 }
@@ -1205,14 +1236,14 @@ void runVisualPlayer(void)
                                 {
                                     /* Если это был промежуточный трек, но привод почему-то встал ?
                                        подстраховываемся и пинаем его играть дальше */
-                                    if (playTrack(current_track))
+                                    if (playTrack(set.current_track))
                                     {
-                                        is_playing = 1;
-                                        is_paused = 0;
+                                        set.is_playing = 1;
+                                        set.is_paused = 0;
                                     }
                                     else
                                     {
-                                        is_playing = 0;
+                                        set.is_playing = 0;
                                     }
                                 }
                                 needRedraw = 1;
@@ -1225,29 +1256,29 @@ void runVisualPlayer(void)
                         /* Если это последний служебный трек Lead-Out, значит диск кончился */
                         if (cd_pos.track_number == 0xAA || cd_pos.track_number > cd_toc.last_track)
                         {
-                            is_playing = 0;
+                            set.is_playing = 0;
                             needRedraw = 1;
                         }
                         else
                         {
                             /* Если привод сообщает СТОП, но трек в границах диска ?
                                пробуем запустить его (на случай если он не запустился выше) */
-                            if (playTrack(current_track))
+                            if (playTrack(set.current_track))
                             {
-                                is_playing = 1;
-                                is_paused = 0;
+                                set.is_playing = 1;
+                                set.is_paused = 0;
                             }
                             else
                             {
                                 /* Если запуск не удался (например, диск вынули) ? останавливаем */
-                                is_playing = 0;
+                                set.is_playing = 0;
                             }
                             needRedraw = 1;
                         }
                     }
                     if (!needRedraw)
                     {
-                        drawPlayerStatus(statPos, current_track, is_playing, is_paused);
+                        drawPlayerStatus(statPos, set.current_track, set.is_playing, set.is_paused);
                     }
                 }
             }
@@ -1255,6 +1286,10 @@ void runVisualPlayer(void)
 
         YIELD();
     }
+}
+
+void play3sec(void)
+{
 }
 
 C_task main(void)
