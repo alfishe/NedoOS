@@ -18,8 +18,6 @@ unsigned int OS_GETXY(void);
 unsigned char OS_GETATTR(void);
 long time(void); // Alone Coder
 
-// Kulich Area
-
 struct diskOp
 {
 	unsigned char drive;
@@ -28,8 +26,18 @@ struct diskOp
 	unsigned char count;
 };
 
-signed long OS_GETKEY (void);// BC HL
-unsigned long OS_GETMOUSE(void);// BC HL
+typedef struct
+{
+	unsigned long int fsize;  /* File size */
+	unsigned int fdate;		  /* Last modified date */
+	unsigned int ftime;		  /* Last modified time */
+	unsigned char fattrib;	  /* Attribute */
+	unsigned char fname[13];  /* Short file name (8.3 format) */
+	unsigned char lfname[64]; /* Pointer to the LFN buffer */
+} fileInfo;
+
+signed long OS_GETKEY(void);	 // BC HL
+unsigned long OS_GETMOUSE(void); // BC HL
 
 unsigned int OS_READSECTORS(struct diskOp *);
 unsigned int OS_WRITESECTORS(struct diskOp *);
@@ -46,14 +54,15 @@ unsigned int OS_NEWAPP(unsigned int trgPathPtr);
 unsigned int OS_RUNAPP(unsigned char pId); // e=id ;ACTIVATE DISABLED APP
 unsigned int OS_WAITPID(unsigned char pId);
 unsigned int OS_HIDEFROMPARENT(void);
-unsigned long OS_STARTAPP(unsigned long appParamsPtr);					// out: b=id, a=error, dehl=newapp pages in 0000,4000,8000,c000 ;MAKE NEW DISABLED APP
-unsigned int OS_RENAME(unsigned char *oldName, unsigned char *newName); // DE - ??? ???, ???????? ? ????? ??? ?????? ???? (ASCIIZ). HL - ????? ???, ???? ?? ?????? ??? ?? ????, ??? ? DE. // out HL - ????? ?? ??????? ??????? ??? ? ?? ???? (NOT MSXDOS compatible! with Drive/path!)
-unsigned int OS_DELETE(unsigned char *fileName);						// DE - ??? ???, ???????? ? ????? ??? ?????? ???? (ASCIIZ).; ? - ????. ?? 0x00, ? ???? ???.
+unsigned long OS_STARTAPP(unsigned long appParamsPtr);
+unsigned int OS_RENAME(unsigned char *oldName, unsigned char *newName);
+unsigned int OS_DELETE(unsigned char *fileName);
 void OS_DIHALT(void);
 void OS_SETPG8000(unsigned char page);
 void OS_SETPGC000(unsigned char page);
-void OS_SETSCREEN (unsigned char screen);	//e=screen=0..1
-// End of Kulich area
+void OS_SETSCREEN(unsigned char screen); // e=screen=0..1
+unsigned char OS_READDIR(fileInfo *finfo);
+unsigned char	OS_OPENDIR(unsigned char * path);
 
 void SETPG32KHIGH(unsigned char page);
 

@@ -618,6 +618,7 @@ OS_GETPATH:
 	push ix
 	push iy
 	ld c,CMD_GETPATH
+	ex af,af
 	call BDOS
 	pop iy
 	pop ix
@@ -635,7 +636,7 @@ OS_SETSYSDRV
 	push de
 	push ix
 	push iy
-	ld c,CMD_SETSYSDRV			; out: A: A!=0 -- системный диск не примонтирован. L: -- общее количество примонтированных дисков.
+	ld c,CMD_SETSYSDRV
 	call BDOS
 	pop iy
 	pop ix
@@ -829,6 +830,48 @@ OS_SETCOLOR
 	ret
 	ENDMOD
 
+
+	MODULE OS_OPENDIR
+	PUBLIC OS_OPENDIR
+	EXTERN errno
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_OPENDIR:
+	push hl
+	push bc
+	ld c,CMD_OPENDIR	
+	push ix
+	push iy	
+	call BDOS
+	ld (errno),a
+	pop iy
+	pop ix
+	pop bc
+	pop hl
+	ret
+	ENDMOD
+
+
+	MODULE OS_READDIR
+	PUBLIC OS_READDIR
+	EXTERN errno
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_READDIR:
+	push hl
+	push bc
+	ld c,CMD_READDIR	
+	push ix
+	push iy	
+	call BDOS
+	ld (errno),a
+	pop iy
+	pop ix
+	pop bc
+	pop hl
+	ret
+	ENDMOD
+	
 	MODULE OS_DIHALT
 	PUBLIC OS_DIHALT
 	RSEG CODE
