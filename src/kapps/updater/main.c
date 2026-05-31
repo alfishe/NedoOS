@@ -13,6 +13,7 @@
 #define true 1
 #define false 0
 FILE *fp2; // must be global if savebuf may not to close file.
+fileInfo global_info;
 
 unsigned int RBR_THR = 0xf8ef;
 unsigned int IER = 0xf9ef;
@@ -30,7 +31,7 @@ unsigned int espRetry = 5;
 unsigned long factor, timerok, count = 0;
 unsigned int magic = 15;
 
-unsigned char uVer[] = "2.0";
+unsigned char uVer[] = "2.1";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -345,7 +346,7 @@ unsigned char OS_SHELL(const unsigned char *command)
 	OS_CHDIR("/");
 
 	fp3 = OS_OPENHANDLE(fileName, 0x80);
-	if (fp3 == NULL || (((int)fp3) & 0xFF) != 0)
+	if (((int)fp3) & 0xff)
 	{
 		clearStatus();
 		AT(1, 24);
@@ -359,10 +360,10 @@ unsigned char OS_SHELL(const unsigned char *command)
 
 	OS_NEWAPP((unsigned int)&shell_pg);
 	shell_pg.l = OS_GETAPPMAINPAGES(shell_pg.pgs.pId);
-	
+
 	/* Включаем страницу шелла */
 	SETPG32KHIGH(shell_pg.pgs.window_0);
-	
+
 	/* Копируем ASCIIZ строку параметров строго по её фактической длине */
 	cmdLen = strlen((char *)appCmd) + 1;
 	memcpy((unsigned char *)(0xC080), appCmd, cmdLen);
@@ -386,18 +387,18 @@ unsigned char OS_SHELL(const unsigned char *command)
 
 	OS_CLOSEHANDLE(fp3);
 	SETPG32KHIGH(pgbak);
-	
+
 	clearStatus();
 	AT(1, 24);
 	printf("Shell [pId:%u][%s][%s]", shell_pg.pgs.pId, curPath, appCmd);
 	AT(1, 24);
 	delay(300);
-	
+
 	OS_RUNAPP(shell_pg.pgs.pId);
-	
+
 	AT(1, 4);
 	OS_WAITPID(shell_pg.pgs.pId);
-	
+
 	return shell_pg.pgs.pId;
 }
 
@@ -497,6 +498,107 @@ char testOperation3(const char *process, int socket)
 		return false;
 	}
 	return true;
+}
+
+unsigned char delete_tree_recursive(const char *dir_name)
+{
+	/* СЕКЦИЯ ОБЪЯВЛЕНИЯ ПЕРЕМЕННЫХ (Всего несколько байт в стеке!) */
+	unsigned char result;
+	char local_name[64];
+	char is_dir;
+	char found_any;
+
+	/* Пытаемся зайти внутрь целевой папки */
+	if (OS_CHDIR((unsigned char *)dir_name) != 0)
+	{
+		return 255;
+	}
+
+	/* Главный цикл очистки текущей папки */
+	while (1)
+	{
+		/* Принудительно переоткрываем текущую папку */
+		OS_OPENDIR("");
+		found_any = 0;
+
+		/* Ищем ПЕРВЫЙ валидный элемент, используя глобальную структуру */
+		while (1)
+		{
+			result = OS_READDIR(&global_info);
+
+			if (result == 4 || result != 0)
+				break;
+
+			/* Строжайшая посимвольная проверка на служебные точки */
+			if (global_info.fname[0] == '.')
+			{
+				if (global_info.fname[1] == 0 || (global_info.fname[1] == '.' && global_info.fname[2] == 0))
+				{
+					continue;
+				}
+			}
+
+			/* Забираем имя в локальный безопасный буфер текущего уровня */
+			if (global_info.lfname[0] != 0)
+			{
+				strcpy(local_name, (char *)global_info.lfname);
+			}
+			else
+			{
+				strcpy(local_name, (char *)global_info.fname);
+			}
+
+			is_dir = (global_info.fattrib & 0x10) ? 1 : 0;
+			found_any = 1;
+			break;
+		}
+
+		/* Если папка пуста ? выходим из цикла удаления содержимого */
+		if (!found_any)
+		{
+			break;
+		}
+
+		/* Уничтожаем цель */
+		if (is_dir)
+		{
+
+			/* Рекурсивно очищаем подпапку (чистая рекурсия, стек тратит всего пару байт) */
+			delete_tree_recursive(local_name);
+
+			/* ВОССТАНОВЛЕНИЕ ПОЗИЦИИ И КЭША ОС */
+			OS_CHDIR((unsigned char *)"..");
+			OS_CHDIR((unsigned char *)dir_name);
+
+			/* НИКАКИХ РЕКУРСИВНЫХ RETURN! Просто продолжаем цикл while(1) дальше */
+		}
+		else
+		{
+			OS_DELETE((unsigned char *)local_name);
+		}
+	}
+
+	/* Выходим из вычищенной папки на уровень вверх */
+	OS_CHDIR((unsigned char *)"..");
+
+	/* Удаляем саму папку */
+	OS_DELETE((unsigned char *)dir_name);
+	return 0;
+}
+
+char delete(char *target_dir_ptr)
+{
+	char safe_target_dir[64];
+
+	if (target_dir_ptr == NULL)
+	{
+		return 255;
+	}
+
+	strcpy(safe_target_dir, target_dir_ptr);
+
+	delete_tree_recursive(safe_target_dir);
+	return 0;
 }
 
 unsigned char getFileNet(const unsigned char *fileLink, unsigned char *fileNamePtr)
@@ -955,7 +1057,7 @@ void binUpdate(void)
 	YIELD();
 
 	OS_CHDIR("/");
-	OS_DELETE("bin.new");
+	delete("bin.new");
 	if (OS_MKDIR("bin.new") != 0)
 	{
 		fatalError("Please delete 'bin.new' and try again");
