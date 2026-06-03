@@ -12,8 +12,7 @@
 #define false 0
 #define screenHeight 23
 #define screenWidth 80
-////////////windows systen definitions////////
-// Базовые цвета (0-7)
+//---------Цветовое решение-------------
 #define BLACK 0
 #define BLUE 1
 #define RED 2
@@ -22,23 +21,36 @@
 #define CYAN 5
 #define YELLOW 6
 #define WHITE 7
-// Флаги яркости (биты 6 и 7)
 #define BR_NORMAL 0x00
 #define BR_INK 0x40	  // Повышенная яркость тона (6 бит)
 #define BR_PAPER 0x80 // Повышенная яркость фона (7 бит)
 #define BR_BOTH 0xC0  // Повышенная яркость всего
-
-// Макрос сборки цвета для OS_SETCOLOR
 #define MAKE_COLOR(bright, paper, ink) ((unsigned char)((bright) | ((paper) << 3) | (ink)))
-// Готовые преднастроенные комбинации для окон (примеры)
-/* ФИКС ЦВЕТА: Первый цвет ? текст (WHITE), второй ? фон (BLUE) */
-/* ИСТИННЫЙ ЦВЕТ DN: Текст ? белый (WHITE), фон ? синий (BLUE) */
-
 #define COLOR_PANEL_MAIN MAKE_COLOR(BR_BOTH, BLUE, WHITE)	/* Белые буквы на синем фоне */
 #define COLOR_PANEL_CURSOR MAKE_COLOR(BR_BOTH, CYAN, BLACK) /* Бирюзовый фон, черный текст */
 #define COLOR_STATUS_BAR MAKE_COLOR(BR_BOTH, CYAN, BLACK)	/* Черные кнопки на бирюзовом фоне */
 #define COLOR_PANEL_BORDER_ACT MAKE_COLOR(BR_BOTH, BLUE, CYAN)
 #define COLOR_PANEL_BORDER_PAS MAKE_COLOR(BR_BOTH, BLUE, CYAN)
+//------------------------------------
+/* Флаги кнопок */
+#define D_BTN_OK 0x01
+#define D_BTN_CANCEL 0x02
+#define D_BTN_YES 0x04
+#define D_BTN_NO 0x01
+#define D_BTN_SKIP 0x08
+#define D_BTN_SKIP_ALL 0x10
+#define D_BTN_REPLACE_ALL 0x20 /* Добавили флаг "Заменить все" */
+
+/* Результаты */
+#define D_RES_CANCEL 0
+#define D_RES_OK 1
+#define D_RES_YES 2
+#define D_RES_NO 3
+#define D_RES_SKIP 4
+#define D_RES_SKIP_ALL 5
+#define D_RES_REPLACE_ALL 6 /* Новый код ответа */
+
+//------------------------------------
 
 #define BANK_WINDOW_ADDRESS 0xC000
 #define FILES_PER_PAGE 185									   /* Строго сколько элементов влезает в 16 КБ */
@@ -47,6 +59,11 @@
 
 unsigned char uVer[] = "0.1";
 unsigned char botMenu[] = "1Drive 2Find 3View 4Edit 5Copy 6Rename 7MkDir 8Delete 9Menu 0Quit";
+
+/* Глобальные статические буферы для рекурсивного копирования (экономим стек) */
+static char r_src_full[200];
+static char r_dst_full[200];
+static fileInfo r_global_info; /* По твоему паттерну из deltree */
 
 typedef struct
 {
@@ -99,6 +116,17 @@ void spaces(unsigned char number)
 	}
 }
 
+struct DialogWindow
+{
+	unsigned char x;
+	unsigned char y;
+	unsigned char w;
+	unsigned char h;
+	unsigned char color; /* Объединенный байт цвета (MAKE_COLOR) */
+	const char *title;	 /* Оптимизация: теперь просто указатель! */
+	const char *prompt;	 /* Текст вопроса/инструкции внутри окна */
+};
+
 /* Функция инициализирует структуры и запрашивает банки памяти у ОС */
 void init_panels(void)
 {
@@ -133,6 +161,411 @@ void clearStatus(void)
 	OS_SETXY(0, 24);
 	spaces(79);
 	putchar('\r');
+}
+
+/* 1. Быстрый вывод строки оганиченной длины без дополнения*/
+void fast_print_str_width(const char *str, unsigned char width)
+{
+	unsigned char i;
+	i = 0;
+	/* Выводим символы строки, пока они есть и не превысили ширину */
+	while (str[i] != 0 && i < width)
+	{
+		putchar(str[i]);
+		i++;
+	}
+}
+
+/**
+ * Универсальное диалоговое окно для файлового менеджера
+ * @param dlg       - Настройки геометрии и заголовков окна
+ * @param buffer    - Внешний буфер для ввода (если NULL - поле ввода скрыто)
+ * @param max_len   - Максимальный размер буфера ввода
+ * @param btn_mask  - Битовая маска кнопок, которые надо нарисовать
+ * @return          - Код выбранного действия (D_RES_xxx)
+ */
+/**
+ * Улучшенное универсальное диалоговое окно для NedoOS (IAR C89)
+ */
+/**
+ * Идеальное универсальное диалоговое окно для NedoOS (IAR C89)
+ */
+/**
+ * Идеально центрированное диалоговое окно для NedoOS (IAR C89)
+ */
+unsigned char show_dialog(struct DialogWindow *dlg, char *buffer, unsigned char max_len, unsigned char btn_mask)
+{
+	unsigned char wcount, tempx, titleStart;
+	unsigned char byte;
+
+	/* Переменные редактора строки (C89 строго в начале) */
+	unsigned char cmdLen;
+	unsigned char cursorPos;
+	unsigned char viewOffset;
+	unsigned char visibleLen;
+	unsigned char i;
+	unsigned char printPos;
+
+	/* Переменные для управления кнопками и фокусом */
+	unsigned char activeBtn;
+	unsigned char numButtons;
+	unsigned char btn_types[6]; /* Фиксированный размер массива для Z80 */
+	unsigned char focusOnButtons;
+
+	/* Переменные для точной центровки кнопок */
+	unsigned char totalButtonsWidth;
+	unsigned char btnX;
+	unsigned char btnY;
+	unsigned char inputColor;
+
+	cmdLen = 0;
+	cursorPos = 0;
+	viewOffset = 0;
+
+	/* Идеальная симметрия: отступ 2 символа слева и 2 символа справа */
+	visibleLen = dlg->w - 4;
+
+	/* Формируем контрастный цвет подложки поля ввода */
+	inputColor = (unsigned char)(((dlg->color & 0x07) << 3) |
+								 ((dlg->color & 0x38) >> 3) |
+								 (dlg->color & 0xC0));
+
+	if (buffer != NULL)
+	{
+		cmdLen = strlen(buffer);
+		cursorPos = cmdLen;
+		focusOnButtons = 0;
+	}
+	else
+	{
+		focusOnButtons = 1;
+	}
+
+	/* Собираем массив кнопок */
+	numButtons = 0;
+	if (btn_mask & D_BTN_YES)
+	{
+		btn_types[numButtons++] = D_RES_YES;
+	}
+	if (btn_mask & D_BTN_NO && !(btn_mask & D_BTN_YES))
+	{
+		btn_types[numButtons++] = D_RES_NO;
+	}
+	if (btn_mask & D_BTN_OK)
+	{
+		btn_types[numButtons++] = D_RES_OK;
+	}
+	if (btn_mask & D_BTN_SKIP)
+	{
+		btn_types[numButtons++] = D_RES_SKIP;
+	}
+	if (btn_mask & D_BTN_SKIP_ALL)
+	{
+		btn_types[numButtons++] = D_RES_SKIP_ALL;
+	}
+	if (btn_mask & D_BTN_REPLACE_ALL)
+	{
+		btn_types[numButtons++] = D_RES_REPLACE_ALL;
+	}
+	if (btn_mask & D_BTN_CANCEL)
+	{
+		btn_types[numButtons++] = D_RES_CANCEL;
+	}
+
+	activeBtn = 0;
+
+	/* Отрисовка геометрии окна через BDBOX */
+	OS_SETXY(dlg->x, dlg->y - 1);
+	BDBOX(dlg->x, dlg->y, dlg->w + 1, dlg->h + 1, dlg->color, 32);
+
+	/* Верхняя грань рамки */
+	OS_SETXY(dlg->x, dlg->y);
+	OS_SETCOLOR(dlg->color);
+	putchar(201);
+	for (wcount = 0; wcount < dlg->w; wcount++)
+	{
+		putchar(205);
+	}
+	putchar(187);
+
+	/* Нижняя грань рамки */
+	OS_SETXY(dlg->x, dlg->y + dlg->h);
+	putchar(200);
+	for (wcount = 0; wcount < dlg->w; wcount++)
+	{
+		putchar(205);
+	}
+	putchar(188);
+
+	/* Боковые грани */
+	tempx = dlg->x + dlg->w + 1;
+	for (wcount = 1; wcount < dlg->h; wcount++)
+	{
+		OS_SETXY(dlg->x, dlg->y + wcount);
+		putchar(186);
+		OS_SETXY(tempx, dlg->y + wcount);
+		putchar(186);
+	}
+
+	/* Вывод заголовка окна */
+	if (dlg->title != NULL)
+	{
+		titleStart = dlg->x + (dlg->w / 2) - (strlen(dlg->title) / 2);
+		OS_SETXY(titleStart, dlg->y);
+		printf("[%s]", dlg->title);
+	}
+
+	/* Вывод текста подсказки prompt (Отступ X+2, строка Y+1) */
+	if (dlg->prompt != NULL)
+	{
+		OS_SETXY(dlg->x + 2, dlg->y + 1);
+		OS_SETCOLOR(dlg->color);
+		fast_print_str_width(dlg->prompt, dlg->w - 2);
+	}
+
+	/* ГЛАВНЫЙ ИНТЕРАКТИВНЫЙ ЦИКЛ */
+	for (;;)
+	{
+		/* --- СЕКЦИЯ А: ОТРИСОВКА ПОЛЯ ВВОДА --- */
+		if (buffer != NULL)
+		{
+			if (cursorPos < viewOffset)
+			{
+				viewOffset = cursorPos;
+			}
+			else if (cursorPos - viewOffset >= visibleLen)
+			{
+				viewOffset = cursorPos - visibleLen + 1;
+			}
+
+			/* Идеальный симметричный отступ (X+2), строка (Y+3) */
+			OS_SETXY(dlg->x + 2, dlg->y + 3);
+
+			for (i = 0; i < visibleLen; i++)
+			{
+				printPos = viewOffset + i;
+
+				if (focusOnButtons == 0 && printPos == cursorPos)
+				{
+					OS_SETCOLOR((unsigned char)(((inputColor & 0x40) << 1) |
+												((inputColor & 0x07) << 3) |
+												((inputColor & 0x80) >> 1) |
+												((inputColor & 0x38) >> 3)));
+				}
+				else
+				{
+					OS_SETCOLOR(inputColor);
+				}
+
+				if (printPos < cmdLen)
+				{
+					putchar(buffer[printPos]);
+				}
+				else
+				{
+					putchar(' ');
+				}
+			}
+			OS_SETCOLOR(dlg->color);
+		}
+
+		/* --- СЕКЦИЯ Б: ЦЕНТРОВКА И ОТРИСОВКА КНОПОК --- */
+		if (numButtons > 0)
+		{
+			btnY = dlg->y + dlg->h - 1;
+
+			/* Каждая кнопка занимает ровно 10 символов. Шаг между ними = 11 */
+			totalButtonsWidth = (numButtons * 11) - 1;
+
+			/* Динамический стартовый X для идеального центрования */
+			btnX = dlg->x + 1 + ((dlg->w - totalButtonsWidth) / 2);
+
+			for (i = 0; i < numButtons; i++)
+			{
+				OS_SETXY(btnX, btnY);
+
+				if (focusOnButtons == 1 && i == activeBtn)
+				{
+					/* Инверсия цвета для активной кнопки в NedoOS */
+					OS_SETCOLOR((unsigned char)(((dlg->color & 0x40) << 1) | ((dlg->color & 0x07) << 3) |
+												((dlg->color & 0x80) >> 1) | ((dlg->color & 0x38) >> 3)));
+				}
+				else
+				{
+					OS_SETCOLOR(dlg->color);
+				}
+
+				/* Выводим твои новые отцентрированные кнопки (строго 10 символов) */
+				switch (btn_types[i])
+				{
+				case D_RES_OK:
+					printf("[   OK   ]");
+					break;
+				case D_RES_CANCEL:
+					printf("[ Cancel ]");
+					break;
+				case D_RES_YES:
+					printf("[  Yes   ]");
+					break;
+				case D_RES_NO:
+					printf("[   No   ]");
+					break;
+				case D_RES_SKIP:
+					printf("[  Skip  ]");
+					break;
+				case D_RES_SKIP_ALL:
+					printf("[Skip All]");
+					break;
+				case D_RES_REPLACE_ALL:
+					printf("[Yes  All]");
+					break;
+				}
+
+				btnX += 11; /* Сдвиг к следующей кнопке */
+			}
+			OS_SETCOLOR(dlg->color);
+		}
+
+		YIELD();
+
+		/* --- СЕКЦИЯ В: ОБРАБОТКА КЛАВИШ --- */
+		byte = OS_GETKEY();
+		if (byte != 0)
+		{
+			switch (byte)
+			{
+			case 250: /* Стрелка ВВЕРХ */
+				if (buffer != NULL && focusOnButtons == 1)
+				{
+					focusOnButtons = 0;
+				}
+				break;
+
+			case 249: /* Стрелка ВНИЗ */
+				if (numButtons > 0 && focusOnButtons == 0)
+				{
+					focusOnButtons = 1;
+				}
+				break;
+
+			case 9: /* TAB */
+				if (numButtons > 0)
+				{
+					if (focusOnButtons == 0)
+					{
+						focusOnButtons = 1;
+						activeBtn = 0;
+					}
+					else
+					{
+						activeBtn++;
+						if (activeBtn >= numButtons)
+						{
+							if (buffer != NULL)
+								focusOnButtons = 0;
+							else
+								activeBtn = 0;
+						}
+					}
+				}
+				break;
+
+			case 248: /* Стрелка ВЛЕВО */
+				if (focusOnButtons == 1)
+				{
+					if (activeBtn > 0)
+						activeBtn--;
+					else
+						activeBtn = numButtons - 1;
+				}
+				else if (buffer != NULL && cursorPos > 0)
+				{
+					cursorPos--;
+				}
+				break;
+
+			case 251: /* Стрелка ВПРАВО */
+				if (focusOnButtons == 1)
+				{
+					activeBtn = (activeBtn + 1) % numButtons;
+				}
+				else if (buffer != NULL && cursorPos < cmdLen)
+				{
+					cursorPos++;
+				}
+				break;
+
+			case 0x08: /* Backspace */
+				if (focusOnButtons == 0 && buffer != NULL && cursorPos > 0 && cmdLen > 0)
+				{
+					for (i = cursorPos - 1; i < cmdLen; i++)
+					{
+						buffer[i] = buffer[i + 1];
+					}
+					cursorPos--;
+					cmdLen--;
+				}
+				break;
+
+			case 252: /* Delete */
+				if (focusOnButtons == 0 && buffer != NULL && cursorPos < cmdLen && cmdLen > 0)
+				{
+					for (i = cursorPos; i < cmdLen; i++)
+					{
+						buffer[i] = buffer[i + 1];
+					}
+					cmdLen--;
+				}
+				break;
+
+			case 0x0d: /* ENTER */
+				if (focusOnButtons == 1 && numButtons > 0)
+				{
+					return btn_types[activeBtn];
+				}
+				return (buffer != NULL) ? D_RES_OK : btn_types[activeBtn];
+
+			case 27: /* ESC */
+				return D_RES_CANCEL;
+
+			default: /* Обычный ввод */
+				if (focusOnButtons == 0 && buffer != NULL && cmdLen < (max_len - 2) && byte >= 32)
+				{
+					for (i = cmdLen; i > cursorPos; i--)
+					{
+						buffer[i] = buffer[i - 1];
+					}
+					buffer[cursorPos] = byte;
+					cursorPos++;
+					cmdLen++;
+					buffer[cmdLen] = 0;
+				}
+				break;
+			}
+		}
+	}
+}
+
+void Action_Delete(void)
+{
+	struct DialogWindow dlg;
+	unsigned char result;
+
+	dlg.x = 20;
+	dlg.y = 8;
+	dlg.w = 40;
+	dlg.h = 5;
+	dlg.color = MAKE_COLOR(BR_BOTH, RED, WHITE);
+	dlg.title = "Delete File";
+	dlg.prompt = "Are you sure you want to delete?";
+
+	/* buffer = NULL, маска кнопок Да/Нет */
+	result = show_dialog(&dlg, NULL, 0, D_BTN_YES | D_BTN_CANCEL);
+
+	if (result == D_RES_YES)
+	{
+		/* Логика удаления файла */
+	}
 }
 
 /* Включает нужную страницу памяти для указанного индекса файла на панели */
@@ -290,8 +723,14 @@ void read_panel_dir(PanelState *panel)
 										? (char *)set.bank_array[page_offset].lfname
 										: (char *)set.bank_array[page_offset].fname;
 
+							strncpy(set.temp_path, name1, sizeof(set.temp_path) - 1); // Cursos insert here
+							set.temp_path[sizeof(set.temp_path) - 1] = '\0';		  // Cursos insert here
+
 							/* ПЕРЕКЛЮЧАЕМ СТРАНИЦУ ДЛЯ СТРОКИ 2 */
 							switch_file_page(panel, real_temp);
+
+							if (strcmp(set.temp_path, name2) > 0) // Cursor insert here
+								swap_needed = 1;				  // Cursor insert here
 							page_offset = real_temp % FILES_PER_PAGE;
 							name2 = (set.bank_array[page_offset].lfname[0] != 0)
 										? (char *)set.bank_array[page_offset].lfname
@@ -347,19 +786,6 @@ void fast_print_str_pad(const char *str, unsigned char width)
 	while (i < width)
 	{
 		putchar(' ');
-		i++;
-	}
-}
-
-/* 1. Быстрый вывод строки оганиченной длины без дополнения*/
-void fast_print_str_width(const char *str, unsigned char width)
-{
-	unsigned char i;
-	i = 0;
-	/* Выводим символы строки, пока они есть и не превысили ширину */
-	while (str[i] != 0 && i < width)
-	{
-		putchar(str[i]);
 		i++;
 	}
 }
@@ -603,7 +1029,7 @@ void fast_put_char_color(unsigned char x, unsigned char y, unsigned char sym, un
 	putchar(sym);
 }
 
-void draw_single_line(PanelState *panel, unsigned int file_idx)
+void draw_single_line(PanelState *panel, unsigned int file_idx, unsigned char start_x, unsigned char row_y)
 {
 	unsigned int real_bank_idx;
 	unsigned int page_offset;
@@ -615,18 +1041,24 @@ void draw_single_line(PanelState *panel, unsigned int file_idx)
 	{
 		real_bank_idx = panel->file_indices[file_idx];
 
+		/* 1. СНАЧАЛА включаем нужную банку памяти и считываем все данные */
 		switch_file_page(panel, real_bank_idx);
 		page_offset = real_bank_idx % FILES_PER_PAGE;
 
-		display_name = (set.bank_array[page_offset].lfname[0] != 0) ? (char *)set.bank_array[page_offset].lfname : (char *)set.bank_array[page_offset].fname;
+		display_name = (set.bank_array[page_offset].lfname[0] != 0)
+						   ? (char *)set.bank_array[page_offset].lfname
+						   : (char *)set.bank_array[page_offset].fname;
+
+		/* 2. СТРОГО ПОСЛЕ ПЕРЕКЛЮЧЕНИЯ СТРАНИЦЫ позиционируем курсор экрана! */
+		OS_SETXY(start_x + 1, 3 + row_y);
 
 		current_color = (file_idx == panel->cursor_idx && panel->is_active) ? COLOR_PANEL_CURSOR : COLOR_PANEL_MAIN;
 		OS_SETCOLOR(current_color);
 
-		/* 1. ИМЯ ФАЙЛА ? Выводим строго 18 символов */
+		/* ИМЯ ФАЙЛА ? Выводим строго 18 символов */
 		fast_print_str_pad(display_name, 18);
 
-		/* 2. Первый разделитель */
+		/* Первый разделитель */
 		if (file_idx == panel->cursor_idx && panel->is_active)
 		{
 			putchar(sym_v_single);
@@ -638,7 +1070,7 @@ void draw_single_line(PanelState *panel, unsigned int file_idx)
 			OS_SETCOLOR(COLOR_PANEL_MAIN);
 		}
 
-		/* 3. РАЗМЕР ИЛИ КАТАЛОГ ? Выводим строго 6 символов */
+		/* РАЗМЕР ИЛИ КАТАЛОГ ? Выводим строго 6 символов */
 		if (set.bank_array[page_offset].fattrib & 0x10)
 		{
 			fast_print_str_pad(" <DIR>", 6);
@@ -648,7 +1080,7 @@ void draw_single_line(PanelState *panel, unsigned int file_idx)
 			fast_print_size(set.bank_array[page_offset].fsize);
 		}
 
-		/* 4. Второй разделитель */
+		/* Второй разделитель */
 		if (file_idx == panel->cursor_idx && panel->is_active)
 		{
 			putchar(sym_v_single);
@@ -660,14 +1092,16 @@ void draw_single_line(PanelState *panel, unsigned int file_idx)
 			OS_SETCOLOR(COLOR_PANEL_MAIN);
 		}
 
-		/* 5. ДАТА И ВРЕМЯ ? Выводим стандартные 12 символов */
+		/* ДАТА И ВРЕМЯ ? Выводим стандартные 12 символов */
 		fast_print_datetime(set.bank_array[page_offset].fdate, set.bank_array[page_offset].ftime);
 
 		OS_SETCOLOR(COLOR_PANEL_MAIN);
 	}
 	else
 	{
-		/* Очистка пустой строки ? заполняем ровно 38 символов внутреннего пространства */
+		/* Для пустых строк переключение банков не нужно, но позицию всё равно ставим */
+		OS_SETXY(start_x + 1, 3 + row_y);
+
 		OS_SETCOLOR(COLOR_PANEL_MAIN);
 		fast_print_str_pad("", 18);
 		OS_SETCOLOR(MAKE_COLOR(BR_BOTH, BLUE, CYAN));
@@ -802,8 +1236,8 @@ void draw_panel(PanelState *panel, unsigned char start_x, unsigned char height)
 	unsigned char i;
 	for (i = 0; i < height; i++)
 	{
-		OS_SETXY(start_x + 1, 3 + i);
-		draw_single_line(panel, panel->scroll_offset + i);
+		/* Теперь передаем start_x и номер строки i напрямую в функцию строки */
+		draw_single_line(panel, panel->scroll_offset + i, start_x, i);
 	}
 }
 
@@ -824,9 +1258,11 @@ void redraw_all(void)
 
 void draw_file_line(PanelState *panel, unsigned char start_x, unsigned int file_idx)
 {
-	unsigned char screen_y = 3 + (file_idx - panel->scroll_offset);
-	OS_SETXY(start_x + 1, screen_y);
-	draw_single_line(panel, file_idx);
+	/* Вычисляем, на какой строчке внутри панели (0-17) физически находится файл */
+	unsigned char row_y = (unsigned char)(file_idx - panel->scroll_offset);
+	/* Больше не вызываем здесь OS_SETXY до переключения страниц! */
+	/* Передаем координаты напрямую в draw_single_line */
+	draw_single_line(panel, file_idx, start_x, row_y);
 }
 
 unsigned char getFreeMem(void)
@@ -973,6 +1409,357 @@ void handle_enter(PanelState *active_p)
 	}
 }
 
+/* Умное обновление панелей, готовое к будущему выделению файлов.
+ * @param next_file_hint - Имя файла, на который МЫ ХОТИМ поставить курсор.
+ *                         Если NULL или файл не найден ? встанет на первый файл.
+ */
+
+void panels_refresh_all(const char *next_file_hint)
+{
+	/* --- СЕКЦИЯ ОБЪЯВЛЕНИЯ ПЕРЕМЕННЫХ C89 --- */
+	PanelState *active_p;
+	unsigned int search_idx;
+	unsigned char found;
+	unsigned int page_offset;
+	char *current_name;
+
+	/* 1. Определяем активную панель */
+	active_p = (left_panel.is_active) ? &left_panel : &right_panel;
+
+	/* 2. ПЕРЕЧИТЫВАЕМ ОБЕ ПАНЕЛИ С ДИСКА */
+	read_panel_dir(&left_panel);
+	read_panel_dir(&right_panel);
+
+	/* 3. ИЩЕМ ФАЙЛ ПО НАШЕЙ ПОДСКАЗКЕ (HINT) */
+	found = false;
+	if (next_file_hint != NULL && active_p->file_count > 0)
+	{
+		for (search_idx = 0; search_idx < active_p->file_count; search_idx++)
+		{
+			unsigned int r_idx = active_p->file_indices[search_idx];
+			switch_file_page(active_p, r_idx);
+			page_offset = r_idx % FILES_PER_PAGE;
+
+			current_name = (set.bank_array[page_offset].lfname[0] != 0)
+							   ? (char *)set.bank_array[page_offset].lfname
+							   : (char *)set.bank_array[page_offset].fname;
+
+			if (strcmp(current_name, next_file_hint) == 0)
+			{
+				active_p->cursor_idx = search_idx;
+				found = true;
+				break;
+			}
+		}
+	}
+
+	/* 4. ЕСЛИ ПОДСКАЗКА НЕ СРАБОТАЛА ? СБРАСЫВАЕМ НА НАЧАЛО СПИСКА */
+	if (!found)
+	{
+		active_p->cursor_idx = 0; /* Встаем на первый файл в папке */
+	}
+
+	/* 5. КОРРЕКЦИЯ СКРОЛЛИНГА (ПРОКРУТКИ ОКНА) */
+	if (active_p->cursor_idx < active_p->scroll_offset)
+	{
+		active_p->scroll_offset = active_p->cursor_idx;
+	}
+	else if (active_p->cursor_idx >= active_p->scroll_offset + 18)
+	{
+		active_p->scroll_offset = active_p->cursor_idx - 18 + 1;
+	}
+
+	/* 6. СТРАХОВКА БАНКОВ ПАМЯТИ ПЕРЕД НАЧАЛОМ ОТРИСОВКИ */
+	if (left_panel.file_count > 0)
+	{
+		switch_file_page(&left_panel, left_panel.file_indices[left_panel.scroll_offset]);
+	}
+	if (right_panel.file_count > 0)
+	{
+		switch_file_page(&right_panel, right_panel.file_indices[right_panel.scroll_offset]);
+	}
+
+	/* 7. ПОЛНАЯ ПЕРЕРИСОВКА ЭКРАНА */
+	draw_panel_background(&left_panel, 0);
+	draw_panel_background(&right_panel, 40);
+
+	draw_panel(&left_panel, 0, 18);
+	draw_panel(&right_panel, 40, 18);
+
+	draw_bottom_info(active_p);
+	draw_status_bar();
+}
+
+/**
+ * Надежная функция склеивания путей под NedoOS
+ */
+void build_full_path(char *dest, const char *path, const char *filename)
+{
+	unsigned int len;
+	strcpy(dest, path);
+	len = strlen(dest);
+
+	/* Если путь не пустой и не заканчивается на слэш ? принудительно добавляем */
+	if (len > 0 && dest[len - 1] != '/' && dest[len - 1] != '\\')
+	{
+		strcat(dest, "/");
+	}
+	strcat(dest, filename);
+}
+
+/**
+ * Вспомогательная функция поблочного копирования одного файла
+ */
+unsigned char copy_single_file_core(const char *src_path, const char *dst_path)
+{
+	FILE *h_src;
+	FILE *h_dst;
+	unsigned int bytes_read;
+	unsigned int bytes_written;
+	unsigned long original_size;
+	unsigned int len;
+	static unsigned char c_buf[512];
+
+	h_src = OS_OPENHANDLE((unsigned char *)src_path, 0x80);
+	if (((int)h_src) & 0xff)
+		return 1;
+
+	original_size = OS_GETFILESIZE(h_src);
+
+	h_dst = OS_CREATEHANDLE((unsigned char *)dst_path, 0x80);
+	if (((int)h_dst) & 0xff)
+	{
+		OS_CLOSEHANDLE(h_src);
+		return 1;
+	}
+
+	for (;;)
+	{
+		bytes_read = OS_READHANDLE(c_buf, h_src, 512);
+		if (bytes_read == 0 || (((int)bytes_read) & 0xff))
+			break;
+
+		if (bytes_read < 512)
+		{
+			for (len = bytes_read; len < 512; len++)
+				c_buf[len] = 0;
+			OS_WRITEHANDLE(c_buf, h_dst, 512);
+			break;
+		}
+
+		bytes_written = OS_WRITEHANDLE(c_buf, h_dst, bytes_read);
+		if (bytes_written != bytes_read || (((int)bytes_written) & 0xff))
+			break;
+		YIELD();
+	}
+
+	OS_SEEKHANDLE(h_dst, original_size);
+	OS_CLOSEHANDLE(h_dst);
+	OS_CLOSEHANDLE(h_src);
+	return 0;
+}
+
+/**
+ * Рекурсивный обход папки с защитой от зацикливания через индексный сдвиг
+ * (C89, сохраняет стек Z80)
+ */
+void copy_tree_recursive(const char *base_src, const char *base_dst)
+{
+	/* Локальные переменные текущего уровня рекурсии (всего несколько байт в стеке!) */
+	char local_name[64];
+	char is_dir;
+	unsigned int target_file_idx; /* Порядковый номер файла, который мы хотим прочитать */
+	unsigned int skip_counter;	  /* Счетчик для промотки потока FAT */
+	unsigned char res;
+	unsigned char found_valid_item;
+
+	target_file_idx = 0;
+
+	while (1)
+	{
+		/* Шаг 1: Принудительно возвращаемся в исходную папку текущего уровня */
+		if (OS_CHDIR((unsigned char *)base_src) != 0)
+			return;
+
+		/* Шаг 2: Инициализируем поток чтения каталога с самого начала */
+		OS_OPENDIR("");
+		skip_counter = 0;
+		found_valid_item = 0;
+
+		/* Шаг 3: Проматываем поток до нужного нам индекса файла */
+		while (1)
+		{
+			res = OS_READDIR(&r_global_info);
+			if (res == 4 || res != 0)
+				break; /* Каталог закончился */
+
+			/* Пропускаем служебные точки FAT */
+			if (r_global_info.fname[0] == '.')
+			{
+				if (r_global_info.fname[1] == 0 || (r_global_info.fname[1] == '.' && r_global_info.fname[2] == 0))
+				{
+					continue;
+				}
+			}
+
+			/* Если мы дошли до нужного по счету несанкционированного файла */
+			if (skip_counter == target_file_idx)
+			{
+				/* Забираем его данные в локальный буфер этого уровня стека */
+				if (r_global_info.lfname[0] != 0)
+				{
+					strcpy(local_name, (char *)r_global_info.lfname);
+				}
+				else
+				{
+					strcpy(local_name, (char *)r_global_info.fname);
+				}
+
+				is_dir = (r_global_info.fattrib & 0x10) ? 1 : 0;
+				found_valid_item = 1;
+				break; /* Файл успешно захвачен */
+			}
+
+			skip_counter++; /* Пропускаем уже скопированные ранее файлы */
+		}
+
+		/* Если на данном индексе файлы кончились ? значит папка полностью скопирована! */
+		if (!found_valid_item)
+			break;
+
+		/* Переходим к следующему файлу на будущей итерации */
+		target_file_idx++;
+
+		/* Шаг 4: Формируем полные пути */
+		build_full_path(r_src_full, base_src, local_name);
+		build_full_path(r_dst_full, base_dst, local_name);
+
+		/* ТЕКСТОВЫЙ ИНДИКАТОР ПРОГРЕССА (Строка 22) */
+		OS_SETCOLOR(MAKE_COLOR(BR_BOTH, BLACK, WHITE));
+		OS_SETXY(0, 22);
+		fast_print_str_pad("Copying...", 11);
+		fast_print_str_pad(local_name, 64);
+
+		/* Шаг 5: Выполняем копирование в зависимости от типа */
+		if (is_dir)
+		{
+			/* Создаем подпапку на диске-приемнике */
+			OS_MKDIR((unsigned char *)r_dst_full);
+
+			/* Рекурсивно ныряем внутрь созданной структуры */
+			copy_tree_recursive(r_src_full, r_dst_full);
+		}
+		else
+		{
+			/* Копируем обычный файл через наш отлаженный посекторный движок */
+			copy_single_file_core(r_src_full, r_dst_full);
+		}
+
+		YIELD(); /* Уступаем квант времени операционной системе NedoOS */
+	}
+
+	/* Выходим из текущей обработанной папки на уровень вверх */
+	OS_CHDIR((unsigned char *)"..");
+}
+
+/**
+ * Высокоуровневая точка входа для копирования файлов и папок
+ */
+void Action_Copy(void)
+{
+	/* --- СЕКЦИЯ ОБЪЯВЛЕНИЯ ПЕРЕМЕННЫХ C89 СТРОГО В НАЧАЛЕ БЛОКА --- */
+	struct DialogWindow dlg;
+	PanelState *src_panel;
+	PanelState *dst_panel;
+	unsigned int real_idx;
+	unsigned int page_offset;
+	char *src_filename_ptr;
+	unsigned char dialog_result;
+	unsigned int len;
+	unsigned char is_directory;
+
+	/* Статические буферы для изоляции путей */
+	static char saved_filename[64];
+	static char full_src_path[200];
+	static char full_dst_path[200];
+
+	src_panel = (left_panel.is_active) ? &left_panel : &right_panel;
+	dst_panel = (left_panel.is_active) ? &right_panel : &left_panel;
+
+	if (src_panel->file_count == 0)
+		return;
+
+	/* 1. ПОЛУЧАЕМ ИМЯ И АТРИБУТЫ ВЫБРАННОГО ЭЛЕМЕНТА */
+	real_idx = src_panel->file_indices[src_panel->cursor_idx];
+	switch_file_page(src_panel, real_idx);
+	page_offset = real_idx % FILES_PER_PAGE;
+
+	is_directory = (set.bank_array[page_offset].fattrib & 0x10) ? 1 : 0;
+	src_filename_ptr = (set.bank_array[page_offset].lfname[0] != 0)
+						   ? (char *)set.bank_array[page_offset].lfname
+						   : (char *)set.bank_array[page_offset].fname;
+
+	/* Защита от копирования перехода наверх */
+	if (is_directory && src_filename_ptr[0] == '.' && src_filename_ptr[1] == '.')
+		return;
+
+	strncpy(saved_filename, src_filename_ptr, sizeof(saved_filename) - 1);
+	saved_filename[sizeof(saved_filename) - 1] = '\0';
+
+	/* 2. НАСТРОЙКА И ВЫЗОВ НАШЕГО СИММЕТРИЧНОГО ДИАЛОГА */
+	dlg.x = 10;
+	dlg.y = 7;
+	dlg.w = 60;
+	dlg.h = 7;
+	dlg.color = MAKE_COLOR(BR_BOTH, BLUE, WHITE);
+	dlg.title = is_directory ? "Copy Directory" : "Copy File";
+	dlg.prompt = "Copy to path:";
+
+	strncpy(set.temp_path, dst_panel->current_path, sizeof(set.temp_path) - 1);
+	set.temp_path[sizeof(set.temp_path) - 1] = '\0';
+
+	len = strlen(set.temp_path);
+	if (len > 0 && set.temp_path[len - 1] != '/' && set.temp_path[len - 1] != '\\')
+	{
+		strcat(set.temp_path, "/");
+	}
+
+	dialog_result = show_dialog(&dlg, set.temp_path, sizeof(set.temp_path), D_BTN_OK | D_BTN_CANCEL);
+	if (dialog_result == D_RES_CANCEL)
+	{
+		panels_refresh_all(saved_filename);
+		return;
+	}
+
+	/* 3. СБОРКА СТАРТОВЫХ ПОЛНЫХ ПУТЕЙ */
+	build_full_path(full_src_path, src_panel->current_path, saved_filename);
+	build_full_path(full_dst_path, set.temp_path, saved_filename);
+
+	/* 4. ЗАПУСК ОПЕРАЦИИ */
+	if (is_directory)
+	{
+		/* Сначала создаем корневую папку на приемнике */
+		OS_MKDIR((unsigned char *)full_dst_path);
+
+		/* Запускаем умный рекурсивный обход внутренностей */
+		copy_tree_recursive(full_src_path, full_dst_path);
+	}
+	else
+	{
+		/* Копирование одиночного файла */
+		OS_SETCOLOR(MAKE_COLOR(BR_BOTH, BLACK, WHITE));
+		OS_SETXY(0, 22);
+		fast_print_str_pad("Copying file:", 14);
+		fast_print_str_pad(saved_filename, 64);
+
+		copy_single_file_core(full_src_path, full_dst_path);
+	}
+
+	/* 5. ВОЗВРАЩАЕМ СИСТЕМНЫЙ КАТАЛОГ И ОБНОВЛЯЕМ ЭКРАН */
+	OS_CHDIR((unsigned char *)src_panel->current_path);
+	panels_refresh_all(saved_filename);
+}
+
 void init(void)
 {
 	main_pg.l = OS_GETMAINPAGES();
@@ -1013,20 +1800,27 @@ C_task main(int argc, const char *argv[])
 	{
 		unsigned char key;
 		PanelState *active_p;
+		active_p = (left_panel.is_active) ? &left_panel : &right_panel;
 
 		key = OS_GETKEY();
-		if (key == 0)
+		// printf("[key = %u]", key);
+		switch (key)
 		{
+		case 0:
 			YIELD();
 			continue;
-		}
-
-		if (key == 27)
-		{
+		case 27:
+		case 176:
+			exit(0);
+			break;
+		case '8':
+			Action_Delete();
+			panels_refresh_all(NULL);
+			break;
+		case '5':
+			Action_Copy();
 			break;
 		}
-
-		active_p = (left_panel.is_active) ? &left_panel : &right_panel;
 
 		/* TAB (9): Переключение активной панели */
 		if (key == 9)
@@ -1046,7 +1840,7 @@ C_task main(int argc, const char *argv[])
 			{
 				unsigned int old_idx = active_p->cursor_idx;
 				unsigned int old_scroll = active_p->scroll_offset;
-				unsigned char start_x = (left_panel.is_active) ? 0 : 39;
+				unsigned char start_x = (left_panel.is_active) ? 0 : 40;
 
 				active_p->cursor_idx--;
 				if (active_p->cursor_idx < active_p->scroll_offset)
