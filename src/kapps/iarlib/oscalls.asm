@@ -879,6 +879,90 @@ OS_DIHALT:
 	DI
 	HALT
 	ret
-	//ENDMOD
+	ENDMOD
+
+	; unsigned char OS_GETFILETIME(char *path, unsigned int *date, unsigned int *time)
+	; IAR: DE=path, BC=&date, time* на стеке (sp+2)
+	; BDOS: DE=path, out IX=date, HL=time
+	MODULE OS_GETFILETIME
+	PUBLIC OS_GETFILETIME
+	EXTERN errno
+	#include "sysdefs.asm"
+	RSEG	NO_INIT
+OS_GETFILETIME_DATE:
+	DEFS	2
+OS_GETFILETIME_TIME:
+	DEFS	2
+	RSEG CODE
+OS_GETFILETIME:
+	PUSH	IX
+	PUSH	IY
+	PUSH	BC
+	LD	C,CMD_GETFILETIME
+	CALL	BDOS
+	LD	(errno),A
+	DI
+	LD	(OS_GETFILETIME_TIME),HL
+	PUSH	IX
+	POP	HL
+	LD	(OS_GETFILETIME_DATE),HL
+	EI
+	POP	BC
+	LD	HL,(OS_GETFILETIME_DATE)
+	LD	A,L
+	LD	(BC),A
+	INC	BC
+	LD	A,H
+	LD	(BC),A
+	LD	HL,8
+	ADD	HL,SP
+	LD	E,(HL)
+	INC	HL
+	LD	D,(HL)
+	LD	HL,(OS_GETFILETIME_TIME)
+	LD	A,L
+	LD	(DE),A
+	INC	DE
+	LD	A,H
+	LD	(DE),A
+	POP	IY
+	POP	IX
+	LD	A,(errno)
+	LD	L,A
+	LD	H,0
+	RET
+	ENDMOD
+
+	; unsigned char OS_SETFILETIME(char *path, unsigned int date, unsigned int time)
+	; IAR: DE=path, BC=date, time на стеке (sp+2)
+	; BDOS: DE=path, IX=date, HL=time
+	MODULE OS_SETFILETIME
+	PUBLIC OS_SETFILETIME
+	EXTERN errno
+	#include "sysdefs.asm"
+	RSEG CODE
+OS_SETFILETIME:
+	PUSH	IX
+	PUSH	IY
+	PUSH	DE
+	PUSH	BC
+	POP	IX
+	LD	HL,8
+	ADD	HL,SP
+	LD	A,(HL)
+	INC	HL
+	LD	H,(HL)
+	LD	L,A
+	POP	DE
+	LD	C,CMD_SETFILETIME
+	CALL	BDOS
+	LD	(errno),A
+	POP	IY
+	POP	IX
+	LD	L,A
+	LD	H,0
+	RET
+	ENDMOD
+
 	END
 	

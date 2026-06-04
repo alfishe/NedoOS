@@ -46,7 +46,7 @@ label1:
 	ENDMOD
 
 	MODULE OSDIRCALLS
-	PUBLIC OS_MKDIR,OS_CHDRV
+	PUBLIC OS_MKDIR,OS_CHDRV,OS_MOUNT
 	EXTERN errno
 	#include "sysdefs.asm"
 	RSEG CODE
@@ -70,7 +70,22 @@ OS_MKDIR:
 ;	push bc
 ;	ld c,CMD_CHDIR	
 ;	jr label1
+OS_MOUNT:
+	push bc
+	ld c,CMD_MOUNT
+	jr label1
 OS_CHDRV:
+; e = drive index 0..25, or ASCII letter A..Z / a..z
+	ld a,e
+	cp 26
+	jr c,OS_CHDRV_idx
+	and 0xdf
+	sub 'A'
+	jr nc,OS_CHDRV_idx
+	cp 26
+	jr nc,OS_CHDRV_idx
+OS_CHDRV_idx:
+	ld e,a
 	push bc
 	ld c,CMD_SETDRV
 label1:
@@ -78,6 +93,8 @@ label1:
 	push iy	
 	call BDOS
 	ld (errno),a
+	ld l,a
+	ld h,0
 	pop iy
 	pop ix
 	pop bc

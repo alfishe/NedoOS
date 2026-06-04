@@ -50,6 +50,8 @@ void OS_SETBORDER(unsigned char color);
 unsigned int OS_CHDIR(unsigned char *trgPathPtr);
 unsigned int OS_GETPATH(unsigned int curPathPtr); // in: de = ptr to buffer out: hl = ptr to last symbol of path
 unsigned int OS_SETSYSDRV(void);				  // out: H: H!=0 -- ????? ??? ?? ????????. L: -- ??? ??????? ??????????? ????.
+unsigned int OS_CHDRV(unsigned char drive);	  // e=0..25 or 'A'..'Z', out: L=error (0=ok)
+unsigned int OS_MOUNT(unsigned char drive);	  // e='A'..'Z', out: H=error (0=ok)
 unsigned int OS_NEWAPP(unsigned int trgPathPtr);
 unsigned int OS_RUNAPP(unsigned char pId); // e=id ;ACTIVATE DISABLED APP
 unsigned int OS_WAITPID(unsigned char pId);
@@ -63,6 +65,10 @@ void OS_SETPGC000(unsigned char page);
 void OS_SETSCREEN(unsigned char screen); // e=screen=0..1
 unsigned char OS_READDIR(fileInfo *finfo);
 unsigned char	OS_OPENDIR(unsigned char * path);
+/* IAR: DE=path, BC=&date, time* на стеке. BDOS out IX/HL -> *date,*time. */
+unsigned char OS_GETFILETIME(unsigned char *path, unsigned int *date, unsigned int *time);
+/* IAR: DE=path, BC=date, time на стеке. BDOS: DE=path, IX=date, HL=time (как nv.asm). */
+unsigned char OS_SETFILETIME(unsigned char *path, unsigned int date, unsigned int time);
 
 void SETPG32KHIGH(unsigned char page);
 
