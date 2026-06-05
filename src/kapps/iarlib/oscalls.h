@@ -96,7 +96,8 @@ union APP_PAGES
 unsigned long OS_GETMAINPAGES(void);
 unsigned int OS_GETCONFIG(void);
 unsigned int os_reserv_1(void *);
-void OS_SCROLLUP(unsigned int xy, unsigned int wh);
+void panel_files_scroll_up(unsigned char start_x);
+void panel_files_scroll_down(unsigned char start_x);
 unsigned int _low_level_get(void);
 char *cgets(char *str);
 void conv1251to866(unsigned char *bufer);

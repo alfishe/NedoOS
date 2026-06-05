@@ -34,7 +34,8 @@ OS_GETATTR:
 	ENDMOD
 	
 	MODULE OSSETXY
-	PUBLIC OS_SETXY,OS_SCROLLUP	//,OS_CLS,OS_SETGFX
+	PUBLIC OS_SETXY,OS_SCROLLUP,OS_SCROLLDOWN	//,OS_CLS,OS_SETGFX
+	PUBLIC panel_files_scroll_up,panel_files_scroll_down
 	PUBLIC _OS_GFX_CALL,OS_SETXYW
 	#include "sysdefs.asm"
 	RSEG CODE
@@ -43,6 +44,12 @@ OS_SCROLLUP:
 	ld h,b
 	ld l,c
 	ld c,CMD_SCROLLUP
+	jr label1
+OS_SCROLLDOWN:
+	push bc
+	ld h,b
+	ld l,c
+	ld c,CMD_SCROLLDOWN
 	jr label1
 OS_SETGFX:
 	push bc
@@ -68,7 +75,26 @@ label1:
 	pop iy
 	pop ix
 	pop bc
-	ret	
+	ret
+
+; void panel_files_scroll_down(unsigned char start_x); E=start_x (0 or 40)
+; BDOS scroll: DE=topyx (x even), BC=hgt,wid (even) — same as nv.asm
+panel_files_scroll_down:
+	ld a,e
+	ld e,a
+	ld d,3
+	ld b,18
+	ld c,40
+	jp OS_SCROLLDOWN
+
+; void panel_files_scroll_up(unsigned char start_x); E=start_x
+panel_files_scroll_up:
+	ld a,e
+	ld e,a
+	ld d,3
+	ld b,18
+	ld c,40
+	jp OS_SCROLLUP
 	ENDMOD
 	
 	MODULE OSGETXY
@@ -153,7 +179,7 @@ bdosputchar:
 	rst 0x10
 	pop iy
 	pop ix
-	pop hl
+	pop de
     pop bc
 	ret
 	END
