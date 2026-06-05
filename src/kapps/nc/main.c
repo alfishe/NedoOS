@@ -51,6 +51,7 @@
 #define D_MASK_OK_CANCEL (D_BTN_OK | D_BTN_CANCEL)
 #define D_MASK_OVERWRITE                                                                       \
 	(D_BTN_YES | D_BTN_NO | D_BTN_SKIP | D_BTN_SKIP_ALL | D_BTN_REPLACE_ALL | D_BTN_CANCEL)
+#define D_MASK_DELETE (D_BTN_YES | D_BTN_NO | D_BTN_REPLACE_ALL | D_BTN_CANCEL)
 
 
 #define COPY_OW_SKIP_ALL 0u
@@ -62,6 +63,18 @@
 #define COPY_FILE_ERR 1u
 #define COPY_FILE_SKIP 2u
 #define COPY_FILE_ABORT 3u
+
+/* Key 8 ? delete: session flags and per-item answers from show_dialog. */
+#define DELETE_ASK_EACH 0u   /* ask for every file/folder */
+#define DELETE_YES_ALL 1u    /* "Replace all" in delete mask = yes to all */
+#define DELETE_ABORT 2u      /* Cancel pressed; stop purge */
+
+#define DELETE_DO 0u         /* delete this item */
+#define DELETE_SKIP 1u       /* No ? skip one item */
+#define DELETE_STOP 2u       /* Cancel ? abort whole operation */
+
+/* Directory purge: path stack depth (BSS), no C recursion ? see deltree. */
+#define DELETE_DIR_STACK_MAX 20u
 
 
 #define D_RES_CANCEL 0
@@ -111,6 +124,12 @@
 #define PANEL_SORT_SIZE 2u
 #define PANEL_SORT_TIME 3u
 
+#define NC_INI_DIR "../ini"
+#define NC_INI_NAME "nc.ini"
+#define NC_INI_BUF_SIZE 512u
+#define NC_INI_DEFAULT_LEFT "M:/bin/"
+#define NC_INI_DEFAULT_RIGHT "M:/test/"
+
 #define COPY_TEMP_PAGE_ENTRIES 251
 
 #define MENU_LEVEL_TOP 0u
@@ -129,11 +148,12 @@
 #define MENU_ITEM_X 1u
 
 #define PANEL_DRIVE_MAX 15u
-#define DRIVE_POPUP_X 0u
+#define PANEL_COL_WIDTH 40u
+#define PANEL_COL_LEFT 0u
+#define PANEL_COL_RIGHT 40u
 #define DRIVE_POPUP_Y 1u
-#define DRIVE_POPUP_INNER_W 34u
-#define DRIVE_ITEM_X 1u
-#define DRIVE_ITEM_W 34u
+#define DRIVE_POPUP_INNER_W 26u /* inner text width; frame adds 2 border cols */
+#define DRIVE_ITEM_W DRIVE_POPUP_INNER_W
 #define DRVF_NONE 0u
 #define DRVF_NEOGS 1u
 #define DRVF_ZXNET 2u
@@ -200,9 +220,16 @@ static unsigned short copy_snap_time[COPY_TEMP_PAGE_ENTRIES];
 static void panels_remap_bank_window(void);
 static void ui_draw_frame(unsigned char x, unsigned char y, unsigned char w, unsigned char h, unsigned char color,
 						  const char *title);
+static void delete_progress_open(void);
+static void delete_progress_repaint(void);
 static void menu_draw_item(unsigned char x, unsigned char y, unsigned char width, unsigned char selected,
 						   const char *label, unsigned char current);
 static unsigned char g_copy_overwrite_mode;
+static unsigned char g_delete_abort;   /* set on Cancel during tree purge */
+static unsigned char g_delete_mode;  /* DELETE_ASK_EACH / YES_ALL / ABORT */
+static unsigned char g_delete_progress; /* 1: red "Deleting" window, no progress bar */
+static unsigned char g_deldir_sp;      /* current depth in g_deldir_stack */
+static char g_deldir_stack[DELETE_DIR_STACK_MAX][64]; /* full paths, for CHDIR after ".." */
 #define COPY_IO_ADDR ((unsigned char *)0x8000)
 
 
@@ -212,8 +239,15 @@ static unsigned char g_menu_sel;
 
 static unsigned char g_drive_active;
 static unsigned char g_drive_sel;
+static unsigned char g_drive_popup_x; /* left edge of drive popup on active panel */
 static unsigned char g_drive_count;
 static unsigned char g_drive_letters[PANEL_DRIVE_MAX];
+static char g_ini_hide_drives[64];
+static unsigned char g_ini_has_left_path;
+static unsigned char g_ini_has_right_path;
+static char g_ini_line[128];
+static char g_ini_key[32];
+static char g_ini_val[96];
 static char g_drive_labels[PANEL_DRIVE_MAX][26];
 
 #define PANEL_PORT_NEOGS_GSCFG 0x0Fu
@@ -1649,12 +1683,315 @@ struct DialogWindow
 };
 
 
+static void nc_ini_rtrim(char *s)
+{
+	unsigned int n;
+
+	n = 0;
+	while (s[n] != 0)
+		n++;
+	while (n > 0u && (s[n - 1u] == ' ' || s[n - 1u] == '\t' || s[n - 1u] == '\r' || s[n - 1u] == '\n'))
+	{
+		n--;
+		s[n] = 0;
+	}
+}
+
+static unsigned char nc_ini_drive_hidden(unsigned char letter)
+{
+	const char *p;
+	unsigned char u;
+
+	u = letter;
+	if (u >= 'a' && u <= 'z')
+		u = (unsigned char)(u - 'a' + 'A');
+	p = g_ini_hide_drives;
+	while (*p != 0)
+	{
+		unsigned char c;
+
+		c = (unsigned char)*p;
+		if (c == ',' || c == ' ' || c == '\t')
+		{
+			p++;
+			continue;
+		}
+		if (c >= 'a' && c <= 'z')
+			c = (unsigned char)(c - 'a' + 'A');
+		if (c == u)
+		{
+			p++;
+			if (*p == 0 || *p == ',' || *p == ' ' || *p == '\t')
+				return 1;
+		}
+		p++;
+	}
+	return 0;
+}
+
+static unsigned char nc_ini_parse_sort_mode(const char *v)
+{
+	if (strcmp(v, "ext") == 0)
+		return PANEL_SORT_EXT;
+	if (strcmp(v, "size") == 0)
+		return PANEL_SORT_SIZE;
+	if (strcmp(v, "time") == 0)
+		return PANEL_SORT_TIME;
+	return PANEL_SORT_NAME;
+}
+
+static const char *nc_ini_sort_mode_name(unsigned char mode)
+{
+	switch (mode)
+	{
+	case PANEL_SORT_EXT:
+		return "ext";
+	case PANEL_SORT_SIZE:
+		return "size";
+	case PANEL_SORT_TIME:
+		return "time";
+	default:
+		return "name";
+	}
+}
+
+static unsigned char nc_ini_parse_sort_dir(const char *v)
+{
+	if (v[0] == 'd' || v[0] == 'D' || v[0] == '1')
+		return 1;
+	return 0;
+}
+
+static unsigned char nc_ini_parse_bool(const char *v)
+{
+	if (v[0] == '1' || v[0] == 'y' || v[0] == 'Y' || v[0] == 't' || v[0] == 'T')
+		return 1;
+	return 0;
+}
+
+static unsigned char nc_ini_set_location(void)
+{
+	unsigned int res;
+
+	res = OS_SETSYSDRV();
+	if ((res & 0xff00u) != 0u)
+		return 0;
+	return (unsigned char)(OS_CHDIR((unsigned char *)NC_INI_DIR) == 0);
+}
+
+static void nc_ini_restore_cwd(void)
+{
+	PanelState *active;
+
+	active = left_panel.is_active ? &left_panel : &right_panel;
+	panel_chdir_only(active->current_path);
+}
+
+static void nc_ini_apply_defaults(void)
+{
+	if (!g_ini_has_left_path)
+		panel_path_normalize(&left_panel, NC_INI_DEFAULT_LEFT);
+	if (!g_ini_has_right_path)
+		panel_path_normalize(&right_panel, NC_INI_DEFAULT_RIGHT);
+}
+
+static void nc_ini_apply_key(const char *key, const char *val)
+{
+	if (strcmp(key, "LeftPath") == 0 || strcmp(key, "left_path") == 0)
+	{
+		panel_path_normalize(&left_panel, val);
+		g_ini_has_left_path = 1;
+	}
+	else if (strcmp(key, "RightPath") == 0 || strcmp(key, "right_path") == 0)
+	{
+		panel_path_normalize(&right_panel, val);
+		g_ini_has_right_path = 1;
+	}
+	else if (strcmp(key, "LeftSort") == 0 || strcmp(key, "left_sort") == 0)
+		left_panel.sort_mode = nc_ini_parse_sort_mode(val);
+	else if (strcmp(key, "RightSort") == 0 || strcmp(key, "right_sort") == 0)
+		right_panel.sort_mode = nc_ini_parse_sort_mode(val);
+	else if (strcmp(key, "LeftSortDir") == 0 || strcmp(key, "left_sort_dir") == 0)
+		left_panel.sort_desc = nc_ini_parse_sort_dir(val);
+	else if (strcmp(key, "RightSortDir") == 0 || strcmp(key, "right_sort_dir") == 0)
+		right_panel.sort_desc = nc_ini_parse_sort_dir(val);
+	else if (strcmp(key, "LeftSortLfn") == 0 || strcmp(key, "left_sort_lfn") == 0)
+		left_panel.sort_lfn = nc_ini_parse_bool(val);
+	else if (strcmp(key, "RightSortLfn") == 0 || strcmp(key, "right_sort_lfn") == 0)
+		right_panel.sort_lfn = nc_ini_parse_bool(val);
+	else if (strcmp(key, "LeftActive") == 0 || strcmp(key, "left_active") == 0)
+	{
+		if (nc_ini_parse_bool(val))
+		{
+			left_panel.is_active = 1;
+			right_panel.is_active = 0;
+		}
+		else
+		{
+			left_panel.is_active = 0;
+			right_panel.is_active = 1;
+		}
+	}
+	else if (strcmp(key, "HideDrives") == 0 || strcmp(key, "hide_drives") == 0)
+	{
+		strncpy(g_ini_hide_drives, val, sizeof(g_ini_hide_drives) - 1u);
+		g_ini_hide_drives[sizeof(g_ini_hide_drives) - 1u] = 0;
+	}
+}
+
+static void nc_ini_load(void)
+{
+	static char buf[NC_INI_BUF_SIZE];
+	FILE *fp;
+	int n;
+	unsigned int i;
+
+	g_ini_hide_drives[0] = 0;
+	g_ini_has_left_path = 0;
+	g_ini_has_right_path = 0;
+
+	if (!nc_ini_set_location())
+	{
+		nc_ini_apply_defaults();
+		nc_ini_restore_cwd();
+		return;
+	}
+	fp = OS_OPENHANDLE((unsigned char *)NC_INI_NAME, 0x80);
+	if (((int)fp) & 0xff)
+	{
+		nc_ini_apply_defaults();
+		nc_ini_restore_cwd();
+		return;
+	}
+
+	n = (int)OS_READHANDLE((unsigned char *)buf, fp, NC_INI_BUF_SIZE - 1u);
+	OS_CLOSEHANDLE(fp);
+	if (n <= 0)
+	{
+		nc_ini_apply_defaults();
+		nc_ini_restore_cwd();
+		return;
+	}
+
+	buf[n] = 0;
+	i = 0;
+	while (buf[i] != 0)
+	{
+		char *eq;
+		unsigned int j;
+		unsigned int k;
+
+		j = 0;
+		while (buf[i] != 0 && buf[i] != '\r' && buf[i] != '\n' && j < sizeof(g_ini_line) - 1u)
+			g_ini_line[j++] = buf[i++];
+		g_ini_line[j] = 0;
+		if (buf[i] == '\r')
+			i++;
+		if (buf[i] == '\n')
+			i++;
+
+		nc_ini_rtrim(g_ini_line);
+		j = 0;
+		while (g_ini_line[j] == ' ' || g_ini_line[j] == '\t')
+			j++;
+		if (g_ini_line[j] == 0 || g_ini_line[j] == '#' || g_ini_line[j] == ';')
+			continue;
+
+		eq = g_ini_line + j;
+		while (*eq != 0 && *eq != '=')
+			eq++;
+		if (*eq != '=')
+			continue;
+		*eq = 0;
+		strncpy(g_ini_key, g_ini_line + j, sizeof(g_ini_key) - 1u);
+		g_ini_key[sizeof(g_ini_key) - 1u] = 0;
+		nc_ini_rtrim(g_ini_key);
+		strncpy(g_ini_val, eq + 1, sizeof(g_ini_val) - 1u);
+		g_ini_val[sizeof(g_ini_val) - 1u] = 0;
+		j = 0;
+		while (g_ini_val[j] == ' ' || g_ini_val[j] == '\t')
+			j++;
+		if (j > 0)
+		{
+			k = 0;
+			while (g_ini_val[j] != 0 && k < sizeof(g_ini_val) - 1u)
+				g_ini_val[k++] = g_ini_val[j++];
+			g_ini_val[k] = 0;
+		}
+		nc_ini_rtrim(g_ini_val);
+		nc_ini_apply_key(g_ini_key, g_ini_val);
+	}
+	nc_ini_apply_defaults();
+	nc_ini_restore_cwd();
+}
+
+static void nc_ini_append(char *buf, unsigned int *pos, const char *text)
+{
+	unsigned int n;
+
+	n = 0;
+	while (text[n] != 0)
+		n++;
+	if (*pos + n >= NC_INI_BUF_SIZE - 1u)
+		return;
+	memcpy(buf + *pos, text, n);
+	*pos += n;
+	buf[*pos] = 0;
+}
+
+static void nc_ini_save(void)
+{
+	static char buf[NC_INI_BUF_SIZE];
+	static char line[96];
+	FILE *fp;
+	unsigned int pos;
+
+	pos = 0;
+	buf[0] = 0;
+	nc_ini_append(buf, &pos, "# NC settings\r\n");
+	sprintf(line, "LeftPath=%s\r\n", left_panel.current_path);
+	nc_ini_append(buf, &pos, line);
+	sprintf(line, "RightPath=%s\r\n", right_panel.current_path);
+	nc_ini_append(buf, &pos, line);
+	sprintf(line, "LeftSort=%s\r\n", nc_ini_sort_mode_name(left_panel.sort_mode));
+	nc_ini_append(buf, &pos, line);
+	sprintf(line, "RightSort=%s\r\n", nc_ini_sort_mode_name(right_panel.sort_mode));
+	nc_ini_append(buf, &pos, line);
+	sprintf(line, "LeftSortDir=%s\r\n", left_panel.sort_desc ? "desc" : "asc");
+	nc_ini_append(buf, &pos, line);
+	sprintf(line, "RightSortDir=%s\r\n", right_panel.sort_desc ? "desc" : "asc");
+	nc_ini_append(buf, &pos, line);
+	sprintf(line, "LeftSortLfn=%u\r\n", (unsigned int)left_panel.sort_lfn);
+	nc_ini_append(buf, &pos, line);
+	sprintf(line, "RightSortLfn=%u\r\n", (unsigned int)right_panel.sort_lfn);
+	nc_ini_append(buf, &pos, line);
+	sprintf(line, "LeftActive=%u\r\n", (unsigned int)left_panel.is_active);
+	nc_ini_append(buf, &pos, line);
+	nc_ini_append(buf, &pos, "# Comma-separated letters to hide in drive menu (e.g. J,K,L)\r\n");
+	sprintf(line, "HideDrives=%s\r\n", g_ini_hide_drives);
+	nc_ini_append(buf, &pos, line);
+
+	if (!nc_ini_set_location())
+	{
+		nc_ini_restore_cwd();
+		return;
+	}
+	fp = OS_CREATEHANDLE((unsigned char *)NC_INI_NAME, 0x80);
+	if (((int)fp) & 0xff)
+	{
+		nc_ini_restore_cwd();
+		return;
+	}
+	(void)OS_WRITEHANDLE((unsigned char *)buf, fp, pos);
+	OS_CLOSEHANDLE(fp);
+	nc_ini_restore_cwd();
+}
+
 void init_panels(void)
 {
 	unsigned char p;
 
 	panel_pages_mark_clear();
-
 
 	for (p = 0; p < PAGES_PER_PANEL; p++)
 	{
@@ -1669,8 +2006,7 @@ void init_panels(void)
 	left_panel.sort_mode = PANEL_SORT_NAME;
 	left_panel.sort_desc = 0;
 	left_panel.sort_lfn = 0;
-	strcpy(left_panel.current_path, "M:/bin/");
-
+	left_panel.current_path[0] = 0;
 
 	for (p = 0; p < PAGES_PER_PANEL; p++)
 	{
@@ -1685,7 +2021,7 @@ void init_panels(void)
 	right_panel.sort_mode = PANEL_SORT_NAME;
 	right_panel.sort_desc = 0;
 	right_panel.sort_lfn = 0;
-	strcpy(right_panel.current_path, "M:/test/");
+	right_panel.current_path[0] = 0;
 
 	g_menu_active = 0;
 	g_menu_level = MENU_LEVEL_TOP;
@@ -2125,29 +2461,6 @@ unsigned char show_dialog(struct DialogWindow *dlg, char *buffer, unsigned char 
 		}
 	}
 }
-
-void Action_Delete(void)
-{
-	struct DialogWindow dlg;
-	unsigned char result;
-
-	dlg.x = 20;
-	dlg.y = 8;
-	dlg.w = 40;
-	dlg.h = 5;
-	dlg.color = MAKE_COLOR(BR_BOTH, RED, WHITE);
-	dlg.title = "Delete File";
-	dlg.prompt = "Are you sure you want to delete?";
-
-
-	result = show_dialog(&dlg, NULL, 0, D_BTN_YES | D_BTN_CANCEL);
-
-	if (result == D_RES_YES)
-	{
-
-	}
-}
-
 
 void switch_file_page(PanelState *panel, unsigned int file_idx)
 {
@@ -2811,6 +3124,8 @@ static void panel_drive_build_list(const PanelState *panel)
 			continue;
 		if ((def->filter & DRVF_TRDOS) == 0u && !panel_drive_chdrv_ok(def->letter))
 			continue;
+		if (nc_ini_drive_hidden(def->letter))
+			continue;
 		g_drive_letters[g_drive_count] = def->letter;
 		panel_drive_format_line(g_drive_labels[g_drive_count], def->letter, def->caption);
 		g_drive_count++;
@@ -2820,6 +3135,15 @@ static void panel_drive_build_list(const PanelState *panel)
 
 	OS_CHDRV(saved);
 	panel_chdir_only(saved_path);
+}
+
+static unsigned char panel_drive_popup_x_for(const PanelState *panel)
+{
+	unsigned char start;
+
+	/* Center ~26-col menu inside the 40-col active panel column. */
+	start = (panel == &right_panel) ? PANEL_COL_RIGHT : PANEL_COL_LEFT;
+	return (unsigned char)(start + (PANEL_COL_WIDTH - DRIVE_POPUP_INNER_W - 2u) / 2u);
 }
 
 static unsigned char panel_drive_popup_inner_h(void)
@@ -2840,7 +3164,7 @@ static void panel_drive_draw_row(unsigned char idx, unsigned char selected)
 	if (idx >= g_drive_count)
 		return;
 	y = (unsigned char)(DRIVE_POPUP_Y + 1u + idx);
-	menu_draw_item(DRIVE_ITEM_X, y, DRIVE_ITEM_W, selected, g_drive_labels[idx], 0);
+	menu_draw_item((unsigned char)(g_drive_popup_x + 1u), y, DRIVE_ITEM_W, selected, g_drive_labels[idx], 0);
 }
 
 static void panel_drive_redraw(void)
@@ -2849,16 +3173,29 @@ static void panel_drive_redraw(void)
 	unsigned char inner_h;
 
 	inner_h = panel_drive_popup_inner_h();
-	ui_draw_frame(DRIVE_POPUP_X, DRIVE_POPUP_Y, DRIVE_POPUP_INNER_W, inner_h, COLOR_MENU_NORM, "Drive");
+	ui_draw_frame(g_drive_popup_x, DRIVE_POPUP_Y, DRIVE_POPUP_INNER_W, inner_h, COLOR_MENU_NORM, "Drive");
 	for (i = 0; i < g_drive_count; i++)
 		panel_drive_draw_row(i, (unsigned char)(i == g_drive_sel));
 }
 
 static void panel_drive_open(PanelState *panel)
 {
+	unsigned char i;
+	unsigned char saved;
+
 	panel_drive_build_list(panel);
+	g_drive_popup_x = panel_drive_popup_x_for(panel);
 	g_drive_active = 1;
 	g_drive_sel = 0;
+	saved = panel_drive_saved_letter(panel);
+	for (i = 0; i < g_drive_count; i++)
+	{
+		if (g_drive_letters[i] == saved)
+		{
+			g_drive_sel = i;
+			break;
+		}
+	}
 	panel_drive_redraw();
 }
 
@@ -3527,18 +3864,38 @@ static void copy_progress_layout(void)
 	copy_prog.name_y = (unsigned char)(copy_prog.y + 4);
 }
 
-static void copy_progress_fill_bg(void)
+static void fileop_progress_fill_bg(unsigned char color)
 {
 	unsigned char row;
 	unsigned char col;
 
-	OS_SETCOLOR(COLOR_COPY_UI);
+	OS_SETCOLOR(color);
 	for (row = 1; row < copy_prog.h; row++)
 	{
 		OS_SETXY((unsigned char)(copy_prog.x + 1), (unsigned char)(copy_prog.y + row));
 		for (col = 0; col < copy_prog.w; col++)
 			putchar(' ');
 	}
+}
+
+static void copy_progress_fill_bg(void)
+{
+	fileop_progress_fill_bg(COLOR_COPY_UI);
+}
+
+/* Delete UI: compact frame, name only (reuses copy_prog geometry). */
+static void delete_progress_layout(void)
+{
+	copy_prog.w = 58;
+	copy_prog.h = 4;
+	copy_prog.x = (unsigned char)((screenWidth - copy_prog.w - 2) / 2);
+	copy_prog.y = 11;
+	copy_prog.name_y = (unsigned char)(copy_prog.y + 2);
+}
+
+static void delete_progress_fill_bg(void)
+{
+	fileop_progress_fill_bg(COLOR_OVERWRITE_UI);
 }
 
 static void copy_progress_draw_bar(unsigned char pct);
@@ -3560,6 +3917,10 @@ static void copy_progress_draw_bar(unsigned char pct)
 {
 	unsigned char i;
 	unsigned char filled;
+
+	/* No percent bar while deleting ? only the current name line updates. */
+	if (g_delete_progress)
+		return;
 
 	if (pct > 100)
 		pct = 100;
@@ -3601,7 +3962,12 @@ static void copy_progress_draw_name(const char *name)
 	const char *show_name;
 
 	if (!copy_prog.drawn)
-		copy_progress_open();
+	{
+		if (g_delete_progress)
+			delete_progress_open();
+		else
+			copy_progress_open();
+	}
 
 	inner_w = copy_prog.w;
 	show_name = name;
@@ -3618,7 +3984,7 @@ static void copy_progress_draw_name(const char *name)
 	pad_left = (unsigned char)((inner_w - nlen) / 2);
 
 	OS_SETXY((unsigned char)(copy_prog.x + 1), copy_prog.name_y);
-	OS_SETCOLOR(COLOR_COPY_UI);
+	OS_SETCOLOR(g_delete_progress ? COLOR_OVERWRITE_UI : COLOR_COPY_UI);
 	for (i = 0; i < pad_left; i++)
 		putchar(' ');
 	for (i = 0; i < nlen; i++)
@@ -3639,10 +4005,30 @@ static void copy_progress_file_begin(const char *name, unsigned char is_dir)
 
 	copy_prog.last_pct = 255;
 	copy_progress_draw_name(copy_prog_current_name);
-	if (is_dir)
-		copy_progress_draw_bar(100);
-	else
-		copy_progress_draw_bar(0);
+	if (!g_delete_progress)
+	{
+		if (is_dir)
+			copy_progress_draw_bar(100);
+		else
+			copy_progress_draw_bar(0);
+	}
+}
+
+/* Update only the name row; avoids full-window repaint each file. */
+static void delete_progress_show_name(const char *name)
+{
+	const char *show;
+
+	if (!copy_prog.drawn)
+		return;
+
+	show = name;
+	if (show == NULL)
+		show = "";
+	strncpy(copy_prog_current_name, show, sizeof(copy_prog_current_name) - 1u);
+	copy_prog_current_name[sizeof(copy_prog_current_name) - 1u] = 0;
+	copy_prog.last_pct = 255u;
+	copy_progress_draw_name(copy_prog_current_name);
 }
 
 static void copy_progress_file_bytes(unsigned long done, unsigned long total)
@@ -3900,7 +4286,6 @@ void Action_Copy(void)
 	unsigned char dialog_result;
 	unsigned int len;
 	unsigned char is_directory;
-	unsigned char copy_res;
 
 
 	static char saved_filename[64];
@@ -3998,10 +4383,9 @@ void Action_Copy(void)
 			return;
 		}
 		copy_progress_file_begin(saved_filename, 0);
-		copy_res = copy_single_file_core(full_src_path, full_dst_path, set.bank_array[page_offset].fdate,
-										 set.bank_array[page_offset].ftime);
+		(void)copy_single_file_core(full_src_path, full_dst_path, set.bank_array[page_offset].fdate,
+									set.bank_array[page_offset].ftime);
 		copy_io_release();
-		(void)copy_res;
 	}
 
 
@@ -4010,6 +4394,481 @@ void Action_Copy(void)
 	panel_path_normalize(dst_panel, set.temp_path);
 	OS_CHDIR((unsigned char *)src_panel->current_path);
 	panels_refresh_after_copy(src_panel, dst_panel, saved_filename);
+}
+
+static void delete_progress_repaint(void)
+{
+	if (!copy_prog.drawn)
+		return;
+
+	ui_draw_frame(copy_prog.x, copy_prog.y, copy_prog.w, copy_prog.h, COLOR_OVERWRITE_UI, "Deleting");
+	delete_progress_fill_bg();
+	copy_prog.last_pct = 255u;
+	copy_progress_draw_name(copy_prog_current_name);
+}
+
+static void delete_progress_restore_after_dialog(void)
+{
+	delete_progress_repaint();
+}
+
+static void delete_progress_open(void)
+{
+	g_delete_progress = 1;
+	delete_progress_layout();
+	copy_prog.last_pct = 255;
+	copy_prog.drawn = 0;
+	ui_draw_frame(copy_prog.x, copy_prog.y, copy_prog.w, copy_prog.h, COLOR_OVERWRITE_UI, "Deleting");
+	delete_progress_fill_bg();
+	copy_prog.drawn = 1;
+	copy_prog.last_pct = 255u;
+	copy_progress_draw_name("");
+}
+
+/* Build "Delete file/folder <name>?" into set.temp_path for the dialog. */
+static void delete_build_prompt(const char *item_name, unsigned char is_dir)
+{
+	unsigned char i;
+	unsigned char j;
+	const char *pfx;
+	unsigned char max_name;
+
+	i = 0;
+	pfx = is_dir ? "Delete folder " : "Delete file ";
+	while (pfx[0] != 0 && i < 48u)
+	{
+		set.temp_path[i] = pfx[0];
+		pfx++;
+		i++;
+	}
+	max_name = (unsigned char)(sizeof(set.temp_path) - (size_t)i - 2u);
+	j = 0;
+	while (item_name[j] != 0 && j < max_name)
+	{
+		set.temp_path[i] = item_name[j];
+		i++;
+		j++;
+	}
+	set.temp_path[i++] = '?';
+	set.temp_path[i] = 0;
+}
+
+/* Yes / No / Yes all / Cancel (D_MASK_DELETE). Restores delete window after dialog. */
+static unsigned char delete_item_confirm(const char *item_name, unsigned char is_dir)
+{
+	struct DialogWindow dlg;
+	unsigned char res;
+
+	if (g_delete_mode == DELETE_YES_ALL)
+		return DELETE_DO;
+	if (g_delete_mode == DELETE_ABORT)
+		return DELETE_STOP;
+
+	delete_build_prompt(item_name, is_dir);
+	dlg.w = 52;
+	dlg.h = 6;
+	dlg.x = (unsigned char)((screenWidth - dlg.w - 2) / 2);
+	dlg.y = 11;
+	dlg.color = COLOR_OVERWRITE_UI;
+	dlg.title = "Delete";
+	dlg.prompt = set.temp_path;
+
+	res = show_dialog(&dlg, NULL, 0, D_MASK_DELETE);
+	delete_progress_restore_after_dialog();
+
+	switch (res)
+	{
+	case D_RES_YES:
+		return DELETE_DO;
+	case D_RES_REPLACE_ALL:
+		g_delete_mode = DELETE_YES_ALL;
+		return DELETE_DO;
+	case D_RES_NO:
+		return DELETE_SKIP;
+	case D_RES_CANCEL:
+	default:
+		g_delete_mode = DELETE_ABORT;
+		g_delete_abort = 1;
+		return DELETE_STOP;
+	}
+}
+
+/* Last path segment (e.g. "M:/a/b" -> "b") for prompts and OS_DELETE name. */
+static void path_last_component(const char *path, char *out)
+{
+	unsigned int len;
+	unsigned int i;
+	unsigned int start;
+
+	out[0] = 0;
+	len = 0;
+	while (path[len] != 0 && len < 63u)
+		len++;
+	while (len > 0 && path[len - 1u] == '/')
+		len--;
+	start = 0;
+	for (i = 0; i < len; i++)
+	{
+		if (path[i] == '/')
+			start = i + 1u;
+	}
+	for (i = 0; start < len && i < 63u; i++)
+	{
+		out[i] = path[start];
+		start++;
+	}
+	out[i] = 0;
+}
+
+/* True if panel cwd is inside dir (or equals dir), case-insensitive drive letter. */
+static unsigned char panel_path_under_dir(const char *path, const char *dir)
+{
+	unsigned int lp;
+	unsigned int ld;
+	unsigned int i;
+
+	ld = 0;
+	while (dir[ld] != 0 && ld < 63u)
+		ld++;
+	while (ld > 0 && dir[ld - 1u] == '/')
+		ld--;
+
+	lp = 0;
+	while (path[lp] != 0 && lp < 63u)
+		lp++;
+
+	for (i = 0; i < ld; i++)
+	{
+		unsigned char a;
+		unsigned char b;
+
+		a = (unsigned char)path[i];
+		b = (unsigned char)dir[i];
+		if (a >= 'a' && a <= 'z')
+			a = (unsigned char)(a - 'a' + 'A');
+		if (b >= 'a' && b <= 'z')
+			b = (unsigned char)(b - 'a' + 'A');
+		if (a != b)
+			return 0;
+	}
+	if (lp == ld)
+		return 1;
+	if (lp > ld && path[ld] == '/')
+		return 1;
+	return 0;
+}
+
+/* Move path to parent of deleted tree (keeps "M:/" root form). */
+static void panel_path_to_parent_of(char *path, const char *dir_path)
+{
+	unsigned int len;
+	unsigned int i;
+
+	strncpy(path, dir_path, 63u);
+	path[63] = 0;
+	len = 0;
+	while (path[len] != 0)
+		len++;
+	while (len > 0 && path[len - 1u] == '/')
+		len--;
+	if (len <= 3u)
+		return;
+	for (i = len; i > 0; i--)
+	{
+		if (path[i - 1u] == '/')
+		{
+			if (i == 3u && path[1] == ':')
+			{
+				path[3] = '/';
+				path[4] = 0;
+			}
+			else
+			{
+				path[i] = 0;
+			}
+			return;
+		}
+	}
+}
+
+/* If a panel was inside the removed folder, chdir it to the parent path. */
+static void panels_fixup_after_dir_delete(const char *deleted_dir)
+{
+	if (panel_path_under_dir(left_panel.current_path, deleted_dir))
+	{
+		panel_path_to_parent_of(left_panel.current_path, deleted_dir);
+		panel_path_normalize(&left_panel, left_panel.current_path);
+	}
+	if (panel_path_under_dir(right_panel.current_path, deleted_dir))
+	{
+		panel_path_to_parent_of(right_panel.current_path, deleted_dir);
+		panel_path_normalize(&right_panel, right_panel.current_path);
+	}
+}
+
+/* --- Iterative directory purge (deltree-style path stack in BSS) --- */
+
+static void deldir_stack_clear(void)
+{
+	g_deldir_sp = 0;
+}
+
+/* Push absolute path; returns 0 if stack overflow (too deep). */
+static unsigned char deldir_stack_push(const char *path)
+{
+	unsigned char i;
+
+	if (g_deldir_sp >= DELETE_DIR_STACK_MAX)
+		return 0;
+	i = 0;
+	while (path[i] != 0 && i < 63u)
+	{
+		g_deldir_stack[g_deldir_sp][i] = path[i];
+		i++;
+	}
+	g_deldir_stack[g_deldir_sp][i] = 0;
+	g_deldir_sp++;
+	return 1;
+}
+
+static void deldir_stack_pop(void)
+{
+	if (g_deldir_sp > 0u)
+		g_deldir_sp--;
+}
+
+static void deldir_stack_top(char *out)
+{
+	unsigned char i;
+
+	if (g_deldir_sp == 0u)
+	{
+		out[0] = 0;
+		return;
+	}
+	i = 0;
+	while (g_deldir_stack[g_deldir_sp - 1u][i] != 0 && i < 63u)
+	{
+		out[i] = g_deldir_stack[g_deldir_sp - 1u][i];
+		i++;
+	}
+	out[i] = 0;
+}
+
+/* Prefer LFN; else 8.3 with preserved case (same rules as copy). */
+static void delete_fi_get_name(const fileInfo *fi, char *out)
+{
+	unsigned char i;
+
+	if (fi->lfname[0] != 0)
+	{
+		i = 0;
+		while (i < 63u && fi->lfname[i] != 0)
+		{
+			out[i] = (char)fi->lfname[i];
+			i++;
+		}
+		out[i] = 0;
+	}
+	else
+	{
+		copy_name_preserve_case(fi, out);
+	}
+}
+
+/* First non-dot entry in already opened directory; uses global r_global_info. */
+static unsigned char delete_find_first(char *name_out, unsigned char *is_dir_out)
+{
+	unsigned char res;
+
+	for (;;)
+	{
+		panel_clear_finfo(&r_global_info);
+		res = OS_READDIR(&r_global_info);
+		if (res == 4 || res != 0)
+			return 0;
+		if (copy_is_dot_entry(&r_global_info))
+			continue;
+		delete_fi_get_name(&r_global_info, name_out);
+		*is_dir_out = (unsigned char)((r_global_info.fattrib & 0x10) ? 1u : 0u);
+		return 1;
+	}
+}
+
+/* After OS_CHDIR(".."), re-enter parent so OS directory cache stays valid (deltree). */
+static unsigned char delete_chdir_parent(void)
+{
+	char parent[64];
+
+	deldir_stack_top(parent);
+	if (parent[0] == 0)
+		return 0;
+	return (unsigned char)(OS_CHDIR((unsigned char *)parent) == 0);
+}
+
+/*
+ * Empty a directory tree under root_path (relative names inside each level).
+ * Algorithm: loop { OPENDIR; take first entry; confirm; DELETE file or CHDIR subdir }.
+ * When a folder has no entries left: CHDIR "..", restore parent path, DELETE folder, pop stack.
+ * No snapshot of directory listing ? each delete re-reads from the start (safe on FAT).
+ * Does not delete root_path itself ? caller deletes the selected folder after purge.
+ */
+static void delete_tree_purge(const char *root_path)
+{
+	char local_name[64];
+	char sub_path[64];
+	char cur_dir[64];
+	char folder_comp[64];
+	unsigned char is_dir;
+	unsigned char confirm;
+	unsigned char found;
+
+	if (g_delete_abort)
+		return;
+
+	if (OS_CHDIR((unsigned char *)root_path) != 0)
+		return;
+
+	deldir_stack_clear();
+	if (!deldir_stack_push(root_path))
+	{
+		g_delete_abort = 1;
+		return;
+	}
+
+	for (;;)
+	{
+		/* Re-open current dir after every delete ? directory contents may shift. */
+		OS_OPENDIR("");
+		found = delete_find_first(local_name, &is_dir);
+
+		if (!found)
+		{
+			/* Current level empty: leave root or ascend and remove finished subfolder. */
+			if (g_deldir_sp <= 1u)
+			{
+				OS_CHDIR((unsigned char *)"..");
+				deldir_stack_pop();
+				return;
+			}
+
+			deldir_stack_top(cur_dir);
+			path_last_component(cur_dir, folder_comp);
+			deldir_stack_pop();
+			OS_CHDIR((unsigned char *)"..");
+			if (!delete_chdir_parent())
+				return;
+
+			delete_progress_show_name(folder_comp);
+			confirm = delete_item_confirm(folder_comp, 1);
+			if (confirm == DELETE_STOP)
+			{
+				g_delete_abort = 1;
+				return;
+			}
+			if (confirm == DELETE_DO)
+				(void)OS_DELETE((unsigned char *)folder_comp);
+			YIELD();
+			continue;
+		}
+
+		delete_progress_show_name(local_name);
+		confirm = delete_item_confirm(local_name, is_dir);
+		if (confirm == DELETE_STOP)
+		{
+			g_delete_abort = 1;
+			return;
+		}
+		if (confirm == DELETE_SKIP)
+			continue;
+
+		if (is_dir)
+		{
+			/* Descend: stack holds absolute path for delete_chdir_parent after purge. */
+			deldir_stack_top(cur_dir);
+			build_full_path(sub_path, cur_dir, local_name);
+			if (!deldir_stack_push(sub_path))
+			{
+				g_delete_abort = 1;
+				return;
+			}
+			if (OS_CHDIR((unsigned char *)local_name) != 0)
+			{
+				deldir_stack_pop();
+				continue;
+			}
+		}
+		else
+		{
+			(void)OS_DELETE((unsigned char *)local_name);
+		}
+		YIELD();
+	}
+}
+
+/* Key 8: delete file or recursively purge folder, then refresh active panel. */
+void Action_Delete(void)
+{
+	PanelState *panel;
+	unsigned int real_idx;
+	unsigned int page_offset;
+	static char saved_filename[64];
+	static char full_path[200];
+	unsigned char is_directory;
+
+	panel = (left_panel.is_active) ? &left_panel : &right_panel;
+
+	if (panel->file_count == 0u)
+		return;
+
+	real_idx = panel_meta_get_index(panel, panel->cursor_idx);
+	switch_file_page(panel, real_idx);
+	page_offset = real_idx % FILES_PER_PAGE;
+
+	is_directory = (set.bank_array[page_offset].fattrib & 0x10) ? 1u : 0u;
+	if (is_directory && panel_entry_is_dotdot(&set.bank_array[page_offset]))
+		return;
+
+	copy_name_preserve_case(&set.bank_array[page_offset], saved_filename);
+	build_full_path(full_path, panel->current_path, saved_filename);
+
+	g_delete_mode = DELETE_ASK_EACH;
+	g_delete_abort = 0;
+	delete_progress_open();
+
+	if (is_directory)
+	{
+		unsigned char confirm;
+
+		/* Purge contents; then one confirm for the folder user selected in the panel. */
+		delete_tree_purge(full_path);
+		if (!g_delete_abort)
+		{
+			delete_progress_show_name(saved_filename);
+			confirm = delete_item_confirm(saved_filename, 1);
+			if (confirm == DELETE_DO)
+				(void)OS_DELETE((unsigned char *)full_path);
+			panels_fixup_after_dir_delete(full_path);
+		}
+	}
+	else
+	{
+		unsigned char confirm;
+
+		delete_progress_show_name(saved_filename);
+		confirm = delete_item_confirm(saved_filename, 0);
+		if (confirm == DELETE_DO)
+			(void)OS_DELETE((unsigned char *)full_path);
+	}
+
+	copy_prog.drawn = 0;
+	g_delete_progress = 0;
+	if (left_panel.is_active)
+		panel_chdir_only(left_panel.current_path);
+	else
+		panel_chdir_only(right_panel.current_path);
+	panels_reload_both(left_panel.current_path, right_panel.current_path);
+	panels_draw_all((left_panel.is_active) ? &left_panel : &right_panel);
 }
 
 void init(void)
@@ -4021,23 +4880,21 @@ void init(void)
 	set.freeMem = getFreeMem();
 }
 
-C_task main(int argc, const char *argv[])
+C_task main(void)
 {
 	OS_HIDEFROMPARENT();
 	OS_SETGFX(0x86);
 	OS_CLS(0);
 	OS_SETSYSDRV();
-	printf("[Build:%s %s]\r\n", __DATE__, __TIME__);
-	os_initstdio();
-
 
 	set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
 
 	init_panels();
+	nc_ini_load();
 
 	panels_reload_both(left_panel.current_path, right_panel.current_path);
 	OS_CLS(0);
-
+	printf("Build: %s %s\r\n", __DATE__, __TIME__);
 
 	panels_draw_all(&left_panel);
 
@@ -4078,6 +4935,7 @@ C_task main(int argc, const char *argv[])
 			continue;
 		case 27:
 		case 176:
+			nc_ini_save();
 			exit(0);
 			continue;
 		case '1':
@@ -4225,7 +5083,6 @@ C_task main(int argc, const char *argv[])
 			}
 			continue;
 		}
-
 
 		if (key == 13)
 		{
