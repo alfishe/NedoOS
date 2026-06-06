@@ -35,7 +35,6 @@ const unsigned char userAgent[] = " HTTP/1.1\r\nHost: zxart.ee\r\nUser-Agent: Mo
 const unsigned char cmdlist1[] = "GET /file/id:";
 unsigned char userQuery[256] = "/export:zxMusic/filter:zxMusicId=44816";
 unsigned char defQuery[] = "/export:zxMusic/filter:zxMusicId=44816";
-unsigned char fileName[] = "radio/player.ovl";
 unsigned char appCmd[128] = "player.com ";
 unsigned char curPath[128];
 unsigned char ver[] = "4.2";
@@ -1653,7 +1652,7 @@ unsigned char runPlayer(void)
   unsigned int to_read;
   unsigned long playerSize;
   unsigned char pgbak;
-
+  unsigned char fileName[] = "player.ovl";
   clearStatus();
   printf("Running player...");
 
@@ -1666,12 +1665,14 @@ unsigned char runPlayer(void)
 
   OS_GETPATH((unsigned int)&curPath);
   OS_SETSYSDRV();
-
+  OS_CHDIR("radio");
   fp2 = OS_OPENHANDLE(fileName, 0x80);
-  if (fp2 == NULL || (((int)fp2) & 0xFF) != 0)
+  if (((int)fp2) & 0xff)
   {
     clearStatus();
-    printf("%s not found.", fileName);
+    OS_GETPATH((unsigned int)&curPath);
+    printf("[%s] not found at [%s].", fileName, curPath);
+    getchar();
     exit(0);
   }
 
