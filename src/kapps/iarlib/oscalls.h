@@ -57,7 +57,7 @@ unsigned int OS_RUNAPP(unsigned char pId); // e=id ;ACTIVATE DISABLED APP
 unsigned int OS_WAITPID(unsigned char pId);
 unsigned int OS_HIDEFROMPARENT(void);
 unsigned long OS_STARTAPP(unsigned long appParamsPtr);
-unsigned int OS_RENAME(unsigned char *oldName, unsigned char *newName);
+unsigned char OS_RENAME(unsigned char *oldName, unsigned char *newName);
 unsigned int OS_DELETE(unsigned char *fileName);
 void OS_DIHALT(void);
 void OS_SETPG8000(unsigned char page);
