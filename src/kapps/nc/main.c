@@ -96,6 +96,9 @@
 #define NC_KEY_MARK_INS 29
 #define NC_KEY_MARK_STAR 42
 #define NC_KEY_FOCUS 31   /* app regained focus: reload dirs and redraw */
+/* NedOOS F-keys: extbase=0xB0 (sysdefs.asm key_F1..key_F10) */
+#define NC_KEY_F10 176
+#define NC_KEY_F9  185
 #define NC_CLOCK_X 73u
 #define NC_CLOCK_Y 23u
 #define COPY_CH_BAR_FILL 219
@@ -113,7 +116,7 @@
 #define D_MASK_OK_CANCEL (D_BTN_OK | D_BTN_CANCEL)
 #define D_MASK_OVERWRITE                                                                       \
 	(D_BTN_YES | D_BTN_NO | D_BTN_SKIP | D_BTN_SKIP_ALL | D_BTN_REPLACE_ALL | D_BTN_CANCEL)
-#define D_MASK_DELETE (D_BTN_YES | D_BTN_NO | D_BTN_REPLACE_ALL | D_BTN_CANCEL)
+#define D_MASK_DELETE (D_BTN_YES | D_BTN_NO)
 
 
 #define COPY_OW_SKIP_ALL 0u
@@ -126,14 +129,7 @@
 #define COPY_FILE_SKIP 2u
 #define COPY_FILE_ABORT 3u
 
-/* Key 8 ? delete: session flags and per-item answers from show_dialog. */
-#define DELETE_ASK_EACH 0u   /* ask for every file/folder */
-#define DELETE_YES_ALL 1u    /* "Replace all" in delete mask = yes to all */
-#define DELETE_ABORT 2u      /* Cancel pressed; stop purge */
-
-#define DELETE_DO 0u         /* delete this item */
-#define DELETE_SKIP 1u       /* No ? skip one item */
-#define DELETE_STOP 2u       /* Cancel ? abort whole operation */
+/* Key 8 ? delete: one Yes/No confirm, then silent tree purge. */
 
 /* Directory copy/delete: path stacks on OS_NEWPAGE @ 0xC000, not BSS. */
 #define COPY_DIR_STACK_MAX 20u
@@ -155,6 +151,10 @@
 #define UI_DLG_ALERT_H 4u
 #define UI_DLG_INPUT_Y 8u
 #define UI_DLG_CONFIRM_Y 11u
+#define UI_DLG_PROGRESS_W 58u
+#define UI_DLG_PROGRESS_H 4u
+#define UI_DLG_PROGRESS_Y 11u
+#define UI_DLG_COPY_PROGRESS_Y 10u
 #define UI_DLG_ALERT_X 14u
 #define UI_DLG_ALERT_Y 10u
 
@@ -313,7 +313,10 @@ static void panel_clamp_scroll(PanelState *panel);
 static unsigned char panel_find_by_name(PanelState *panel, const char *hint, unsigned int *out_idx);
 static void fileop_progress_begin(unsigned char is_delete);
 static void fileop_progress_restore(void);
+static void delete_progress_ensure(void);
 static void panels_redraw_current(PanelState *active_p);
+static void panels_refresh_after_delete(PanelState *del_panel);
+static void ui_str_append_uint(char *buf, unsigned char *pi, unsigned int val);
 static unsigned char nc_mkdir_name_valid(const char *name);
 static void delete_fi_get_name(const fileInfo *fi, char *out);
 static void menu_draw_item(unsigned char x, unsigned char y, unsigned char width, unsigned char selected,
@@ -321,8 +324,6 @@ static void menu_draw_item(unsigned char x, unsigned char y, unsigned char width
 static unsigned char g_copy_overwrite_mode;
 static unsigned char g_fileop_abort;   /* Esc during copy/delete progress */
 static unsigned char g_focus_pending;  /* NC_KEY_FOCUS seen during fileop poll */
-static unsigned char g_delete_abort;   /* set on Cancel during tree purge */
-static unsigned char g_delete_mode;  /* DELETE_ASK_EACH / YES_ALL / ABORT */
 static unsigned char g_delete_progress; /* 1: red "Deleting" window, no progress bar */
 static unsigned char g_deldir_sp;
 
@@ -339,14 +340,9 @@ typedef struct
 
 static unsigned char g_copy_sp;
 
-#define FILEOP_YIELD_PERIOD 4u /* ~64 KiB chunks at 16 KiB ? ~2-3 YIELD/s at 150-200 KiB/s */
-
-static unsigned char g_fileop_yield_phase;
-
 static void fileop_abort_clear(void)
 {
 	g_fileop_abort = 0;
-	g_fileop_yield_phase = 0;
 }
 
 static void fileop_poll_abort(void)
@@ -358,17 +354,6 @@ static void fileop_poll_abort(void)
 		g_focus_pending = 1;
 	else if (k == 27 || k == 176)
 		g_fileop_abort = 1;
-}
-
-static void fileop_yield_throttled(void)
-{
-	fileop_poll_abort();
-	g_fileop_yield_phase++;
-	if (g_fileop_yield_phase >= FILEOP_YIELD_PERIOD)
-	{
-		g_fileop_yield_phase = 0;
-		YIELD();
-	}
 }
 
 static void fileop_yield(void)
@@ -425,6 +410,7 @@ static unsigned char panel_hw_neogs_sd_present(void)
 /* fatfsdrv disk_status SL811 probe for ZXNETUSB */
 static unsigned char panel_hw_zxnet_present(void)
 {
+#if 0 /* debug: SL811 probe may hang; always show O: in drive menu */
 	unsigned char v;
 
 	v = input(PANEL_PORT_SL811_SEL);
@@ -436,6 +422,7 @@ static unsigned char panel_hw_zxnet_present(void)
 		return 0u;
 	if ((v & 0x40u) == 0u)
 		return 0u;
+#endif
 	return 1u;
 }
 
@@ -496,8 +483,13 @@ static unsigned char panel_request_unique_page(unsigned char *page_out)
 
 static unsigned char copy_workspace_begin(void)
 {
+	unsigned char io_reused;
+
 	if (g_copy_page_active)
 		return 1;
+
+	io_reused = (unsigned char)(g_copy_io_page != 0u);
+
 	if (!panel_request_unique_page(&g_copy_temp_page))
 		return 0;
 	if (!panel_request_unique_page(&g_copy_snap_page))
@@ -507,25 +499,31 @@ static unsigned char copy_workspace_begin(void)
 		g_copy_temp_page = 0;
 		return 0;
 	}
-	if (!panel_request_unique_page(&g_copy_io_page))
+	if (!io_reused)
 	{
-		OS_DELPAGE(g_copy_snap_page);
-		g_panel_page_used[g_copy_snap_page] = 0;
-		OS_DELPAGE(g_copy_temp_page);
-		g_panel_page_used[g_copy_temp_page] = 0;
-		g_copy_snap_page = 0;
-		g_copy_temp_page = 0;
-		return 0;
+		if (!panel_request_unique_page(&g_copy_io_page))
+		{
+			OS_DELPAGE(g_copy_snap_page);
+			g_panel_page_used[g_copy_snap_page] = 0;
+			OS_DELPAGE(g_copy_temp_page);
+			g_panel_page_used[g_copy_temp_page] = 0;
+			g_copy_snap_page = 0;
+			g_copy_temp_page = 0;
+			return 0;
+		}
 	}
 	if (!panel_request_unique_page(&g_copy_stack_page))
 	{
-		OS_DELPAGE(g_copy_io_page);
-		g_panel_page_used[g_copy_io_page] = 0;
+		if (!io_reused)
+		{
+			OS_DELPAGE(g_copy_io_page);
+			g_panel_page_used[g_copy_io_page] = 0;
+			g_copy_io_page = 0;
+		}
 		OS_DELPAGE(g_copy_snap_page);
 		g_panel_page_used[g_copy_snap_page] = 0;
 		OS_DELPAGE(g_copy_temp_page);
 		g_panel_page_used[g_copy_temp_page] = 0;
-		g_copy_io_page = 0;
 		g_copy_snap_page = 0;
 		g_copy_temp_page = 0;
 		return 0;
@@ -690,6 +688,12 @@ static void panel_clear_finfo(fileInfo *fi)
 	p = (unsigned char *)fi;
 	for (i = 0; i < FILINFO_RECORD_SIZE; i++)
 		p[i] = 0;
+}
+
+/* Before OS_READDIR: BDOS overwrites numeric fields; clear LFN head only. */
+static void panel_prep_finfo_for_readdir(fileInfo *fi)
+{
+	fi->lfname[0] = 0;
 }
 
 static void panel_trim_fname(fileInfo *fi)
@@ -1117,17 +1121,13 @@ static void panel_cache_entry_lfn(PanelState *panel, unsigned int real_idx, unsi
 	*(unsigned short *)(base + PANEL_META_OFF_TIME + real_idx * 2u) = (unsigned short)fi->ftime;
 }
 
-/* Short sort: CPM11 keys + cpm[4..7] in LFN4 slot; no LFN keys / page-extra / SETPG in sort. */
-static void panel_cache_entry_short(PanelState *panel, unsigned int real_idx, unsigned int page_offset,
-									unsigned char file_page)
+/* Short sort meta from fileInfo already in hand (no file-page SETPG). */
+static void panel_cache_entry_short_fi(PanelState *panel, unsigned int real_idx, const fileInfo *fi)
 {
-	fileInfo *fi;
 	unsigned char kind;
 	unsigned char cpm11[11];
 	unsigned char *base;
 
-	panel_file_map(panel, file_page);
-	fi = &set.bank_array[page_offset];
 	if (fi->fname[0] == '.' && fi->fname[1] == '.')
 		kind = PANEL_KIND_DOTDOT;
 	else if (fi->fattrib & 0x10)
@@ -1149,6 +1149,14 @@ static void panel_cache_entry_short(PanelState *panel, unsigned int real_idx, un
 	*(unsigned long *)(base + PANEL_META_OFF_SIZE + real_idx * 4u) = fi->fsize;
 	*(unsigned short *)(base + PANEL_META_OFF_DATE + real_idx * 2u) = (unsigned short)fi->fdate;
 	*(unsigned short *)(base + PANEL_META_OFF_TIME + real_idx * 2u) = (unsigned short)fi->ftime;
+}
+
+/* Short sort: CPM11 keys + cpm[4..7] in LFN4 slot; no LFN keys / page-extra / SETPG in sort. */
+static void panel_cache_entry_short(PanelState *panel, unsigned int real_idx, unsigned int page_offset,
+									unsigned char file_page)
+{
+	panel_file_map(panel, file_page);
+	panel_cache_entry_short_fi(panel, real_idx, &set.bank_array[page_offset]);
 }
 
 /* Short-name compare helpers (panel_heap_sort_fn83). */
@@ -1972,6 +1980,8 @@ static void ui_dlg_centered(struct DialogWindow *dlg, unsigned char w, unsigned 
 							unsigned char color, const char *title, const char *prompt);
 static unsigned char ui_dialog_input(const char *title, const char *prompt);
 static unsigned char ui_dialog_confirm(const char *title, const char *prompt, unsigned char btn_mask);
+static unsigned char ui_dialog_delete_confirm(const char *title, const char *prompt);
+static void ui_print_centered(unsigned char x, unsigned char y, unsigned char width, const char *str);
 static void ui_alert_dialog(const char *title, const char *prompt);
 
 
@@ -2506,9 +2516,14 @@ unsigned char show_dialog(struct DialogWindow *dlg, char *buffer, unsigned char 
 
 	if (dlg->prompt != NULL)
 	{
-		OS_SETXY(dlg->x + 2, dlg->y + 1);
 		OS_SETCOLOR(dlg->color);
-		fast_print_str_width(dlg->prompt, dlg->w - 2);
+		if (buffer == NULL && dlg->h <= UI_DLG_PROGRESS_H)
+			ui_print_centered((unsigned char)(dlg->x + 1u), (unsigned char)(dlg->y + 1u), dlg->w, dlg->prompt);
+		else
+		{
+			OS_SETXY(dlg->x + 2, dlg->y + 1);
+			fast_print_str_width(dlg->prompt, dlg->w - 2);
+		}
 	}
 
 
@@ -2923,7 +2938,8 @@ static unsigned char read_panel_dir_at(PanelState *panel, const char *dir_path, 
 	panel->file_count = 0;
 	panel_meta_map(panel);
 	panel_mark_clear_all(panel);
-	panel_page_extra_clear(panel, 0);
+	if (panel->sort_lfn)
+		panel_page_extra_clear(panel, 0);
 
 	while (idx < MAX_FILES_PER_PANEL)
 	{
@@ -2934,12 +2950,15 @@ static unsigned char read_panel_dir_at(PanelState *panel, const char *dir_path, 
 			current_page++;
 			if (current_page >= PANEL_FILE_PAGES)
 				break;
-			panel_page_extra_clear(panel, current_page);
+			if (panel->sort_lfn)
+				panel_page_extra_clear(panel, current_page);
+			else
+				panel_file_map(panel, current_page);
 		}
 		else
 			panel_file_map(panel, current_page);
 
-		panel_clear_finfo(&set.bank_array[page_offset]);
+		panel_prep_finfo_for_readdir(&set.bank_array[page_offset]);
 		result = OS_READDIR(&set.bank_array[page_offset]);
 		if (result == 4)
 			break;
@@ -2957,7 +2976,7 @@ static unsigned char read_panel_dir_at(PanelState *panel, const char *dir_path, 
 		if (panel->sort_lfn)
 			panel_cache_entry_lfn(panel, idx, page_offset, current_page);
 		else
-			panel_cache_entry_short(panel, idx, page_offset, current_page);
+			panel_cache_entry_short_fi(panel, idx, &set.bank_array[page_offset]);
 		idx++;
 	}
 
@@ -3536,14 +3555,13 @@ static void panel_drive_build_list(const PanelState *panel)
 	unsigned char i;
 	unsigned char saved;
 	unsigned char neogs;
-	unsigned char zxnet;
 	char saved_path[64];
 
 	strncpy(saved_path, panel->current_path, sizeof(saved_path) - 1u);
 	saved_path[sizeof(saved_path) - 1u] = 0;
 	saved = panel_drive_saved_letter(panel);
 	neogs = panel_hw_neogs_sd_present();
-	zxnet = panel_hw_zxnet_present();
+	/* zxnet = panel_hw_zxnet_present(); always show O: (probe disabled) */
 	g_drive_count = 0;
 
 	for (i = 0; i < PANEL_DRIVE_TABLE_LEN; i++)
@@ -3552,9 +3570,8 @@ static void panel_drive_build_list(const PanelState *panel)
 
 		if (def->filter == DRVF_NEOGS && neogs == 0u)
 			continue;
-		if (def->filter == DRVF_ZXNET && zxnet == 0u)
-			continue;
-		if ((def->filter & DRVF_TRDOS) == 0u && !panel_drive_chdrv_ok(def->letter))
+		/* if (def->filter == DRVF_ZXNET && zxnet == 0u) continue; */
+		if ((def->filter & (DRVF_TRDOS | DRVF_ZXNET)) == 0u && !panel_drive_chdrv_ok(def->letter))
 			continue;
 		if (nc_ini_drive_hidden(def->letter))
 			continue;
@@ -4204,6 +4221,12 @@ static unsigned char panel_find_by_name(PanelState *panel, const char *hint, uns
 }
 
 
+static void panels_redraw_both(void)
+{
+	panels_remap_bank_window();
+	redraw_panels_full();
+}
+
 static void panels_reload_both(const char *snap_left, const char *snap_right)
 {
 	panel_path_normalize(&left_panel, snap_left);
@@ -4294,6 +4317,37 @@ void panels_refresh_all(const char *next_file_hint)
 	panels_draw_all(active_p);
 }
 
+static void panels_refresh_after_delete(PanelState *del_panel)
+{
+	read_panel_dir_at(del_panel, del_panel->current_path, 1);
+	g_focus_pending = 0;
+	copy_prog.drawn = 0;
+	g_delete_progress = 0;
+	panels_redraw_both();
+}
+
+static void ui_str_append_uint(char *buf, unsigned char *pi, unsigned int val)
+{
+	char tmp[6];
+	unsigned char n;
+	unsigned char j;
+
+	n = 0;
+	if (val == 0u)
+	{
+		buf[(*pi)++] = '0';
+		return;
+	}
+	while (val > 0u && n < 6u)
+	{
+		tmp[n++] = (char)('0' + (val % 10u));
+		val /= 10u;
+	}
+	j = n;
+	while (j > 0u)
+		buf[(*pi)++] = tmp[--j];
+}
+
 static void nc_on_focus_refresh(void)
 {
 	g_focus_pending = 0;
@@ -4342,6 +4396,14 @@ static unsigned char ui_dialog_confirm(const char *title, const char *prompt, un
 
 	ui_dlg_centered(&dlg, UI_DLG_CONFIRM_W, UI_DLG_CONFIRM_H, UI_DLG_CONFIRM_Y, COLOR_OVERWRITE_UI, title, prompt);
 	return show_dialog(&dlg, NULL, 0, btn_mask);
+}
+
+static unsigned char ui_dialog_delete_confirm(const char *title, const char *prompt)
+{
+	struct DialogWindow dlg;
+
+	ui_dlg_centered(&dlg, UI_DLG_PROGRESS_W, UI_DLG_PROGRESS_H, UI_DLG_PROGRESS_Y, COLOR_OVERWRITE_UI, title, prompt);
+	return show_dialog(&dlg, NULL, 0, D_MASK_DELETE);
 }
 
 static void ui_alert_dialog(const char *title, const char *prompt)
@@ -4402,19 +4464,26 @@ static void ui_print_centered(unsigned char x, unsigned char y, unsigned char wi
 {
 	unsigned char len;
 	unsigned char pad;
+	unsigned char i;
+	const char *show;
 
+	show = str;
+	if (show == NULL)
+		show = "";
 	len = 0;
-	while (str[len] != 0)
+	while (show[len] != 0)
 		len++;
-	if (len >= width)
+	if (len > width)
 	{
-		OS_SETXY(x, y);
-		print_cstr(str);
-		return;
+		show = show + len - width;
+		len = width;
 	}
 	pad = (unsigned char)((width - len) / 2u);
 	OS_SETXY((unsigned char)(x + pad), y);
-	print_cstr(str);
+	for (i = 0; i < len; i++)
+		putchar(show[i]);
+	for (i = (unsigned char)(pad + len); i < width; i++)
+		putchar(' ');
 }
 
 static void panel_sort_notice_show(PanelState *panel)
@@ -4439,10 +4508,10 @@ static void panel_sort_notice_show(PanelState *panel)
 
 static void fileop_progress_layout(unsigned char with_bar)
 {
-	copy_prog.w = 58;
-	copy_prog.h = with_bar ? 6u : 4u;
+	copy_prog.w = UI_DLG_PROGRESS_W;
+	copy_prog.h = with_bar ? UI_DLG_INPUT_H : UI_DLG_PROGRESS_H;
 	copy_prog.x = (unsigned char)((screenWidth - copy_prog.w - 2u) / 2u);
-	copy_prog.y = with_bar ? 10u : 11u;
+	copy_prog.y = with_bar ? UI_DLG_COPY_PROGRESS_Y : UI_DLG_PROGRESS_Y;
 	copy_prog.name_y = (unsigned char)(copy_prog.y + (with_bar ? 4u : 2u));
 	if (with_bar)
 	{
@@ -4573,7 +4642,6 @@ static void copy_progress_draw_bar(unsigned char pct)
 static void copy_progress_draw_name(const char *name)
 {
 	const char *show;
-	unsigned char nlen;
 
 	if (!copy_prog.drawn)
 		fileop_progress_begin(g_delete_progress);
@@ -4581,9 +4649,6 @@ static void copy_progress_draw_name(const char *name)
 	show = name;
 	if (show == NULL)
 		show = "";
-	nlen = (unsigned char)strlen(show);
-	if (nlen > copy_prog.w)
-		show = show + nlen - copy_prog.w;
 
 	OS_SETCOLOR(g_delete_progress ? COLOR_OVERWRITE_UI : COLOR_COPY_UI);
 	ui_print_centered((unsigned char)(copy_prog.x + 1u), copy_prog.name_y, copy_prog.w, show);
@@ -4605,6 +4670,12 @@ static void delete_progress_show_name(const char *name)
 {
 	if (copy_prog.drawn)
 		fileop_progress_store_name(name);
+}
+
+static void delete_progress_ensure(void)
+{
+	if (!copy_prog.drawn)
+		fileop_progress_begin(1);
 }
 
 static void copy_progress_file_bytes(unsigned long done, unsigned long total)
@@ -5114,18 +5185,32 @@ unsigned char copy_single_file_core(const char *src_path, const char *dst_path, 
 			copy_io_unmap();
 			OS_CLOSEHANDLE(h_dst);
 			OS_CLOSEHANDLE(h_src);
+			(void)OS_DELETE((unsigned char *)dst_path);
 			return COPY_FILE_ABORT;
 		}
+		copy_io_map();
 		chunk = (remaining > COPY_IO_CHUNK) ? COPY_IO_CHUNK : (unsigned int)remaining;
 		errno = 0;
 		bytes_read = OS_READHANDLE(COPY_IO_ADDR, h_src, chunk);
 		if (bytes_read == 0u)
-			break;
+		{
+			copy_io_unmap();
+			OS_CLOSEHANDLE(h_dst);
+			OS_CLOSEHANDLE(h_src);
+			(void)OS_DELETE((unsigned char *)dst_path);
+			return COPY_FILE_ERR;
+		}
 
 		errno = 0;
 		bytes_written = OS_WRITEHANDLE(COPY_IO_ADDR, h_dst, bytes_read);
 		if (bytes_written != bytes_read)
-			break;
+		{
+			copy_io_unmap();
+			OS_CLOSEHANDLE(h_dst);
+			OS_CLOSEHANDLE(h_src);
+			(void)OS_DELETE((unsigned char *)dst_path);
+			return COPY_FILE_ERR;
+		}
 
 		if (bytes_read >= remaining)
 			remaining = 0;
@@ -5137,10 +5222,8 @@ unsigned char copy_single_file_core(const char *src_path, const char *dst_path, 
 		{
 			panel_restore_c000();
 			copy_progress_file_bytes(file_size - remaining, file_size);
-			if (remaining > 0u)
-				copy_io_map();
 		}
-		fileop_yield_throttled();
+		fileop_yield();
 	}
 
 	copy_io_unmap();
@@ -5248,7 +5331,11 @@ static void copy_tree_iter(const char *base_src, const char *base_dst)
 		{
 			copy_progress_file_begin(name_ptr, 1);
 			panel_restore_c000();
-			OS_MKDIR((unsigned char *)r_dst_full);
+			if ((unsigned char)OS_MKDIR((unsigned char *)r_dst_full) != 0u)
+			{
+				g_copy_overwrite_mode = COPY_OW_ABORT;
+				break;
+			}
 			copy_stack_map();
 			frame = copy_stack_frame_ptr(g_copy_sp - 1u);
 			frame->snap_valid = 0;
@@ -5279,7 +5366,7 @@ static void copy_tree_iter(const char *base_src, const char *base_dst)
 			snap_ftime = copy_stack_dates_ptr(COPY_STACK_SNAPTIME_OFF)[snap_idx];
 			panel_restore_c000();
 			copy_res = copy_single_file_core(r_src_full, r_dst_full, snap_fdate, snap_ftime);
-			if (copy_res == COPY_FILE_ABORT || g_fileop_abort)
+			if (copy_res == COPY_FILE_ABORT || copy_res == COPY_FILE_ERR || g_fileop_abort)
 				break;
 		}
 
@@ -5317,11 +5404,17 @@ static unsigned char copy_do_one_item(PanelState *src_panel, const char *filenam
 	{
 		if (!*ws_active)
 		{
+			if (*io_active)
+				*io_active = 0; /* I/O page absorbed into workspace, not copy_io_release */
 			if (!copy_workspace_begin())
 				return 0;
 			*ws_active = 1;
 		}
-		OS_MKDIR((unsigned char *)full_dst_path);
+		if ((unsigned char)OS_MKDIR((unsigned char *)full_dst_path) != 0u)
+		{
+			copy_progress_draw_name("MkDir failed");
+			return 1;
+		}
 		copy_progress_file_begin(filename, 1);
 		copy_tree_iter(full_src_path, full_dst_path);
 	}
@@ -5608,8 +5701,8 @@ void Action_MkDir(void)
 	panels_refresh_all(set.temp_path);
 }
 
-/* Build "Delete file/folder <name>?" into set.temp_path for the dialog. */
-static void delete_build_prompt(const char *item_name, unsigned char is_dir)
+/* Build "Delete file/folder <name>?" into set.temp_path. */
+static void delete_build_prompt_one(const char *item_name, unsigned char is_dir)
 {
 	unsigned char i;
 	unsigned char j;
@@ -5636,35 +5729,29 @@ static void delete_build_prompt(const char *item_name, unsigned char is_dir)
 	set.temp_path[i] = 0;
 }
 
-/* Yes / No / Yes all / Cancel (D_MASK_DELETE). Restores delete window after dialog. */
-static unsigned char delete_item_confirm(const char *item_name, unsigned char is_dir)
+/* "Delete N items?" ? N = marked count only, not tree contents. */
+static void delete_build_prompt_multi(unsigned char count)
 {
-	unsigned char res;
+	unsigned char i;
 
-	if (g_delete_mode == DELETE_YES_ALL)
-		return DELETE_DO;
-	if (g_delete_mode == DELETE_ABORT)
-		return DELETE_STOP;
-
-	delete_build_prompt(item_name, is_dir);
-	res = ui_dialog_confirm("Delete", set.temp_path, D_MASK_DELETE);
-	fileop_progress_restore();
-
-	switch (res)
-	{
-	case D_RES_YES:
-		return DELETE_DO;
-	case D_RES_REPLACE_ALL:
-		g_delete_mode = DELETE_YES_ALL;
-		return DELETE_DO;
-	case D_RES_NO:
-		return DELETE_SKIP;
-	case D_RES_CANCEL:
-	default:
-		g_delete_mode = DELETE_ABORT;
-		g_delete_abort = 1;
-		return DELETE_STOP;
-	}
+	i = 0;
+	set.temp_path[i++] = 'D';
+	set.temp_path[i++] = 'e';
+	set.temp_path[i++] = 'l';
+	set.temp_path[i++] = 'e';
+	set.temp_path[i++] = 't';
+	set.temp_path[i++] = 'e';
+	set.temp_path[i++] = ' ';
+	ui_str_append_uint(set.temp_path, &i, count);
+	set.temp_path[i++] = ' ';
+	set.temp_path[i++] = 'i';
+	set.temp_path[i++] = 't';
+	set.temp_path[i++] = 'e';
+	set.temp_path[i++] = 'm';
+	if (count != 1u)
+		set.temp_path[i++] = 's';
+	set.temp_path[i++] = '?';
+	set.temp_path[i] = 0;
 }
 
 /* True if panel cwd is inside dir (or equals dir), case-insensitive drive letter. */
@@ -5859,9 +5946,8 @@ static unsigned char delete_chdir_parent(void)
 
 /*
  * Empty a directory tree under root_path (relative names inside each level).
- * Algorithm: loop { OPENDIR; take first entry; confirm; DELETE file or CHDIR subdir }.
+ * Algorithm: loop { OPENDIR; take first entry; DELETE file or CHDIR subdir }.
  * When a folder has no entries left: CHDIR "..", restore parent path, DELETE folder, pop stack.
- * No snapshot of directory listing ? each delete re-reads from the start (safe on FAT).
  * Does not delete root_path itself ? caller deletes the selected folder after purge.
  */
 static void delete_tree_purge(const char *root_path)
@@ -5871,10 +5957,9 @@ static void delete_tree_purge(const char *root_path)
 	char cur_dir[64];
 	char folder_comp[64];
 	unsigned char is_dir;
-	unsigned char confirm;
 	unsigned char found;
 
-	if (g_delete_abort)
+	if (g_fileop_abort)
 		return;
 
 	if (OS_CHDIR((unsigned char *)root_path) != 0)
@@ -5882,22 +5967,17 @@ static void delete_tree_purge(const char *root_path)
 
 	deldir_stack_clear();
 	if (!deldir_stack_push(root_path))
-	{
-		g_delete_abort = 1;
 		return;
-	}
 
 	for (;;)
 	{
-		if (g_delete_abort || g_fileop_abort)
+		if (g_fileop_abort)
 			return;
-		/* Re-open current dir after every delete ? directory contents may shift. */
 		OS_OPENDIR("");
 		found = delete_find_first(local_name, &is_dir);
 
 		if (!found)
 		{
-			/* Current level empty: leave root or ascend and remove finished subfolder. */
 			if (g_deldir_sp <= 1u)
 			{
 				OS_CHDIR((unsigned char *)"..");
@@ -5913,38 +5993,19 @@ static void delete_tree_purge(const char *root_path)
 				return;
 
 			delete_progress_show_name(folder_comp);
-			confirm = delete_item_confirm(folder_comp, 1);
-			if (confirm == DELETE_STOP)
-			{
-				g_delete_abort = 1;
-				return;
-			}
-			if (confirm == DELETE_DO)
-				(void)OS_DELETE((unsigned char *)folder_comp);
+			(void)OS_DELETE((unsigned char *)folder_comp);
 			fileop_poll_abort();
 			continue;
 		}
 
 		delete_progress_show_name(local_name);
-		confirm = delete_item_confirm(local_name, is_dir);
-		if (confirm == DELETE_STOP)
-		{
-			g_delete_abort = 1;
-			return;
-		}
-		if (confirm == DELETE_SKIP)
-			continue;
 
 		if (is_dir)
 		{
-			/* Descend: stack holds absolute path for delete_chdir_parent after purge. */
 			deldir_stack_top(cur_dir);
 			build_full_path(sub_path, cur_dir, local_name);
 			if (!deldir_stack_push(sub_path))
-			{
-				g_delete_abort = 1;
 				return;
-			}
 			if (OS_CHDIR((unsigned char *)local_name) != 0)
 			{
 				deldir_stack_pop();
@@ -5961,30 +6022,24 @@ static void delete_tree_purge(const char *root_path)
 
 static void delete_one_item(const char *saved_filename, const char *full_path, unsigned char is_directory)
 {
-	unsigned char confirm;
-
 	if (is_directory)
 	{
+		delete_progress_show_name(saved_filename);
 		delete_tree_purge(full_path);
-		if (!g_delete_abort)
+		if (!g_fileop_abort)
 		{
-			delete_progress_show_name(saved_filename);
-			confirm = delete_item_confirm(saved_filename, 1);
-			if (confirm == DELETE_DO)
-				(void)OS_DELETE((unsigned char *)full_path);
+			(void)OS_DELETE((unsigned char *)full_path);
 			panels_fixup_after_dir_delete(full_path);
 		}
 	}
 	else
 	{
 		delete_progress_show_name(saved_filename);
-		confirm = delete_item_confirm(saved_filename, 0);
-		if (confirm == DELETE_DO)
-			(void)OS_DELETE((unsigned char *)full_path);
+		(void)OS_DELETE((unsigned char *)full_path);
 	}
 }
 
-/* Key 8: delete marked files or cursor entry; refresh active panel. */
+/* Key 8: delete marked files or cursor entry; one Yes/No, then silent purge. */
 void Action_Delete(void)
 {
 	PanelState *panel;
@@ -5992,6 +6047,7 @@ void Action_Delete(void)
 	unsigned int page_offset;
 	unsigned int list_pos;
 	unsigned char n_marked;
+	unsigned char res;
 	static char saved_filename[64];
 	static char full_path[200];
 	unsigned char is_directory;
@@ -6003,18 +6059,6 @@ void Action_Delete(void)
 
 	n_marked = copy_get_marked_count(panel);
 
-	if (!delete_workspace_begin())
-	{
-		fileop_progress_begin(1);
-		copy_progress_draw_name("No memory page");
-		return;
-	}
-
-	g_delete_mode = DELETE_ASK_EACH;
-	g_delete_abort = 0;
-	fileop_abort_clear();
-	fileop_progress_begin(1);
-
 	if (n_marked == 0u)
 	{
 		real_idx = panel_meta_get_index(panel, panel->cursor_idx);
@@ -6022,13 +6066,32 @@ void Action_Delete(void)
 		page_offset = real_idx % FILES_PER_PAGE;
 		is_directory = (set.bank_array[page_offset].fattrib & 0x10) ? 1u : 0u;
 		if (is_directory && panel_entry_is_dotdot(&set.bank_array[page_offset]))
-		{
-			copy_prog.drawn = 0;
-			g_delete_progress = 0;
-			delete_workspace_end();
 			return;
-		}
 		copy_name_preserve_case(&set.bank_array[page_offset], saved_filename);
+		delete_build_prompt_one(saved_filename, is_directory);
+	}
+	else
+		delete_build_prompt_multi(n_marked);
+
+	res = ui_dialog_delete_confirm("Delete", set.temp_path);
+	if (res != D_RES_YES)
+	{
+		panels_redraw_current(panel);
+		return;
+	}
+
+	if (!delete_workspace_begin())
+	{
+		ui_alert_dialog("Delete", "No memory page");
+		panels_redraw_current(panel);
+		return;
+	}
+
+	fileop_abort_clear();
+	delete_progress_ensure();
+
+	if (n_marked == 0u)
+	{
 		build_full_path(full_path, panel->current_path, saved_filename);
 		delete_one_item(saved_filename, full_path, is_directory);
 	}
@@ -6036,7 +6099,7 @@ void Action_Delete(void)
 	{
 		for (list_pos = 0; list_pos < panel->file_count; list_pos++)
 		{
-			if (g_delete_abort || g_fileop_abort)
+			if (g_fileop_abort)
 				break;
 			if (!copy_panel_item_at(panel, list_pos, saved_filename, &is_directory))
 				continue;
@@ -6055,6 +6118,7 @@ void Action_Delete(void)
 	if (g_fileop_abort)
 		copy_progress_draw_name("Cancelled");
 
+	delete_workspace_end();
 	copy_prog.drawn = 0;
 	g_delete_progress = 0;
 	if (left_panel.is_active)
@@ -6063,9 +6127,10 @@ void Action_Delete(void)
 		panel_chdir_only(right_panel.current_path);
 	panel_mark_clear_all(panel);
 	g_focus_pending = 0;
-	panels_reload_both(left_panel.current_path, right_panel.current_path);
-	panels_draw_all((left_panel.is_active) ? &left_panel : &right_panel);
-	delete_workspace_end();
+	if (g_fileop_abort)
+		panels_redraw_both();
+	else
+		panels_refresh_after_delete(panel);
 }
 
 void init(void)
@@ -6146,14 +6211,17 @@ C_task main(void)
 			continue;
 		}
 
+		/* F10..F1 (176..185) -> '0'..'9' */
+		if (key >= NC_KEY_F10 && key <= NC_KEY_F9)
+			key = (unsigned char)('0' + (key - NC_KEY_F10));
+
 		switch (key)
 		{
 		case 0:
 			YIELD();
 			nc_clock_draw(0);
 			continue;
-		case 27:
-		case 176:
+		case '0':
 			nc_ini_save();
 			exit(0);
 			continue;
@@ -6174,7 +6242,6 @@ C_task main(void)
 			continue;
 		case '8':
 			Action_Delete();
-			panels_refresh_all(NULL);
 			break;
 		case '5':
 			Action_Copy();

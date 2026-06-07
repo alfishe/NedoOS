@@ -1,5 +1,5 @@
 -cZ80 //процессор, под который собираем
 -Ilist
 -Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-BFFF //сегменты памяти с константами и кодом
--Z(DATA)DATA0,IDATA0,ECSTR,NO_INIT,UDATA0,CSTACK+200 //сегменты стека, переменных и т.п.
+-Z(DATA)DATA0,IDATA0,ECSTR,NO_INIT,UDATA0,CSTACK+250 //сегменты стека, переменных и т.п.
 
