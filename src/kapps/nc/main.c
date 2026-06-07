@@ -148,6 +148,16 @@
 #define D_RES_SKIP_ALL 5
 #define D_RES_REPLACE_ALL 6
 
+#define UI_DLG_INPUT_W 62u
+#define UI_DLG_CONFIRM_W 52u
+#define UI_DLG_INPUT_H 6u
+#define UI_DLG_CONFIRM_H 6u
+#define UI_DLG_ALERT_H 4u
+#define UI_DLG_INPUT_Y 8u
+#define UI_DLG_CONFIRM_Y 11u
+#define UI_DLG_ALERT_X 14u
+#define UI_DLG_ALERT_Y 10u
+
 
 #define BANK_WINDOW_ADDRESS 0xC000
 #define BANK_PAGE_SIZE 16384u
@@ -301,8 +311,8 @@ static void ui_draw_frame(unsigned char x, unsigned char y, unsigned char w, uns
 static void panel_sort_notice_show(PanelState *panel);
 static void panel_clamp_scroll(PanelState *panel);
 static unsigned char panel_find_by_name(PanelState *panel, const char *hint, unsigned int *out_idx);
-static void delete_progress_open(void);
-static void delete_progress_repaint(void);
+static void fileop_progress_begin(unsigned char is_delete);
+static void fileop_progress_restore(void);
 static void panels_redraw_current(PanelState *active_p);
 static unsigned char nc_mkdir_name_valid(const char *name);
 static void delete_fi_get_name(const fileInfo *fi, char *out);
@@ -1956,9 +1966,12 @@ struct DialogWindow
 	const char *prompt;
 };
 
-static void ui_copy_style_dialog(struct DialogWindow *dlg, const char *title, const char *prompt);
-static void ui_overwrite_style_dialog(struct DialogWindow *dlg, const char *title, const char *prompt);
-static void ui_alert_preset(struct DialogWindow *dlg, const char *title, const char *prompt);
+static void ui_dlg_preset(struct DialogWindow *dlg, unsigned char x, unsigned char y, unsigned char w,
+						  unsigned char h, unsigned char color, const char *title, const char *prompt);
+static void ui_dlg_centered(struct DialogWindow *dlg, unsigned char w, unsigned char h, unsigned char y,
+							unsigned char color, const char *title, const char *prompt);
+static unsigned char ui_dialog_input(const char *title, const char *prompt);
+static unsigned char ui_dialog_confirm(const char *title, const char *prompt, unsigned char btn_mask);
 static void ui_alert_dialog(const char *title, const char *prompt);
 
 
@@ -2598,29 +2611,15 @@ unsigned char show_dialog(struct DialogWindow *dlg, char *buffer, unsigned char 
 						OS_SETCOLOR(dlg->color);
 					}
 
-					switch (btn_types[global_idx])
 					{
-					case D_RES_OK:
-						fast_print_str_width("[   OK   ]", 10);
-						break;
-					case D_RES_CANCEL:
-						fast_print_str_width("[ Cancel ]", 10);
-						break;
-					case D_RES_YES:
-						fast_print_str_width("[  Yes   ]", 10);
-						break;
-					case D_RES_NO:
-						fast_print_str_width("[   No   ]", 10);
-						break;
-					case D_RES_SKIP:
-						fast_print_str_width("[  Skip  ]", 10);
-						break;
-					case D_RES_SKIP_ALL:
-						fast_print_str_width("[Skip All]", 10);
-						break;
-					case D_RES_REPLACE_ALL:
-						fast_print_str_width("[Yes  All]", 10);
-						break;
+						static const char *const btn_labels[] = {
+							"[ Cancel ]", "[   OK   ]", "[  Yes   ]", "[   No   ]",
+							"[  Skip  ]", "[Skip All]", "[Yes  All]"};
+						unsigned char bid;
+
+						bid = btn_types[global_idx];
+						if (bid <= D_RES_REPLACE_ALL)
+							fast_print_str_width(btn_labels[bid], 10);
 					}
 
 					btnX = (unsigned char)(btnX + 11u);
@@ -3645,7 +3644,6 @@ static void panel_drive_close(void)
 
 static void panel_drive_msg(unsigned char letter, const char *text)
 {
-	struct DialogWindow dlg;
 	unsigned char i;
 
 	i = 0;
@@ -3659,8 +3657,7 @@ static void panel_drive_msg(unsigned char letter, const char *text)
 	}
 	set.temp_path[i] = 0;
 
-	ui_alert_preset(&dlg, "Drive error", set.temp_path);
-	show_dialog(&dlg, NULL, 0, D_BTN_OK);
+	ui_alert_dialog("Drive error", set.temp_path);
 }
 
 static unsigned char panel_drive_apply(PanelState *panel, unsigned char letter)
@@ -4313,44 +4310,46 @@ static void nc_on_focus_refresh(void)
 }
 
 
-static void ui_copy_style_dialog(struct DialogWindow *dlg, const char *title, const char *prompt)
+static void ui_dlg_preset(struct DialogWindow *dlg, unsigned char x, unsigned char y, unsigned char w, unsigned char h,
+						  unsigned char color, const char *title, const char *prompt)
 {
-	dlg->w = 62;
-	dlg->h = 6;
-	dlg->x = (unsigned char)((screenWidth - dlg->w - 2) / 2);
-	dlg->y = 8;
-	dlg->color = COLOR_COPY_UI;
+	dlg->x = x;
+	dlg->y = y;
+	dlg->w = w;
+	dlg->h = h;
+	dlg->color = color;
 	dlg->title = title;
 	dlg->prompt = prompt;
 }
 
-static void ui_overwrite_style_dialog(struct DialogWindow *dlg, const char *title, const char *prompt)
+static void ui_dlg_centered(struct DialogWindow *dlg, unsigned char w, unsigned char h, unsigned char y,
+							unsigned char color, const char *title, const char *prompt)
 {
-	dlg->w = 52;
-	dlg->h = 6;
-	dlg->x = (unsigned char)((screenWidth - dlg->w - 2) / 2);
-	dlg->y = 11;
-	dlg->color = COLOR_OVERWRITE_UI;
-	dlg->title = title;
-	dlg->prompt = prompt;
+	ui_dlg_preset(dlg, (unsigned char)((screenWidth - w - 2u) / 2u), y, w, h, color, title, prompt);
 }
 
-static void ui_alert_preset(struct DialogWindow *dlg, const char *title, const char *prompt)
+static unsigned char ui_dialog_input(const char *title, const char *prompt)
 {
-	dlg->x = 14;
-	dlg->y = 10;
-	dlg->w = 52;
-	dlg->h = 4;
-	dlg->color = COLOR_OVERWRITE_UI;
-	dlg->title = title;
-	dlg->prompt = prompt;
+	struct DialogWindow dlg;
+
+	ui_dlg_centered(&dlg, UI_DLG_INPUT_W, UI_DLG_INPUT_H, UI_DLG_INPUT_Y, COLOR_COPY_UI, title, prompt);
+	return show_dialog(&dlg, set.temp_path, sizeof(set.temp_path), D_MASK_OK_CANCEL);
+}
+
+static unsigned char ui_dialog_confirm(const char *title, const char *prompt, unsigned char btn_mask)
+{
+	struct DialogWindow dlg;
+
+	ui_dlg_centered(&dlg, UI_DLG_CONFIRM_W, UI_DLG_CONFIRM_H, UI_DLG_CONFIRM_Y, COLOR_OVERWRITE_UI, title, prompt);
+	return show_dialog(&dlg, NULL, 0, btn_mask);
 }
 
 static void ui_alert_dialog(const char *title, const char *prompt)
 {
 	struct DialogWindow dlg;
 
-	ui_alert_preset(&dlg, title, prompt);
+	ui_dlg_preset(&dlg, UI_DLG_ALERT_X, UI_DLG_ALERT_Y, UI_DLG_CONFIRM_W, UI_DLG_ALERT_H, COLOR_OVERWRITE_UI, title,
+				  prompt);
 	show_dialog(&dlg, NULL, 0, D_BTN_OK);
 }
 
@@ -4438,16 +4437,19 @@ static void panel_sort_notice_show(PanelState *panel)
 	YIELD();
 }
 
-static void copy_progress_layout(void)
+static void fileop_progress_layout(unsigned char with_bar)
 {
 	copy_prog.w = 58;
-	copy_prog.h = 6;
-	copy_prog.x = (unsigned char)((screenWidth - copy_prog.w - 2) / 2);
-	copy_prog.y = 10;
-	copy_prog.bar_w = (unsigned char)(copy_prog.w - 10);
-	copy_prog.bar_x = (unsigned char)(copy_prog.x + 5);
-	copy_prog.bar_y = (unsigned char)(copy_prog.y + 2);
-	copy_prog.name_y = (unsigned char)(copy_prog.y + 4);
+	copy_prog.h = with_bar ? 6u : 4u;
+	copy_prog.x = (unsigned char)((screenWidth - copy_prog.w - 2u) / 2u);
+	copy_prog.y = with_bar ? 10u : 11u;
+	copy_prog.name_y = (unsigned char)(copy_prog.y + (with_bar ? 4u : 2u));
+	if (with_bar)
+	{
+		copy_prog.bar_w = (unsigned char)(copy_prog.w - 10u);
+		copy_prog.bar_x = (unsigned char)(copy_prog.x + 5u);
+		copy_prog.bar_y = (unsigned char)(copy_prog.y + 2u);
+	}
 }
 
 static void fileop_progress_fill_bg(unsigned char color)
@@ -4462,16 +4464,6 @@ static void fileop_progress_fill_bg(unsigned char color)
 		for (col = 0; col < copy_prog.w; col++)
 			putchar(' ');
 	}
-}
-
-/* Delete UI: compact frame, name only (reuses copy_prog geometry). */
-static void delete_progress_layout(void)
-{
-	copy_prog.w = 58;
-	copy_prog.h = 4;
-	copy_prog.x = (unsigned char)((screenWidth - copy_prog.w - 2) / 2);
-	copy_prog.y = 11;
-	copy_prog.name_y = (unsigned char)(copy_prog.y + 2);
 }
 
 static void copy_progress_draw_bar(unsigned char pct);
@@ -4515,11 +4507,7 @@ static void fileop_progress_repaint(unsigned char color, const char *title, unsi
 
 static void fileop_progress_open(unsigned char color, const char *title, unsigned char with_bar)
 {
-	if (with_bar)
-		copy_progress_layout();
-	else
-		delete_progress_layout();
-
+	fileop_progress_layout(with_bar);
 	copy_prog.last_pct = 255;
 	copy_prog.drawn = 0;
 	ui_draw_frame(copy_prog.x, copy_prog.y, copy_prog.w, copy_prog.h, color, title);
@@ -4530,10 +4518,16 @@ static void fileop_progress_open(unsigned char color, const char *title, unsigne
 	fileop_progress_store_name("");
 }
 
-static void copy_progress_open(void)
+static void fileop_progress_begin(unsigned char is_delete)
 {
-	g_delete_progress = 0;
-	fileop_progress_open(COLOR_COPY_UI, "Copying", 1);
+	g_delete_progress = is_delete;
+	fileop_progress_open(is_delete ? COLOR_OVERWRITE_UI : COLOR_COPY_UI, is_delete ? "Deleting" : "Copying", !is_delete);
+}
+
+static void fileop_progress_restore(void)
+{
+	fileop_progress_repaint(g_delete_progress ? COLOR_OVERWRITE_UI : COLOR_COPY_UI, g_delete_progress ? "Deleting" : "Copying",
+							g_delete_progress ? 0u : 1u);
 }
 
 static void copy_progress_draw_bar(unsigned char pct)
@@ -4552,7 +4546,7 @@ static void copy_progress_draw_bar(unsigned char pct)
 	copy_prog.last_pct = pct;
 
 	if (!copy_prog.drawn)
-		copy_progress_open();
+		fileop_progress_begin(0);
 
 	filled = (unsigned char)(((unsigned int)copy_prog.bar_w * pct) / 100u);
 
@@ -4578,42 +4572,21 @@ static void copy_progress_draw_bar(unsigned char pct)
 
 static void copy_progress_draw_name(const char *name)
 {
-	unsigned char inner_w;
+	const char *show;
 	unsigned char nlen;
-	unsigned char pad_left;
-	unsigned char i;
-	const char *show_name;
 
 	if (!copy_prog.drawn)
-	{
-		if (g_delete_progress)
-			delete_progress_open();
-		else
-			copy_progress_open();
-	}
+		fileop_progress_begin(g_delete_progress);
 
-	inner_w = copy_prog.w;
-	show_name = name;
-	if (show_name == NULL)
-		show_name = "";
+	show = name;
+	if (show == NULL)
+		show = "";
+	nlen = (unsigned char)strlen(show);
+	if (nlen > copy_prog.w)
+		show = show + nlen - copy_prog.w;
 
-	nlen = (unsigned char)strlen(show_name);
-	if (nlen > inner_w)
-	{
-		show_name = show_name + nlen - inner_w;
-		nlen = inner_w;
-	}
-
-	pad_left = (unsigned char)((inner_w - nlen) / 2);
-
-	OS_SETXY((unsigned char)(copy_prog.x + 1), copy_prog.name_y);
 	OS_SETCOLOR(g_delete_progress ? COLOR_OVERWRITE_UI : COLOR_COPY_UI);
-	for (i = 0; i < pad_left; i++)
-		putchar(' ');
-	for (i = 0; i < nlen; i++)
-		putchar(show_name[i]);
-	for (i = (unsigned char)(pad_left + nlen); i < inner_w; i++)
-		putchar(' ');
+	ui_print_centered((unsigned char)(copy_prog.x + 1u), copy_prog.name_y, copy_prog.w, show);
 }
 
 static void copy_progress_file_begin(const char *name, unsigned char is_dir)
@@ -4628,13 +4601,10 @@ static void copy_progress_file_begin(const char *name, unsigned char is_dir)
 	}
 }
 
-/* Update only the name row; avoids full-window repaint each file. */
 static void delete_progress_show_name(const char *name)
 {
-	if (!copy_prog.drawn)
-		return;
-
-	fileop_progress_store_name(name);
+	if (copy_prog.drawn)
+		fileop_progress_store_name(name);
 }
 
 static void copy_progress_file_bytes(unsigned long done, unsigned long total)
@@ -5044,21 +5014,12 @@ static unsigned char copy_dest_exists(const char *path)
 }
 
 
-static void copy_progress_restore_after_dialog(void)
-{
-	fileop_progress_repaint(COLOR_COPY_UI, "Copying", 1);
-}
-
-
 static unsigned char copy_overwrite_dialog(void)
 {
-	struct DialogWindow dlg;
 	unsigned char res;
 
-	ui_overwrite_style_dialog(&dlg, "Copy", "File exists. Replace?");
-
-	res = show_dialog(&dlg, NULL, 0, D_MASK_OVERWRITE);
-	copy_progress_restore_after_dialog();
+	res = ui_dialog_confirm("Copy", "File exists. Replace?", D_MASK_OVERWRITE);
+	fileop_progress_restore();
 
 	switch (res)
 	{
@@ -5381,7 +5342,6 @@ static unsigned char copy_do_one_item(PanelState *src_panel, const char *filenam
 
 void Action_Copy(void)
 {
-	struct DialogWindow dlg;
 	PanelState *src_panel;
 	PanelState *dst_panel;
 	unsigned int real_idx;
@@ -5424,8 +5384,6 @@ void Action_Copy(void)
 		dlg_title = is_directory ? "Copy directory" : "Copy file";
 	}
 
-	ui_copy_style_dialog(&dlg, dlg_title, "Copy to:");
-
 	strncpy(set.temp_path, dst_panel->current_path, sizeof(set.temp_path) - 1);
 	set.temp_path[sizeof(set.temp_path) - 1] = '\0';
 
@@ -5435,7 +5393,7 @@ void Action_Copy(void)
 
 	g_copy_overwrite_mode = COPY_OW_ASK_EACH;
 
-	dialog_result = show_dialog(&dlg, set.temp_path, sizeof(set.temp_path), D_MASK_OK_CANCEL);
+	dialog_result = ui_dialog_input(dlg_title, "Copy to:");
 	if (dialog_result == D_RES_CANCEL)
 	{
 		panel_path_normalize(&left_panel, snap_left);
@@ -5446,7 +5404,7 @@ void Action_Copy(void)
 	}
 
 	fileop_abort_clear();
-	copy_progress_open();
+	fileop_progress_begin(0);
 	ws_active = 0;
 	io_active = 0;
 
@@ -5509,7 +5467,6 @@ void Action_Copy(void)
 
 void Action_Rename(void)
 {
-	struct DialogWindow dlg;
 	PanelState *active_p;
 	unsigned int real_idx;
 	unsigned int page_offset;
@@ -5544,9 +5501,7 @@ void Action_Rename(void)
 	strncpy(set.temp_path, saved_filename, sizeof(set.temp_path) - 1u);
 	set.temp_path[sizeof(set.temp_path) - 1u] = 0;
 
-	ui_copy_style_dialog(&dlg, is_directory ? "Rename directory" : "Rename file", "Rename to:");
-
-	dialog_result = show_dialog(&dlg, set.temp_path, sizeof(set.temp_path), D_MASK_OK_CANCEL);
+	dialog_result = ui_dialog_input(is_directory ? "Rename directory" : "Rename file", "Rename to:");
 	if (dialog_result == D_RES_CANCEL)
 	{
 		panel_path_normalize(&left_panel, snap_left);
@@ -5607,7 +5562,6 @@ static void panels_redraw_current(PanelState *active_p)
 
 void Action_MkDir(void)
 {
-	struct DialogWindow dlg;
 	PanelState *active_p;
 	unsigned char dialog_result;
 	char fullpath[200];
@@ -5622,10 +5576,9 @@ void Action_MkDir(void)
 	snap_right[sizeof(snap_right) - 1u] = 0;
 
 	set.temp_path[0] = 0;
-	ui_copy_style_dialog(&dlg, "Create directory", "Name:");
 	panel_chdir_only(active_p->current_path);
 
-	dialog_result = show_dialog(&dlg, set.temp_path, sizeof(set.temp_path), D_MASK_OK_CANCEL);
+	dialog_result = ui_dialog_input("Create directory", "Name:");
 	if (dialog_result == D_RES_CANCEL)
 	{
 		panel_path_normalize(&left_panel, snap_left);
@@ -5653,22 +5606,6 @@ void Action_MkDir(void)
 	panel_path_normalize(&left_panel, snap_left);
 	panel_path_normalize(&right_panel, snap_right);
 	panels_refresh_all(set.temp_path);
-}
-
-static void delete_progress_repaint(void)
-{
-	fileop_progress_repaint(COLOR_OVERWRITE_UI, "Deleting", 0);
-}
-
-static void delete_progress_restore_after_dialog(void)
-{
-	delete_progress_repaint();
-}
-
-static void delete_progress_open(void)
-{
-	g_delete_progress = 1;
-	fileop_progress_open(COLOR_OVERWRITE_UI, "Deleting", 0);
 }
 
 /* Build "Delete file/folder <name>?" into set.temp_path for the dialog. */
@@ -5702,7 +5639,6 @@ static void delete_build_prompt(const char *item_name, unsigned char is_dir)
 /* Yes / No / Yes all / Cancel (D_MASK_DELETE). Restores delete window after dialog. */
 static unsigned char delete_item_confirm(const char *item_name, unsigned char is_dir)
 {
-	struct DialogWindow dlg;
 	unsigned char res;
 
 	if (g_delete_mode == DELETE_YES_ALL)
@@ -5711,10 +5647,8 @@ static unsigned char delete_item_confirm(const char *item_name, unsigned char is
 		return DELETE_STOP;
 
 	delete_build_prompt(item_name, is_dir);
-	ui_overwrite_style_dialog(&dlg, "Delete", set.temp_path);
-
-	res = show_dialog(&dlg, NULL, 0, D_MASK_DELETE);
-	delete_progress_restore_after_dialog();
+	res = ui_dialog_confirm("Delete", set.temp_path, D_MASK_DELETE);
+	fileop_progress_restore();
 
 	switch (res)
 	{
@@ -6071,7 +6005,7 @@ void Action_Delete(void)
 
 	if (!delete_workspace_begin())
 	{
-		delete_progress_open();
+		fileop_progress_begin(1);
 		copy_progress_draw_name("No memory page");
 		return;
 	}
@@ -6079,7 +6013,7 @@ void Action_Delete(void)
 	g_delete_mode = DELETE_ASK_EACH;
 	g_delete_abort = 0;
 	fileop_abort_clear();
-	delete_progress_open();
+	fileop_progress_begin(1);
 
 	if (n_marked == 0u)
 	{
