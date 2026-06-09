@@ -1,5 +1,7 @@
--cZ80 //процессор, под который собираем
+-cZ80
 -Ilist
--Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-BFFF //сегменты памяти с константами и кодом
--Z(DATA)DATA0,IDATA0,ECSTR,NO_INIT,UDATA0,CSTACK+250 //сегменты стека, переменных и т.п.
-
+/* Always-mapped 0100-BFFF: CODE then DATA; stack at end of DATA range. */
+-Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-BFFF
+-Z(DATA)DATA0,IDATA0,ECSTR,NO_INIT,UDATA0,CSTACK+200=0100-BFFF
+/* Bank window C000+: resident code (residentPg / window_3). */
+-Z(CODE)CODE_RESIDENT=C000-FFFF

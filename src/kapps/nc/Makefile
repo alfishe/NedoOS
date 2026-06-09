@@ -8,7 +8,7 @@ INSTDIR := bin
 CONSOLE := BDOS
 
 #файлы .с
-SRCC	:= main.c
+SRCC	:= main.c nc_resident.c
 #файлы .h
 SRCH	:=
 #файлы .asm

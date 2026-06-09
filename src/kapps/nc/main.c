@@ -1,85 +1,75 @@
-#include <string.h>
-#include <intrz80.h>
-#include <oscalls.h>
-#include <osfs.h>
-#include <ctype.h>
+#include "nc_inc.h"
+#include "nc_plug.h"
 
 /*
- * NC ? раскладка памяти и страниц (16 KB = 0x4000 на страницу).
+ * NC ? ?????? ????? ? ????? (16 KB = 0x4000 ?? ??????).
  *
- * === Постоянные страницы OS (OS_NEWPAGE), 8 шт. ===
- *   left_panel.bank_ids[0..3]  ? левая панель
- *   right_panel.bank_ids[0..3] ? правая панель
- *   [0..2]  file pages: до 180 fileInfo на страницу (540 файлов на панель)
- *   [3]     meta page:    индексы/ключи сортировки + nv.ext в хвосте
+ * === ?????? ?????? OS (OS_NEWPAGE), 8 ??. ===
+ *   left_panel.bank_ids[0..3]  ? ????? ??????
+ *   right_panel.bank_ids[0..3] ? ???? ??????
+ *   [0..2]  file pages: ?? 180 fileInfo ?? ?????? (540 ???? ?? ??????)
+ *   [3]     meta page:    ???????/???? ?????? + nv.ext ? ???
  *
- *   Временные (только на время copy), ещё 4 страницы OS_NEWPAGE:
- *   g_copy_temp_page  ? каталог copy-cache (map ? 0xC000)
- *   g_copy_snap_page  ? снимок имён для рекурсии (map ? 0xC000)
- *   g_copy_io_page    ? I/O буфер 16 KB (map ? 0xC000)
- *   g_copy_stack_page  ? стек каталогов copy + tmp/snap date/time (map ? 0xC000)
+ *   ?????? (?? ?? ??? copy), ??? 4 ?????? OS_NEWPAGE:
+ *   g_copy_temp_page  ? ????? copy-cache (map ? 0xC000)
+ *   g_copy_snap_page  ? ???? ??? ??? ???? (SETPG32KHIGH(g_copy_snap_page))
+ *   g_copy_io_page    ? I/O ???? 16 KB (map ? 0xC000)
+ *   g_copy_stack_page  ? ?? ??????? copy + tmp/snap date/time (map ? 0xC000)
  *
- *   Delete (на время операции): g_delete_stack_page ? стек путей (map ? 0xC000)
+ *   Delete (?? ??? ?????): g_delete_stack_page ? ?? ??? (map ? 0xC000)
  *
- *   pgbak = main_pg.pgs.window_3 ? C000-страница самого nc.com (не OS_NEWPAGE).
- *   panel_restore_c000() возвращает окно 0xC000 на pgbak после bank/copy операций.
+ *   residentPg = main_pg.pgs.window_3 ? C000-????? ???? nc.com (?? OS_NEWPAGE).
+ *   SETPG32KHIGH(residentPg) ??????? ???? 0xC000 ?? resident ??? bank/copy ?????.
  *
- * === Окна nc.com (0000/4000/8000/C000) ===
- *   ОС позволяет подключить любую страницу в любое окно; в окне 0x0000 должна
- *   оставаться страница с обработчиком системы (передача управления при смене контекста).
- *   Код и данные nc (lnk.xcl) занимают три нижних окна; для bank/copy/I/O remapping
- *   используем только SETPG32KHIGH ? последнее окно 0xC000..0xFFFF.
+ * === ???? nc.com (0000/4000/8000/C000) ===
+ *   ?? ???????? ????????? ???? ?????? ? ??? ????; ? ???? 0x0000 ??????
+ *   ???????? ????? ? ???????? ???? (????? ??????? ?? ??? ??????).
+ *   ??? ? ????? nc (lnk.xcl) ???????? ?? ?????? ????; ??? bank/copy/I/O remapping
+ *   ????? ?? SETPG32KHIGH ? ??????? ???? 0xC000..0xFFFF.
  *
- *   Физическая страница панели мапится на BANK_WINDOW_ADDRESS = 0xC000.
+ *   ??????? ????? ?????? ??????? ?? BANK_WINDOW_ADDRESS = 0xC000.
  *
- *   File page [0..2] при map на 0xC000:
- *     0xC000 .. 0xC000+15479   fileInfo[180], по 86 байт (PANEL_PAGE_FILES_BYTES)
- *     0xC000+15480 .. 0xFFFF   хвост страницы (~904 B): PAGE_EXTRA (cpm11, lfn-кеш строки)
+ *   File page [0..2] ?? map ?? 0xC000:
+ *     0xC000 .. 0xC000+15479   fileInfo[180], ?? 86 ???? (PANEL_PAGE_FILES_BYTES)
+ *     0xC000+15480 .. 0xFFFF   ??? ?????? (~904 B): PAGE_EXTRA (cpm11, lfn-??? ????)
  *
- *   Meta page [3] при map на 0xC000:
+ *   Meta page [3] ?? map ?? 0xC000:
  *     0xC000 .. 0xC000+15119   sort meta + marks (PANEL_META_USED_BYTES = 15120)
  *       +0      vis?phys idx[540] (2 B ? 540)
  *       +1080   kind[540]
- *       +1620   name4, ext4, lfn4, lfnext4, size, date, time ? см. PANEL_META_OFF_*
- *       +14580  mark[540] - выделение Insert или '*' (PANEL_META_OFF_MARK)
+ *       +1620   name4, ext4, lfn4, lfnext4, size, date, time ? ?. PANEL_META_OFF_*
+ *       +14580  mark[540] - ??????? Insert ??? '*' (PANEL_META_OFF_MARK)
  *     0xC000+15120 .. 0xFFFF   NC_NVEXT_SPARE (~1264 B): nv.ext (NC_NVEXT_OFF, max NC_NVEXT_MAX)
  *
- *   Copy temp page при map на 0xC000 (copy_cache_map):
+ *   Copy temp page ?? map ?? 0xC000 (SETPG32KHIGH(g_copy_temp_page)):
  *     0xC000+0     uint32 count
  *     0xC000+4     flags[251]
  *     0xC000+255   names[251?64]
- *     (fdate/ftime ? на g_copy_stack_page, не в BSS)
+ *     (fdate/ftime ? ?? g_copy_stack_page, ?? ? BSS)
  *
- *   Copy I/O page при SETPG32KHIGH(g_copy_io_page):
+ *   Copy I/O page ?? SETPG32KHIGH(g_copy_io_page):
  *     0xC000 .. 0xFFFF  COPY_IO_ADDR, chunk COPY_IO_CHUNK (16384)
  *
- * === Запуск файлов (gopher OS_SHELL ? term.com) ===
+ * === ????? ???? (gopher OS_SHELL ? term.com) ===
  *     OS_SHELL("cmd.com M:/path/file.bat") loads term.com via readfile_pages_dehl order:
  *     window_0 @ 0xC100 (tail), window_1..3 @ 0xC000 (full pages); cmdline at 0xC080.
  *
- * === Код и BSS nc.com ===
- *     0x0000..0xBFFF  CODE+DATA nc (три окна, lnk.xcl), стек CSTACK+200
- *     0xC000..0xFFFF  bank window: панели, copy temp/snap/io, pgbak nc
- *     PanelState, пути, ini и пр. ? UDATA0 в нижних окнах
+ * === ??? ? BSS nc.com ===
+ *     0x0000..0xBFFF  CODE+DATA nc (?? ????, lnk.xcl), ?? CSTACK+200
+ *     0xC000..0xFFFF  bank window: ??????, copy temp/snap/io, residentPg nc
+ *     PanelState, ???, ini ? ??. ? UDATA0 ? ?????? ?????
  *
- * Переключение: одна активная bank-страница в 0xC000; перед BDOS-выводом ? panel_restore_c000().
+ * ????????: ???? ?????? bank-????? ? 0xC000; ??? BDOS-????? ? SETPG32KHIGH(residentPg).
  */
 
-#define true 1
-#define false 0
 #define screenWidth 80
 
 #define BLACK 0
 #define BLUE 1
 #define RED 2
-#define MAGENTA 3
-#define GREEN 4
 #define CYAN 5
 #define YELLOW 6
 #define WHITE 7
-#define BR_NORMAL 0x00
-#define BR_INK 0x40
-#define BR_PAPER 0x80
 #define BR_BOTH 0xC0
 #define MAKE_COLOR(bright, paper, ink) ((unsigned char)((bright) | ((paper) << 3) | (ink)))
 #define COLOR_PANEL_MAIN MAKE_COLOR(BR_BOTH, BLUE, WHITE)
@@ -89,35 +79,17 @@
 #define COLOR_COPY_BAR_FILL MAKE_COLOR(BR_BOTH, YELLOW, BLACK)
 #define COLOR_OVERWRITE_UI MAKE_COLOR(BR_BOTH, RED, WHITE)
 #define COLOR_MENU_NORM COLOR_STATUS_BAR
-#define COLOR_MENU_HILITE MAKE_COLOR(BR_BOTH, BLACK, CYAN)
 #define COLOR_PANEL_MARKED MAKE_COLOR(BR_BOTH, BLUE, YELLOW)
 #define COLOR_PANEL_CURSOR_MARKED MAKE_COLOR(BR_BOTH, CYAN, YELLOW)
 /* Insert (key_ins) or '*' toggles file mark in active panel. */
 #define NC_KEY_MARK_INS 29
 #define NC_KEY_MARK_STAR 42
-#define NC_KEY_FOCUS 31   /* app regained focus: reload dirs and redraw */
+#define NC_KEY_FOCUS 31 /* app regained focus: reload dirs and redraw */
 /* NedOOS F-keys: extbase=0xB0 (sysdefs.asm key_F1..key_F10) */
 #define NC_KEY_F10 176
-#define NC_KEY_F9  185
-#define NC_CLOCK_X 73u
-#define NC_CLOCK_Y 23u
+#define NC_KEY_F9 185
 #define COPY_CH_BAR_FILL 219
 #define COPY_CH_BAR_EMPTY 176
-
-
-#define D_BTN_OK 0x01
-#define D_BTN_CANCEL 0x02
-#define D_BTN_YES 0x04
-#define D_BTN_NO 0x08
-#define D_BTN_SKIP 0x10
-#define D_BTN_SKIP_ALL 0x20
-#define D_BTN_REPLACE_ALL 0x40
-
-#define D_MASK_OK_CANCEL (D_BTN_OK | D_BTN_CANCEL)
-#define D_MASK_OVERWRITE                                                                       \
-	(D_BTN_YES | D_BTN_NO | D_BTN_SKIP | D_BTN_SKIP_ALL | D_BTN_REPLACE_ALL | D_BTN_CANCEL)
-#define D_MASK_DELETE (D_BTN_YES | D_BTN_NO)
-
 
 #define COPY_OW_SKIP_ALL 0u
 #define COPY_OW_ASK_EACH 1u
@@ -135,30 +107,6 @@
 #define COPY_DIR_STACK_MAX 20u
 #define DELETE_DIR_STACK_MAX 20u
 
-
-#define D_RES_CANCEL 0
-#define D_RES_OK 1
-#define D_RES_YES 2
-#define D_RES_NO 3
-#define D_RES_SKIP 4
-#define D_RES_SKIP_ALL 5
-#define D_RES_REPLACE_ALL 6
-
-#define UI_DLG_INPUT_W 62u
-#define UI_DLG_CONFIRM_W 52u
-#define UI_DLG_INPUT_H 6u
-#define UI_DLG_CONFIRM_H 6u
-#define UI_DLG_ALERT_H 4u
-#define UI_DLG_INPUT_Y 8u
-#define UI_DLG_CONFIRM_Y 11u
-#define UI_DLG_PROGRESS_W 58u
-#define UI_DLG_PROGRESS_H 4u
-#define UI_DLG_PROGRESS_Y 11u
-#define UI_DLG_COPY_PROGRESS_Y 10u
-#define UI_DLG_ALERT_X 14u
-#define UI_DLG_ALERT_Y 10u
-
-
 #define BANK_WINDOW_ADDRESS 0xC000
 #define BANK_PAGE_SIZE 16384u
 #define FILINFO_RECORD_SIZE 86u
@@ -167,13 +115,9 @@
 #define PANEL_PAGE_EXTRA_OFF PANEL_PAGE_FILES_BYTES
 #define PANEL_PAGE_EXTRA_SIZE (BANK_PAGE_SIZE - PANEL_PAGE_EXTRA_OFF)
 #define PAGE_EXTRA_FIRSTCHAR_OFF 0u
-#define PAGE_EXTRA_RSVD_OFF FILES_PER_PAGE
-#define PAGE_EXTRA_CPM4_OFF PAGE_EXTRA_RSVD_OFF
-#define PAGE_EXTRA_CPM4_STRIDE 4u
 #define PANEL_META_IDX_SIZE 2u
 #define PANEL_FILE_PAGES 3
 #define PANEL_META_PAGE 3
-#define PAGES_PER_PANEL 4
 #define MAX_FILES_PER_PANEL (FILES_PER_PAGE * PANEL_FILE_PAGES)
 #define PANEL_SORT_NOTICE_FILES 50u /* show wait box when sorting more entries */
 #define PANEL_SORT_KEY_LEN 4u
@@ -189,46 +133,15 @@
 #define PANEL_META_OFF_MARK (PANEL_META_OFF_TIME + MAX_FILES_PER_PANEL * 2u)
 #define PANEL_META_MARK_BYTES MAX_FILES_PER_PANEL
 #define PANEL_META_USED_BYTES (PANEL_META_OFF_MARK + PANEL_META_MARK_BYTES)
-#define PANEL_META_CLEAR_BYTES (PANEL_META_USED_BYTES <= BANK_PAGE_SIZE ? PANEL_META_USED_BYTES : BANK_PAGE_SIZE)
 #define NC_NVEXT_OFF PANEL_META_USED_BYTES
 #define NC_NVEXT_SPARE (BANK_PAGE_SIZE - PANEL_META_USED_BYTES)
-#define NC_NVEXT_MAX 1024u /* nv.ext; must fit in NC_NVEXT_SPARE (~1804 B) */
+#define NC_NVEXT_MAX 1300 /* nv.ext; must fit in NC_NVEXT_SPARE (~1804 B) */
 
 #define PANEL_KIND_FILE 0u
 #define PANEL_KIND_DIR 1u
 #define PANEL_KIND_DOTDOT 2u
 
-#define PANEL_SORT_NAME 0u
-#define PANEL_SORT_EXT 1u
-#define PANEL_SORT_SIZE 2u
-#define PANEL_SORT_TIME 3u
-
-#define NC_INI_DIR "../ini"
-#define NC_INI_NAME "nc.ini"
-#define NC_INI_BUF_SIZE 512u
-#define NC_INI_DEFAULT_LEFT "M:/bin/"
-#define NC_INI_DEFAULT_RIGHT "M:/test/"
-#define NC_INI_DEFAULT_VIEWER "texted.com"
-#define NC_INI_DEFAULT_EDITOR "texted.com"
-#define NC_INI_APP_LEN 64u
-
 #define COPY_TEMP_PAGE_ENTRIES 251
-
-#define MENU_LEVEL_TOP 0u
-#define MENU_LEVEL_FILES 1u
-#define MENU_FILES_ITEMS 8u
-#define MFI_NAME 0u
-#define MFI_EXT 1u
-#define MFI_SIZE 2u
-#define MFI_TIME 3u
-#define MFI_AZ 4u
-#define MFI_ZA 5u
-#define MFI_LFN_SORT 6u
-#define MFI_READ_ON_FOCUS 7u
-#define MENU_POPUP_X 0u
-#define MENU_POPUP_Y 1u
-#define MENU_POPUP_INNER_W 20u
-#define MENU_ITEM_X 1u
 
 #define PANEL_DRIVE_MAX 15u
 #define PANEL_COL_WIDTH 40u
@@ -242,47 +155,19 @@
 #define DRVF_ZXNET 2u
 #define DRVF_TRDOS 4u /* A..D: always in menu, no CHDRV probe (floppy timeouts) */
 
-#define COPY_CACHE_COUNT_OFF 0u
 #define COPY_CACHE_FLAGS_OFF 4u
 #define COPY_CACHE_NAMES_OFF (4u + COPY_TEMP_PAGE_ENTRIES)
 
-
 #define COPY_IO_CHUNK 16384u
 
-typedef struct
-{
-	unsigned char bank_ids[PAGES_PER_PANEL];
-	unsigned char bank_id;
-	unsigned int file_count;
-	unsigned int cursor_idx;
-	unsigned int scroll_offset;
-	unsigned char is_active;
-	unsigned char sort_mode;
-	unsigned char sort_desc;
-	unsigned char sort_lfn;
-	char current_path[64];
-} PanelState;
-
-struct setup
-{
-	unsigned char freeMem;
-	unsigned char totalMem;
-
-	fileInfo current_file;
-	char local_dir_name[64];
-	char exited_dir_name[64];
-	char temp_path[64];
-	fileInfo *bank_array;
-} set;
+struct setup set;
 
 void switch_file_page(PanelState *panel, unsigned int file_idx);
 int ext_cmp(const char *s1, const char *s2);
-void draw_status_bar(void);
 void build_full_path(char *dest, const char *path, const char *filename);
 
 unsigned char uVer[] = "0.1";
-unsigned char botMenu[] = "1Left  2Right 3View 4Edit 5Copy 6Rename 7MkDir 8Delete 9Menu 0Quit";
-
+unsigned char botMenu[NC_BOTMENU_LEN] = "1Left  2Right 3View 4Edit 5Copy 6Rename 7MkDir 8Delete 9Menu 0Quit";
 
 static char r_src_full[200];
 static char r_dst_full[200];
@@ -293,13 +178,49 @@ static unsigned char g_copy_snap_page;
 static unsigned char g_copy_io_page;
 static unsigned char g_copy_stack_page;
 static unsigned char g_copy_page_active;
-static unsigned char g_panel_page_used[256];
+unsigned char g_panel_page_used[256];
+
+static unsigned char os_request_page(unsigned char *page_out)
+{
+	unsigned int newPage;
+
+	newPage = OS_NEWPAGE();
+	if (newPage > 255u)
+		return 0;
+	*page_out = (unsigned char)newPage;
+	return 1;
+}
+
+static void panel_pages_mark_clear(void)
+{
+	memset(g_panel_page_used, 0, sizeof(g_panel_page_used));
+}
+
+unsigned char panel_request_unique_page(unsigned char *page_out)
+{
+	unsigned char attempt;
+	unsigned char pg;
+
+	for (attempt = 0; attempt < 64u; attempt++)
+	{
+		if (!os_request_page(&pg))
+			return 0;
+		if (g_panel_page_used[pg])
+		{
+			OS_DELPAGE(pg);
+			continue;
+		}
+		g_panel_page_used[pg] = 1;
+		*page_out = pg;
+		return 1;
+	}
+	return 0;
+}
 
 static unsigned char g_delete_stack_page;
 static unsigned char g_delete_page_active;
 
 static void panels_remap_bank_window(void);
-static void copy_io_map(void);
 static void copy_io_unmap(void);
 static void nc_nvext_load(void);
 static void nc_run_selected_file(PanelState *panel);
@@ -318,12 +239,9 @@ static void panels_redraw_current(PanelState *active_p);
 static void panels_refresh_after_delete(PanelState *del_panel);
 static void ui_str_append_uint(char *buf, unsigned char *pi, unsigned int val);
 static unsigned char nc_mkdir_name_valid(const char *name);
-static void delete_fi_get_name(const fileInfo *fi, char *out);
-static void menu_draw_item(unsigned char x, unsigned char y, unsigned char width, unsigned char selected,
-						   const char *label, unsigned char current);
 static unsigned char g_copy_overwrite_mode;
-static unsigned char g_fileop_abort;   /* Esc during copy/delete progress */
-static unsigned char g_focus_pending;  /* NC_KEY_FOCUS seen during fileop poll */
+static unsigned char g_fileop_abort;	/* Esc during copy/delete progress */
+static unsigned char g_focus_pending;	/* NC_KEY_FOCUS seen during fileop poll */
 static unsigned char g_delete_progress; /* 1: red "Deleting" window, no progress bar */
 static unsigned char g_deldir_sp;
 
@@ -333,9 +251,9 @@ typedef struct
 	char dst[64];
 	unsigned int i;
 	unsigned int n;
-	unsigned int skip;       /* non-dot entries already copied in this dir */
+	unsigned int skip; /* non-dot entries already copied in this dir */
 	unsigned char snap_valid;
-	unsigned char dir_more;  /* full batch read; more entries may follow */
+	unsigned char dir_more; /* full batch read; more entries may follow */
 } CopyDirFrame;
 
 static unsigned char g_copy_sp;
@@ -362,37 +280,41 @@ static void fileop_yield(void)
 	YIELD();
 }
 
-unsigned char pgbak;
+unsigned char residentPg;
 union APP_PAGES main_pg;
 
-static void panel_restore_c000(void)
+static unsigned char bank_window_current(void)
 {
-	SETPG32KHIGH(pgbak);
+	union APP_PAGES cur;
+
+	cur.l = OS_GETMAINPAGES();
+	return cur.pgs.window_3;
+}
+
+static void bank_window_map(unsigned char page)
+{
+	SETPG32KHIGH(page);
 }
 
 #define COPY_IO_ADDR ((unsigned char *)BANK_WINDOW_ADDRESS)
 
+unsigned char g_menu_active;
+unsigned char g_menu_level;
+unsigned char g_menu_sel;
 
-static unsigned char g_menu_active;
-static unsigned char g_menu_level;
-static unsigned char g_menu_sel;
-
-static unsigned char g_drive_active;
-static PanelState *g_drive_panel;
-static unsigned char g_drive_sel;
+unsigned char g_drive_active;
+PanelState *g_drive_panel;
+unsigned char g_drive_sel;
 static unsigned char g_drive_popup_x; /* left edge of drive popup on active panel */
-static unsigned char g_drive_count;
+unsigned char g_drive_count;
 static unsigned char g_drive_letters[PANEL_DRIVE_MAX];
-static char g_ini_hide_drives[64];
-static char g_ini_viewer[NC_INI_APP_LEN];
-static char g_ini_editor[NC_INI_APP_LEN];
-static unsigned char g_ini_has_left_path;
-static unsigned char g_ini_has_right_path;
-static unsigned char g_ini_read_on_focus; /* 1: reload dirs on NC_KEY_FOCUS */
-static char g_ini_line[64];
-static char g_ini_key[32];
-static char g_ini_val[64];
-static char g_nc_startup_path[64];
+char g_ini_hide_drives[64];
+char g_ini_viewer[NC_INI_APP_LEN];
+char g_ini_editor[NC_INI_APP_LEN];
+unsigned char g_ini_has_left_path;
+unsigned char g_ini_has_right_path;
+unsigned char g_ini_read_on_focus;
+char g_nc_startup_path[64];
 static char g_drive_labels[PANEL_DRIVE_MAX][26];
 
 static unsigned int g_nvext_size;
@@ -410,7 +332,6 @@ static unsigned char panel_hw_neogs_sd_present(void)
 /* fatfsdrv disk_status SL811 probe for ZXNETUSB */
 static unsigned char panel_hw_zxnet_present(void)
 {
-#if 0 /* debug: SL811 probe may hang; always show O: in drive menu */
 	unsigned char v;
 
 	v = input(PANEL_PORT_SL811_SEL);
@@ -422,7 +343,6 @@ static unsigned char panel_hw_zxnet_present(void)
 		return 0u;
 	if ((v & 0x40u) == 0u)
 		return 0u;
-#endif
 	return 1u;
 }
 
@@ -440,46 +360,6 @@ static struct
 	unsigned char drawn;
 } copy_prog;
 static char copy_prog_current_name[64];
-
-
-static unsigned char os_request_page(unsigned char *page_out)
-{
-	unsigned int newPage;
-
-	newPage = OS_NEWPAGE();
-	if (newPage > 255u)
-		return 0;
-	*page_out = (unsigned char)newPage;
-	return 1;
-}
-
-static void panel_pages_mark_clear(void)
-{
-	memset(g_panel_page_used, 0, sizeof(g_panel_page_used));
-}
-
-
-static unsigned char panel_request_unique_page(unsigned char *page_out)
-{
-	unsigned char attempt;
-	unsigned char pg;
-
-	for (attempt = 0; attempt < 64u; attempt++)
-	{
-		if (!os_request_page(&pg))
-			return 0;
-		if (g_panel_page_used[pg])
-		{
-			OS_DELPAGE(pg);
-			continue;
-		}
-		g_panel_page_used[pg] = 1;
-		*page_out = pg;
-		return 1;
-	}
-	return 0;
-}
-
 
 static unsigned char copy_workspace_begin(void)
 {
@@ -571,16 +451,6 @@ static void copy_io_release(void)
 	g_copy_io_page = 0;
 }
 
-static void copy_cache_map(void)
-{
-	SETPG32KHIGH(g_copy_temp_page);
-}
-
-static void copy_snap_map(void)
-{
-	SETPG32KHIGH(g_copy_snap_page);
-}
-
 #define COPY_STACK_FRAME_BYTES ((unsigned int)sizeof(CopyDirFrame))
 #define COPY_STACK_TMPDATE_OFF (COPY_STACK_FRAME_BYTES * COPY_DIR_STACK_MAX)
 #define COPY_STACK_TMPTIME_OFF (COPY_STACK_TMPDATE_OFF + COPY_TEMP_PAGE_ENTRIES * 2u)
@@ -606,6 +476,7 @@ static unsigned char delete_workspace_begin(void)
 {
 	if (g_delete_page_active)
 		return 1;
+
 	if (!panel_request_unique_page(&g_delete_stack_page))
 		return 0;
 	g_delete_page_active = 1;
@@ -616,7 +487,7 @@ static void delete_workspace_end(void)
 {
 	if (!g_delete_page_active)
 		return;
-	panel_restore_c000();
+	SETPG32KHIGH(residentPg);
 	OS_DELPAGE(g_delete_stack_page);
 	g_panel_page_used[g_delete_stack_page] = 0;
 	g_delete_stack_page = 0;
@@ -660,7 +531,6 @@ static void panel_file_map(PanelState *panel, unsigned char file_page)
 {
 	SETPG32KHIGH(panel->bank_ids[file_page]);
 }
-
 
 static unsigned char panel_banks_ok(const PanelState *panel)
 {
@@ -707,7 +577,6 @@ static void panel_trim_fname(fileInfo *fi)
 	}
 	fi->fname[i] = 0;
 }
-
 
 static void panel_normalize_fname(fileInfo *fi)
 {
@@ -862,7 +731,6 @@ static void panel_page_extra_clear(PanelState *panel, unsigned char file_page)
 	memset((void *)(BANK_WINDOW_ADDRESS + PANEL_PAGE_EXTRA_OFF), 0, (size_t)PANEL_PAGE_EXTRA_SIZE);
 }
 
-
 static void panel_path_normalize(PanelState *panel, const char *path)
 {
 	unsigned int len;
@@ -903,7 +771,6 @@ static unsigned char panel_chdir_only(const char *path)
 	return 0;
 }
 
-
 static unsigned char panel_chdir_for_read(const char *path)
 {
 	if (!panel_chdir_only(path))
@@ -912,34 +779,12 @@ static unsigned char panel_chdir_for_read(const char *path)
 	return 1;
 }
 
-
 static void panel_sync_path(PanelState *panel)
 {
 	char path_buf[64];
 
 	OS_GETPATH((unsigned int)path_buf);
 	panel_path_normalize(panel, path_buf);
-}
-
-static void nc_capture_startup_path(void)
-{
-	char path_buf[64];
-	unsigned int len;
-	unsigned int i;
-
-	path_buf[0] = 0;
-	OS_GETPATH((unsigned int)path_buf);
-	len = 0;
-	while (path_buf[len] != 0 && len < 63u)
-		len++;
-	for (i = 0; i < len; i++)
-		g_nc_startup_path[i] = path_buf[i];
-	g_nc_startup_path[len] = 0;
-	if (len > 0 && g_nc_startup_path[len - 1u] != '/' && len < 62u)
-	{
-		g_nc_startup_path[len] = '/';
-		g_nc_startup_path[len + 1u] = 0;
-	}
 }
 
 static void panel_fixup_startup_path(PanelState *panel)
@@ -1160,14 +1005,7 @@ static void panel_cache_entry_short(PanelState *panel, unsigned int real_idx, un
 }
 
 /* Short-name compare helpers (panel_heap_sort_fn83). */
-#define SORTFN_REC_BYTES 86u
-#define SORTFN_PER_PAGE 180u
 #define SORTFN_KEY_LEN 4u
-#define SORTFN_MODE_NAME 0u
-#define SORTFN_MODE_EXT 1u
-#define SORTFN_MODE_SIZE 2u
-#define SORTFN_MODE_TIME 3u
-#define SORTFN_KIND_FILE 0u
 #define SORTFN_KIND_DIR 1u
 #define SORTFN_KIND_DOTDOT 2u
 
@@ -1269,8 +1107,46 @@ static int panel_cmp_lfn_tie_bank(PanelState *panel, unsigned int pa, unsigned i
 	return cmp;
 }
 
+/* Sort compares must use file-page fsize (same source as the Size column). */
+static unsigned long panel_phys_fsize_get(PanelState *panel, unsigned int phys)
+{
+	unsigned char page;
+	unsigned int off;
+
+	page = (unsigned char)(phys / FILES_PER_PAGE);
+	off = phys % FILES_PER_PAGE;
+	panel_file_map(panel, page);
+	set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
+	return set.bank_array[off].fsize;
+}
+
+static unsigned short panel_phys_fdate_get(PanelState *panel, unsigned int phys)
+{
+	unsigned char page;
+	unsigned int off;
+
+	page = (unsigned char)(phys / FILES_PER_PAGE);
+	off = phys % FILES_PER_PAGE;
+	panel_file_map(panel, page);
+	set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
+	return (unsigned short)set.bank_array[off].fdate;
+}
+
+static unsigned short panel_phys_ftime_get(PanelState *panel, unsigned int phys)
+{
+	unsigned char page;
+	unsigned int off;
+
+	page = (unsigned char)(phys / FILES_PER_PAGE);
+	off = phys % FILES_PER_PAGE;
+	panel_file_map(panel, page);
+	set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
+	return (unsigned short)set.bank_array[off].ftime;
+}
+
 typedef struct PanelFn83Ctx
 {
+	PanelState *panel;
 	unsigned char *base;
 	unsigned char *kind;
 	unsigned char *name4;
@@ -1327,7 +1203,7 @@ static int panel_cmp_fn83_phys(const PanelFn83Ctx *ctx, unsigned int pa, unsigne
 
 	switch (ctx->sort_mode)
 	{
-	case PANEL_SORT_EXT:
+	case NC_PANEL_SORT_EXT:
 		cmp = sortfn_cmp_key4(ea, eb);
 		if (cmp == 0)
 			cmp = sortfn_cmp_key4(na, nb);
@@ -1335,10 +1211,25 @@ static int panel_cmp_fn83_phys(const PanelFn83Ctx *ctx, unsigned int pa, unsigne
 			cmp = sortfn_cmp_cpm11_tail_meta(ma, mb, ea, eb);
 		break;
 
-	case PANEL_SORT_SIZE:
-		if (ctx->sizes[pa] < ctx->sizes[pb])
+	case NC_PANEL_SORT_SIZE:
+	{
+		unsigned long sa;
+		unsigned long sb;
+
+		if (ctx->panel != NULL)
+		{
+			sa = panel_phys_fsize_get(ctx->panel, pa);
+			sb = panel_phys_fsize_get(ctx->panel, pb);
+			panel_meta_map(ctx->panel);
+		}
+		else
+		{
+			sa = ctx->sizes[pa];
+			sb = ctx->sizes[pb];
+		}
+		if (sa < sb)
 			cmp = -1;
-		else if (ctx->sizes[pa] > ctx->sizes[pb])
+		else if (sa > sb)
 			cmp = 1;
 		else
 		{
@@ -1347,15 +1238,37 @@ static int panel_cmp_fn83_phys(const PanelFn83Ctx *ctx, unsigned int pa, unsigne
 				cmp = sortfn_cmp_cpm11_tail_meta(ma, mb, ea, eb);
 		}
 		break;
+	}
 
-	case PANEL_SORT_TIME:
-		if (ctx->dates[pa] < ctx->dates[pb])
+	case NC_PANEL_SORT_TIME:
+	{
+		unsigned short da;
+		unsigned short db;
+		unsigned short ta;
+		unsigned short tb;
+
+		if (ctx->panel != NULL)
+		{
+			da = panel_phys_fdate_get(ctx->panel, pa);
+			db = panel_phys_fdate_get(ctx->panel, pb);
+			ta = panel_phys_ftime_get(ctx->panel, pa);
+			tb = panel_phys_ftime_get(ctx->panel, pb);
+			panel_meta_map(ctx->panel);
+		}
+		else
+		{
+			da = ctx->dates[pa];
+			db = ctx->dates[pb];
+			ta = ctx->times[pa];
+			tb = ctx->times[pb];
+		}
+		if (da < db)
 			cmp = -1;
-		else if (ctx->dates[pa] > ctx->dates[pb])
+		else if (da > db)
 			cmp = 1;
-		else if (ctx->times[pa] < ctx->times[pb])
+		else if (ta < tb)
 			cmp = -1;
-		else if (ctx->times[pa] > ctx->times[pb])
+		else if (ta > tb)
 			cmp = 1;
 		else
 		{
@@ -1364,8 +1277,9 @@ static int panel_cmp_fn83_phys(const PanelFn83Ctx *ctx, unsigned int pa, unsigne
 				cmp = sortfn_cmp_cpm11_tail_meta(ma, mb, ea, eb);
 		}
 		break;
+	}
 
-	case PANEL_SORT_NAME:
+	case NC_PANEL_SORT_NAME:
 	default:
 		cmp = sortfn_cmp_key4(na, nb);
 		if (cmp == 0)
@@ -1435,6 +1349,7 @@ static void panel_heap_sort_fn83(PanelState *panel)
 		return;
 
 	panel_meta_map(panel);
+	ctx.panel = panel;
 	ctx.base = (unsigned char *)BANK_WINDOW_ADDRESS;
 	ctx.kind = ctx.base + PANEL_META_OFF_KIND;
 	ctx.name4 = ctx.base + PANEL_META_OFF_NAME4;
@@ -1486,7 +1401,7 @@ static int panel_cmp_lfn_phys(const PanelLfnCtx *ctx, unsigned int pa, unsigned 
 
 	switch (ctx->sort_mode)
 	{
-	case PANEL_SORT_EXT:
+	case NC_PANEL_SORT_EXT:
 		cmp = panel_cmp_key4_cached(ea, eb);
 		if (cmp == 0)
 			cmp = panel_cmp_key4_cached(na, nb);
@@ -1499,10 +1414,17 @@ static int panel_cmp_lfn_phys(const PanelLfnCtx *ctx, unsigned int pa, unsigned 
 			cmp = panel_cmp_lfn_tie_bank(ctx->panel, pa, pb);
 		break;
 
-	case PANEL_SORT_SIZE:
-		if (ctx->sizes[pa] < ctx->sizes[pb])
+	case NC_PANEL_SORT_SIZE:
+	{
+		unsigned long sa;
+		unsigned long sb;
+
+		sa = panel_phys_fsize_get(ctx->panel, pa);
+		sb = panel_phys_fsize_get(ctx->panel, pb);
+		panel_meta_map(ctx->panel);
+		if (sa < sb)
 			cmp = -1;
-		else if (ctx->sizes[pa] > ctx->sizes[pb])
+		else if (sa > sb)
 			cmp = 1;
 		else
 		{
@@ -1516,15 +1438,27 @@ static int panel_cmp_lfn_phys(const PanelLfnCtx *ctx, unsigned int pa, unsigned 
 				cmp = panel_cmp_lfn_tie_bank(ctx->panel, pa, pb);
 		}
 		break;
+	}
 
-	case PANEL_SORT_TIME:
-		if (ctx->dates[pa] < ctx->dates[pb])
+	case NC_PANEL_SORT_TIME:
+	{
+		unsigned short da;
+		unsigned short db;
+		unsigned short ta;
+		unsigned short tb;
+
+		da = panel_phys_fdate_get(ctx->panel, pa);
+		db = panel_phys_fdate_get(ctx->panel, pb);
+		ta = panel_phys_ftime_get(ctx->panel, pa);
+		tb = panel_phys_ftime_get(ctx->panel, pb);
+		panel_meta_map(ctx->panel);
+		if (da < db)
 			cmp = -1;
-		else if (ctx->dates[pa] > ctx->dates[pb])
+		else if (da > db)
 			cmp = 1;
-		else if (ctx->times[pa] < ctx->times[pb])
+		else if (ta < tb)
 			cmp = -1;
-		else if (ctx->times[pa] > ctx->times[pb])
+		else if (ta > tb)
 			cmp = 1;
 		else
 		{
@@ -1538,8 +1472,9 @@ static int panel_cmp_lfn_phys(const PanelLfnCtx *ctx, unsigned int pa, unsigned 
 				cmp = panel_cmp_lfn_tie_bank(ctx->panel, pa, pb);
 		}
 		break;
+	}
 
-	case PANEL_SORT_NAME:
+	case NC_PANEL_SORT_NAME:
 	default:
 		cmp = panel_cmp_key4_cached(na, nb);
 		if (cmp == 0)
@@ -1660,6 +1595,10 @@ static void panel_refresh_sort_cache(PanelState *panel)
 
 static void panel_sort_indices(PanelState *panel)
 {
+	if (panel->file_count < 2u)
+		return;
+	if (panel->file_count > 0u)
+		panel_refresh_sort_cache(panel);
 	if (!panel->sort_lfn)
 		panel_heap_sort_fn83(panel);
 	else
@@ -1718,7 +1657,6 @@ static unsigned char copy_is_dot_entry(const fileInfo *fi)
 	return 0;
 }
 
-
 static void copy_name_preserve_case(const fileInfo *fi, char *buf)
 {
 	unsigned int i;
@@ -1748,7 +1686,6 @@ static void copy_store_name(unsigned int idx, const fileInfo *fi)
 	copy_name_preserve_case(fi, copy_cache_name_ptr(idx));
 }
 
-
 static unsigned char copy_collect_dir(const char *base_src, unsigned int skip, unsigned char *dir_more_out)
 {
 	unsigned char res;
@@ -1764,7 +1701,7 @@ static unsigned char copy_collect_dir(const char *base_src, unsigned int skip, u
 		return 0;
 
 	OS_OPENDIR("");
-	copy_cache_map();
+	SETPG32KHIGH(g_copy_temp_page);
 
 	pcount = copy_cache_count_ptr();
 	pflags = copy_cache_flags_ptr();
@@ -1798,7 +1735,7 @@ static unsigned char copy_collect_dir(const char *base_src, unsigned int skip, u
 		copy_stack_map();
 		copy_stack_dates_ptr(COPY_STACK_TMPDATE_OFF)[n] = r_global_info.fdate;
 		copy_stack_dates_ptr(COPY_STACK_TMPTIME_OFF)[n] = r_global_info.ftime;
-		copy_cache_map();
+		SETPG32KHIGH(g_copy_temp_page);
 		n++;
 	}
 
@@ -1836,18 +1773,18 @@ static void copy_take_dir_snapshot(void)
 	unsigned short *snap_d;
 	unsigned short *snap_t;
 
-	copy_cache_map();
+	SETPG32KHIGH(g_copy_temp_page);
 	n = *copy_cache_count_ptr();
 
-	copy_snap_map();
+	SETPG32KHIGH(g_copy_snap_page);
 	*copy_cache_count_ptr() = n;
 
 	for (i = 0; i < n; i++)
 	{
-		copy_cache_map();
+		SETPG32KHIGH(g_copy_temp_page);
 		fl = copy_cache_flags_ptr()[i];
 		strcpy(r_src_full, copy_cache_name_ptr(i));
-		copy_snap_map();
+		SETPG32KHIGH(g_copy_snap_page);
 		copy_cache_flags_ptr()[i] = fl;
 		strcpy(copy_cache_name_ptr(i), r_src_full);
 	}
@@ -1863,7 +1800,6 @@ static void copy_take_dir_snapshot(void)
 		snap_t[i] = tmp_t[i];
 	}
 }
-
 
 static unsigned char panel_mark_get_phys(PanelState *panel, unsigned int phys_idx)
 {
@@ -1963,27 +1899,17 @@ struct coordinates
 	unsigned char color;
 };
 
-struct DialogWindow
-{
-	unsigned char x;
-	unsigned char y;
-	unsigned char w;
-	unsigned char h;
-	unsigned char color;
-	const char *title;
-	const char *prompt;
-};
-
-static void ui_dlg_preset(struct DialogWindow *dlg, unsigned char x, unsigned char y, unsigned char w,
+static void ui_dlg_preset(DialogWindow *dlg, unsigned char x, unsigned char y, unsigned char w,
 						  unsigned char h, unsigned char color, const char *title, const char *prompt);
-static void ui_dlg_centered(struct DialogWindow *dlg, unsigned char w, unsigned char h, unsigned char y,
+static void ui_dlg_centered(DialogWindow *dlg, unsigned char w, unsigned char h, unsigned char y,
 							unsigned char color, const char *title, const char *prompt);
+static unsigned char ui_show_dialog(DialogWindow *dlg, char *buffer, unsigned char max_len,
+									unsigned char btn_mask);
 static unsigned char ui_dialog_input(const char *title, const char *prompt);
 static unsigned char ui_dialog_confirm(const char *title, const char *prompt, unsigned char btn_mask);
 static unsigned char ui_dialog_delete_confirm(const char *title, const char *prompt);
 static void ui_print_centered(unsigned char x, unsigned char y, unsigned char width, const char *str);
 static void ui_alert_dialog(const char *title, const char *prompt);
-
 
 static void nc_ini_rtrim(char *s)
 {
@@ -2031,361 +1957,6 @@ static unsigned char nc_ini_drive_hidden(unsigned char letter)
 	return 0;
 }
 
-static unsigned char nc_ini_parse_sort_mode(const char *v)
-{
-	if (strcmp(v, "ext") == 0)
-		return PANEL_SORT_EXT;
-	if (strcmp(v, "size") == 0)
-		return PANEL_SORT_SIZE;
-	if (strcmp(v, "time") == 0)
-		return PANEL_SORT_TIME;
-	return PANEL_SORT_NAME;
-}
-
-static const char *nc_ini_sort_mode_name(unsigned char mode)
-{
-	switch (mode)
-	{
-	case PANEL_SORT_EXT:
-		return "ext";
-	case PANEL_SORT_SIZE:
-		return "size";
-	case PANEL_SORT_TIME:
-		return "time";
-	default:
-		return "name";
-	}
-}
-
-static unsigned char nc_ini_parse_sort_dir(const char *v)
-{
-	if (v[0] == 'd' || v[0] == 'D' || v[0] == '1')
-		return 1;
-	return 0;
-}
-
-static unsigned char nc_ini_parse_bool(const char *v)
-{
-	if (v[0] == '1' || v[0] == 'y' || v[0] == 'Y' || v[0] == 't' || v[0] == 'T')
-		return 1;
-	return 0;
-}
-
-static unsigned char nc_ini_set_location(void)
-{
-	unsigned int res;
-
-	res = OS_SETSYSDRV();
-	if ((res & 0xff00u) != 0u)
-		return 0;
-	return (unsigned char)(OS_CHDIR((unsigned char *)NC_INI_DIR) == 0);
-}
-
-static void nc_ini_restore_cwd(void)
-{
-	PanelState *active;
-
-	active = left_panel.is_active ? &left_panel : &right_panel;
-	panel_chdir_only(active->current_path);
-}
-
-static void nc_ini_apply_defaults(void)
-{
-	if (!g_ini_has_left_path)
-		panel_path_normalize(&left_panel, NC_INI_DEFAULT_LEFT);
-	if (!g_ini_has_right_path)
-		panel_path_normalize(&right_panel, NC_INI_DEFAULT_RIGHT);
-	if (g_ini_viewer[0] == 0)
-		strcpy(g_ini_viewer, NC_INI_DEFAULT_VIEWER);
-	if (g_ini_editor[0] == 0)
-		strcpy(g_ini_editor, NC_INI_DEFAULT_EDITOR);
-}
-
-static void nc_ini_apply_key(const char *key, const char *val)
-{
-	if (strcmp(key, "LeftPath") == 0 || strcmp(key, "left_path") == 0)
-	{
-		panel_path_normalize(&left_panel, val);
-		g_ini_has_left_path = 1;
-	}
-	else if (strcmp(key, "RightPath") == 0 || strcmp(key, "right_path") == 0)
-	{
-		panel_path_normalize(&right_panel, val);
-		g_ini_has_right_path = 1;
-	}
-	else if (strcmp(key, "LeftSort") == 0 || strcmp(key, "left_sort") == 0)
-		left_panel.sort_mode = nc_ini_parse_sort_mode(val);
-	else if (strcmp(key, "RightSort") == 0 || strcmp(key, "right_sort") == 0)
-		right_panel.sort_mode = nc_ini_parse_sort_mode(val);
-	else if (strcmp(key, "LeftSortDir") == 0 || strcmp(key, "left_sort_dir") == 0)
-		left_panel.sort_desc = nc_ini_parse_sort_dir(val);
-	else if (strcmp(key, "RightSortDir") == 0 || strcmp(key, "right_sort_dir") == 0)
-		right_panel.sort_desc = nc_ini_parse_sort_dir(val);
-	else if (strcmp(key, "LeftSortLfn") == 0 || strcmp(key, "left_sort_lfn") == 0)
-		left_panel.sort_lfn = nc_ini_parse_bool(val);
-	else if (strcmp(key, "RightSortLfn") == 0 || strcmp(key, "right_sort_lfn") == 0)
-		right_panel.sort_lfn = nc_ini_parse_bool(val);
-	else if (strcmp(key, "LeftActive") == 0 || strcmp(key, "left_active") == 0)
-	{
-		if (nc_ini_parse_bool(val))
-		{
-			left_panel.is_active = 1;
-			right_panel.is_active = 0;
-		}
-		else
-		{
-			left_panel.is_active = 0;
-			right_panel.is_active = 1;
-		}
-	}
-	else if (strcmp(key, "HideDrives") == 0 || strcmp(key, "hide_drives") == 0)
-	{
-		strncpy(g_ini_hide_drives, val, sizeof(g_ini_hide_drives) - 1u);
-		g_ini_hide_drives[sizeof(g_ini_hide_drives) - 1u] = 0;
-	}
-	else if (strcmp(key, "Viewer") == 0 || strcmp(key, "viewer") == 0)
-	{
-		strncpy(g_ini_viewer, val, sizeof(g_ini_viewer) - 1u);
-		g_ini_viewer[sizeof(g_ini_viewer) - 1u] = 0;
-	}
-	else if (strcmp(key, "Editor") == 0 || strcmp(key, "editor") == 0)
-	{
-		strncpy(g_ini_editor, val, sizeof(g_ini_editor) - 1u);
-		g_ini_editor[sizeof(g_ini_editor) - 1u] = 0;
-	}
-	else if (strcmp(key, "ReadOnFocus") == 0 || strcmp(key, "read_on_focus") == 0)
-		g_ini_read_on_focus = nc_ini_parse_bool(val);
-}
-
-static void nc_ini_load(void)
-{
-	static char buf[NC_INI_BUF_SIZE];
-	FILE *fp;
-	int n;
-	unsigned int i;
-
-	g_ini_hide_drives[0] = 0;
-	g_ini_viewer[0] = 0;
-	g_ini_editor[0] = 0;
-	g_ini_has_left_path = 0;
-	g_ini_has_right_path = 0;
-	g_ini_read_on_focus = 0;
-
-	if (!nc_ini_set_location())
-	{
-		nc_ini_apply_defaults();
-		nc_ini_restore_cwd();
-		return;
-	}
-	fp = OS_OPENHANDLE((unsigned char *)NC_INI_NAME, 0x80);
-	if (((int)fp) & 0xff)
-	{
-		nc_ini_apply_defaults();
-		nc_ini_restore_cwd();
-		return;
-	}
-
-	n = (int)OS_READHANDLE((unsigned char *)buf, fp, NC_INI_BUF_SIZE - 1u);
-	OS_CLOSEHANDLE(fp);
-	if (n <= 0)
-	{
-		nc_ini_apply_defaults();
-		nc_ini_restore_cwd();
-		return;
-	}
-
-	buf[n] = 0;
-	i = 0;
-	while (buf[i] != 0)
-	{
-		char *eq;
-		unsigned int j;
-		unsigned int k;
-
-		j = 0;
-		while (buf[i] != 0 && buf[i] != '\r' && buf[i] != '\n' && j < sizeof(g_ini_line) - 1u)
-			g_ini_line[j++] = buf[i++];
-		g_ini_line[j] = 0;
-		if (buf[i] == '\r')
-			i++;
-		if (buf[i] == '\n')
-			i++;
-
-		nc_ini_rtrim(g_ini_line);
-		j = 0;
-		while (g_ini_line[j] == ' ' || g_ini_line[j] == '\t')
-			j++;
-		if (g_ini_line[j] == 0 || g_ini_line[j] == '#' || g_ini_line[j] == ';')
-			continue;
-
-		eq = g_ini_line + j;
-		while (*eq != 0 && *eq != '=')
-			eq++;
-		if (*eq != '=')
-			continue;
-		*eq = 0;
-		strncpy(g_ini_key, g_ini_line + j, sizeof(g_ini_key) - 1u);
-		g_ini_key[sizeof(g_ini_key) - 1u] = 0;
-		nc_ini_rtrim(g_ini_key);
-		strncpy(g_ini_val, eq + 1, sizeof(g_ini_val) - 1u);
-		g_ini_val[sizeof(g_ini_val) - 1u] = 0;
-		j = 0;
-		while (g_ini_val[j] == ' ' || g_ini_val[j] == '\t')
-			j++;
-		if (j > 0)
-		{
-			k = 0;
-			while (g_ini_val[j] != 0 && k < sizeof(g_ini_val) - 1u)
-				g_ini_val[k++] = g_ini_val[j++];
-			g_ini_val[k] = 0;
-		}
-		nc_ini_rtrim(g_ini_val);
-		nc_ini_apply_key(g_ini_key, g_ini_val);
-	}
-	nc_ini_apply_defaults();
-	nc_ini_restore_cwd();
-}
-
-static void nc_ini_append(char *buf, unsigned int *pos, const char *text)
-{
-	unsigned int n;
-
-	n = 0;
-	while (text[n] != 0)
-		n++;
-	if (*pos + n >= NC_INI_BUF_SIZE - 1u)
-		return;
-	memcpy(buf + *pos, text, n);
-	*pos += n;
-	buf[*pos] = 0;
-}
-
-static void nc_ini_append_u8(char *buf, unsigned int *pos, unsigned char v)
-{
-	char tmp[4];
-	unsigned char n;
-
-	n = 0;
-	if (v >= 100u)
-	{
-		tmp[n++] = (char)('0' + (v / 100u));
-		v = (unsigned char)(v % 100u);
-	}
-	if (n > 0u || v >= 10u)
-	{
-		tmp[n++] = (char)('0' + (v / 10u));
-		v = (unsigned char)(v % 10u);
-	}
-	tmp[n++] = (char)('0' + v);
-	tmp[n] = 0;
-	nc_ini_append(buf, pos, tmp);
-}
-
-static void nc_ini_append_kv(char *buf, unsigned int *pos, const char *key, const char *val)
-{
-	nc_ini_append(buf, pos, key);
-	nc_ini_append(buf, pos, "=");
-	nc_ini_append(buf, pos, val);
-	nc_ini_append(buf, pos, "\r\n");
-}
-
-static void nc_ini_append_kv_u8(char *buf, unsigned int *pos, const char *key, unsigned char val)
-{
-	nc_ini_append(buf, pos, key);
-	nc_ini_append(buf, pos, "=");
-	nc_ini_append_u8(buf, pos, val);
-	nc_ini_append(buf, pos, "\r\n");
-}
-
-static void nc_ini_save(void)
-{
-	static char buf[NC_INI_BUF_SIZE];
-	FILE *fp;
-	unsigned int pos;
-
-	pos = 0;
-	buf[0] = 0;
-	nc_ini_append(buf, &pos, "# NC settings\r\n");
-	nc_ini_append_kv(buf, &pos, "LeftPath", left_panel.current_path);
-	nc_ini_append_kv(buf, &pos, "RightPath", right_panel.current_path);
-	nc_ini_append_kv(buf, &pos, "LeftSort", nc_ini_sort_mode_name(left_panel.sort_mode));
-	nc_ini_append_kv(buf, &pos, "RightSort", nc_ini_sort_mode_name(right_panel.sort_mode));
-	nc_ini_append_kv(buf, &pos, "LeftSortDir", left_panel.sort_desc ? "desc" : "asc");
-	nc_ini_append_kv(buf, &pos, "RightSortDir", right_panel.sort_desc ? "desc" : "asc");
-	nc_ini_append_kv_u8(buf, &pos, "LeftSortLfn", left_panel.sort_lfn);
-	nc_ini_append_kv_u8(buf, &pos, "RightSortLfn", right_panel.sort_lfn);
-	nc_ini_append_kv_u8(buf, &pos, "LeftActive", left_panel.is_active);
-	nc_ini_append(buf, &pos, "# Comma-separated letters to hide in drive menu (e.g. J,K,L)\r\n");
-	nc_ini_append_kv(buf, &pos, "HideDrives", g_ini_hide_drives);
-	nc_ini_append(buf, &pos, "# F3 viewer / F4 editor: .com launched with file path as argument\r\n");
-	nc_ini_append_kv(buf, &pos, "Viewer", g_ini_viewer);
-	nc_ini_append_kv(buf, &pos, "Editor", g_ini_editor);
-	nc_ini_append(buf, &pos, "# 1 = re-read both panels when app regains focus (key 31)\r\n");
-	nc_ini_append_kv_u8(buf, &pos, "ReadOnFocus", g_ini_read_on_focus);
-
-	if (!nc_ini_set_location())
-	{
-		nc_ini_restore_cwd();
-		return;
-	}
-	fp = OS_CREATEHANDLE((unsigned char *)NC_INI_NAME, 0x80);
-	if (((int)fp) & 0xff)
-	{
-		nc_ini_restore_cwd();
-		return;
-	}
-	(void)OS_WRITEHANDLE((unsigned char *)buf, fp, pos);
-	OS_CLOSEHANDLE(fp);
-	nc_ini_restore_cwd();
-}
-
-void init_panels(void)
-{
-	unsigned char p;
-
-	panel_pages_mark_clear();
-
-	for (p = 0; p < PAGES_PER_PANEL; p++)
-	{
-		left_panel.bank_ids[p] = 0;
-		if (!panel_request_unique_page(&left_panel.bank_ids[p]))
-			left_panel.bank_ids[p] = 0;
-	}
-	left_panel.file_count = 0;
-	left_panel.cursor_idx = 0;
-	left_panel.scroll_offset = 0;
-	left_panel.is_active = 1;
-	left_panel.sort_mode = PANEL_SORT_NAME;
-	left_panel.sort_desc = 0;
-	left_panel.sort_lfn = 0;
-	left_panel.current_path[0] = 0;
-
-	for (p = 0; p < PAGES_PER_PANEL; p++)
-	{
-		right_panel.bank_ids[p] = 0;
-		if (!panel_request_unique_page(&right_panel.bank_ids[p]))
-			right_panel.bank_ids[p] = 0;
-	}
-	right_panel.file_count = 0;
-	right_panel.cursor_idx = 0;
-	right_panel.scroll_offset = 0;
-	right_panel.is_active = 0;
-	right_panel.sort_mode = PANEL_SORT_NAME;
-	right_panel.sort_desc = 0;
-	right_panel.sort_lfn = 0;
-	right_panel.current_path[0] = 0;
-
-	g_menu_active = 0;
-	g_menu_level = MENU_LEVEL_TOP;
-	g_menu_sel = 0;
-	g_drive_active = 0;
-	g_drive_panel = NULL;
-	g_drive_sel = 0;
-	g_drive_count = 0;
-}
-
-extern int putchar(int c);
-
 static void print_cstr(const char *s)
 {
 	unsigned char i;
@@ -2416,7 +1987,6 @@ void fast_print_str_width(const char *str, unsigned char width)
 	}
 }
 
-
 static void BDBOX(unsigned char Xbox, unsigned char Ybox, unsigned char Wbox, unsigned char Hbox,
 				  unsigned char Cbox, unsigned char character)
 {
@@ -2432,364 +2002,6 @@ static void BDBOX(unsigned char Xbox, unsigned char Ybox, unsigned char Wbox, un
 	}
 }
 
-unsigned char show_dialog(struct DialogWindow *dlg, char *buffer, unsigned char max_len, unsigned char btn_mask)
-{
-	unsigned char byte;
-
-
-	unsigned char cmdLen;
-	unsigned char cursorPos;
-	unsigned char viewOffset;
-	unsigned char visibleLen;
-	unsigned char i;
-	unsigned char printPos;
-
-
-	unsigned char activeBtn;
-	unsigned char numButtons;
-	unsigned char btn_types[6];
-	unsigned char focusOnButtons;
-
-
-	unsigned char totalButtonsWidth;
-	unsigned char btnX;
-	unsigned char btnY;
-	unsigned char inputColor;
-
-	cmdLen = 0;
-	cursorPos = 0;
-	viewOffset = 0;
-
-
-	visibleLen = dlg->w - 4;
-
-
-	inputColor = (unsigned char)(((dlg->color & 0x07) << 3) |
-								 ((dlg->color & 0x38) >> 3) |
-								 (dlg->color & 0xC0));
-
-	if (buffer != NULL)
-	{
-		cmdLen = strlen(buffer);
-		cursorPos = cmdLen;
-		focusOnButtons = 0;
-	}
-	else
-	{
-		focusOnButtons = 1;
-	}
-
-
-	numButtons = 0;
-	if (btn_mask & D_BTN_YES)
-	{
-		btn_types[numButtons++] = D_RES_YES;
-	}
-	if (btn_mask & D_BTN_NO)
-	{
-		btn_types[numButtons++] = D_RES_NO;
-	}
-	if (btn_mask & D_BTN_OK)
-	{
-		btn_types[numButtons++] = D_RES_OK;
-	}
-	if (btn_mask & D_BTN_SKIP)
-	{
-		btn_types[numButtons++] = D_RES_SKIP;
-	}
-	if (btn_mask & D_BTN_SKIP_ALL)
-	{
-		btn_types[numButtons++] = D_RES_SKIP_ALL;
-	}
-	if (btn_mask & D_BTN_REPLACE_ALL)
-	{
-		btn_types[numButtons++] = D_RES_REPLACE_ALL;
-	}
-	if (btn_mask & D_BTN_CANCEL)
-	{
-		btn_types[numButtons++] = D_RES_CANCEL;
-	}
-
-	activeBtn = 0;
-
-	ui_draw_frame(dlg->x, dlg->y, dlg->w, dlg->h, dlg->color, dlg->title);
-
-	if (dlg->prompt != NULL)
-	{
-		OS_SETCOLOR(dlg->color);
-		if (buffer == NULL && dlg->h <= UI_DLG_PROGRESS_H)
-			ui_print_centered((unsigned char)(dlg->x + 1u), (unsigned char)(dlg->y + 1u), dlg->w, dlg->prompt);
-		else
-		{
-			OS_SETXY(dlg->x + 2, dlg->y + 1);
-			fast_print_str_width(dlg->prompt, dlg->w - 2);
-		}
-	}
-
-
-	for (;;)
-	{
-
-		if (buffer != NULL)
-		{
-			if (cursorPos < viewOffset)
-			{
-				viewOffset = cursorPos;
-			}
-			else if (cursorPos - viewOffset >= visibleLen)
-			{
-				viewOffset = cursorPos - visibleLen + 1;
-			}
-
-
-			OS_SETXY(dlg->x + 2, dlg->y + 3);
-
-			for (i = 0; i < visibleLen; i++)
-			{
-				printPos = viewOffset + i;
-
-				if (focusOnButtons == 0 && printPos == cursorPos)
-				{
-					OS_SETCOLOR((unsigned char)(((inputColor & 0x40) << 1) |
-												((inputColor & 0x07) << 3) |
-												((inputColor & 0x80) >> 1) |
-												((inputColor & 0x38) >> 3)));
-				}
-				else
-				{
-					OS_SETCOLOR(inputColor);
-				}
-
-				if (printPos < cmdLen)
-				{
-					putchar(buffer[printPos]);
-				}
-				else
-				{
-					putchar(' ');
-				}
-			}
-			OS_SETCOLOR(dlg->color);
-		}
-
-
-		if (numButtons > 0)
-		{
-			unsigned char row;
-			unsigned char row_count;
-			unsigned char row_start;
-			unsigned char rows;
-			unsigned char global_idx;
-
-			rows = (numButtons > 4u) ? 2u : 1u;
-			for (row = 0; row < rows; row++)
-			{
-				if (rows == 2u)
-				{
-					if (row == 0u)
-					{
-						row_start = 0u;
-						row_count = (unsigned char)((numButtons + 1u) / 2u);
-						btnY = (unsigned char)(dlg->y + dlg->h - 2u);
-					}
-					else
-					{
-						row_start = (unsigned char)((numButtons + 1u) / 2u);
-						row_count = (unsigned char)(numButtons - row_start);
-						btnY = (unsigned char)(dlg->y + dlg->h - 1u);
-					}
-				}
-				else
-				{
-					row_start = 0u;
-					row_count = numButtons;
-					btnY = (unsigned char)(dlg->y + dlg->h - 1u);
-				}
-
-				totalButtonsWidth = (unsigned char)((row_count * 11u) - 1u);
-				btnX = (unsigned char)(dlg->x + 1u + ((dlg->w - totalButtonsWidth) / 2u));
-
-				for (i = 0; i < row_count; i++)
-				{
-					global_idx = (unsigned char)(row_start + i);
-					OS_SETXY(btnX, btnY);
-
-					if (focusOnButtons == 1 && global_idx == activeBtn)
-					{
-						OS_SETCOLOR((unsigned char)(((dlg->color & 0x40) << 1) |
-													((dlg->color & 0x07) << 3) |
-													((dlg->color & 0x80) >> 1) |
-													((dlg->color & 0x38) >> 3)));
-					}
-					else
-					{
-						OS_SETCOLOR(dlg->color);
-					}
-
-					{
-						static const char *const btn_labels[] = {
-							"[ Cancel ]", "[   OK   ]", "[  Yes   ]", "[   No   ]",
-							"[  Skip  ]", "[Skip All]", "[Yes  All]"};
-						unsigned char bid;
-
-						bid = btn_types[global_idx];
-						if (bid <= D_RES_REPLACE_ALL)
-							fast_print_str_width(btn_labels[bid], 10);
-					}
-
-					btnX = (unsigned char)(btnX + 11u);
-				}
-			}
-			OS_SETCOLOR(dlg->color);
-		}
-
-		byte = OS_GETKEY();
-		if (byte != 0)
-		{
-			switch (byte)
-			{
-			case 250:
-				if (buffer != NULL && focusOnButtons == 1)
-				{
-					focusOnButtons = 0;
-				}
-				break;
-
-			case 249:
-				if (numButtons > 0 && focusOnButtons == 0)
-				{
-					focusOnButtons = 1;
-				}
-				break;
-
-			case 9:
-				if (numButtons > 0)
-				{
-					if (focusOnButtons == 0)
-					{
-						focusOnButtons = 1;
-						activeBtn = 0;
-					}
-					else
-					{
-						activeBtn++;
-						if (activeBtn >= numButtons)
-						{
-							if (buffer != NULL)
-								focusOnButtons = 0;
-							else
-								activeBtn = 0;
-						}
-					}
-				}
-				break;
-
-			case 248:
-				if (focusOnButtons == 1)
-				{
-					if (activeBtn > 0)
-						activeBtn--;
-					else
-						activeBtn = numButtons - 1;
-				}
-				else if (buffer != NULL && cursorPos > 0)
-				{
-					cursorPos--;
-				}
-				break;
-
-			case 251:
-				if (focusOnButtons == 1)
-				{
-					activeBtn = (activeBtn + 1) % numButtons;
-				}
-				else if (buffer != NULL && cursorPos < cmdLen)
-				{
-					cursorPos++;
-				}
-				break;
-
-			case 0x08:
-				if (focusOnButtons == 0 && buffer != NULL && cursorPos > 0 && cmdLen > 0)
-				{
-					for (i = cursorPos - 1; i < cmdLen; i++)
-					{
-						buffer[i] = buffer[i + 1];
-					}
-					cursorPos--;
-					cmdLen--;
-				}
-				break;
-
-			case 252:
-				if (focusOnButtons == 0 && buffer != NULL && cursorPos < cmdLen && cmdLen > 0)
-				{
-					for (i = cursorPos; i < cmdLen; i++)
-					{
-						buffer[i] = buffer[i + 1];
-					}
-					cmdLen--;
-				}
-				break;
-
-			case 0x0d:
-				if (focusOnButtons == 1 && numButtons > 0)
-				{
-					return btn_types[activeBtn];
-				}
-				return (buffer != NULL) ? D_RES_OK : btn_types[activeBtn];
-
-			case 27:
-				return D_RES_CANCEL;
-
-			case 'y':
-			case 'Y':
-				if (focusOnButtons == 1 && (btn_mask & D_BTN_YES))
-					return D_RES_YES;
-				goto dialog_type_char;
-			case 'n':
-			case 'N':
-				if (focusOnButtons == 1 && (btn_mask & D_BTN_NO))
-					return D_RES_NO;
-				goto dialog_type_char;
-			case 's':
-			case 'S':
-				if (focusOnButtons == 1 && (btn_mask & D_BTN_SKIP_ALL))
-					return D_RES_SKIP_ALL;
-				if (focusOnButtons == 1 && (btn_mask & D_BTN_SKIP))
-					return D_RES_SKIP;
-				goto dialog_type_char;
-			case 'r':
-			case 'R':
-				if (focusOnButtons == 1 && (btn_mask & D_BTN_REPLACE_ALL))
-					return D_RES_REPLACE_ALL;
-				goto dialog_type_char;
-			case 'c':
-			case 'C':
-				if (focusOnButtons == 1 && (btn_mask & D_BTN_CANCEL))
-					return D_RES_CANCEL;
-				goto dialog_type_char;
-
-			default:
-			dialog_type_char:
-				if (focusOnButtons == 0 && buffer != NULL && cmdLen < (max_len - 2) && byte >= 32)
-				{
-					for (i = cmdLen; i > cursorPos; i--)
-					{
-						buffer[i] = buffer[i - 1];
-					}
-					buffer[cursorPos] = byte;
-					cursorPos++;
-					cmdLen++;
-					buffer[cmdLen] = 0;
-				}
-				break;
-			}
-		}
-		YIELD();
-	}
-}
-
 void switch_file_page(PanelState *panel, unsigned int file_idx)
 {
 	unsigned char page_num;
@@ -2799,7 +2011,6 @@ void switch_file_page(PanelState *panel, unsigned int file_idx)
 		page_num = (unsigned char)(PANEL_FILE_PAGES - 1);
 	panel_file_map(panel, page_num);
 }
-
 
 static void panels_remap_bank_window(void)
 {
@@ -2829,22 +2040,16 @@ static void panels_remap_bank_window(void)
 		panel_file_map(&right_panel, 0);
 }
 
-static void copy_io_map(void)
-{
-	SETPG32KHIGH(g_copy_io_page);
-}
-
 static void copy_io_unmap(void)
 {
 	if (g_copy_page_active)
-		panel_restore_c000();
+		SETPG32KHIGH(residentPg);
 	else
 	{
 		panels_remap_bank_window();
-		panel_restore_c000();
+		SETPG32KHIGH(residentPg);
 	}
 }
-
 
 static void panel_place_cursor_on_dotdot(PanelState *panel)
 {
@@ -2881,7 +2086,6 @@ static void panel_place_cursor_on_dotdot(PanelState *panel)
 	panel_clamp_scroll(panel);
 }
 
-
 static unsigned char read_panel_dir_at(PanelState *panel, const char *dir_path, unsigned char preserve_cursor)
 {
 	unsigned char result;
@@ -2898,6 +2102,8 @@ static unsigned char read_panel_dir_at(PanelState *panel, const char *dir_path, 
 	if (!panel_banks_ok(panel))
 	{
 		panel->file_count = 0;
+		panel->files_only_count = 0;
+		panel->total_bytes = 0;
 		panel->cursor_idx = 0;
 		panel->scroll_offset = 0;
 		return 0;
@@ -2928,6 +2134,8 @@ static unsigned char read_panel_dir_at(PanelState *panel, const char *dir_path, 
 	if (!panel_chdir_for_read(req_path))
 	{
 		panel->file_count = 0;
+		panel->files_only_count = 0;
+		panel->total_bytes = 0;
 		panel->cursor_idx = 0;
 		panel->scroll_offset = 0;
 		panel_file_map(panel, 0);
@@ -2936,6 +2144,8 @@ static unsigned char read_panel_dir_at(PanelState *panel, const char *dir_path, 
 
 	idx = 0;
 	panel->file_count = 0;
+	panel->files_only_count = 0;
+	panel->total_bytes = 0;
 	panel_meta_map(panel);
 	panel_mark_clear_all(panel);
 	if (panel->sort_lfn)
@@ -2967,16 +2177,27 @@ static unsigned char read_panel_dir_at(PanelState *panel, const char *dir_path, 
 
 		panel_normalize_fname(&set.bank_array[page_offset]);
 
-
 		if (set.bank_array[page_offset].fname[0] == '.' && set.bank_array[page_offset].fname[1] == 0)
 			continue;
 		if (set.bank_array[page_offset].fname[0] == 0)
 			continue;
 
-		if (panel->sort_lfn)
-			panel_cache_entry_lfn(panel, idx, page_offset, current_page);
-		else
-			panel_cache_entry_short_fi(panel, idx, &set.bank_array[page_offset]);
+		{
+			unsigned char is_dir;
+			unsigned long fsize;
+
+			is_dir = (set.bank_array[page_offset].fattrib & 0x10) ? 1u : 0u;
+			fsize = set.bank_array[page_offset].fsize;
+			if (panel->sort_lfn)
+				panel_cache_entry_lfn(panel, idx, page_offset, current_page);
+			else
+				panel_cache_entry_short_fi(panel, idx, &set.bank_array[page_offset]);
+			if (!is_dir)
+			{
+				panel->files_only_count++;
+				panel->total_bytes += fsize;
+			}
+		}
 		idx++;
 	}
 
@@ -2986,7 +2207,7 @@ static unsigned char read_panel_dir_at(PanelState *panel, const char *dir_path, 
 	{
 		if (panel->file_count > PANEL_SORT_NOTICE_FILES)
 		{
-			panel_restore_c000();
+			SETPG32KHIGH(residentPg);
 			panel_sort_notice_show(panel);
 		}
 		panel_sort_indices(panel);
@@ -3004,12 +2225,6 @@ static unsigned char read_panel_dir_at(PanelState *panel, const char *dir_path, 
 	panel_path_normalize(panel, req_path);
 	return 1;
 }
-
-void read_panel_dir(PanelState *panel)
-{
-	read_panel_dir_at(panel, panel->current_path, 1);
-}
-
 
 void fast_print_str_pad(const char *str, unsigned char width)
 {
@@ -3035,18 +2250,18 @@ static unsigned char g_panel_row_marked_row[18];
 static unsigned int g_panel_row_phys[18];
 
 static const char g_month_abbr[12][2] = {
-	{'j', 'a'}, {'f', 'b'}, {'m', 'r'}, {'a', 'p'}, {'m', 'y'}, {'j', 'n'},
-	{'j', 'l'}, {'a', 'g'}, {'s', 'p'}, {'o', 'c'}, {'n', 'v'}, {'d', 'c'}};
+	{'j', 'a'}, {'f', 'b'}, {'m', 'r'}, {'a', 'p'}, {'m', 'y'}, {'j', 'n'}, {'j', 'l'}, {'a', 'g'}, {'s', 'p'}, {'o', 'c'}, {'n', 'v'}, {'d', 'c'}};
 
 static void panel_row_format(const fileInfo *fi);
 static void panel_row_format_empty(void);
 static void draw_panel_row_empty(unsigned char start_x, unsigned char row_y);
+static void ui_panel_fmt_size(char *dst, unsigned long size, unsigned char is_dir);
 
 static void panel_row_out(unsigned char start_x, unsigned char row_y, unsigned int file_idx, const PanelState *panel)
 {
 	unsigned char i;
 
-	panel_restore_c000();
+	SETPG32KHIGH(residentPg);
 	OS_SETXY((unsigned char)(start_x + 1u), (unsigned char)(3u + row_y));
 	if (file_idx == panel->cursor_idx && panel->is_active)
 	{
@@ -3090,81 +2305,6 @@ static void panel_fmt_pad(char *dst, const char *src, unsigned char width)
 	}
 	while (i < width)
 		dst[i++] = ' ';
-}
-
-static void panel_fmt_size(char *dst, unsigned long size, unsigned char is_dir)
-{
-	unsigned char out[6];
-	unsigned int total_mb;
-	unsigned int whole;
-	unsigned int frac;
-	unsigned char d[6];
-	unsigned char i;
-	unsigned char lead;
-	unsigned char n;
-
-	if (is_dir)
-	{
-		panel_fmt_pad(dst, " <DIR>", 6);
-		return;
-	}
-
-	n = 0;
-	if (size >= SZ_100MB)
-	{
-		total_mb = (unsigned int)(size / SZ_1MB);
-		whole = total_mb / 1024u;
-		frac = (total_mb % 1024u) * 100u / 1024u;
-		out[n++] = (unsigned char)('0' + whole);
-		out[n++] = '.';
-		out[n++] = (unsigned char)('0' + frac / 10u);
-		out[n++] = (unsigned char)('0' + frac % 10u);
-		out[n++] = 'G';
-	}
-	else if (size >= SZ_1MB)
-	{
-		whole = (unsigned int)(size / SZ_1MB);
-		frac = (unsigned int)(((size % SZ_1MB) * 100UL) / SZ_1MB);
-		if (whole >= 10u)
-			out[n++] = (unsigned char)('0' + whole / 10u);
-		else
-			out[n++] = ' ';
-		out[n++] = (unsigned char)('0' + whole % 10u);
-		out[n++] = '.';
-		out[n++] = (unsigned char)('0' + frac / 10u);
-		out[n++] = (unsigned char)('0' + frac % 10u);
-		out[n++] = 'M';
-	}
-	else
-	{
-		d[5] = (unsigned char)(size % 10UL);
-		size /= 10UL;
-		d[4] = (unsigned char)(size % 10UL);
-		size /= 10UL;
-		d[3] = (unsigned char)(size % 10UL);
-		size /= 10UL;
-		d[2] = (unsigned char)(size % 10UL);
-		size /= 10UL;
-		d[1] = (unsigned char)(size % 10UL);
-		size /= 10UL;
-		d[0] = (unsigned char)(size % 10UL);
-		lead = 0;
-		for (i = 0; i < 5u; i++)
-		{
-			if (d[i] != 0u || lead)
-			{
-				out[n++] = (unsigned char)('0' + d[i]);
-				lead = 1;
-			}
-			else
-				out[n++] = ' ';
-		}
-		out[n++] = (unsigned char)('0' + d[5]);
-	}
-	while (n < 6u)
-		out[n++] = ' ';
-	for (i = 0; i < 6u; i++)
-		dst[i] = out[i];
 }
 
 static void panel_fmt_datetime(char *dst, unsigned int fdate, unsigned int ftime)
@@ -3216,7 +2356,7 @@ static void panel_row_format(const fileInfo *fi)
 	src = panel_entry_name((fileInfo *)fi);
 	panel_fmt_pad(g_panel_row, src, 18);
 	g_panel_row[18] = (char)179;
-	panel_fmt_size(g_panel_row + 19, fi->fsize, (unsigned char)((fi->fattrib & 0x10) ? 1 : 0));
+	ui_panel_fmt_size(g_panel_row + 19, fi->fsize, (unsigned char)((fi->fattrib & 0x10) ? 1 : 0));
 	g_panel_row[25] = (char)179;
 	panel_fmt_datetime(g_panel_row + 26, fi->fdate, fi->ftime);
 }
@@ -3238,80 +2378,14 @@ static void draw_panel_row_empty(unsigned char start_x, unsigned char row_y)
 	panel_row_out(start_x, row_y, 0xFFFFu, &left_panel);
 }
 
-void fast_print_size(unsigned long size)
+static void ui_fast_print_size(unsigned long size)
 {
-	unsigned int total_mb;
-	unsigned int whole;
-	unsigned int frac;
-	unsigned char d[6];
-	unsigned char i;
-	unsigned char lead;
+	unsigned char c000_saved;
 
-
-	if (size >= SZ_100MB)
-	{
-		total_mb = (unsigned int)(size / SZ_1MB);
-		whole = total_mb / 1024u;
-		frac = (total_mb % 1024u) * 100u / 1024u;
-		putchar((unsigned char)('0' + whole));
-		putchar('.');
-		putchar((unsigned char)('0' + frac / 10u));
-		putchar((unsigned char)('0' + frac % 10u));
-		putchar('G');
-		putchar(' ');
-		return;
-	}
-
-
-	if (size >= SZ_1MB)
-	{
-		whole = (unsigned int)(size / SZ_1MB);
-		frac = (unsigned int)(((size % SZ_1MB) * 100UL) / SZ_1MB);
-		if (whole >= 10u)
-			putchar((unsigned char)('0' + whole / 10u));
-		else
-			putchar(' ');
-		putchar((unsigned char)('0' + whole % 10u));
-		putchar('.');
-		putchar((unsigned char)('0' + frac / 10u));
-		putchar((unsigned char)('0' + frac % 10u));
-		putchar('M');
-		return;
-	}
-
-
-	d[5] = (unsigned char)(size % 10UL);
-	size /= 10UL;
-	d[4] = (unsigned char)(size % 10UL);
-	size /= 10UL;
-	d[3] = (unsigned char)(size % 10UL);
-	size /= 10UL;
-	d[2] = (unsigned char)(size % 10UL);
-	size /= 10UL;
-	d[1] = (unsigned char)(size % 10UL);
-	size /= 10UL;
-	d[0] = (unsigned char)(size % 10UL);
-
-	lead = 0;
-	for (i = 0; i < 5u; i++)
-	{
-		if (d[i] != 0u || lead)
-		{
-			putchar((unsigned char)('0' + d[i]));
-			lead = 1;
-		}
-		else
-			putchar(' ');
-	}
-	putchar((unsigned char)('0' + d[5]));
-}
-
-void fast_put_char_color(unsigned char x, unsigned char y, unsigned char sym, unsigned char color)
-{
-
-	OS_SETXY(x, y);
-	OS_SETCOLOR(color);
-	putchar(sym);
+	c000_saved = bank_window_current();
+	SETPG32KHIGH(residentPg);
+	fast_print_size(size);
+	SETPG32KHIGH(c000_saved);
 }
 
 void draw_bottom_info(PanelState *active_p)
@@ -3337,7 +2411,7 @@ void draw_bottom_info(PanelState *active_p)
 	strncpy(bottom_name, full_name, 64u);
 	bottom_name[64] = 0;
 
-	panel_restore_c000();
+	SETPG32KHIGH(residentPg);
 	OS_SETCOLOR(MAKE_COLOR(BR_BOTH, BLACK, WHITE));
 	OS_SETXY(0, 22);
 
@@ -3348,7 +2422,7 @@ void draw_bottom_info(PanelState *active_p)
 	}
 	else
 	{
-		fast_print_size(f_size);
+		ui_fast_print_size(f_size);
 		putchar(' ');
 		putchar(' ');
 		putchar(' ');
@@ -3385,30 +2459,45 @@ void draw_panel_frame(unsigned char start_x, unsigned char color)
 	putchar(188);
 }
 
+static void ui_panel_fmt_size(char *dst, unsigned long size, unsigned char is_dir)
+{
+	unsigned char c000_saved;
+
+	c000_saved = bank_window_current();
+	SETPG32KHIGH(residentPg);
+	panel_fmt_size(dst, size, is_dir);
+	SETPG32KHIGH(c000_saved);
+}
+
+static void ui_panel_draw_footer(PanelState *panel, unsigned char start_x)
+{
+	unsigned char c000_saved;
+
+	c000_saved = bank_window_current();
+	SETPG32KHIGH(residentPg);
+	panel_draw_footer(panel, start_x);
+	SETPG32KHIGH(c000_saved);
+}
+
 void draw_panel_background(PanelState *panel, unsigned char start_x)
 {
 	int i;
 
 	draw_panel_frame(start_x, COLOR_PANEL_MAIN);
 
-
 	OS_SETCOLOR(COLOR_PANEL_MAIN);
-	OS_SETXY(start_x + 2, 0);
+	OS_SETXY((unsigned char)(start_x + 2), 0);
 	putchar('[');
-	putchar(' ');
 	i = 0;
 	while (panel->current_path[i] != 0)
 	{
-		putchar(panel->current_path[i]);
+		putchar((unsigned char)panel->current_path[i]);
 		i++;
 	}
-	putchar(' ');
 	putchar(']');
 
-
-	OS_SETXY(start_x + 1, 1);
+	OS_SETXY((unsigned char)(start_x + 1), 1);
 	OS_SETCOLOR(MAKE_COLOR(BR_BOTH, BLUE, CYAN));
-
 
 	fast_print_str_pad("Name", 18);
 	putchar(179);
@@ -3416,16 +2505,15 @@ void draw_panel_background(PanelState *panel, unsigned char start_x)
 	putchar(179);
 	fast_print_str_pad(" Date/Time", 12);
 
-
-	OS_SETXY(start_x + 1, 2);
+	OS_SETXY((unsigned char)(start_x + 1), 2);
 	OS_SETCOLOR(COLOR_PANEL_MAIN);
 	for (i = 0; i < 38; i++)
-	{
 		putchar(196);
-	}
+
+	ui_panel_draw_footer(panel, start_x);
 }
 
-void draw_panel(PanelState *panel, unsigned char start_x, unsigned char height)
+static void draw_panel(PanelState *panel, unsigned char start_x, unsigned char height)
 {
 	unsigned char i;
 	unsigned int vis_idx;
@@ -3478,7 +2566,7 @@ static void redraw_panels_full(void)
 {
 	PanelState *active_p;
 
-	panel_restore_c000();
+	SETPG32KHIGH(residentPg);
 	active_p = (left_panel.is_active) ? &left_panel : &right_panel;
 	draw_panel_background(&left_panel, 0);
 	draw_panel_background(&right_panel, 40);
@@ -3518,36 +2606,6 @@ static const PanelDriveDef g_drive_table[] = {
 static unsigned char panel_drive_chdrv_ok(unsigned char letter)
 {
 	return (unsigned char)(OS_CHDRV(letter) == 0u);
-}
-
-static unsigned char panel_drive_saved_letter(const PanelState *panel)
-{
-	if (panel->current_path[0] >= 'A' && panel->current_path[0] <= 'Z')
-		return (unsigned char)panel->current_path[0];
-	if (panel->current_path[0] >= 'a' && panel->current_path[0] <= 'z')
-		return (unsigned char)(panel->current_path[0] - 'a' + 'A');
-	return 'M';
-}
-
-static void panel_drive_format_line(char *buf, unsigned char letter, const char *cap)
-{
-	unsigned char i;
-
-	buf[0] = ' ';
-	buf[1] = ' ';
-	buf[2] = letter;
-	buf[3] = ':';
-	buf[4] = ' ';
-	buf[5] = '-';
-	buf[6] = ' ';
-	i = 7;
-	while (cap[0] != 0 && i < 25u)
-	{
-		buf[i] = cap[0];
-		cap++;
-		i++;
-	}
-	buf[i] = 0;
 }
 
 static void panel_drive_build_list(const PanelState *panel)
@@ -3775,133 +2833,16 @@ static unsigned char panel_drive_handle_key(unsigned char key)
 	return 1;
 }
 
-static void menu_draw_item(unsigned char x0, unsigned char y, unsigned char width, unsigned char selected, const char *label, unsigned char current)
-{
-	unsigned char x;
-	unsigned char fill_color;
-
-	fill_color = selected ? COLOR_MENU_HILITE : COLOR_MENU_NORM;
-	for (x = 0; x < width; x++)
-		fast_put_char_color((unsigned char)(x0 + x), y, ' ', fill_color);
-	OS_SETXY((unsigned char)(x0 + 1), y);
-	if (selected)
-		OS_SETCOLOR(COLOR_MENU_HILITE);
-	else
-		OS_SETCOLOR(COLOR_MENU_NORM);
-	fast_print_str_pad(label, (unsigned char)(width - 2));
-	if (current)
-		putchar('*');
-}
-
-static void menu_draw_files_row(PanelState *active_p, unsigned char idx, unsigned char cursor_on)
-{
-	unsigned char y;
-
-	y = (unsigned char)(MENU_POPUP_Y + 1u + idx);
-	switch (idx)
-	{
-	case MFI_NAME:
-		menu_draw_item(MENU_ITEM_X, y, MENU_POPUP_INNER_W, cursor_on, "Name",
-					   (unsigned char)(active_p->sort_mode == PANEL_SORT_NAME));
-		break;
-	case MFI_EXT:
-		menu_draw_item(MENU_ITEM_X, y, MENU_POPUP_INNER_W, cursor_on, "Extension",
-					   (unsigned char)(active_p->sort_mode == PANEL_SORT_EXT));
-		break;
-	case MFI_SIZE:
-		menu_draw_item(MENU_ITEM_X, y, MENU_POPUP_INNER_W, cursor_on, "Size",
-					   (unsigned char)(active_p->sort_mode == PANEL_SORT_SIZE));
-		break;
-	case MFI_TIME:
-		menu_draw_item(MENU_ITEM_X, y, MENU_POPUP_INNER_W, cursor_on, "Time",
-					   (unsigned char)(active_p->sort_mode == PANEL_SORT_TIME));
-		break;
-	case MFI_AZ:
-		menu_draw_item(MENU_ITEM_X, y, MENU_POPUP_INNER_W, cursor_on, "A-Z", (unsigned char)(active_p->sort_desc == 0));
-		break;
-	case MFI_ZA:
-		menu_draw_item(MENU_ITEM_X, y, MENU_POPUP_INNER_W, cursor_on, "Z-A", (unsigned char)(active_p->sort_desc != 0));
-		break;
-	case MFI_LFN_SORT:
-		menu_draw_item(MENU_ITEM_X, y, MENU_POPUP_INNER_W, cursor_on, "LFN sort", active_p->sort_lfn);
-		break;
-	case MFI_READ_ON_FOCUS:
-		menu_draw_item(MENU_ITEM_X, y, MENU_POPUP_INNER_W, cursor_on, "Read on focus", g_ini_read_on_focus);
-		break;
-	}
-}
-
-static void menu_files_open(PanelState *active_p)
-{
-	unsigned char i;
-
-	ui_draw_frame(MENU_POPUP_X, MENU_POPUP_Y, MENU_POPUP_INNER_W, (unsigned char)(MENU_FILES_ITEMS + 1u),
-				  COLOR_MENU_NORM, "Files");
-	for (i = 0; i < MENU_FILES_ITEMS; i++)
-		menu_draw_files_row(active_p, i, (unsigned char)(i == g_menu_sel));
-}
-
-static void menu_top_open(void)
-{
-	ui_draw_frame(MENU_POPUP_X, MENU_POPUP_Y, MENU_POPUP_INNER_W, 2u, COLOR_MENU_NORM, "Menu");
-	menu_draw_item(MENU_ITEM_X, (unsigned char)(MENU_POPUP_Y + 1u), MENU_POPUP_INNER_W,
-				   (unsigned char)(g_menu_sel == 0), "Files", 0);
-}
-
-static void menu_sel_move(PanelState *active_p, unsigned char new_sel)
-{
-	unsigned char old_sel;
-
-	if (new_sel >= MENU_FILES_ITEMS)
-		new_sel = MENU_FILES_ITEMS - 1u;
-	old_sel = g_menu_sel;
-	if (new_sel == old_sel)
-		return;
-
-	g_menu_sel = new_sel;
-	if (g_menu_level == MENU_LEVEL_TOP)
-	{
-		menu_top_open();
-		return;
-	}
-
-	menu_draw_files_row(active_p, old_sel, 0);
-	menu_draw_files_row(active_p, new_sel, 1);
-}
-
-static void draw_menu_overlay(void)
-{
-	PanelState *active_p;
-
-	if (!g_menu_active)
-		return;
-
-	active_p = (left_panel.is_active) ? &left_panel : &right_panel;
-
-	if (g_menu_level == MENU_LEVEL_TOP)
-		menu_top_open();
-	else
-		menu_files_open(active_p);
-}
-
-static void menu_open(void)
-{
-	g_menu_active = 1;
-	g_menu_level = MENU_LEVEL_TOP;
-	g_menu_sel = 0;
-	draw_menu_overlay();
-}
-
-static void menu_close_and_redraw(void)
+void menu_close_and_redraw(void)
 {
 	g_menu_active = 0;
-	g_menu_level = MENU_LEVEL_TOP;
+	g_menu_level = NC_MENU_LEVEL_TOP;
 	g_menu_sel = 0;
 	panels_remap_bank_window();
 	redraw_panels_full();
 }
 
-static void menu_apply_choice(unsigned char choice)
+void menu_apply_choice(unsigned char choice)
 {
 	PanelState *active_p;
 	unsigned char resort;
@@ -3909,121 +2850,32 @@ static void menu_apply_choice(unsigned char choice)
 	active_p = (left_panel.is_active) ? &left_panel : &right_panel;
 	resort = 1;
 
-	if (choice <= MFI_TIME)
+	if (choice <= NC_MFI_TIME)
 		active_p->sort_mode = choice;
-	else if (choice == MFI_AZ)
+	else if (choice == NC_MFI_AZ)
 		active_p->sort_desc = 0;
-	else if (choice == MFI_ZA)
+	else if (choice == NC_MFI_ZA)
 		active_p->sort_desc = 1;
-	else if (choice == MFI_LFN_SORT)
+	else if (choice == NC_MFI_LFN_SORT)
 	{
 		active_p->sort_lfn = (unsigned char)(active_p->sort_lfn ? 0u : 1u);
 		if (active_p->file_count > 0u)
 			panel_refresh_sort_cache(active_p);
 	}
-	else if (choice == MFI_READ_ON_FOCUS)
+	else if (choice == NC_MFI_READ_ON_FOCUS)
 	{
 		g_ini_read_on_focus = (unsigned char)(g_ini_read_on_focus ? 0u : 1u);
 		resort = 0;
 	}
 
 	g_menu_active = 0;
-	g_menu_level = MENU_LEVEL_TOP;
+	g_menu_level = NC_MENU_LEVEL_TOP;
 	g_menu_sel = 0;
 
 	if (resort && active_p->file_count >= 2u)
 		panel_resort_keep_cursor(active_p);
 
 	redraw_panels_full();
-}
-
-static unsigned char menu_handle_key(unsigned char key)
-{
-	PanelState *active_p;
-
-	active_p = (left_panel.is_active) ? &left_panel : &right_panel;
-
-	if (key == 27)
-	{
-		menu_close_and_redraw();
-		return 1;
-	}
-
-	if (g_menu_level == MENU_LEVEL_TOP)
-	{
-		if (key == 13)
-		{
-			g_menu_level = MENU_LEVEL_FILES;
-			g_menu_sel = active_p->sort_mode;
-			if (g_menu_sel > MFI_TIME)
-				g_menu_sel = MFI_NAME;
-			menu_files_open(active_p);
-		}
-		return 1;
-	}
-
-	if (key == 250 || key == 248)
-	{
-		if (g_menu_sel > 0)
-			menu_sel_move(active_p, (unsigned char)(g_menu_sel - 1u));
-		return 1;
-	}
-	if (key == 249 || key == 251)
-	{
-		if (g_menu_sel < MENU_FILES_ITEMS - 1u)
-			menu_sel_move(active_p, (unsigned char)(g_menu_sel + 1u));
-		return 1;
-	}
-	if (key == 13)
-	{
-		menu_apply_choice(g_menu_sel);
-		return 1;
-	}
-
-	return 1;
-}
-
-static unsigned char g_clock_old_minutes = 255u;
-
-static void nc_clock_format(unsigned char hours, unsigned char minutes, char *buf)
-{
-	buf[0] = '[';
-	buf[1] = (char)('0' + hours / 10u);
-	buf[2] = (char)('0' + hours % 10u);
-	buf[3] = ':';
-	buf[4] = (char)('0' + minutes / 10u);
-	buf[5] = (char)('0' + minutes % 10u);
-	buf[6] = ']';
-	buf[7] = 0;
-}
-
-static void nc_clock_draw(unsigned char force)
-{
-	unsigned long dos_time;
-	unsigned char hours;
-	unsigned char minutes;
-	char buf[8];
-
-	dos_time = OS_GETTIME();
-	hours = (unsigned char)((dos_time >> 11) & 31u);
-	minutes = (unsigned char)((dos_time >> 5) & 63u);
-
-	if (!force && minutes == g_clock_old_minutes)
-		return;
-
-	g_clock_old_minutes = minutes;
-	nc_clock_format(hours, minutes, buf);
-	OS_SETCOLOR(COLOR_STATUS_BAR);
-	OS_SETXY(NC_CLOCK_X, NC_CLOCK_Y);
-	print_cstr(buf);
-}
-
-void draw_status_bar(void)
-{
-	OS_SETCOLOR(COLOR_STATUS_BAR);
-	OS_SETXY(0, 23);
-	fast_print_str_pad(botMenu, 80);
-	nc_clock_draw(1);
 }
 
 void draw_file_line(PanelState *panel, unsigned char start_x, unsigned int file_idx)
@@ -4088,21 +2940,6 @@ static void panel_mark_toggle_cursor(PanelState *panel)
 		draw_bottom_info(panel);
 }
 
-unsigned char getFreeMem(void)
-{
-	unsigned char freeMem = 0, counter;
-	for (counter = 0; counter < set.totalMem; counter++)
-	{
-		unsigned char owner;
-		owner = OS_GETPAGEOWNER(~counter);
-		if (owner == 0)
-		{
-			freeMem++;
-		}
-	}
-	return freeMem - 8;
-}
-
 int ext_cmp(const char *s1, const char *s2)
 {
 	return panel_cmp_str_fold(s1, s2);
@@ -4128,13 +2965,12 @@ void handle_enter(PanelState *active_p)
 	{
 		strcpy(set.local_dir_name, panel_entry_name(&set.current_file));
 
-
 		if (panel_entry_is_dotdot(&set.current_file))
 		{
 			panel_path_basename(active_p, set.exited_dir_name);
 			OS_CHDIR((unsigned char *)"..");
 			panel_sync_path(active_p);
-			read_panel_dir(active_p);
+			read_panel_dir_at(active_p, active_p->current_path, 1);
 
 			if (set.exited_dir_name[0] != 0)
 			{
@@ -4164,7 +3000,6 @@ void handle_enter(PanelState *active_p)
 			read_panel_dir_at(active_p, enter_path, 0);
 		}
 
-
 		if (active_p->file_count > 0)
 		{
 			switch_file_page(active_p, panel_meta_get_index(active_p, active_p->scroll_offset));
@@ -4174,7 +3009,6 @@ void handle_enter(PanelState *active_p)
 		draw_panel(active_p, (left_panel.is_active) ? 0 : 40, 18);
 		return;
 	}
-
 
 	nc_run_selected_file(active_p);
 }
@@ -4220,7 +3054,6 @@ static unsigned char panel_find_by_name(PanelState *panel, const char *hint, uns
 	return 0;
 }
 
-
 static void panels_redraw_both(void)
 {
 	panels_remap_bank_window();
@@ -4250,7 +3083,7 @@ static void panels_reload_both(const char *snap_left, const char *snap_right)
 
 static void panels_draw_all(PanelState *active_p)
 {
-	panel_restore_c000();
+	SETPG32KHIGH(residentPg);
 	draw_panel_background(&left_panel, 0);
 	draw_panel_background(&right_panel, 40);
 	draw_panel(&left_panel, 0, 18);
@@ -4258,7 +3091,6 @@ static void panels_draw_all(PanelState *active_p)
 	draw_bottom_info(active_p);
 	draw_status_bar();
 }
-
 
 static void panels_refresh_after_copy(PanelState *src_panel, PanelState *dst_panel, const char *hint)
 {
@@ -4290,7 +3122,6 @@ static void panels_refresh_after_copy(PanelState *src_panel, PanelState *dst_pan
 	copy_prog.drawn = 0;
 	panels_draw_all(active_p);
 }
-
 
 void panels_refresh_all(const char *next_file_hint)
 {
@@ -4352,7 +3183,7 @@ static void nc_on_focus_refresh(void)
 {
 	g_focus_pending = 0;
 	panels_remap_bank_window();
-	panel_restore_c000();
+	SETPG32KHIGH(residentPg);
 	if (g_ini_read_on_focus)
 		panels_refresh_all(NULL);
 	else
@@ -4363,8 +3194,7 @@ static void nc_on_focus_refresh(void)
 		draw_menu_overlay();
 }
 
-
-static void ui_dlg_preset(struct DialogWindow *dlg, unsigned char x, unsigned char y, unsigned char w, unsigned char h,
+static void ui_dlg_preset(DialogWindow *dlg, unsigned char x, unsigned char y, unsigned char w, unsigned char h,
 						  unsigned char color, const char *title, const char *prompt)
 {
 	dlg->x = x;
@@ -4376,45 +3206,57 @@ static void ui_dlg_preset(struct DialogWindow *dlg, unsigned char x, unsigned ch
 	dlg->prompt = prompt;
 }
 
-static void ui_dlg_centered(struct DialogWindow *dlg, unsigned char w, unsigned char h, unsigned char y,
+static void ui_dlg_centered(DialogWindow *dlg, unsigned char w, unsigned char h, unsigned char y,
 							unsigned char color, const char *title, const char *prompt)
 {
 	ui_dlg_preset(dlg, (unsigned char)((screenWidth - w - 2u) / 2u), y, w, h, color, title, prompt);
 }
 
+static unsigned char ui_show_dialog(DialogWindow *dlg, char *buffer, unsigned char max_len,
+									unsigned char btn_mask)
+{
+	unsigned char c000_saved;
+	unsigned char res;
+
+	c000_saved = bank_window_current();
+	SETPG32KHIGH(residentPg);
+	res = show_dialog(dlg, buffer, max_len, btn_mask);
+	bank_window_map(c000_saved);
+	return res;
+}
+
 static unsigned char ui_dialog_input(const char *title, const char *prompt)
 {
-	struct DialogWindow dlg;
+	DialogWindow dlg;
 
 	ui_dlg_centered(&dlg, UI_DLG_INPUT_W, UI_DLG_INPUT_H, UI_DLG_INPUT_Y, COLOR_COPY_UI, title, prompt);
-	return show_dialog(&dlg, set.temp_path, sizeof(set.temp_path), D_MASK_OK_CANCEL);
+	return ui_show_dialog(&dlg, set.temp_path, sizeof(set.temp_path), D_MASK_OK_CANCEL);
 }
 
 static unsigned char ui_dialog_confirm(const char *title, const char *prompt, unsigned char btn_mask)
 {
-	struct DialogWindow dlg;
+	DialogWindow dlg;
 
 	ui_dlg_centered(&dlg, UI_DLG_CONFIRM_W, UI_DLG_CONFIRM_H, UI_DLG_CONFIRM_Y, COLOR_OVERWRITE_UI, title, prompt);
-	return show_dialog(&dlg, NULL, 0, btn_mask);
+	return ui_show_dialog(&dlg, NULL, 0, btn_mask);
 }
 
 static unsigned char ui_dialog_delete_confirm(const char *title, const char *prompt)
 {
-	struct DialogWindow dlg;
+	DialogWindow dlg;
 
 	ui_dlg_centered(&dlg, UI_DLG_PROGRESS_W, UI_DLG_PROGRESS_H, UI_DLG_PROGRESS_Y, COLOR_OVERWRITE_UI, title, prompt);
-	return show_dialog(&dlg, NULL, 0, D_MASK_DELETE);
+	return ui_show_dialog(&dlg, NULL, 0, D_MASK_DELETE);
 }
 
 static void ui_alert_dialog(const char *title, const char *prompt)
 {
-	struct DialogWindow dlg;
+	DialogWindow dlg;
 
 	ui_dlg_preset(&dlg, UI_DLG_ALERT_X, UI_DLG_ALERT_Y, UI_DLG_CONFIRM_W, UI_DLG_ALERT_H, COLOR_OVERWRITE_UI, title,
 				  prompt);
-	show_dialog(&dlg, NULL, 0, D_BTN_OK);
+	(void)ui_show_dialog(&dlg, NULL, 0, D_BTN_OK);
 }
-
 
 static void ui_draw_frame(unsigned char x, unsigned char y, unsigned char w, unsigned char h, unsigned char color, const char *title)
 {
@@ -4479,11 +3321,15 @@ static void ui_print_centered(unsigned char x, unsigned char y, unsigned char wi
 		len = width;
 	}
 	pad = (unsigned char)((width - len) / 2u);
-	OS_SETXY((unsigned char)(x + pad), y);
-	for (i = 0; i < len; i++)
-		putchar(show[i]);
-	for (i = (unsigned char)(pad + len); i < width; i++)
+	OS_SETXY(x, y);
+	for (i = 0; i < width; i++)
 		putchar(' ');
+	if (len != 0u)
+	{
+		OS_SETXY((unsigned char)(x + pad), y);
+		for (i = 0; i < len; i++)
+			putchar(show[i]);
+	}
 }
 
 static void panel_sort_notice_show(PanelState *panel)
@@ -4717,7 +3563,7 @@ static void nc_nvext_map(void)
 
 static void nc_nvext_unmap(void)
 {
-	panel_restore_c000();
+	SETPG32KHIGH(residentPg);
 	panels_remap_bank_window();
 }
 
@@ -4727,12 +3573,15 @@ static void nc_nvext_load(void)
 	unsigned int nvextSize;
 	unsigned int loop;
 	unsigned int loaded;
+	unsigned int toRead;
 	unsigned char *dst;
+	char io_chunk[128];
 
 	g_nvext_size = 0;
 	if (!panel_banks_ok(&left_panel))
 		return;
 
+	SETPG32KHIGH(residentPg);
 	OS_SETSYSDRV();
 	nvf = OS_OPENHANDLE((unsigned char *)"nv.ext", 0x80);
 	if (((int)nvf) & 0xff)
@@ -4742,6 +3591,7 @@ static void nc_nvext_load(void)
 		return;
 	}
 
+	SETPG32KHIGH(residentPg);
 	nvextSize = OS_GETFILESIZE(nvf);
 	if (nvextSize >= NC_NVEXT_MAX)
 		nvextSize = NC_NVEXT_MAX - 1u;
@@ -4751,15 +3601,23 @@ static void nc_nvext_load(void)
 	loop = 0;
 	while (loop < nvextSize)
 	{
-		loaded = OS_READHANDLE(dst + loop, nvf, nvextSize - loop);
+		toRead = nvextSize - loop;
+		if (toRead > sizeof(io_chunk))
+			toRead = (unsigned int)sizeof(io_chunk);
+		SETPG32KHIGH(residentPg);
+		loaded = OS_READHANDLE((unsigned char *)io_chunk, nvf, toRead);
 		if (loaded == 0)
 			break;
+		nc_nvext_map();
+		memcpy(dst + loop, io_chunk, loaded);
 		loop += loaded;
 	}
+	SETPG32KHIGH(residentPg);
 	OS_CLOSEHANDLE(nvf);
-	dst[loop] = 0;
 	g_nvext_size = loop;
-	panel_restore_c000();
+	nc_nvext_map();
+	dst[loop] = 0;
+	SETPG32KHIGH(residentPg);
 }
 
 static unsigned char nc_nvext_find_handler(const char *ext, char *handler, unsigned int handler_sz)
@@ -4848,11 +3706,11 @@ static void nc_build_shell_cmd(const char *handler, const char *fullpath, char *
 }
 
 #define SHELL_LOAD_TAIL (0x10000u - 0xC100u) /* first page: 0xC100..0xFFFF */
-#define SHELL_LOAD_FULL 0x4000u              /* next pages: full 16 KB at 0xC000 */
+#define SHELL_LOAD_FULL 0x4000u				 /* next pages: full 16 KB at 0xC000 */
 
 /* term/cmd readfile_pages_dehl: optional pages may EOF with 0 bytes (errno 0xFF). */
 static unsigned char nc_shell_loadpage(unsigned char page, unsigned char *addr, unsigned int max_sz, FILE *fp,
-                                       unsigned char required)
+									   unsigned char required)
 {
 	unsigned int n;
 
@@ -4880,18 +3738,18 @@ static unsigned char nc_readfile_pages_dehl(const union APP_PAGES *pg, FILE *fp)
 }
 
 /* gopher.com OS_SHELL: load term.com into child pages; cmdline "term.com " + command. */
-static void nc_app_discard(unsigned char pId, unsigned char pgbak)
+static void nc_app_discard(unsigned char pId, unsigned char resident_page)
 {
 	if (pId != 0u)
 		OS_DROPAPP(pId);
-	SETPG32KHIGH(pgbak);
+	SETPG32KHIGH(resident_page);
 }
 
 static unsigned char OS_SHELL(const char *command)
 {
 	unsigned char fileName[] = "term.com";
 	unsigned char appCmd[128];
-	unsigned char pgbak_run;
+	unsigned char savedResidentPg;
 	unsigned char childId;
 	union APP_PAGES shell_pg;
 	union APP_PAGES main_pg_run;
@@ -4902,8 +3760,8 @@ static unsigned char OS_SHELL(const char *command)
 	strncat((char *)appCmd, command, 118);
 
 	main_pg_run.l = OS_GETMAINPAGES();
-	pgbak_run = main_pg_run.pgs.window_3;
-	panel_restore_c000();
+	savedResidentPg = main_pg_run.pgs.window_3;
+	SETPG32KHIGH(residentPg);
 	OS_GETPATH((unsigned int)g_run_saved_cwd);
 	OS_SETSYSDRV();
 
@@ -4921,7 +3779,7 @@ static unsigned char OS_SHELL(const char *command)
 	if (shell_pg.pgs.error != 0u)
 	{
 		OS_CLOSEHANDLE(fp3);
-		SETPG32KHIGH(pgbak_run);
+		SETPG32KHIGH(savedResidentPg);
 		print_cstr("No free app slot.");
 		print_crlf();
 		return 0;
@@ -4936,7 +3794,7 @@ static unsigned char OS_SHELL(const char *command)
 	if (!nc_readfile_pages_dehl(&shell_pg, fp3))
 	{
 		OS_CLOSEHANDLE(fp3);
-		nc_app_discard(childId, pgbak_run);
+		nc_app_discard(childId, savedResidentPg);
 		print_cstr("term.com load failed.");
 		print_crlf();
 		return 0;
@@ -4944,7 +3802,7 @@ static unsigned char OS_SHELL(const char *command)
 
 	OS_CLOSEHANDLE(fp3);
 
-	SETPG32KHIGH(pgbak_run);
+	SETPG32KHIGH(savedResidentPg);
 	OS_RUNAPP(childId);
 	YIELD();
 	return 1;
@@ -4960,7 +3818,7 @@ static void nc_run_shell_cmd(const char *handler, const char *fullpath)
 
 static void nc_run_restore_ui(PanelState *panel)
 {
-	panel_restore_c000();
+	SETPG32KHIGH(residentPg);
 	panel_chdir_only(panel->current_path);
 	panels_remap_bank_window();
 	redraw_panels_full();
@@ -5084,12 +3942,30 @@ static unsigned char copy_dest_exists(const char *path)
 	return 1;
 }
 
+static unsigned char copy_dir_exists(const char *path)
+{
+	FILINFO finfo;
 
-static unsigned char copy_overwrite_dialog(void)
+	if ((unsigned char)OS_GETFILINFO((unsigned char *)path, &finfo) != 0u)
+		return 0;
+	return (unsigned char)((finfo.fattrib & 0x10) ? 1u : 0u);
+}
+
+/* exists + cached overwrite mode, or one Copy confirm dialog. */
+static unsigned char copy_overwrite_resolve(unsigned char exists, const char *dialog_msg)
 {
 	unsigned char res;
 
-	res = ui_dialog_confirm("Copy", "File exists. Replace?", D_MASK_OVERWRITE);
+	if (!exists)
+		return COPY_FILE_OK;
+	if (g_copy_overwrite_mode == COPY_OW_SKIP_ALL)
+		return COPY_FILE_SKIP;
+	if (g_copy_overwrite_mode == COPY_OW_REPLACE_ALL)
+		return COPY_FILE_OK;
+	if (g_copy_overwrite_mode == COPY_OW_ABORT)
+		return COPY_FILE_ABORT;
+
+	res = ui_dialog_confirm("Copy", dialog_msg, D_MASK_OVERWRITE);
 	fileop_progress_restore();
 
 	switch (res)
@@ -5112,26 +3988,15 @@ static unsigned char copy_overwrite_dialog(void)
 	}
 }
 
-static unsigned char copy_check_overwrite(const char *dst_path)
+static unsigned char copy_check_dir_merge(const char *dst_path)
 {
-	unsigned char r;
-
-	if (!copy_dest_exists(dst_path))
-		return COPY_FILE_OK;
-
-	if (g_copy_overwrite_mode == COPY_OW_SKIP_ALL)
-		return COPY_FILE_SKIP;
-	if (g_copy_overwrite_mode == COPY_OW_REPLACE_ALL)
-		return COPY_FILE_OK;
-	if (g_copy_overwrite_mode == COPY_OW_ABORT)
-		return COPY_FILE_ABORT;
-
-	r = copy_overwrite_dialog();
-	if (r == COPY_FILE_OK)
-		return COPY_FILE_OK;
-	return r;
+	return copy_overwrite_resolve(copy_dir_exists(dst_path), "Folder exists. Merge?");
 }
 
+static unsigned char copy_check_overwrite(const char *dst_path)
+{
+	return copy_overwrite_resolve(copy_dest_exists(dst_path), "File exists. Replace?");
+}
 
 unsigned char copy_single_file_core(const char *src_path, const char *dst_path, unsigned int src_fdate,
 									unsigned int src_ftime)
@@ -5161,7 +4026,6 @@ unsigned char copy_single_file_core(const char *src_path, const char *dst_path, 
 	if (((int)h_src) & 0xff)
 		return COPY_FILE_ERR;
 
-
 	if (fdate == 0 && ftime == 0)
 		OS_GETFILETIME((unsigned char *)src_path, &fdate, &ftime);
 
@@ -5176,7 +4040,7 @@ unsigned char copy_single_file_core(const char *src_path, const char *dst_path, 
 		return COPY_FILE_ERR;
 	}
 
-	copy_io_map();
+	SETPG32KHIGH(g_copy_io_page);
 
 	while (remaining > 0)
 	{
@@ -5188,7 +4052,7 @@ unsigned char copy_single_file_core(const char *src_path, const char *dst_path, 
 			(void)OS_DELETE((unsigned char *)dst_path);
 			return COPY_FILE_ABORT;
 		}
-		copy_io_map();
+		SETPG32KHIGH(g_copy_io_page);
 		chunk = (remaining > COPY_IO_CHUNK) ? COPY_IO_CHUNK : (unsigned int)remaining;
 		errno = 0;
 		bytes_read = OS_READHANDLE(COPY_IO_ADDR, h_src, chunk);
@@ -5220,7 +4084,7 @@ unsigned char copy_single_file_core(const char *src_path, const char *dst_path, 
 		ui_tick++;
 		if ((ui_tick & 3u) == 0u || remaining == 0u)
 		{
-			panel_restore_c000();
+			SETPG32KHIGH(residentPg);
 			copy_progress_file_bytes(file_size - remaining, file_size);
 		}
 		fileop_yield();
@@ -5234,7 +4098,6 @@ unsigned char copy_single_file_core(const char *src_path, const char *dst_path, 
 	OS_SETFILETIME((unsigned char *)dst_path, fdate, ftime);
 	return COPY_FILE_OK;
 }
-
 
 static void copy_tree_iter(const char *base_src, const char *base_dst)
 {
@@ -5284,7 +4147,7 @@ static void copy_tree_iter(const char *base_src, const char *base_dst)
 				continue;
 			}
 			copy_take_dir_snapshot();
-			copy_snap_map();
+			SETPG32KHIGH(g_copy_snap_page);
 			dir_count = *copy_cache_count_ptr();
 			copy_stack_map();
 			frame = copy_stack_frame_ptr(g_copy_sp - 1u);
@@ -5318,7 +4181,7 @@ static void copy_tree_iter(const char *base_src, const char *base_dst)
 		strncpy(r_dst_full, frame->dst, sizeof(r_dst_full) - 1u);
 		r_dst_full[sizeof(r_dst_full) - 1u] = 0;
 
-		copy_snap_map();
+		SETPG32KHIGH(g_copy_snap_page);
 		name_ptr = copy_cache_name_ptr(snap_idx);
 		if (name_ptr[0] == 0)
 			continue;
@@ -5330,11 +4193,15 @@ static void copy_tree_iter(const char *base_src, const char *base_dst)
 		if (is_dir)
 		{
 			copy_progress_file_begin(name_ptr, 1);
-			panel_restore_c000();
+			SETPG32KHIGH(residentPg);
 			if ((unsigned char)OS_MKDIR((unsigned char *)r_dst_full) != 0u)
 			{
-				g_copy_overwrite_mode = COPY_OW_ABORT;
-				break;
+				if (!copy_dir_exists(r_dst_full))
+				{
+					g_copy_overwrite_mode = COPY_OW_ABORT;
+					break;
+				}
+				/* Existing subdir: merge contents without prompting. */
 			}
 			copy_stack_map();
 			frame = copy_stack_frame_ptr(g_copy_sp - 1u);
@@ -5364,7 +4231,7 @@ static void copy_tree_iter(const char *base_src, const char *base_dst)
 			copy_stack_map();
 			snap_fdate = copy_stack_dates_ptr(COPY_STACK_SNAPDATE_OFF)[snap_idx];
 			snap_ftime = copy_stack_dates_ptr(COPY_STACK_SNAPTIME_OFF)[snap_idx];
-			panel_restore_c000();
+			SETPG32KHIGH(residentPg);
 			copy_res = copy_single_file_core(r_src_full, r_dst_full, snap_fdate, snap_ftime);
 			if (copy_res == COPY_FILE_ABORT || copy_res == COPY_FILE_ERR || g_fileop_abort)
 				break;
@@ -5375,7 +4242,6 @@ static void copy_tree_iter(const char *base_src, const char *base_dst)
 
 	g_copy_sp = 0;
 }
-
 
 static unsigned char nc_mkdir_name_valid(const char *name)
 {
@@ -5412,8 +4278,21 @@ static unsigned char copy_do_one_item(PanelState *src_panel, const char *filenam
 		}
 		if ((unsigned char)OS_MKDIR((unsigned char *)full_dst_path) != 0u)
 		{
-			copy_progress_draw_name("MkDir failed");
-			return 1;
+			unsigned char merge;
+
+			if (!copy_dir_exists(full_dst_path))
+			{
+				copy_progress_draw_name("MkDir failed");
+				return 1;
+			}
+			merge = copy_check_dir_merge(full_dst_path);
+			if (merge == COPY_FILE_SKIP)
+				return 1;
+			if (merge == COPY_FILE_ABORT)
+			{
+				g_fileop_abort = 1;
+				return 1;
+			}
 		}
 		copy_progress_file_begin(filename, 1);
 		copy_tree_iter(full_src_path, full_dst_path);
@@ -5589,7 +4468,7 @@ void Action_Rename(void)
 		return;
 
 	set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
-	delete_fi_get_name(&set.bank_array[page_offset], saved_filename);
+	copy_name_preserve_case(&set.bank_array[page_offset], saved_filename);
 
 	strncpy(set.temp_path, saved_filename, sizeof(set.temp_path) - 1u);
 	set.temp_path[sizeof(set.temp_path) - 1u] = 0;
@@ -5634,7 +4513,7 @@ void Action_Rename(void)
 		return;
 	}
 
-	panel_restore_c000();
+	SETPG32KHIGH(residentPg);
 
 	/* cmd ren: bare names in current panel directory */
 	if ((unsigned char)OS_RENAME((unsigned char *)saved_filename, (unsigned char *)set.temp_path) != 0u)
@@ -5893,27 +4772,6 @@ static void deldir_stack_top(char *out)
 	out[i] = 0;
 }
 
-/* Prefer LFN; else 8.3 with preserved case (same rules as copy). */
-static void delete_fi_get_name(const fileInfo *fi, char *out)
-{
-	unsigned char i;
-
-	if (fi->lfname[0] != 0)
-	{
-		i = 0;
-		while (i < 63u && fi->lfname[i] != 0)
-		{
-			out[i] = (char)fi->lfname[i];
-			i++;
-		}
-		out[i] = 0;
-	}
-	else
-	{
-		copy_name_preserve_case(fi, out);
-	}
-}
-
 /* First non-dot entry in already opened directory; uses global r_global_info. */
 static unsigned char delete_find_first(char *name_out, unsigned char *is_dir_out)
 {
@@ -5927,7 +4785,7 @@ static unsigned char delete_find_first(char *name_out, unsigned char *is_dir_out
 			return 0;
 		if (copy_is_dot_entry(&r_global_info))
 			continue;
-		delete_fi_get_name(&r_global_info, name_out);
+		copy_name_preserve_case(&r_global_info, name_out);
 		*is_dir_out = (unsigned char)((r_global_info.fattrib & 0x10) ? 1u : 0u);
 		return 1;
 	}
@@ -6133,12 +4991,15 @@ void Action_Delete(void)
 		panels_refresh_after_delete(panel);
 }
 
-void init(void)
+static void nc_test_dummy_plug(void)
 {
-	main_pg.l = OS_GETMAINPAGES();
-	pgbak = main_pg.pgs.window_3;
-	set.totalMem = 255;
-	set.freeMem = getFreeMem();
+	char plug_rc;
+
+	plug_rc = dummyPlug(0x41u);
+	print_cstr("plug=");
+	putchar(plug_rc);
+	print_cstr(" exp=B");
+	print_crlf();
 }
 
 C_task main(void)
@@ -6147,8 +5008,14 @@ C_task main(void)
 	OS_SETGFX(0x86);
 	OS_CLS(0);
 	OS_SETSYSDRV();
+
+	nc_test_dummy_plug();
+
+	// getchar();
+
 	nc_capture_startup_path();
-	
+
+	init();
 	print_cstr("Build: ");
 	print_cstr(__DATE__);
 	print_cstr(" ");
@@ -6158,8 +5025,11 @@ C_task main(void)
 	set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
 
 	init_panels();
+	print_cstr("init_panels() done\n");
 	nc_ini_load();
+	print_cstr("nc_ini_load() done\n");
 	nc_nvext_load();
+	print_cstr("nc_nvext_load() done\n");
 	panel_fixup_startup_path(&left_panel);
 	panel_fixup_startup_path(&right_panel);
 
@@ -6222,7 +5092,14 @@ C_task main(void)
 			nc_clock_draw(0);
 			continue;
 		case '0':
-			nc_ini_save();
+			{
+				unsigned char c000_saved;
+
+				c000_saved = bank_window_current();
+				SETPG32KHIGH(residentPg);
+				nc_ini_save();
+				SETPG32KHIGH(c000_saved);
+			}
 			exit(0);
 			continue;
 		case '1':
@@ -6254,7 +5131,6 @@ C_task main(void)
 			break;
 		}
 
-
 		if (key == NC_KEY_MARK_INS || key == NC_KEY_MARK_STAR)
 		{
 			panel_mark_toggle_cursor(active_p);
@@ -6271,7 +5147,6 @@ C_task main(void)
 			draw_bottom_info(active_p);
 			continue;
 		}
-
 
 		if (key == 250)
 		{
@@ -6308,7 +5183,6 @@ C_task main(void)
 			continue;
 		}
 
-
 		if (key == 249)
 		{
 			if (active_p->cursor_idx + 1 < active_p->file_count)
@@ -6343,7 +5217,6 @@ C_task main(void)
 			continue;
 		}
 
-
 		if (key == 248)
 		{
 			if (active_p->cursor_idx > 0)
@@ -6371,7 +5244,6 @@ C_task main(void)
 			}
 			continue;
 		}
-
 
 		if (key == 251)
 		{
