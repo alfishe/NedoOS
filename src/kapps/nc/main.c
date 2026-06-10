@@ -84,6 +84,7 @@
 /* Insert (key_ins) or '*' toggles file mark in active panel. */
 #define NC_KEY_MARK_INS 29
 #define NC_KEY_MARK_STAR 42
+#define NC_KEY_SHIFT_6 94
 #define NC_KEY_FOCUS 31 /* app regained focus: reload dirs and redraw */
 /* NedOOS F-keys: extbase=0xB0 (sysdefs.asm key_F1..key_F10) */
 #define NC_KEY_F10 176
@@ -100,6 +101,7 @@
 #define COPY_FILE_ERR 1u
 #define COPY_FILE_SKIP 2u
 #define COPY_FILE_ABORT 3u
+#define COPY_ITEM_NOMEM 255u
 
 /* Key 8 ? delete: one Yes/No confirm, then silent tree purge. */
 
@@ -135,7 +137,7 @@
 #define PANEL_META_USED_BYTES (PANEL_META_OFF_MARK + PANEL_META_MARK_BYTES)
 #define NC_NVEXT_OFF PANEL_META_USED_BYTES
 #define NC_NVEXT_SPARE (BANK_PAGE_SIZE - PANEL_META_USED_BYTES)
-#define NC_NVEXT_MAX 1300 /* nv.ext; must fit in NC_NVEXT_SPARE (~1804 B) */
+#define NC_NVEXT_MAX 1024u /* nv.ext; must fit in NC_NVEXT_SPARE (~1804 B) */
 
 #define PANEL_KIND_FILE 0u
 #define PANEL_KIND_DIR 1u
@@ -166,8 +168,8 @@ void switch_file_page(PanelState *panel, unsigned int file_idx);
 int ext_cmp(const char *s1, const char *s2);
 void build_full_path(char *dest, const char *path, const char *filename);
 
-unsigned char uVer[] = "0.1";
-unsigned char botMenu[NC_BOTMENU_LEN] = "1Left  2Right 3View 4Edit 5Copy 6Rename 7MkDir 8Delete 9Menu 0Quit";
+unsigned char uVer[] = "0.5";
+unsigned char botMenu[] = "1Left  2Right 3View 4Edit 5Copy 6Rename 7MkDir 8Delete 9Menu 0Quit";
 
 static char r_src_full[200];
 static char r_dst_full[200];
@@ -233,16 +235,27 @@ static void panel_sort_notice_show(PanelState *panel);
 static void panel_clamp_scroll(PanelState *panel);
 static unsigned char panel_find_by_name(PanelState *panel, const char *hint, unsigned int *out_idx);
 static void fileop_progress_begin(unsigned char is_delete);
+static void fileop_progress_begin_title(unsigned char is_delete, const char *title);
 static void fileop_progress_restore(void);
+static void ui_error_dialog(const char *title, const char *msg);
+static unsigned char copy_dest_path_ok(void);
+static void panels_refresh_after_copy_snaps(PanelState *src_panel, PanelState *dst_panel, const char *snap_left,
+											const char *snap_right, const char *hint);
+static void move_delete_path(const char *path);
+static void move_delete_dir_path(const char *full_dir_path);
 static void delete_progress_ensure(void);
 static void panels_redraw_current(PanelState *active_p);
 static void panels_refresh_after_delete(PanelState *del_panel);
 static void ui_str_append_uint(char *buf, unsigned char *pi, unsigned int val);
 static unsigned char nc_mkdir_name_valid(const char *name);
 static unsigned char g_copy_overwrite_mode;
-static unsigned char g_fileop_abort;	/* Esc during copy/delete progress */
-static unsigned char g_focus_pending;	/* NC_KEY_FOCUS seen during fileop poll */
-static unsigned char g_delete_progress; /* 1: red "Deleting" window, no progress bar */
+static char g_copy_ow_msg[80];
+static unsigned char g_fileop_abort;	 /* Esc during copy/delete progress */
+static unsigned char g_focus_pending;	 /* NC_KEY_FOCUS seen during fileop poll */
+static unsigned char g_delete_progress;	 /* 1: red "Deleting" window, no progress bar */
+static unsigned char g_move_active;		 /* 1: move op ? "Moving" progress, delete source after OK copy */
+static unsigned char g_copy_tree_failed; /* copy_tree_iter hit error (not user skip) */
+static char g_fileop_title[16];
 static unsigned char g_deldir_sp;
 
 typedef struct
@@ -274,12 +287,6 @@ static void fileop_poll_abort(void)
 		g_fileop_abort = 1;
 }
 
-static void fileop_yield(void)
-{
-	fileop_poll_abort();
-	YIELD();
-}
-
 unsigned char residentPg;
 union APP_PAGES main_pg;
 
@@ -294,6 +301,34 @@ static unsigned char bank_window_current(void)
 static void bank_window_map(unsigned char page)
 {
 	SETPG32KHIGH(page);
+}
+
+/* BDOS and CODE_RESIDENT at C000: map residentPg before OS_* / show_dialog. */
+static unsigned char resident_bank_push(void)
+{
+	unsigned char saved;
+
+	saved = bank_window_current();
+	SETPG32KHIGH(residentPg);
+	return saved;
+}
+
+static void resident_bank_pop(unsigned char saved)
+{
+	bank_window_map(saved);
+}
+
+static void fileop_yield(void)
+{
+	unsigned char saved;
+
+	saved = bank_window_current();
+	if (saved != residentPg)
+		SETPG32KHIGH(residentPg);
+	fileop_poll_abort();
+	YIELD();
+	if (saved != residentPg)
+		bank_window_map(saved);
 }
 
 #define COPY_IO_ADDR ((unsigned char *)BANK_WINDOW_ADDRESS)
@@ -314,6 +349,7 @@ char g_ini_editor[NC_INI_APP_LEN];
 unsigned char g_ini_has_left_path;
 unsigned char g_ini_has_right_path;
 unsigned char g_ini_read_on_focus;
+static char g_ini_buf[NC_INI_BUF_SIZE];
 char g_nc_startup_path[64];
 static char g_drive_labels[PANEL_DRIVE_MAX][26];
 
@@ -1107,46 +1143,8 @@ static int panel_cmp_lfn_tie_bank(PanelState *panel, unsigned int pa, unsigned i
 	return cmp;
 }
 
-/* Sort compares must use file-page fsize (same source as the Size column). */
-static unsigned long panel_phys_fsize_get(PanelState *panel, unsigned int phys)
-{
-	unsigned char page;
-	unsigned int off;
-
-	page = (unsigned char)(phys / FILES_PER_PAGE);
-	off = phys % FILES_PER_PAGE;
-	panel_file_map(panel, page);
-	set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
-	return set.bank_array[off].fsize;
-}
-
-static unsigned short panel_phys_fdate_get(PanelState *panel, unsigned int phys)
-{
-	unsigned char page;
-	unsigned int off;
-
-	page = (unsigned char)(phys / FILES_PER_PAGE);
-	off = phys % FILES_PER_PAGE;
-	panel_file_map(panel, page);
-	set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
-	return (unsigned short)set.bank_array[off].fdate;
-}
-
-static unsigned short panel_phys_ftime_get(PanelState *panel, unsigned int phys)
-{
-	unsigned char page;
-	unsigned int off;
-
-	page = (unsigned char)(phys / FILES_PER_PAGE);
-	off = phys % FILES_PER_PAGE;
-	panel_file_map(panel, page);
-	set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
-	return (unsigned short)set.bank_array[off].ftime;
-}
-
 typedef struct PanelFn83Ctx
 {
-	PanelState *panel;
 	unsigned char *base;
 	unsigned char *kind;
 	unsigned char *name4;
@@ -1212,24 +1210,9 @@ static int panel_cmp_fn83_phys(const PanelFn83Ctx *ctx, unsigned int pa, unsigne
 		break;
 
 	case NC_PANEL_SORT_SIZE:
-	{
-		unsigned long sa;
-		unsigned long sb;
-
-		if (ctx->panel != NULL)
-		{
-			sa = panel_phys_fsize_get(ctx->panel, pa);
-			sb = panel_phys_fsize_get(ctx->panel, pb);
-			panel_meta_map(ctx->panel);
-		}
-		else
-		{
-			sa = ctx->sizes[pa];
-			sb = ctx->sizes[pb];
-		}
-		if (sa < sb)
+		if (ctx->sizes[pa] < ctx->sizes[pb])
 			cmp = -1;
-		else if (sa > sb)
+		else if (ctx->sizes[pa] > ctx->sizes[pb])
 			cmp = 1;
 		else
 		{
@@ -1238,37 +1221,15 @@ static int panel_cmp_fn83_phys(const PanelFn83Ctx *ctx, unsigned int pa, unsigne
 				cmp = sortfn_cmp_cpm11_tail_meta(ma, mb, ea, eb);
 		}
 		break;
-	}
 
 	case NC_PANEL_SORT_TIME:
-	{
-		unsigned short da;
-		unsigned short db;
-		unsigned short ta;
-		unsigned short tb;
-
-		if (ctx->panel != NULL)
-		{
-			da = panel_phys_fdate_get(ctx->panel, pa);
-			db = panel_phys_fdate_get(ctx->panel, pb);
-			ta = panel_phys_ftime_get(ctx->panel, pa);
-			tb = panel_phys_ftime_get(ctx->panel, pb);
-			panel_meta_map(ctx->panel);
-		}
-		else
-		{
-			da = ctx->dates[pa];
-			db = ctx->dates[pb];
-			ta = ctx->times[pa];
-			tb = ctx->times[pb];
-		}
-		if (da < db)
+		if (ctx->dates[pa] < ctx->dates[pb])
 			cmp = -1;
-		else if (da > db)
+		else if (ctx->dates[pa] > ctx->dates[pb])
 			cmp = 1;
-		else if (ta < tb)
+		else if (ctx->times[pa] < ctx->times[pb])
 			cmp = -1;
-		else if (ta > tb)
+		else if (ctx->times[pa] > ctx->times[pb])
 			cmp = 1;
 		else
 		{
@@ -1277,7 +1238,6 @@ static int panel_cmp_fn83_phys(const PanelFn83Ctx *ctx, unsigned int pa, unsigne
 				cmp = sortfn_cmp_cpm11_tail_meta(ma, mb, ea, eb);
 		}
 		break;
-	}
 
 	case NC_PANEL_SORT_NAME:
 	default:
@@ -1349,7 +1309,6 @@ static void panel_heap_sort_fn83(PanelState *panel)
 		return;
 
 	panel_meta_map(panel);
-	ctx.panel = panel;
 	ctx.base = (unsigned char *)BANK_WINDOW_ADDRESS;
 	ctx.kind = ctx.base + PANEL_META_OFF_KIND;
 	ctx.name4 = ctx.base + PANEL_META_OFF_NAME4;
@@ -1415,16 +1374,9 @@ static int panel_cmp_lfn_phys(const PanelLfnCtx *ctx, unsigned int pa, unsigned 
 		break;
 
 	case NC_PANEL_SORT_SIZE:
-	{
-		unsigned long sa;
-		unsigned long sb;
-
-		sa = panel_phys_fsize_get(ctx->panel, pa);
-		sb = panel_phys_fsize_get(ctx->panel, pb);
-		panel_meta_map(ctx->panel);
-		if (sa < sb)
+		if (ctx->sizes[pa] < ctx->sizes[pb])
 			cmp = -1;
-		else if (sa > sb)
+		else if (ctx->sizes[pa] > ctx->sizes[pb])
 			cmp = 1;
 		else
 		{
@@ -1438,27 +1390,15 @@ static int panel_cmp_lfn_phys(const PanelLfnCtx *ctx, unsigned int pa, unsigned 
 				cmp = panel_cmp_lfn_tie_bank(ctx->panel, pa, pb);
 		}
 		break;
-	}
 
 	case NC_PANEL_SORT_TIME:
-	{
-		unsigned short da;
-		unsigned short db;
-		unsigned short ta;
-		unsigned short tb;
-
-		da = panel_phys_fdate_get(ctx->panel, pa);
-		db = panel_phys_fdate_get(ctx->panel, pb);
-		ta = panel_phys_ftime_get(ctx->panel, pa);
-		tb = panel_phys_ftime_get(ctx->panel, pb);
-		panel_meta_map(ctx->panel);
-		if (da < db)
+		if (ctx->dates[pa] < ctx->dates[pb])
 			cmp = -1;
-		else if (da > db)
+		else if (ctx->dates[pa] > ctx->dates[pb])
 			cmp = 1;
-		else if (ta < tb)
+		else if (ctx->times[pa] < ctx->times[pb])
 			cmp = -1;
-		else if (ta > tb)
+		else if (ctx->times[pa] > ctx->times[pb])
 			cmp = 1;
 		else
 		{
@@ -1472,7 +1412,6 @@ static int panel_cmp_lfn_phys(const PanelLfnCtx *ctx, unsigned int pa, unsigned 
 				cmp = panel_cmp_lfn_tie_bank(ctx->panel, pa, pb);
 		}
 		break;
-	}
 
 	case NC_PANEL_SORT_NAME:
 	default:
@@ -1595,10 +1534,6 @@ static void panel_refresh_sort_cache(PanelState *panel)
 
 static void panel_sort_indices(PanelState *panel)
 {
-	if (panel->file_count < 2u)
-		return;
-	if (panel->file_count > 0u)
-		panel_refresh_sort_cache(panel);
 	if (!panel->sort_lfn)
 		panel_heap_sort_fn83(panel);
 	else
@@ -1955,6 +1890,131 @@ static unsigned char nc_ini_drive_hidden(unsigned char letter)
 		p++;
 	}
 	return 0;
+}
+
+static const char *nc_ini_sort_mode_name(unsigned char mode)
+{
+	switch (mode)
+	{
+	case NC_PANEL_SORT_EXT:
+		return "ext";
+	case NC_PANEL_SORT_SIZE:
+		return "size";
+	case NC_PANEL_SORT_TIME:
+		return "time";
+	default:
+		return "name";
+	}
+}
+
+static unsigned char nc_ini_set_location(void)
+{
+	unsigned int res;
+
+	res = OS_SETSYSDRV();
+	if ((res & 0xff00u) != 0u)
+		return 0;
+	return (unsigned char)(OS_CHDIR((unsigned char *)NC_INI_DIR) == 0);
+}
+
+static void nc_ini_restore_cwd(void)
+{
+	PanelState *active;
+
+	active = left_panel.is_active ? &left_panel : &right_panel;
+	panel_chdir_only(active->current_path);
+}
+
+static void nc_ini_append(char *buf, unsigned int *pos, const char *text)
+{
+	unsigned int n;
+
+	n = 0;
+	while (text[n] != 0)
+		n++;
+	if (*pos + n >= NC_INI_BUF_SIZE - 1u)
+		return;
+	memcpy(buf + *pos, text, n);
+	*pos += n;
+	buf[*pos] = 0;
+}
+
+static void nc_ini_append_u8(char *buf, unsigned int *pos, unsigned char v)
+{
+	char tmp[4];
+	unsigned char n;
+
+	n = 0;
+	if (v >= 100u)
+	{
+		tmp[n++] = (char)('0' + (v / 100u));
+		v = (unsigned char)(v % 100u);
+	}
+	if (n > 0u || v >= 10u)
+	{
+		tmp[n++] = (char)('0' + (v / 10u));
+		v = (unsigned char)(v % 10u);
+	}
+	tmp[n++] = (char)('0' + v);
+	tmp[n] = 0;
+	nc_ini_append(buf, pos, tmp);
+}
+
+static void nc_ini_append_kv(char *buf, unsigned int *pos, const char *key, const char *val)
+{
+	nc_ini_append(buf, pos, key);
+	nc_ini_append(buf, pos, "=");
+	nc_ini_append(buf, pos, val);
+	nc_ini_append(buf, pos, "\r\n");
+}
+
+static void nc_ini_append_kv_u8(char *buf, unsigned int *pos, const char *key, unsigned char val)
+{
+	nc_ini_append(buf, pos, key);
+	nc_ini_append(buf, pos, "=");
+	nc_ini_append_u8(buf, pos, val);
+	nc_ini_append(buf, pos, "\r\n");
+}
+
+static void nc_ini_save(void)
+{
+	FILE *fp;
+	unsigned int pos;
+
+	pos = 0;
+	g_ini_buf[0] = 0;
+	nc_ini_append(g_ini_buf, &pos, "# NC settings\r\n");
+	nc_ini_append_kv(g_ini_buf, &pos, "LeftPath", left_panel.current_path);
+	nc_ini_append_kv(g_ini_buf, &pos, "RightPath", right_panel.current_path);
+	nc_ini_append_kv(g_ini_buf, &pos, "LeftSort", nc_ini_sort_mode_name(left_panel.sort_mode));
+	nc_ini_append_kv(g_ini_buf, &pos, "RightSort", nc_ini_sort_mode_name(right_panel.sort_mode));
+	nc_ini_append_kv(g_ini_buf, &pos, "LeftSortDir", left_panel.sort_desc ? "desc" : "asc");
+	nc_ini_append_kv(g_ini_buf, &pos, "RightSortDir", right_panel.sort_desc ? "desc" : "asc");
+	nc_ini_append_kv_u8(g_ini_buf, &pos, "LeftSortLfn", left_panel.sort_lfn);
+	nc_ini_append_kv_u8(g_ini_buf, &pos, "RightSortLfn", right_panel.sort_lfn);
+	nc_ini_append_kv_u8(g_ini_buf, &pos, "LeftActive", left_panel.is_active);
+	nc_ini_append(g_ini_buf, &pos, "# Comma-separated letters to hide in drive menu (e.g. J,K,L)\r\n");
+	nc_ini_append_kv(g_ini_buf, &pos, "HideDrives", g_ini_hide_drives);
+	nc_ini_append(g_ini_buf, &pos, "# F3 viewer / F4 editor: .com launched with file path as argument\r\n");
+	nc_ini_append_kv(g_ini_buf, &pos, "Viewer", g_ini_viewer);
+	nc_ini_append_kv(g_ini_buf, &pos, "Editor", g_ini_editor);
+	nc_ini_append(g_ini_buf, &pos, "# 1 = re-read both panels when app regains focus (key 31)\r\n");
+	nc_ini_append_kv_u8(g_ini_buf, &pos, "ReadOnFocus", g_ini_read_on_focus);
+
+	if (!nc_ini_set_location())
+	{
+		nc_ini_restore_cwd();
+		return;
+	}
+	fp = OS_CREATEHANDLE((unsigned char *)NC_INI_NAME, 0x80);
+	if (((int)fp) & 0xff)
+	{
+		nc_ini_restore_cwd();
+		return;
+	}
+	(void)OS_WRITEHANDLE((unsigned char *)g_ini_buf, fp, pos);
+	OS_CLOSEHANDLE(fp);
+	nc_ini_restore_cwd();
 }
 
 static void print_cstr(const char *s)
@@ -2378,14 +2438,69 @@ static void draw_panel_row_empty(unsigned char start_x, unsigned char row_y)
 	panel_row_out(start_x, row_y, 0xFFFFu, &left_panel);
 }
 
-static void ui_fast_print_size(unsigned long size)
+void fast_print_size(unsigned long size)
 {
-	unsigned char c000_saved;
+	unsigned int total_mb;
+	unsigned int whole;
+	unsigned int frac;
+	unsigned char d[6];
+	unsigned char i;
+	unsigned char lead;
 
-	c000_saved = bank_window_current();
-	SETPG32KHIGH(residentPg);
-	fast_print_size(size);
-	SETPG32KHIGH(c000_saved);
+	if (size >= SZ_100MB)
+	{
+		total_mb = (unsigned int)(size / SZ_1MB);
+		whole = total_mb / 1024u;
+		frac = (total_mb % 1024u) * 100u / 1024u;
+		putchar((unsigned char)('0' + whole));
+		putchar('.');
+		putchar((unsigned char)('0' + frac / 10u));
+		putchar((unsigned char)('0' + frac % 10u));
+		putchar('G');
+		putchar(' ');
+		return;
+	}
+
+	if (size >= SZ_1MB)
+	{
+		whole = (unsigned int)(size / SZ_1MB);
+		frac = (unsigned int)(((size % SZ_1MB) * 100UL) / SZ_1MB);
+		if (whole >= 10u)
+			putchar((unsigned char)('0' + whole / 10u));
+		else
+			putchar(' ');
+		putchar((unsigned char)('0' + whole % 10u));
+		putchar('.');
+		putchar((unsigned char)('0' + frac / 10u));
+		putchar((unsigned char)('0' + frac % 10u));
+		putchar('M');
+		return;
+	}
+
+	d[5] = (unsigned char)(size % 10UL);
+	size /= 10UL;
+	d[4] = (unsigned char)(size % 10UL);
+	size /= 10UL;
+	d[3] = (unsigned char)(size % 10UL);
+	size /= 10UL;
+	d[2] = (unsigned char)(size % 10UL);
+	size /= 10UL;
+	d[1] = (unsigned char)(size % 10UL);
+	size /= 10UL;
+	d[0] = (unsigned char)(size % 10UL);
+
+	lead = 0;
+	for (i = 0; i < 5u; i++)
+	{
+		if (d[i] != 0u || lead)
+		{
+			putchar((unsigned char)('0' + d[i]));
+			lead = 1;
+		}
+		else
+			putchar(' ');
+	}
+	putchar((unsigned char)('0' + d[5]));
 }
 
 void draw_bottom_info(PanelState *active_p)
@@ -2422,7 +2537,7 @@ void draw_bottom_info(PanelState *active_p)
 	}
 	else
 	{
-		ui_fast_print_size(f_size);
+		fast_print_size(f_size);
 		putchar(' ');
 		putchar(' ');
 		putchar(' ');
@@ -3092,23 +3207,17 @@ static void panels_draw_all(PanelState *active_p)
 	draw_status_bar();
 }
 
-static void panels_refresh_after_copy(PanelState *src_panel, PanelState *dst_panel, const char *hint)
+static void panels_refresh_after_copy_snaps(PanelState *src_panel, PanelState *dst_panel, const char *snap_left,
+											const char *snap_right, const char *hint)
 {
 	PanelState *active_p;
 	unsigned int idx;
-	char snap_left[64];
-	char snap_right[64];
 
 	active_p = (left_panel.is_active) ? &left_panel : &right_panel;
 	if (src_panel == NULL)
 		src_panel = active_p;
 	if (dst_panel == NULL)
 		dst_panel = (src_panel == &left_panel) ? &right_panel : &left_panel;
-
-	strncpy(snap_left, left_panel.current_path, sizeof(snap_left) - 1u);
-	snap_left[sizeof(snap_left) - 1u] = 0;
-	strncpy(snap_right, right_panel.current_path, sizeof(snap_right) - 1u);
-	snap_right[sizeof(snap_right) - 1u] = 0;
 
 	panels_reload_both(snap_left, snap_right);
 
@@ -3121,6 +3230,18 @@ static void panels_refresh_after_copy(PanelState *src_panel, PanelState *dst_pan
 	g_focus_pending = 0;
 	copy_prog.drawn = 0;
 	panels_draw_all(active_p);
+}
+
+static void panels_refresh_after_copy(PanelState *src_panel, PanelState *dst_panel, const char *hint)
+{
+	char snap_left[64];
+	char snap_right[64];
+
+	strncpy(snap_left, left_panel.current_path, sizeof(snap_left) - 1u);
+	snap_left[sizeof(snap_left) - 1u] = 0;
+	strncpy(snap_right, right_panel.current_path, sizeof(snap_right) - 1u);
+	snap_right[sizeof(snap_right) - 1u] = 0;
+	panels_refresh_after_copy_snaps(src_panel, dst_panel, snap_left, snap_right, hint);
 }
 
 void panels_refresh_all(const char *next_file_hint)
@@ -3258,6 +3379,19 @@ static void ui_alert_dialog(const char *title, const char *prompt)
 	(void)ui_show_dialog(&dlg, NULL, 0, D_BTN_OK);
 }
 
+static void ui_error_dialog(const char *title, const char *msg)
+{
+	DialogWindow dlg;
+
+	ui_dlg_centered(&dlg, UI_DLG_INPUT_W, UI_DLG_ALERT_H, UI_DLG_INPUT_Y, COLOR_OVERWRITE_UI, title, msg);
+	(void)ui_show_dialog(&dlg, NULL, 0, D_BTN_OK);
+}
+
+static unsigned char copy_dest_path_ok(void)
+{
+	return panel_chdir_for_read(set.temp_path);
+}
+
 static void ui_draw_frame(unsigned char x, unsigned char y, unsigned char w, unsigned char h, unsigned char color, const char *title)
 {
 	unsigned char wcount;
@@ -3354,16 +3488,24 @@ static void panel_sort_notice_show(PanelState *panel)
 
 static void fileop_progress_layout(unsigned char with_bar)
 {
-	copy_prog.w = UI_DLG_PROGRESS_W;
-	copy_prog.h = with_bar ? UI_DLG_INPUT_H : UI_DLG_PROGRESS_H;
-	copy_prog.x = (unsigned char)((screenWidth - copy_prog.w - 2u) / 2u);
-	copy_prog.y = with_bar ? UI_DLG_COPY_PROGRESS_Y : UI_DLG_PROGRESS_Y;
-	copy_prog.name_y = (unsigned char)(copy_prog.y + (with_bar ? 4u : 2u));
 	if (with_bar)
 	{
+		copy_prog.w = UI_DLG_INPUT_W;
+		copy_prog.h = UI_DLG_INPUT_H;
+		copy_prog.x = (unsigned char)((screenWidth - copy_prog.w - 2u) / 2u);
+		copy_prog.y = UI_DLG_INPUT_Y;
+		copy_prog.name_y = (unsigned char)(copy_prog.y + 4u);
 		copy_prog.bar_w = (unsigned char)(copy_prog.w - 10u);
 		copy_prog.bar_x = (unsigned char)(copy_prog.x + 5u);
 		copy_prog.bar_y = (unsigned char)(copy_prog.y + 2u);
+	}
+	else
+	{
+		copy_prog.w = UI_DLG_PROGRESS_W;
+		copy_prog.h = UI_DLG_PROGRESS_H;
+		copy_prog.x = (unsigned char)((screenWidth - copy_prog.w - 2u) / 2u);
+		copy_prog.y = UI_DLG_PROGRESS_Y;
+		copy_prog.name_y = (unsigned char)(copy_prog.y + 2u);
 	}
 }
 
@@ -3433,15 +3575,27 @@ static void fileop_progress_open(unsigned char color, const char *title, unsigne
 	fileop_progress_store_name("");
 }
 
+static void fileop_progress_begin_title(unsigned char is_delete, const char *title)
+{
+	const char *show;
+
+	show = title;
+	if (show == NULL || show[0] == 0)
+		show = is_delete ? "Deleting" : "Copying";
+	strncpy(g_fileop_title, show, sizeof(g_fileop_title) - 1u);
+	g_fileop_title[sizeof(g_fileop_title) - 1u] = 0;
+	g_delete_progress = is_delete;
+	fileop_progress_open(is_delete ? COLOR_OVERWRITE_UI : COLOR_COPY_UI, g_fileop_title, !is_delete);
+}
+
 static void fileop_progress_begin(unsigned char is_delete)
 {
-	g_delete_progress = is_delete;
-	fileop_progress_open(is_delete ? COLOR_OVERWRITE_UI : COLOR_COPY_UI, is_delete ? "Deleting" : "Copying", !is_delete);
+	fileop_progress_begin_title(is_delete, is_delete ? "Deleting" : "Copying");
 }
 
 static void fileop_progress_restore(void)
 {
-	fileop_progress_repaint(g_delete_progress ? COLOR_OVERWRITE_UI : COLOR_COPY_UI, g_delete_progress ? "Deleting" : "Copying",
+	fileop_progress_repaint(g_delete_progress ? COLOR_OVERWRITE_UI : COLOR_COPY_UI, g_fileop_title,
 							g_delete_progress ? 0u : 1u);
 }
 
@@ -3461,7 +3615,7 @@ static void copy_progress_draw_bar(unsigned char pct)
 	copy_prog.last_pct = pct;
 
 	if (!copy_prog.drawn)
-		fileop_progress_begin(0);
+		fileop_progress_begin_title(g_delete_progress, g_fileop_title);
 
 	filled = (unsigned char)(((unsigned int)copy_prog.bar_w * pct) / 100u);
 
@@ -3490,7 +3644,7 @@ static void copy_progress_draw_name(const char *name)
 	const char *show;
 
 	if (!copy_prog.drawn)
-		fileop_progress_begin(g_delete_progress);
+		fileop_progress_begin_title(g_delete_progress, g_fileop_title);
 
 	show = name;
 	if (show == NULL)
@@ -3498,6 +3652,66 @@ static void copy_progress_draw_name(const char *name)
 
 	OS_SETCOLOR(g_delete_progress ? COLOR_OVERWRITE_UI : COLOR_COPY_UI);
 	ui_print_centered((unsigned char)(copy_prog.x + 1u), copy_prog.name_y, copy_prog.w, show);
+}
+
+static void path_parent_from(const char *path, char *parent_out)
+{
+	unsigned int len;
+	unsigned int i;
+
+	len = strlen(path);
+	if (len >= 200u)
+		len = 199u;
+	strncpy(parent_out, path, len);
+	parent_out[len] = 0;
+	while (len > 0u && (parent_out[len - 1u] == '/' || parent_out[len - 1u] == '\\'))
+		parent_out[--len] = 0;
+	if (len == 0u)
+	{
+		parent_out[0] = 0;
+		return;
+	}
+	for (i = len; i > 0u; i--)
+	{
+		if (parent_out[i - 1u] == '/' || parent_out[i - 1u] == '\\')
+		{
+			parent_out[i - 1u] = 0;
+			len = i - 1u;
+			if (len > 0u && parent_out[len - 1u] == ':')
+			{
+				parent_out[len] = '/';
+				parent_out[len + 1u] = 0;
+			}
+			return;
+		}
+	}
+	parent_out[0] = 0;
+}
+
+static void move_delete_path(const char *path)
+{
+	unsigned char saved;
+
+	saved = resident_bank_push();
+	(void)OS_DELETE((unsigned char *)path);
+	resident_bank_pop(saved);
+}
+
+/* Directory delete: CHDIR parent first (CWD may still be inside the tree). */
+static void move_delete_dir_path(const char *full_dir_path)
+{
+	char parent[200];
+	char base[64];
+	unsigned char saved;
+
+	path_parent_from(full_dir_path, parent);
+	path_basename_from(full_dir_path, base);
+	if (parent[0] == 0 || base[0] == 0)
+		return;
+	saved = resident_bank_push();
+	(void)OS_CHDIR((unsigned char *)parent);
+	(void)OS_DELETE((unsigned char *)base);
+	resident_bank_pop(saved);
 }
 
 static void copy_progress_file_begin(const char *name, unsigned char is_dir)
@@ -3934,21 +4148,45 @@ static void nc_action_edit(PanelState *panel)
 static unsigned char copy_dest_exists(const char *path)
 {
 	FILE *h;
+	unsigned char saved;
+	unsigned char exists;
 
+	saved = resident_bank_push();
 	h = OS_OPENHANDLE((unsigned char *)path, 0x80);
 	if (((int)h) & 0xff)
-		return 0;
-	OS_CLOSEHANDLE(h);
-	return 1;
+		exists = 0;
+	else
+	{
+		OS_CLOSEHANDLE(h);
+		exists = 1;
+	}
+	resident_bank_pop(saved);
+	return exists;
 }
 
 static unsigned char copy_dir_exists(const char *path)
 {
 	FILINFO finfo;
+	unsigned char saved;
+	unsigned char exists;
 
+	saved = resident_bank_push();
 	if ((unsigned char)OS_GETFILINFO((unsigned char *)path, &finfo) != 0u)
-		return 0;
-	return (unsigned char)((finfo.fattrib & 0x10) ? 1u : 0u);
+		exists = 0;
+	else
+		exists = (unsigned char)((finfo.fattrib & 0x10) ? 1u : 0u);
+	resident_bank_pop(saved);
+	return exists;
+}
+
+static void copy_ow_msg_build(const char *kind, const char *dst_path)
+{
+	char base[64];
+
+	strcpy(g_copy_ow_msg, kind);
+	path_basename_from(dst_path, base);
+	strcat(g_copy_ow_msg, base);
+	strcat(g_copy_ow_msg, " exist");
 }
 
 /* exists + cached overwrite mode, or one Copy confirm dialog. */
@@ -3965,7 +4203,7 @@ static unsigned char copy_overwrite_resolve(unsigned char exists, const char *di
 	if (g_copy_overwrite_mode == COPY_OW_ABORT)
 		return COPY_FILE_ABORT;
 
-	res = ui_dialog_confirm("Copy", dialog_msg, D_MASK_OVERWRITE);
+	res = ui_dialog_confirm(g_move_active ? "Move" : "Copy", dialog_msg, D_MASK_OVERWRITE);
 	fileop_progress_restore();
 
 	switch (res)
@@ -3990,12 +4228,14 @@ static unsigned char copy_overwrite_resolve(unsigned char exists, const char *di
 
 static unsigned char copy_check_dir_merge(const char *dst_path)
 {
-	return copy_overwrite_resolve(copy_dir_exists(dst_path), "Folder exists. Merge?");
+	copy_ow_msg_build("folder ", dst_path);
+	return copy_overwrite_resolve(copy_dir_exists(dst_path), g_copy_ow_msg);
 }
 
 static unsigned char copy_check_overwrite(const char *dst_path)
 {
-	return copy_overwrite_resolve(copy_dest_exists(dst_path), "File exists. Replace?");
+	copy_ow_msg_build("file ", dst_path);
+	return copy_overwrite_resolve(copy_dest_exists(dst_path), g_copy_ow_msg);
 }
 
 unsigned char copy_single_file_core(const char *src_path, const char *dst_path, unsigned int src_fdate,
@@ -4012,19 +4252,31 @@ unsigned char copy_single_file_core(const char *src_path, const char *dst_path, 
 	unsigned int fdate;
 	unsigned int ftime;
 	unsigned char ow;
+	unsigned char bank_saved;
 
 	fdate = src_fdate;
 	ftime = src_ftime;
 
+	bank_saved = resident_bank_push();
+
 	ow = copy_check_overwrite(dst_path);
 	if (ow == COPY_FILE_SKIP)
+	{
+		resident_bank_pop(bank_saved);
 		return COPY_FILE_SKIP;
+	}
 	if (ow == COPY_FILE_ABORT)
+	{
+		resident_bank_pop(bank_saved);
 		return COPY_FILE_ABORT;
+	}
 
 	h_src = OS_OPENHANDLE((unsigned char *)src_path, 0x80);
 	if (((int)h_src) & 0xff)
+	{
+		resident_bank_pop(bank_saved);
 		return COPY_FILE_ERR;
+	}
 
 	if (fdate == 0 && ftime == 0)
 		OS_GETFILETIME((unsigned char *)src_path, &fdate, &ftime);
@@ -4037,9 +4289,11 @@ unsigned char copy_single_file_core(const char *src_path, const char *dst_path, 
 	if (((int)h_dst) & 0xff)
 	{
 		OS_CLOSEHANDLE(h_src);
+		resident_bank_pop(bank_saved);
 		return COPY_FILE_ERR;
 	}
 
+	/* I/O phase: only g_copy_io_page at C000; no resident/CODE_RESIDENT calls until unmap. */
 	SETPG32KHIGH(g_copy_io_page);
 
 	while (remaining > 0)
@@ -4086,15 +4340,17 @@ unsigned char copy_single_file_core(const char *src_path, const char *dst_path, 
 		{
 			SETPG32KHIGH(residentPg);
 			copy_progress_file_bytes(file_size - remaining, file_size);
+			SETPG32KHIGH(g_copy_io_page);
 		}
 		fileop_yield();
+		if (remaining > 0u)
+			SETPG32KHIGH(g_copy_io_page);
 	}
 
 	copy_io_unmap();
 	OS_SEEKHANDLE(h_dst, file_size);
 	OS_CLOSEHANDLE(h_dst);
 	OS_CLOSEHANDLE(h_src);
-
 	OS_SETFILETIME((unsigned char *)dst_path, fdate, ftime);
 	return COPY_FILE_OK;
 }
@@ -4113,6 +4369,7 @@ static void copy_tree_iter(const char *base_src, const char *base_dst)
 	if (!g_copy_page_active)
 		return;
 
+	g_copy_tree_failed = 0;
 	g_copy_sp = 1;
 	copy_stack_map();
 	frame = copy_stack_frame_ptr(0);
@@ -4128,7 +4385,9 @@ static void copy_tree_iter(const char *base_src, const char *base_dst)
 	frame->snap_valid = 0;
 	frame->dir_more = 0;
 
-	while (g_copy_sp > 0u && g_copy_overwrite_mode != COPY_OW_ABORT && !g_fileop_abort)
+	/* Do not gate on COPY_OW_ABORT here: Move sets it up-front to skip overwrite
+	 * dialogs; abort is handled per-file in copy_single_file_core and via break. */
+	while (g_copy_sp > 0u && !g_fileop_abort)
 	{
 		copy_stack_map();
 		frame = copy_stack_frame_ptr(g_copy_sp - 1u);
@@ -4143,6 +4402,7 @@ static void copy_tree_iter(const char *base_src, const char *base_dst)
 			{
 				if (g_fileop_abort)
 					break;
+				g_copy_tree_failed = 1;
 				g_copy_sp--;
 				continue;
 			}
@@ -4167,6 +4427,8 @@ static void copy_tree_iter(const char *base_src, const char *base_dst)
 				frame->dir_more = 0;
 				continue;
 			}
+			if (g_move_active && g_copy_sp > 1u)
+				move_delete_dir_path(frame->src);
 			g_copy_sp--;
 			continue;
 		}
@@ -4198,6 +4460,7 @@ static void copy_tree_iter(const char *base_src, const char *base_dst)
 			{
 				if (!copy_dir_exists(r_dst_full))
 				{
+					g_copy_tree_failed = 1;
 					g_copy_overwrite_mode = COPY_OW_ABORT;
 					break;
 				}
@@ -4208,6 +4471,7 @@ static void copy_tree_iter(const char *base_src, const char *base_dst)
 			frame->snap_valid = 0;
 			if (g_copy_sp >= COPY_DIR_STACK_MAX)
 			{
+				g_copy_tree_failed = 1;
 				g_copy_overwrite_mode = COPY_OW_ABORT;
 				break;
 			}
@@ -4234,11 +4498,20 @@ static void copy_tree_iter(const char *base_src, const char *base_dst)
 			SETPG32KHIGH(residentPg);
 			copy_res = copy_single_file_core(r_src_full, r_dst_full, snap_fdate, snap_ftime);
 			if (copy_res == COPY_FILE_ABORT || copy_res == COPY_FILE_ERR || g_fileop_abort)
+			{
+				if (copy_res == COPY_FILE_ABORT || copy_res == COPY_FILE_ERR)
+					g_copy_tree_failed = 1;
 				break;
+			}
+			if (g_move_active && copy_res == COPY_FILE_OK)
+				move_delete_path(r_src_full);
 		}
 
 		fileop_poll_abort();
 	}
+
+	if (g_move_active && !g_copy_tree_failed && !g_fileop_abort)
+		move_delete_dir_path(base_src);
 
 	g_copy_sp = 0;
 }
@@ -4257,11 +4530,12 @@ static unsigned char nc_mkdir_name_valid(const char *name)
 	return 1;
 }
 
-static unsigned char copy_do_one_item(PanelState *src_panel, const char *filename, unsigned char is_directory,
-									  unsigned int page_offset, unsigned char *ws_active, unsigned char *io_active)
+static unsigned char copy_do_one_item_res(PanelState *src_panel, const char *filename, unsigned char is_directory,
+										  unsigned int page_offset, unsigned char *ws_active, unsigned char *io_active)
 {
 	char full_src_path[200];
 	char full_dst_path[200];
+	unsigned char copy_res;
 
 	build_full_path(full_src_path, src_panel->current_path, filename);
 	build_full_path(full_dst_path, set.temp_path, filename);
@@ -4273,7 +4547,7 @@ static unsigned char copy_do_one_item(PanelState *src_panel, const char *filenam
 			if (*io_active)
 				*io_active = 0; /* I/O page absorbed into workspace, not copy_io_release */
 			if (!copy_workspace_begin())
-				return 0;
+				return COPY_ITEM_NOMEM;
 			*ws_active = 1;
 		}
 		if ((unsigned char)OS_MKDIR((unsigned char *)full_dst_path) != 0u)
@@ -4282,34 +4556,365 @@ static unsigned char copy_do_one_item(PanelState *src_panel, const char *filenam
 
 			if (!copy_dir_exists(full_dst_path))
 			{
-				copy_progress_draw_name("MkDir failed");
-				return 1;
+				g_copy_tree_failed = 1;
+				return COPY_FILE_ERR;
 			}
 			merge = copy_check_dir_merge(full_dst_path);
 			if (merge == COPY_FILE_SKIP)
-				return 1;
+				return COPY_FILE_SKIP;
 			if (merge == COPY_FILE_ABORT)
 			{
 				g_fileop_abort = 1;
-				return 1;
+				return COPY_FILE_ABORT;
 			}
 		}
 		copy_progress_file_begin(filename, 1);
 		copy_tree_iter(full_src_path, full_dst_path);
+		if (g_fileop_abort)
+			return COPY_FILE_ABORT;
+		if (g_copy_tree_failed)
+			return COPY_FILE_ERR;
+		return COPY_FILE_OK;
+	}
+
+	if (!*io_active)
+	{
+		if (!copy_io_ensure())
+			return COPY_ITEM_NOMEM;
+		*io_active = 1;
+	}
+	copy_progress_file_begin(filename, 0);
+	copy_res = copy_single_file_core(full_src_path, full_dst_path, set.bank_array[page_offset].fdate,
+									 set.bank_array[page_offset].ftime);
+	if (g_move_active && copy_res == COPY_FILE_OK)
+		move_delete_path(full_src_path);
+	return copy_res;
+}
+
+/* 1=continue batch, 0=stop (no memory) */
+static unsigned char action_copy_try_one(PanelState *src_panel, const char *filename, unsigned char is_directory,
+										 unsigned int page_offset, unsigned char *ws_active, unsigned char *io_active)
+{
+	unsigned char res;
+
+	res = copy_do_one_item_res(src_panel, filename, is_directory, page_offset, ws_active, io_active);
+	if (res == COPY_ITEM_NOMEM)
+	{
+		copy_progress_draw_name("No memory page");
+		return 0;
+	}
+	return 1;
+}
+
+/* 1=continue batch, 0=stop (no memory) */
+static unsigned char action_move_try_one(PanelState *src_panel, const char *filename, unsigned char is_directory,
+										 unsigned int page_offset, unsigned char *ws_active, unsigned char *io_active)
+{
+	return action_copy_try_one(src_panel, filename, is_directory, page_offset, ws_active, io_active);
+}
+
+static void action_move_common_finish(PanelState *src_panel, PanelState *dst_panel, const char *snap_left,
+									  const char *snap_right)
+{
+	copy_prog.drawn = 0;
+	if (g_copy_tree_failed && !g_fileop_abort)
+		ui_error_dialog("Move", "Cannot write to destination");
+	panel_path_normalize(&left_panel, snap_left);
+	panel_path_normalize(&right_panel, snap_right);
+	if (copy_dest_path_ok())
+		panel_path_normalize(dst_panel, set.temp_path);
+	OS_CHDIR((unsigned char *)src_panel->current_path);
+	panel_mark_clear_all(src_panel);
+	panels_refresh_after_copy_snaps(src_panel, dst_panel, snap_left, snap_right, NULL);
+}
+
+/* Same-volume move: OS_RENAME with full paths; folder merge falls back to copy+delete. */
+static unsigned char move_samedrive_one_item(PanelState *src_panel, const char *filename, unsigned char is_directory,
+											 unsigned int page_offset, unsigned char *ws_active,
+											 unsigned char *io_active)
+{
+	char full_src_path[200];
+	char full_dst_path[200];
+	unsigned char ow;
+	unsigned char saved;
+
+	build_full_path(full_src_path, src_panel->current_path, filename);
+	build_full_path(full_dst_path, set.temp_path, filename);
+
+	if (strcmp(full_src_path, full_dst_path) == 0)
+		return COPY_FILE_OK;
+
+	if (!is_directory)
+	{
+		saved = resident_bank_push();
+		ow = copy_check_overwrite(full_dst_path);
+		if (ow == COPY_FILE_SKIP || ow == COPY_FILE_ABORT)
+		{
+			resident_bank_pop(saved);
+			return ow;
+		}
+		if (copy_dest_exists(full_dst_path))
+			(void)OS_DELETE((unsigned char *)full_dst_path);
+		copy_progress_file_begin(filename, 0);
+		if ((unsigned char)OS_RENAME((unsigned char *)full_src_path, (unsigned char *)full_dst_path) != 0u)
+		{
+			resident_bank_pop(saved);
+			g_copy_tree_failed = 1;
+			return COPY_FILE_ERR;
+		}
+		resident_bank_pop(saved);
+		return COPY_FILE_OK;
+	}
+
+	if (!copy_dir_exists(full_dst_path))
+	{
+		saved = resident_bank_push();
+		copy_progress_file_begin(filename, 1);
+		if ((unsigned char)OS_RENAME((unsigned char *)full_src_path, (unsigned char *)full_dst_path) != 0u)
+		{
+			resident_bank_pop(saved);
+			g_copy_tree_failed = 1;
+			return COPY_FILE_ERR;
+		}
+		resident_bank_pop(saved);
+		return COPY_FILE_OK;
+	}
+
+	return copy_do_one_item_res(src_panel, filename, 1, page_offset, ws_active, io_active);
+}
+
+/* 1=continue batch, 0=stop (no memory) */
+static unsigned char action_move_samedrive_try_one(PanelState *src_panel, const char *filename,
+												   unsigned char is_directory, unsigned int page_offset,
+												   unsigned char *ws_active, unsigned char *io_active)
+{
+	unsigned char res;
+
+	res = move_samedrive_one_item(src_panel, filename, is_directory, page_offset, ws_active, io_active);
+	if (res == COPY_ITEM_NOMEM)
+	{
+		copy_progress_draw_name("No memory page");
+		return 0;
+	}
+	if (res == COPY_FILE_ABORT)
+		g_fileop_abort = 1;
+	return 1;
+}
+
+static void action_move_samedrive_run(PanelState *src_panel, PanelState *dst_panel, const char *snap_left,
+									  const char *snap_right, unsigned char n_marked)
+{
+	unsigned int real_idx;
+	unsigned int page_offset;
+	unsigned int list_pos;
+	unsigned char is_directory;
+	unsigned char ws_active;
+	unsigned char io_active;
+	unsigned char res;
+	static char saved_filename[64];
+
+	fileop_abort_clear();
+	g_copy_tree_failed = 0;
+	g_move_active = 1;
+	g_copy_overwrite_mode = COPY_OW_ASK_EACH;
+	fileop_progress_begin_title(0, "Moving");
+	ws_active = 0;
+	io_active = 0;
+
+	if (n_marked == 0u)
+	{
+		real_idx = panel_meta_get_index(src_panel, src_panel->cursor_idx);
+		switch_file_page(src_panel, real_idx);
+		page_offset = real_idx % FILES_PER_PAGE;
+		set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
+		is_directory = (set.bank_array[page_offset].fattrib & 0x10) ? 1 : 0;
+		if (is_directory && panel_entry_is_dotdot(&set.bank_array[page_offset]))
+		{
+			g_move_active = 0;
+			copy_prog.drawn = 0;
+			goto move_sd_finish;
+		}
+		copy_name_preserve_case(&set.bank_array[page_offset], saved_filename);
+		(void)action_move_samedrive_try_one(src_panel, saved_filename, is_directory, page_offset, &ws_active,
+											&io_active);
 	}
 	else
 	{
-		if (!*io_active)
+		for (list_pos = 0; list_pos < src_panel->file_count; list_pos++)
 		{
-			if (!copy_io_ensure())
-				return 0;
-			*io_active = 1;
+			if (g_fileop_abort)
+				break;
+			if (!copy_panel_item_at(src_panel, list_pos, saved_filename, &is_directory))
+				continue;
+			real_idx = panel_meta_get_index(src_panel, list_pos);
+			switch_file_page(src_panel, real_idx);
+			page_offset = real_idx % FILES_PER_PAGE;
+			set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
+			if (is_directory && panel_entry_is_dotdot(&set.bank_array[page_offset]))
+				continue;
+			copy_name_preserve_case(&set.bank_array[page_offset], saved_filename);
+			res = action_move_samedrive_try_one(src_panel, saved_filename, is_directory, page_offset, &ws_active,
+												&io_active);
+			if (res == 0)
+				break;
+			fileop_poll_abort();
 		}
-		copy_progress_file_begin(filename, 0);
-		(void)copy_single_file_core(full_src_path, full_dst_path, set.bank_array[page_offset].fdate,
-									set.bank_array[page_offset].ftime);
 	}
-	return 1;
+
+	if (g_fileop_abort)
+		copy_progress_draw_name("Cancelled");
+
+move_sd_finish:
+	g_move_active = 0;
+	if (ws_active)
+		copy_workspace_end();
+	if (io_active)
+		copy_io_release();
+	action_move_common_finish(src_panel, dst_panel, snap_left, snap_right);
+}
+
+static void action_copy_run(PanelState *src_panel, PanelState *dst_panel, const char *snap_left, const char *snap_right,
+							unsigned char n_marked)
+{
+	unsigned int real_idx;
+	unsigned int page_offset;
+	unsigned int list_pos;
+	unsigned char is_directory;
+	unsigned char ws_active;
+	unsigned char io_active;
+	unsigned char res;
+	static char saved_filename[64];
+
+	fileop_abort_clear();
+	g_copy_tree_failed = 0;
+	fileop_progress_begin(0);
+	ws_active = 0;
+	io_active = 0;
+
+	if (n_marked == 0u)
+	{
+		real_idx = panel_meta_get_index(src_panel, src_panel->cursor_idx);
+		switch_file_page(src_panel, real_idx);
+		page_offset = real_idx % FILES_PER_PAGE;
+		set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
+		is_directory = (set.bank_array[page_offset].fattrib & 0x10) ? 1 : 0;
+		if (is_directory && panel_entry_is_dotdot(&set.bank_array[page_offset]))
+		{
+			copy_prog.drawn = 0;
+			goto copy_finish;
+		}
+		copy_name_preserve_case(&set.bank_array[page_offset], saved_filename);
+		(void)action_copy_try_one(src_panel, saved_filename, is_directory, page_offset, &ws_active, &io_active);
+	}
+	else
+	{
+		for (list_pos = 0; list_pos < src_panel->file_count; list_pos++)
+		{
+			if (g_fileop_abort)
+				break;
+			if (!copy_panel_item_at(src_panel, list_pos, saved_filename, &is_directory))
+				continue;
+			real_idx = panel_meta_get_index(src_panel, list_pos);
+			switch_file_page(src_panel, real_idx);
+			page_offset = real_idx % FILES_PER_PAGE;
+			set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
+			if (is_directory && panel_entry_is_dotdot(&set.bank_array[page_offset]))
+				continue;
+			copy_name_preserve_case(&set.bank_array[page_offset], saved_filename);
+			res = action_copy_try_one(src_panel, saved_filename, is_directory, page_offset, &ws_active, &io_active);
+			if (res == 0)
+				break;
+			fileop_poll_abort();
+		}
+	}
+
+	if (g_fileop_abort)
+		copy_progress_draw_name("Cancelled");
+
+copy_finish:
+	if (ws_active)
+		copy_workspace_end();
+	if (io_active)
+		copy_io_release();
+
+	copy_prog.drawn = 0;
+	if (g_copy_tree_failed && !g_fileop_abort)
+		ui_error_dialog("Copy", "Cannot write to destination");
+	panel_path_normalize(&left_panel, snap_left);
+	panel_path_normalize(&right_panel, snap_right);
+	if (copy_dest_path_ok())
+		panel_path_normalize(dst_panel, set.temp_path);
+	OS_CHDIR((unsigned char *)src_panel->current_path);
+	panel_mark_clear_all(src_panel);
+	panels_refresh_after_copy_snaps(src_panel, dst_panel, snap_left, snap_right, NULL);
+}
+
+static void action_move_run(PanelState *src_panel, PanelState *dst_panel, const char *snap_left, const char *snap_right,
+							unsigned char n_marked)
+{
+	unsigned int real_idx;
+	unsigned int page_offset;
+	unsigned int list_pos;
+	unsigned char is_directory;
+	unsigned char ws_active;
+	unsigned char io_active;
+	unsigned char res;
+	static char saved_filename[64];
+
+	fileop_abort_clear();
+	g_copy_tree_failed = 0;
+	g_move_active = 1;
+	fileop_progress_begin_title(0, "Moving");
+	ws_active = 0;
+	io_active = 0;
+
+	if (n_marked == 0u)
+	{
+		real_idx = panel_meta_get_index(src_panel, src_panel->cursor_idx);
+		switch_file_page(src_panel, real_idx);
+		page_offset = real_idx % FILES_PER_PAGE;
+		set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
+		is_directory = (set.bank_array[page_offset].fattrib & 0x10) ? 1 : 0;
+		if (is_directory && panel_entry_is_dotdot(&set.bank_array[page_offset]))
+		{
+			copy_prog.drawn = 0;
+			goto move_finish;
+		}
+		copy_name_preserve_case(&set.bank_array[page_offset], saved_filename);
+		(void)action_move_try_one(src_panel, saved_filename, is_directory, page_offset, &ws_active, &io_active);
+	}
+	else
+	{
+		for (list_pos = 0; list_pos < src_panel->file_count; list_pos++)
+		{
+			if (g_fileop_abort)
+				break;
+			if (!copy_panel_item_at(src_panel, list_pos, saved_filename, &is_directory))
+				continue;
+			real_idx = panel_meta_get_index(src_panel, list_pos);
+			switch_file_page(src_panel, real_idx);
+			page_offset = real_idx % FILES_PER_PAGE;
+			set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
+			if (is_directory && panel_entry_is_dotdot(&set.bank_array[page_offset]))
+				continue;
+			copy_name_preserve_case(&set.bank_array[page_offset], saved_filename);
+			res = action_move_try_one(src_panel, saved_filename, is_directory, page_offset, &ws_active, &io_active);
+			if (res == 0)
+				break;
+			fileop_poll_abort();
+		}
+	}
+
+	if (g_fileop_abort)
+		copy_progress_draw_name("Cancelled");
+
+move_finish:
+	g_move_active = 0;
+	if (ws_active)
+		copy_workspace_end();
+	if (io_active)
+		copy_io_release();
+	action_move_common_finish(src_panel, dst_panel, snap_left, snap_right);
 }
 
 void Action_Copy(void)
@@ -4318,16 +4923,12 @@ void Action_Copy(void)
 	PanelState *dst_panel;
 	unsigned int real_idx;
 	unsigned int page_offset;
-	unsigned int list_pos;
 	unsigned char dialog_result;
 	unsigned int len;
 	unsigned char is_directory;
 	unsigned char n_marked;
-	unsigned char ws_active;
-	unsigned char io_active;
 	const char *dlg_title;
 
-	static char saved_filename[64];
 	static char snap_left[64];
 	static char snap_right[64];
 
@@ -4350,6 +4951,7 @@ void Action_Copy(void)
 		real_idx = panel_meta_get_index(src_panel, src_panel->cursor_idx);
 		switch_file_page(src_panel, real_idx);
 		page_offset = real_idx % FILES_PER_PAGE;
+		set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
 		is_directory = (set.bank_array[page_offset].fattrib & 0x10) ? 1 : 0;
 		if (is_directory && panel_entry_is_dotdot(&set.bank_array[page_offset]))
 			return;
@@ -4371,70 +4973,118 @@ void Action_Copy(void)
 		panel_path_normalize(&left_panel, snap_left);
 		panel_path_normalize(&right_panel, snap_right);
 		OS_CHDIR((unsigned char *)src_panel->current_path);
-		panels_refresh_after_copy(src_panel, dst_panel, NULL);
+		panels_refresh_after_copy_snaps(src_panel, dst_panel, snap_left, snap_right, NULL);
 		return;
 	}
 
-	fileop_abort_clear();
-	fileop_progress_begin(0);
-	ws_active = 0;
-	io_active = 0;
+	if (!copy_dest_path_ok())
+	{
+		ui_error_dialog("Copy", "Destination path not found");
+		panel_path_normalize(&left_panel, snap_left);
+		panel_path_normalize(&right_panel, snap_right);
+		OS_CHDIR((unsigned char *)src_panel->current_path);
+		panels_refresh_after_copy_snaps(src_panel, dst_panel, snap_left, snap_right, NULL);
+		return;
+	}
 
-	if (n_marked == 0u)
+	action_copy_run(src_panel, dst_panel, snap_left, snap_right, n_marked);
+}
+
+static unsigned char move_path_drive_letter(const char *path)
+{
+	if (path[0] >= 'A' && path[0] <= 'Z')
+		return (unsigned char)path[0];
+	if (path[0] >= 'a' && path[0] <= 'z')
+		return (unsigned char)(path[0] - 'a' + 'A');
+	return 0;
+}
+
+static void move_restore_ui(PanelState *src_panel, const char *snap_left, const char *snap_right)
+{
+	panel_path_normalize(&left_panel, snap_left);
+	panel_path_normalize(&right_panel, snap_right);
+	OS_CHDIR((unsigned char *)src_panel->current_path);
+	panels_redraw_current(src_panel);
+}
+
+void Action_Move(void)
+{
+	PanelState *src_panel;
+	PanelState *dst_panel;
+	unsigned int real_idx;
+	unsigned int page_offset;
+	unsigned char dialog_result;
+	unsigned int len;
+	unsigned char src_drv;
+	unsigned char dst_drv;
+	unsigned char n_marked;
+	unsigned char is_directory;
+	const char *dlg_title;
+	static char snap_left[64];
+	static char snap_right[64];
+
+	src_panel = (left_panel.is_active) ? &left_panel : &right_panel;
+	dst_panel = (left_panel.is_active) ? &right_panel : &left_panel;
+
+	strncpy(snap_left, left_panel.current_path, sizeof(snap_left) - 1u);
+	snap_left[sizeof(snap_left) - 1u] = 0;
+	strncpy(snap_right, right_panel.current_path, sizeof(snap_right) - 1u);
+	snap_right[sizeof(snap_right) - 1u] = 0;
+
+	if (src_panel->file_count == 0)
+		return;
+
+	n_marked = copy_get_marked_count(src_panel);
+	if (n_marked > 1u)
+		dlg_title = "Move selection";
+	else
 	{
 		real_idx = panel_meta_get_index(src_panel, src_panel->cursor_idx);
 		switch_file_page(src_panel, real_idx);
 		page_offset = real_idx % FILES_PER_PAGE;
+		set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
 		is_directory = (set.bank_array[page_offset].fattrib & 0x10) ? 1 : 0;
 		if (is_directory && panel_entry_is_dotdot(&set.bank_array[page_offset]))
-		{
-			copy_prog.drawn = 0;
-			panel_path_normalize(&left_panel, snap_left);
-			panel_path_normalize(&right_panel, snap_right);
-			OS_CHDIR((unsigned char *)src_panel->current_path);
-			panels_refresh_after_copy(src_panel, dst_panel, NULL);
 			return;
-		}
-		copy_name_preserve_case(&set.bank_array[page_offset], saved_filename);
-		if (!copy_do_one_item(src_panel, saved_filename, is_directory, page_offset, &ws_active, &io_active))
-			copy_progress_draw_name("No memory page");
+		dlg_title = is_directory ? "Move directory" : "Move file";
 	}
+
+	strncpy(set.temp_path, dst_panel->current_path, sizeof(set.temp_path) - 1);
+	set.temp_path[sizeof(set.temp_path) - 1] = '\0';
+
+	len = strlen(set.temp_path);
+	if (len > 0 && set.temp_path[len - 1] != '/' && set.temp_path[len - 1] != '\\')
+		strcat(set.temp_path, "/");
+
+	dialog_result = ui_dialog_input(dlg_title, "Move to:");
+	if (dialog_result == D_RES_CANCEL)
+	{
+		move_restore_ui(src_panel, snap_left, snap_right);
+		return;
+	}
+
+	if (!copy_dest_path_ok())
+	{
+		ui_error_dialog("Move", "Destination path not found");
+		panel_path_normalize(&left_panel, snap_left);
+		panel_path_normalize(&right_panel, snap_right);
+		OS_CHDIR((unsigned char *)src_panel->current_path);
+		panels_refresh_after_copy_snaps(src_panel, dst_panel, snap_left, snap_right, NULL);
+		return;
+	}
+
+	src_drv = move_path_drive_letter(src_panel->current_path);
+	dst_drv = move_path_drive_letter(set.temp_path);
+	if (dst_drv == 0)
+		dst_drv = move_path_drive_letter(dst_panel->current_path);
+
+	if (src_drv == dst_drv)
+		action_move_samedrive_run(src_panel, dst_panel, snap_left, snap_right, n_marked);
 	else
 	{
-		for (list_pos = 0; list_pos < src_panel->file_count; list_pos++)
-		{
-			if (g_fileop_abort)
-				break;
-			if (!copy_panel_item_at(src_panel, list_pos, saved_filename, &is_directory))
-				continue;
-			real_idx = panel_meta_get_index(src_panel, list_pos);
-			switch_file_page(src_panel, real_idx);
-			page_offset = real_idx % FILES_PER_PAGE;
-			if (is_directory && panel_entry_is_dotdot(&set.bank_array[page_offset]))
-				continue;
-			if (!copy_do_one_item(src_panel, saved_filename, is_directory, page_offset, &ws_active, &io_active))
-			{
-				copy_progress_draw_name("No memory page");
-				break;
-			}
-			fileop_poll_abort();
-		}
+		g_copy_overwrite_mode = COPY_OW_ASK_EACH;
+		action_move_run(src_panel, dst_panel, snap_left, snap_right, n_marked);
 	}
-
-	if (g_fileop_abort)
-		copy_progress_draw_name("Cancelled");
-
-	if (ws_active)
-		copy_workspace_end();
-	if (io_active)
-		copy_io_release();
-
-	panel_path_normalize(&left_panel, snap_left);
-	panel_path_normalize(&right_panel, snap_right);
-	panel_path_normalize(dst_panel, set.temp_path);
-	OS_CHDIR((unsigned char *)src_panel->current_path);
-	panel_mark_clear_all(src_panel);
-	panels_refresh_after_copy(src_panel, dst_panel, NULL);
 }
 
 void Action_Rename(void)
@@ -4990,28 +5640,12 @@ void Action_Delete(void)
 	else
 		panels_refresh_after_delete(panel);
 }
-
-static void nc_test_dummy_plug(void)
-{
-	char plug_rc;
-
-	plug_rc = dummyPlug(0x41u);
-	print_cstr("plug=");
-	putchar(plug_rc);
-	print_cstr(" exp=B");
-	print_crlf();
-}
-
 C_task main(void)
 {
 	OS_HIDEFROMPARENT();
 	OS_SETGFX(0x86);
 	OS_CLS(0);
 	OS_SETSYSDRV();
-
-	nc_test_dummy_plug();
-
-	// getchar();
 
 	nc_capture_startup_path();
 
@@ -5020,16 +5654,16 @@ C_task main(void)
 	print_cstr(__DATE__);
 	print_cstr(" ");
 	print_cstr(__TIME__);
+	print_cstr(" '");
+	print_cstr(uVer);
+	print_cstr("' ");
 	print_crlf();
 
 	set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
 
 	init_panels();
-	print_cstr("init_panels() done\n");
 	nc_ini_load();
-	print_cstr("nc_ini_load() done\n");
 	nc_nvext_load();
-	print_cstr("nc_nvext_load() done\n");
 	panel_fixup_startup_path(&left_panel);
 	panel_fixup_startup_path(&right_panel);
 
@@ -5092,14 +5726,7 @@ C_task main(void)
 			nc_clock_draw(0);
 			continue;
 		case '0':
-			{
-				unsigned char c000_saved;
-
-				c000_saved = bank_window_current();
-				SETPG32KHIGH(residentPg);
-				nc_ini_save();
-				SETPG32KHIGH(c000_saved);
-			}
+			nc_ini_save();
 			exit(0);
 			continue;
 		case '1':
@@ -5125,6 +5752,9 @@ C_task main(void)
 			break;
 		case '6':
 			Action_Rename();
+			break;
+		case NC_KEY_SHIFT_6:
+			Action_Move();
 			break;
 		case '7':
 			Action_MkDir();
