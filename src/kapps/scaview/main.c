@@ -10,7 +10,10 @@
 
 #define true 1
 #define false 0
-//
+
+#define SCA_FRAME_BYTES 6912u
+#define SCA_PAGE_BYTES  16384u
+
 FILE *fp1;
 
 struct headers
@@ -40,14 +43,17 @@ struct headers
 unsigned char buf[4096];
 unsigned char framesDelays[1024];
 unsigned char mem[260]; // reserved pages
+
 void quit(void)
 {
   OS_SETGFX(0x86);
   exit(0);
 }
+
 char waitKey(void)
 {
   char key;
+
   do
   {
     key = OS_GETKEY();
@@ -58,56 +64,39 @@ char waitKey(void)
 void delayInt(unsigned long counter)
 {
   unsigned long start, finish;
+
   start = time();
   finish = start + counter;
   if (counter == 0)
   {
     if (OS_GETKEY() != 0)
-    {
       quit();
-    }
   }
 
   while (time() < finish)
   {
     if (OS_GETKEY() != 0)
-    {
       quit();
-    }
-  }
-}
-
-void delayLong(unsigned long counter)
-{
-  unsigned long start, finish;
-  counter = counter / 20;
-  if (counter < 1)
-  {
-    counter = 1;
-  }
-  start = time();
-  finish = start + counter;
-
-  while (start < finish)
-  {
-    start = time();
-    YIELD();
   }
 }
 
 unsigned char getFreeMem(void)
 {
-  unsigned char freeMem = 0, counter;
+  unsigned char freeMem = 0;
+  unsigned char counter;
+
   for (counter = 0; counter < header.totalMem; counter++)
   {
-    unsigned char owner;
-    owner = OS_GETPAGEOWNER(~counter);
-    if (owner == 0)
-    {
+    if (OS_GETPAGEOWNER(~counter) == 0)
       freeMem++;
-    }
   }
   return freeMem - 8;
+}
+
+static void captureScreens(void)
+{
+  header.scr0high = (unsigned char)(OS_GETSCR0() >> 8);
+  header.scr1high = (unsigned char)(OS_GETSCR1() >> 8);
 }
 
 char getMem(char numOfPages)
@@ -115,14 +104,13 @@ char getMem(char numOfPages)
   unsigned int pageCount;
   unsigned char page;
   unsigned int newPage;
-  for (pageCount = 0; pageCount < numOfPages; pageCount++)
+
+  for (pageCount = 0; pageCount < (unsigned int)numOfPages; pageCount++)
   {
     newPage = OS_NEWPAGE();
-    if (newPage > 255)
-    {
+    if (newPage > 255u)
       return false;
-    }
-    page = newPage;
+    page = (unsigned char)newPage;
     mem[pageCount] = page;
   }
   return true;
@@ -148,23 +136,10 @@ void loadFile(void)
   header.poffset = buf[12] + (buf[13] * 256);
   header.doffset = header.poffset + header.frames;
   header.filesize = OS_GETFILESIZE(fp1);
-  header.pagesNeeded = (header.filesize / 16384) + 1;
+  header.pagesNeeded = (unsigned char)((header.filesize / SCA_PAGE_BYTES) + 1u);
   header.curScreen = 1;
   header.curPage = 0;
-  /*
-      printf("Size : %lu bytes\r\n", header.filesize);
-      printf("Total pages  : %u\r\n", header.totalMem);
-      printf("Pages needed : %u\r\n", header.pagesNeeded);
-      printf("Free pages   : %u\r\n", header.freeMem);
-      printf("Marker: %s\r\n", header.marker);
-      printf("Width: %u\r\n", header.width);
-      printf("Height: %u\r\n", header.height);
-      printf("Border: %u\r\n", header.border);
-      printf("Frames: %u\r\n", header.frames);
-      printf("Payload type: %u\r\n", header.ptype);
-      printf("payload offset: %u\r\n", header.poffset);
-      printf("data offset: %u\r\n", header.doffset);
-  */
+
   marker = strstr(header.marker, "SCA");
   if (marker == NULL)
   {
@@ -188,25 +163,22 @@ void loadFile(void)
 
   OS_READHANDLE(framesDelays, fp1, header.frames);
 
-  ///////////////////////LOADER///////////////////////
   for (counter = 0; counter < header.pagesNeeded; counter++)
   {
     OS_SETPG8000(mem[counter]);
-    OS_READHANDLE((unsigned char *)0x8000, fp1, 16384);
-    // printf("Page %02u loaded   \r", counter);
-    // printf("%02u [%u]", counter, mem[counter]);
-    ///////////////////////LOADER///////////////////////
+    OS_READHANDLE((unsigned char *)0x8000, fp1, SCA_PAGE_BYTES);
   }
 }
+
 void init(void)
 {
   unsigned char pgbak;
   union APP_PAGES main_pg;
-  header.scr0high = OS_GETSCR0() >> 8;
-  header.scr1high = OS_GETSCR1() >> 8;
+
   header.isAtm = (unsigned char)OS_GETCONFIG(); // 1-Evo 2-ATM2 3-ATM3 6-p2.666
   header.headerSize = 14;
   header.totalMem = 255;
+
   main_pg.l = OS_GETMAINPAGES();
   pgbak = main_pg.pgs.window_2;
   OS_DELPAGE(pgbak);
@@ -218,13 +190,21 @@ void init(void)
 void clearScreens(void)
 {
   SETPG32KHIGH(header.scr1high);
-  CLEARC000();
+  memset((void *)0xC000, 0, 6912u);
   SETPG32KHIGH(header.scr0high);
-  CLEARC000();
+  memset((void *)0xC000, 0, 6912u);
 }
 
+/*
+ * Sliding 6912-byte window over 16K pages @ 0x8000 -> screen @ 0xC000.
+ * curPage==0: bufOffset is absolute in payload ring.
+ * curPage>0:  bufOffset is offset inside mem[curPage] after a page split.
+ */
 unsigned int viewScreen6912NoKeyGraph_c(unsigned int bufAdr, unsigned int bufOffset)
 {
+  unsigned int shift;
+  unsigned int shiftAdr;
+
   if (header.curScreen == 1)
   {
     SETPG32KHIGH(header.scr0high);
@@ -236,43 +216,46 @@ unsigned int viewScreen6912NoKeyGraph_c(unsigned int bufAdr, unsigned int bufOff
     header.curScreen = 1;
   }
 
-  // disable_interrupt();
-
-  if (bufOffset < 9473)
+  /* curPage==0 && bufOffset>=16384: last frame ended on page boundary (9472+6912). */
+  if (header.curPage == 0 && bufOffset >= SCA_PAGE_BYTES)
   {
-    memcpy((unsigned char *)(0xc000), (unsigned char *)(bufAdr + bufOffset), 6912);
-    bufOffset = bufOffset + 6912;
+    header.curPage = (unsigned char)(bufOffset / SCA_PAGE_BYTES);
+    bufOffset = bufOffset % SCA_PAGE_BYTES;
+  }
+
+  OS_SETPG8000(mem[header.curPage]);
+
+  if (bufOffset < (SCA_PAGE_BYTES - SCA_FRAME_BYTES + 1u))
+  {
+    memcpy((unsigned char *)0xC000, (unsigned char *)(bufAdr + bufOffset), SCA_FRAME_BYTES);
+    bufOffset += SCA_FRAME_BYTES;
   }
   else
   {
-    unsigned int shiftAdr, shift;
-    shift = 16384 - bufOffset;
-    shiftAdr = 49152 + shift;
-    memcpy((unsigned char *)(0xc000), (unsigned char *)(bufAdr + bufOffset), shift);
+    shift = SCA_PAGE_BYTES - bufOffset;
+    shiftAdr = 0xC000 + shift;
+    memcpy((unsigned char *)0xC000, (unsigned char *)(bufAdr + bufOffset), shift);
     OS_SETPG8000(mem[++header.curPage]);
-    bufOffset = bufOffset + shift;
-    memcpy((unsigned char *)(shiftAdr), (unsigned char *)(bufAdr), 6912 - shift);
-    bufOffset = 6912 - shift;
+    memcpy((unsigned char *)shiftAdr, (unsigned char *)bufAdr, SCA_FRAME_BYTES - shift);
+    bufOffset = SCA_FRAME_BYTES - shift;
   }
-  // enable_interrupt();
 
   OS_SETSCREEN(header.curScreen);
-   OS_HALT();
+  OS_HALT();
+
   if (header.curScreen == 0)
-  {
     SETPG32KHIGH(header.scr1high);
-  }
   else
-  {
     SETPG32KHIGH(header.scr0high);
-  }
+
   return bufOffset;
 }
 
 C_task main(int argc, char *argv[])
 {
-  unsigned int bufOffset, koef;
+  unsigned int bufOffset;
   unsigned long delays, start, finish;
+
   OS_HIDEFROMPARENT();
   OS_SETGFX(0x86);
   OS_CLS(0);
@@ -288,7 +271,6 @@ C_task main(int argc, char *argv[])
   }
 
   fp1 = OS_OPENHANDLE(argv[1], 0x80);
-
   if (((int)fp1) & 0xff)
   {
     printf("Error: %s opening error\r\n", argv[1]);
@@ -297,23 +279,18 @@ C_task main(int argc, char *argv[])
   }
 
   loadFile();
-  clearScreens();
   OS_SETGFX(0x83);
+  captureScreens();
+  clearScreens();
+
 label:
   header.curFrame = 0;
+  header.curScreen = 1;
   bufOffset = 0;
   header.curPage = 0;
   OS_SETPG8000(mem[header.curPage]);
   OS_SETBORDER(header.border);
 
-  if (header.isAtm == 2)
-  {
-    koef = 10;
-  }
-  else
-  {
-    koef = 20;
-  }
   do
   {
     start = time();
@@ -322,20 +299,12 @@ label:
     delays = framesDelays[header.curFrame];
 
     if (delays >= finish)
-    {
       delayInt(delays - finish);
-    }
-    else
-    {
-      if (OS_GETKEY() != 0)
-      {
-        quit();
-      }
-    }
+    else if (OS_GETKEY() != 0)
+      quit();
 
     header.curFrame++;
-
   } while (header.curFrame < header.frames);
-  // waitKey();
+
   goto label;
 }

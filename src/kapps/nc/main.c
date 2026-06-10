@@ -404,6 +404,7 @@ static char g_drive_labels[PANEL_DRIVE_MAX][26];
 
 static unsigned int g_nvext_size;
 static char g_run_saved_cwd[64];
+static char g_run_target_dir[64];
 
 #define PANEL_PORT_NEOGS_GSCFG 0x0Fu
 #define PANEL_PORT_SL811_SEL 0xABu
@@ -3864,6 +3865,26 @@ static void nc_build_shell_cmd(const char *handler, const char *fullpath, char *
 	out[outsz - 1u] = 0;
 }
 
+/* Bare handler names (texted.com, cmd.com) live in bin/; use full path in cmdline. */
+static void nc_resolve_handler_path(const char *handler, char *out, unsigned int outsz)
+{
+	char dir[64];
+	unsigned int n;
+
+	path_parent_from(handler, dir);
+	if (dir[0] != 0)
+	{
+		strncpy(out, handler, outsz - 1u);
+		out[outsz - 1u] = 0;
+		return;
+	}
+	strncpy(out, "M:/bin/", outsz - 1u);
+	out[outsz - 1u] = 0;
+	n = strlen(out);
+	strncat(out, handler, outsz - n - 1u);
+	out[outsz - 1u] = 0;
+}
+
 #define SHELL_LOAD_TAIL (0x10000u - 0xC100u) /* first page: 0xC100..0xFFFF */
 #define SHELL_LOAD_FULL 0x4000u				 /* next pages: full 16 KB at 0xC000 */
 
@@ -3896,7 +3917,6 @@ static unsigned char nc_readfile_pages_dehl(const union APP_PAGES *pg, FILE *fp)
 	return 1;
 }
 
-/* gopher.com OS_SHELL: load term.com into child pages; cmdline "term.com " + command. */
 static void nc_app_discard(unsigned char pId, unsigned char resident_page)
 {
 	if (pId != 0u)
@@ -3904,9 +3924,77 @@ static void nc_app_discard(unsigned char pId, unsigned char resident_page)
 	SETPG32KHIGH(resident_page);
 }
 
+/* nv/nvfast loadandrun for .com: CHDIR panel dir, open file, cmdline = bare name only. */
+static unsigned char nc_run_app_direct(PanelState *panel, const char *name)
+{
+	unsigned char savedResidentPg;
+	unsigned char childId;
+	union APP_PAGES app_pg;
+	union APP_PAGES main_pg;
+	FILE *fp;
+	unsigned int cmdLen;
+
+	if (!panel_chdir_only(panel->current_path))
+		return 0u;
+
+	OS_GETPATH((unsigned int)g_run_saved_cwd);
+
+	fp = OS_OPENHANDLE((unsigned char *)name, 0x80);
+	if (((int)fp) & 0xff)
+	{
+		print_cstr("Cannot open: ");
+		print_cstr(name);
+		print_crlf();
+		return 0u;
+	}
+
+	main_pg.l = OS_GETMAINPAGES();
+	savedResidentPg = main_pg.pgs.window_3;
+	SETPG32KHIGH(residentPg);
+
+	OS_NEWAPP((unsigned int)&app_pg);
+	if (app_pg.pgs.error != 0u)
+	{
+		OS_CLOSEHANDLE(fp);
+		SETPG32KHIGH(savedResidentPg);
+		print_cstr("No free app slot.");
+		print_crlf();
+		return 0u;
+	}
+	childId = app_pg.pgs.pId;
+	app_pg.l = OS_GETAPPMAINPAGES(childId);
+
+	SETPG32KHIGH(app_pg.pgs.window_0);
+	cmdLen = strlen(name) + 1u;
+	if (cmdLen > 0x80u)
+		cmdLen = 0x80u;
+	memcpy((unsigned char *)0xC080, name, cmdLen);
+	((unsigned char *)0xC080)[0x7Fu] = 0;
+
+	if (!nc_readfile_pages_dehl(&app_pg, fp))
+	{
+		OS_CLOSEHANDLE(fp);
+		nc_app_discard(childId, savedResidentPg);
+		print_cstr("Load failed: ");
+		print_cstr(name);
+		print_crlf();
+		return 0u;
+	}
+
+	OS_CLOSEHANDLE(fp);
+	SETPG32KHIGH(savedResidentPg);
+	OS_RUNAPP(childId);
+	YIELD();
+
+	if (g_run_saved_cwd[0] != 0)
+		(void)OS_CHDIR((unsigned char *)g_run_saved_cwd);
+	return 1u;
+}
+
+/* gopher.com OS_SHELL: load term.com into child pages; cmdline "term.com " + command. */
 static unsigned char OS_SHELL(const char *command)
 {
-	unsigned char fileName[] = "term.com";
+	unsigned char fileName[] = "bin/term.com";
 	unsigned char appCmd[128];
 	unsigned char savedResidentPg;
 	unsigned char childId;
@@ -3921,8 +4009,8 @@ static unsigned char OS_SHELL(const char *command)
 	main_pg_run.l = OS_GETMAINPAGES();
 	savedResidentPg = main_pg_run.pgs.window_3;
 	SETPG32KHIGH(residentPg);
-	OS_GETPATH((unsigned int)g_run_saved_cwd);
 	OS_SETSYSDRV();
+	(void)OS_CHDIR((unsigned char *)"/");
 
 	fp3 = OS_OPENHANDLE(fileName, 0x80);
 	if (((int)fp3) & 0xff)
@@ -3931,8 +4019,6 @@ static unsigned char OS_SHELL(const char *command)
 		print_crlf();
 		return 0;
 	}
-
-	OS_CHDIR((unsigned char *)g_run_saved_cwd);
 
 	OS_NEWAPP((unsigned int)&shell_pg);
 	if (shell_pg.pgs.error != 0u)
@@ -3962,17 +4048,43 @@ static unsigned char OS_SHELL(const char *command)
 	OS_CLOSEHANDLE(fp3);
 
 	SETPG32KHIGH(savedResidentPg);
+	if (g_run_target_dir[0] != 0)
+		(void)OS_CHDIR((unsigned char *)g_run_target_dir);
 	OS_RUNAPP(childId);
 	YIELD();
 	return 1;
 }
 
+/* nv/nvfast nv.ext: cmd.com handler path, cwd = panel dir (setcurpaneldir). */
 static void nc_run_shell_cmd(const char *handler, const char *fullpath)
 {
 	char cmdbuf[128];
+	char cmd_path[64];
+	unsigned int n;
 
-	nc_build_shell_cmd(handler, fullpath, cmdbuf, sizeof(cmdbuf));
+	OS_GETPATH((unsigned int)g_run_saved_cwd);
+	path_parent_from(fullpath, g_run_target_dir);
+	g_run_target_dir[sizeof(g_run_target_dir) - 1u] = 0;
+
+	nc_resolve_handler_path("cmd.com", cmd_path, sizeof(cmd_path));
+	strncpy(cmdbuf, cmd_path, sizeof(cmdbuf) - 1u);
+	cmdbuf[sizeof(cmdbuf) - 1u] = 0;
+	n = strlen(cmdbuf);
+	if (n + 1u < sizeof(cmdbuf))
+		cmdbuf[n++] = ' ';
+	strncpy(cmdbuf + n, handler, sizeof(cmdbuf) - n - 1u);
+	cmdbuf[sizeof(cmdbuf) - 1u] = 0;
+	n = strlen(cmdbuf);
+	if (n + 1u < sizeof(cmdbuf))
+		cmdbuf[n++] = ' ';
+	strncpy(cmdbuf + n, fullpath, sizeof(cmdbuf) - n - 1u);
+	cmdbuf[sizeof(cmdbuf) - 1u] = 0;
+
 	OS_SHELL(cmdbuf);
+
+	if (g_run_saved_cwd[0] != 0)
+		(void)OS_CHDIR((unsigned char *)g_run_saved_cwd);
+	g_run_target_dir[0] = 0;
 }
 
 static void nc_run_restore_ui(PanelState *panel)
@@ -4045,7 +4157,7 @@ static void nc_run_selected_file(PanelState *panel)
 	}
 	else if (ext_cmp(ext, "com") == 0 || ext_cmp(ext, "bin") == 0)
 	{
-		nc_run_shell_cmd("cmd.com", fullpath);
+		(void)nc_run_app_direct(panel, name);
 	}
 	else
 	{
