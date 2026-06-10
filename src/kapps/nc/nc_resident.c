@@ -54,6 +54,8 @@ void init_panels(void)
 	left_panel.sort_mode = NC_PANEL_SORT_NAME;
 	left_panel.sort_desc = 0;
 	left_panel.sort_lfn = 0;
+	left_panel.marked_count = 0;
+	left_panel.marked_bytes = 0UL;
 	left_panel.current_path[0] = 0;
 
 	for (p = 0; p < NC_PAGES_PER_PANEL; p++)
@@ -71,6 +73,8 @@ void init_panels(void)
 	right_panel.sort_mode = NC_PANEL_SORT_NAME;
 	right_panel.sort_desc = 0;
 	right_panel.sort_lfn = 0;
+	right_panel.marked_count = 0;
+	right_panel.marked_bytes = 0UL;
 	right_panel.current_path[0] = 0;
 
 	g_menu_active = 0;
@@ -250,6 +254,8 @@ static void ini_apply_key(const char *key, const char *val)
 	}
 	else if (strcmp(key, "ReadOnFocus") == 0 || strcmp(key, "read_on_focus") == 0)
 		g_ini_read_on_focus = ini_parse_bool(val);
+	else if (strcmp(key, "BriefView") == 0 || strcmp(key, "brief_view") == 0)
+		g_ini_panel_brief = ini_parse_bool(val);
 }
 
 void nc_ini_load(void)
@@ -268,6 +274,7 @@ void nc_ini_load(void)
 	g_ini_has_left_path = 0;
 	g_ini_has_right_path = 0;
 	g_ini_read_on_focus = 0;
+	g_ini_panel_brief = 0;
 
 	if (!ini_set_location())
 	{
@@ -341,6 +348,117 @@ void nc_ini_load(void)
 		ini_apply_key(key, val);
 	}
 	ini_apply_defaults();
+	ini_restore_cwd();
+}
+
+static const char *ini_sort_mode_name(unsigned char mode)
+{
+	switch (mode)
+	{
+	case NC_PANEL_SORT_EXT:
+		return "ext";
+	case NC_PANEL_SORT_SIZE:
+		return "size";
+	case NC_PANEL_SORT_TIME:
+		return "time";
+	default:
+		return "name";
+	}
+}
+
+static void ini_append(char *buf, unsigned int *pos, const char *text)
+{
+	unsigned int n;
+
+	n = 0;
+	while (text[n] != 0)
+		n++;
+	if (*pos + n >= NC_INI_BUF_SIZE - 1u)
+		return;
+	memcpy(buf + *pos, text, n);
+	*pos += n;
+	buf[*pos] = 0;
+}
+
+static void ini_append_u8(char *buf, unsigned int *pos, unsigned char v)
+{
+	char tmp[4];
+	unsigned char n;
+
+	n = 0;
+	if (v >= 100u)
+	{
+		tmp[n++] = (char)('0' + (v / 100u));
+		v = (unsigned char)(v % 100u);
+	}
+	if (n > 0u || v >= 10u)
+	{
+		tmp[n++] = (char)('0' + (v / 10u));
+		v = (unsigned char)(v % 10u);
+	}
+	tmp[n++] = (char)('0' + v);
+	tmp[n] = 0;
+	ini_append(buf, pos, tmp);
+}
+
+static void ini_append_kv(char *buf, unsigned int *pos, const char *key, const char *val)
+{
+	ini_append(buf, pos, key);
+	ini_append(buf, pos, "=");
+	ini_append(buf, pos, val);
+	ini_append(buf, pos, "\r\n");
+}
+
+static void ini_append_kv_u8(char *buf, unsigned int *pos, const char *key, unsigned char val)
+{
+	ini_append(buf, pos, key);
+	ini_append(buf, pos, "=");
+	ini_append_u8(buf, pos, val);
+	ini_append(buf, pos, "\r\n");
+}
+
+static char g_ini_save_buf[NC_INI_BUF_SIZE];
+
+void nc_ini_save(void)
+{
+	FILE *fp;
+	unsigned int pos;
+
+	pos = 0;
+	g_ini_save_buf[0] = 0;
+	ini_append(g_ini_save_buf, &pos, "# NC settings\r\n");
+	ini_append_kv(g_ini_save_buf, &pos, "LeftPath", left_panel.current_path);
+	ini_append_kv(g_ini_save_buf, &pos, "RightPath", right_panel.current_path);
+	ini_append_kv(g_ini_save_buf, &pos, "LeftSort", ini_sort_mode_name(left_panel.sort_mode));
+	ini_append_kv(g_ini_save_buf, &pos, "RightSort", ini_sort_mode_name(right_panel.sort_mode));
+	ini_append_kv(g_ini_save_buf, &pos, "LeftSortDir", left_panel.sort_desc ? "desc" : "asc");
+	ini_append_kv(g_ini_save_buf, &pos, "RightSortDir", right_panel.sort_desc ? "desc" : "asc");
+	ini_append_kv_u8(g_ini_save_buf, &pos, "LeftSortLfn", left_panel.sort_lfn);
+	ini_append_kv_u8(g_ini_save_buf, &pos, "RightSortLfn", right_panel.sort_lfn);
+	ini_append_kv_u8(g_ini_save_buf, &pos, "LeftActive", left_panel.is_active);
+	ini_append(g_ini_save_buf, &pos, "# Comma-separated letters to hide in drive menu (e.g. J,K,L)\r\n");
+	ini_append_kv(g_ini_save_buf, &pos, "HideDrives", g_ini_hide_drives);
+	ini_append(g_ini_save_buf, &pos, "# F3 viewer / F4 editor: .com launched with file path as argument\r\n");
+	ini_append_kv(g_ini_save_buf, &pos, "Viewer", g_ini_viewer);
+	ini_append_kv(g_ini_save_buf, &pos, "Editor", g_ini_editor);
+	ini_append(g_ini_save_buf, &pos, "# 1 = re-read both panels when app regains focus (key 31)\r\n");
+	ini_append_kv_u8(g_ini_save_buf, &pos, "ReadOnFocus", g_ini_read_on_focus);
+	ini_append(g_ini_save_buf, &pos, "# 1 = brief panel view (name + size only)\r\n");
+	ini_append_kv_u8(g_ini_save_buf, &pos, "BriefView", g_ini_panel_brief);
+
+	if (!ini_set_location())
+	{
+		ini_restore_cwd();
+		return;
+	}
+	fp = OS_CREATEHANDLE((unsigned char *)NC_INI_NAME, 0x80);
+	if (((int)fp) & 0xff)
+	{
+		ini_restore_cwd();
+		return;
+	}
+	(void)OS_WRITEHANDLE((unsigned char *)g_ini_save_buf, fp, pos);
+	OS_CLOSEHANDLE(fp);
 	ini_restore_cwd();
 }
 
@@ -442,7 +560,9 @@ void ui_fill_chars(unsigned char x, unsigned char y, unsigned char sym, unsigned
 
 #define UI_BLUE 1
 #define UI_WHITE 7
+#define UI_YELLOW 6
 #define UI_COLOR_PANEL_MAIN UI_MAKE_COLOR(UI_BR_BOTH, UI_BLUE, UI_WHITE)
+#define UI_COLOR_PANEL_FOOTER_MARK UI_MAKE_COLOR(UI_BR_BOTH, UI_BLUE, UI_YELLOW)
 
 #define NC_SZ_1MB 1048576UL
 #define NC_SZ_100MB 104857600UL
@@ -527,6 +647,46 @@ void panel_fmt_size(char *dst, unsigned long size, unsigned char is_dir)
 		dst[i] = out[i];
 }
 
+/* Brief panel: plain bytes, right-aligned in 8 chars (no K/M/G suffix). */
+void panel_fmt_size_brief(char *dst, unsigned long size, unsigned char is_dir)
+{
+	unsigned char digits[NC_PANEL_BRIEF_SIZE_W];
+	unsigned char n;
+	unsigned char i;
+	unsigned long val;
+
+	if (is_dir)
+	{
+		for (i = 0; i < NC_PANEL_BRIEF_SIZE_W; i++)
+			dst[i] = ' ';
+		dst[3] = '<';
+		dst[4] = 'D';
+		dst[5] = 'I';
+		dst[6] = 'R';
+		dst[7] = '>';
+		return;
+	}
+
+	val = size;
+	if (val > 99999999UL)
+		val = 99999999UL;
+	n = 0;
+	if (val == 0UL)
+		digits[n++] = '0';
+	else
+	{
+		while (val > 0UL && n < NC_PANEL_BRIEF_SIZE_W)
+		{
+			digits[n++] = (unsigned char)('0' + (val % 10UL));
+			val /= 10UL;
+		}
+	}
+	for (i = 0; i < NC_PANEL_BRIEF_SIZE_W; i++)
+		dst[i] = ' ';
+	for (i = 0; i < n; i++)
+		dst[(NC_PANEL_BRIEF_SIZE_W - 1u) - i] = digits[i];
+}
+
 static unsigned char panel_ul_to_buf(unsigned long n, char *dst, unsigned char cap)
 {
 	unsigned char len;
@@ -559,64 +719,111 @@ static unsigned char panel_ul_to_buf(unsigned long n, char *dst, unsigned char c
 	return out;
 }
 
+static void panel_footer_count_box(char *box, unsigned int count, unsigned char marked_active)
+{
+	char num[11];
+	unsigned char i;
+	unsigned char pos;
+
+	pos = 0;
+	box[pos++] = '[';
+	panel_ul_to_buf((unsigned long)count, num, (unsigned char)sizeof(num));
+	for (i = 0; num[i] != 0; i++)
+		box[pos++] = num[i];
+	box[pos++] = ' ';
+	if (marked_active)
+	{
+		if (count == 1u)
+		{
+			box[pos++] = 'i';
+			box[pos++] = 't';
+			box[pos++] = 'e';
+			box[pos++] = 'm';
+		}
+		else
+		{
+			box[pos++] = 'i';
+			box[pos++] = 't';
+			box[pos++] = 'e';
+			box[pos++] = 'm';
+			box[pos++] = 's';
+		}
+	}
+	else if (count == 1u)
+	{
+		box[pos++] = 'f';
+		box[pos++] = 'i';
+		box[pos++] = 'l';
+		box[pos++] = 'e';
+	}
+	else
+	{
+		box[pos++] = 'f';
+		box[pos++] = 'i';
+		box[pos++] = 'l';
+		box[pos++] = 'e';
+		box[pos++] = 's';
+	}
+	box[pos++] = ']';
+	box[pos] = 0;
+}
+
+static void panel_footer_bytes_box(char *box, unsigned long bytes)
+{
+	char num[11];
+	unsigned char i;
+	unsigned char pos;
+
+	pos = 0;
+	box[pos++] = '[';
+	panel_ul_to_buf(bytes, num, (unsigned char)sizeof(num));
+	for (i = 0; num[i] != 0; i++)
+		box[pos++] = num[i];
+	box[pos++] = ' ';
+	box[pos++] = 'b';
+	box[pos++] = 'y';
+	box[pos++] = 't';
+	box[pos++] = 'e';
+	box[pos++] = 's';
+	box[pos++] = ']';
+	box[pos] = 0;
+}
+
 void panel_draw_footer(PanelState *panel, unsigned char start_x)
 {
 	char line[NC_PANEL_ROW_WIDTH + 1u];
-	char num[11];
 	char left_box[18];
 	char right_box[24];
 	unsigned char i;
-	unsigned char pos;
 	unsigned char left_w;
 	unsigned char right_w;
 	unsigned char right_start;
 	unsigned char inset;
+	unsigned int count_val;
+	unsigned long bytes_val;
+	unsigned char marked_active;
 
 	for (i = 0; i < NC_PANEL_ROW_WIDTH; i++)
 		line[i] = (char)205;
 	line[NC_PANEL_ROW_WIDTH] = 0;
 
-	inset = 3u;
-	pos = 0;
-	left_box[pos++] = '[';
-	panel_ul_to_buf((unsigned long)panel->files_only_count, num, (unsigned char)sizeof(num));
-	for (i = 0; num[i] != 0; i++)
-		left_box[pos++] = num[i];
-	if (panel->files_only_count == 1u)
+	marked_active = (panel->marked_count > 0u) ? 1u : 0u;
+	if (marked_active)
 	{
-		left_box[pos++] = ' ';
-		left_box[pos++] = 'f';
-		left_box[pos++] = 'i';
-		left_box[pos++] = 'l';
-		left_box[pos++] = 'e';
+		count_val = panel->marked_count;
+		bytes_val = panel->marked_bytes;
 	}
 	else
 	{
-		left_box[pos++] = ' ';
-		left_box[pos++] = 'f';
-		left_box[pos++] = 'i';
-		left_box[pos++] = 'l';
-		left_box[pos++] = 'e';
-		left_box[pos++] = 's';
+		count_val = panel->files_only_count;
+		bytes_val = panel->total_bytes;
 	}
-	left_box[pos++] = ']';
-	left_box[pos] = 0;
-	left_w = pos;
 
-	pos = 0;
-	right_box[pos++] = '[';
-	panel_ul_to_buf(panel->total_bytes, num, (unsigned char)sizeof(num));
-	for (i = 0; num[i] != 0; i++)
-		right_box[pos++] = num[i];
-	right_box[pos++] = ' ';
-	right_box[pos++] = 'b';
-	right_box[pos++] = 'y';
-	right_box[pos++] = 't';
-	right_box[pos++] = 'e';
-	right_box[pos++] = 's';
-	right_box[pos++] = ']';
-	right_box[pos] = 0;
-	right_w = pos;
+	inset = 3u;
+	panel_footer_count_box(left_box, count_val, marked_active);
+	left_w = (unsigned char)strlen(left_box);
+	panel_footer_bytes_box(right_box, bytes_val);
+	right_w = (unsigned char)strlen(right_box);
 
 	if (inset + left_w + 2u + right_w + inset <= NC_PANEL_ROW_WIDTH)
 		right_start = (unsigned char)(NC_PANEL_ROW_WIDTH - inset - right_w);
@@ -631,7 +838,7 @@ void panel_draw_footer(PanelState *panel, unsigned char start_x)
 		line[right_start + i] = right_box[i];
 
 	OS_SETXY((unsigned char)(start_x + 1u), 21);
-	OS_SETCOLOR(UI_COLOR_PANEL_MAIN);
+	OS_SETCOLOR(marked_active ? UI_COLOR_PANEL_FOOTER_MARK : UI_COLOR_PANEL_MAIN);
 	for (i = 0; i < NC_PANEL_ROW_WIDTH; i++)
 		putchar((unsigned char)line[i]);
 }
@@ -1029,6 +1236,134 @@ unsigned char show_dialog(DialogWindow *dlg, char *buffer, unsigned char max_len
 	}
 }
 
+#define NC_SCREEN_WIDTH 80u
+#define UI_RED 2
+#define UI_COLOR_COPY_UI UI_MAKE_COLOR(UI_BR_BOTH, UI_YELLOW, UI_BLACK)
+#define UI_COLOR_OVERWRITE_UI UI_MAKE_COLOR(UI_BR_BOTH, UI_RED, UI_WHITE)
+
+static void ui_dlg_preset(DialogWindow *dlg, unsigned char x, unsigned char y, unsigned char w, unsigned char h,
+						  unsigned char color, const char *title, const char *prompt)
+{
+	dlg->x = x;
+	dlg->y = y;
+	dlg->w = w;
+	dlg->h = h;
+	dlg->color = color;
+	dlg->title = title;
+	dlg->prompt = prompt;
+}
+
+static void ui_dlg_centered(DialogWindow *dlg, unsigned char w, unsigned char h, unsigned char y,
+							unsigned char color, const char *title, const char *prompt)
+{
+	ui_dlg_preset(dlg, (unsigned char)((NC_SCREEN_WIDTH - w - 2u) / 2u), y, w, h, color, title, prompt);
+}
+
+unsigned char r_ui_dialog_input(const char *title, const char *prompt)
+{
+	DialogWindow dlg;
+
+	ui_dlg_centered(&dlg, UI_DLG_INPUT_W, UI_DLG_INPUT_H, UI_DLG_INPUT_Y, UI_COLOR_COPY_UI, title, prompt);
+	return show_dialog(&dlg, set.temp_path, sizeof(set.temp_path), D_MASK_OK_CANCEL);
+}
+
+unsigned char r_ui_dialog_confirm(const char *title, const char *prompt, unsigned char btn_mask)
+{
+	DialogWindow dlg;
+
+	ui_dlg_centered(&dlg, UI_DLG_CONFIRM_W, UI_DLG_CONFIRM_H, UI_DLG_CONFIRM_Y, UI_COLOR_OVERWRITE_UI, title,
+					prompt);
+	return show_dialog(&dlg, NULL, 0, btn_mask);
+}
+
+unsigned char r_ui_dialog_delete_confirm(const char *title, const char *prompt)
+{
+	DialogWindow dlg;
+
+	ui_dlg_centered(&dlg, UI_DLG_PROGRESS_W, UI_DLG_PROGRESS_H, UI_DLG_PROGRESS_Y, UI_COLOR_OVERWRITE_UI, title,
+					prompt);
+	return show_dialog(&dlg, NULL, 0, D_MASK_DELETE);
+}
+
+void r_ui_alert_dialog(const char *title, const char *prompt)
+{
+	DialogWindow dlg;
+
+	ui_dlg_preset(&dlg, UI_DLG_ALERT_X, UI_DLG_ALERT_Y, UI_DLG_CONFIRM_W, UI_DLG_ALERT_H, UI_COLOR_OVERWRITE_UI,
+				  title, prompt);
+	(void)show_dialog(&dlg, NULL, 0, D_BTN_OK);
+}
+
+void r_ui_error_dialog(const char *title, const char *msg)
+{
+	DialogWindow dlg;
+
+	ui_dlg_centered(&dlg, UI_DLG_INPUT_W, UI_DLG_ALERT_H, UI_DLG_INPUT_Y, UI_COLOR_OVERWRITE_UI, title, msg);
+	(void)show_dialog(&dlg, NULL, 0, D_BTN_OK);
+}
+
+/* BDOS: residentPg must already be mapped at C000. */
+unsigned char r_copy_dest_exists(const char *path)
+{
+	FILE *h;
+	unsigned char exists;
+
+	h = OS_OPENHANDLE((unsigned char *)path, 0x80);
+	if (((int)h) & 0xff)
+		exists = 0;
+	else
+	{
+		OS_CLOSEHANDLE(h);
+		exists = 1;
+	}
+	return exists;
+}
+
+unsigned char r_copy_dir_exists(const char *path)
+{
+	FILINFO finfo;
+
+	if ((unsigned char)OS_GETFILINFO((unsigned char *)path, &finfo) != 0u)
+		return 0;
+	return (unsigned char)((finfo.fattrib & 0x10) ? 1u : 0u);
+}
+
+unsigned char r_copy_overwrite_resolve(unsigned char exists, const char *dialog_msg)
+{
+	unsigned char res;
+
+	if (!exists)
+		return NC_COPY_FILE_OK;
+	if (g_copy_overwrite_mode == NC_COPY_OW_SKIP_ALL)
+		return NC_COPY_FILE_SKIP;
+	if (g_copy_overwrite_mode == NC_COPY_OW_REPLACE_ALL)
+		return NC_COPY_FILE_OK;
+	if (g_copy_overwrite_mode == NC_COPY_OW_ABORT)
+		return NC_COPY_FILE_ABORT;
+
+	res = r_ui_dialog_confirm(g_move_active ? "Move" : "Copy", dialog_msg, D_MASK_OVERWRITE);
+	fileop_progress_restore();
+
+	switch (res)
+	{
+	case D_RES_YES:
+		return NC_COPY_FILE_OK;
+	case D_RES_NO:
+	case D_RES_SKIP:
+		return NC_COPY_FILE_SKIP;
+	case D_RES_SKIP_ALL:
+		g_copy_overwrite_mode = NC_COPY_OW_SKIP_ALL;
+		return NC_COPY_FILE_SKIP;
+	case D_RES_REPLACE_ALL:
+		g_copy_overwrite_mode = NC_COPY_OW_REPLACE_ALL;
+		return NC_COPY_FILE_OK;
+	case D_RES_CANCEL:
+	default:
+		g_copy_overwrite_mode = NC_COPY_OW_ABORT;
+		return NC_COPY_FILE_ABORT;
+	}
+}
+
 static void nc_clock_format(unsigned char hours, unsigned char minutes, char *buf)
 {
 	buf[0] = '[';
@@ -1119,6 +1454,9 @@ menu_draw_item(NC_MENU_ITEM_X, y, NC_MENU_POPUP_INNER_W, cursor_on, "LFN sort", 
 		break;
 	case NC_MFI_READ_ON_FOCUS:
 menu_draw_item(NC_MENU_ITEM_X, y, NC_MENU_POPUP_INNER_W, cursor_on, "Read on focus", g_ini_read_on_focus);
+		break;
+	case NC_MFI_BRIEF:
+menu_draw_item(NC_MENU_ITEM_X, y, NC_MENU_POPUP_INNER_W, cursor_on, "Brief view", g_ini_panel_brief);
 		break;
 	}
 }

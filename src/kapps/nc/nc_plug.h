@@ -11,7 +11,7 @@
 #define NC_PANEL_SORT_TIME 3u
 #define NC_MENU_LEVEL_TOP 0u
 #define NC_MENU_LEVEL_FILES 1u
-#define NC_MENU_FILES_ITEMS 8u
+#define NC_MENU_FILES_ITEMS 9u
 #define NC_MFI_NAME 0u
 #define NC_MFI_EXT 1u
 #define NC_MFI_SIZE 2u
@@ -20,13 +20,19 @@
 #define NC_MFI_ZA 5u
 #define NC_MFI_LFN_SORT 6u
 #define NC_MFI_READ_ON_FOCUS 7u
+#define NC_MFI_BRIEF 8u
+#define NC_PANEL_ROW_WIDTH 38u
+#define NC_PANEL_BRIEF_SIZE_W 9u
+#define NC_PANEL_BRIEF_SEP_W 1u
+/* Name 28 + sep + size 8 + 1 pad = 38; size column one char left of old 30..37. */
+#define NC_PANEL_BRIEF_NAME_W 28u
+#define NC_PANEL_BRIEF_SIZE_OFF 29u
 #define NC_MENU_POPUP_X 0u
 #define NC_MENU_POPUP_Y 1u
 #define NC_MENU_POPUP_INNER_W 20u
 #define NC_MENU_ITEM_X 1u
 #define NC_CLOCK_X 73u
 #define NC_CLOCK_Y 23u
-#define NC_PANEL_ROW_WIDTH 38u
 
 #define NC_INI_APP_LEN 128u
 #define NC_INI_DIR "../ini"
@@ -56,6 +62,16 @@
 #define D_RES_SKIP_ALL 5
 #define D_RES_REPLACE_ALL 6
 
+#define NC_COPY_OW_SKIP_ALL 0u
+#define NC_COPY_OW_ASK_EACH 1u
+#define NC_COPY_OW_REPLACE_ALL 2u
+#define NC_COPY_OW_ABORT 3u
+
+#define NC_COPY_FILE_OK 0u
+#define NC_COPY_FILE_ERR 1u
+#define NC_COPY_FILE_SKIP 2u
+#define NC_COPY_FILE_ABORT 3u
+
 #define UI_DLG_INPUT_W 62u
 #define UI_DLG_CONFIRM_W 52u
 #define UI_DLG_INPUT_H 6u
@@ -83,6 +99,8 @@ typedef struct
 	unsigned char sort_mode;
 	unsigned char sort_desc;
 	unsigned char sort_lfn;
+	unsigned int marked_count;
+	unsigned long marked_bytes;
 	char current_path[64];
 } PanelState;
 
@@ -115,6 +133,11 @@ extern char g_ini_editor[NC_INI_APP_LEN];
 extern unsigned char g_ini_has_left_path;
 extern unsigned char g_ini_has_right_path;
 extern unsigned char g_ini_read_on_focus;
+extern unsigned char g_ini_panel_brief;
+
+extern unsigned char g_copy_overwrite_mode;
+extern char g_copy_ow_msg[80];
+extern unsigned char g_move_active;
 
 extern char g_nc_startup_path[64];
 
@@ -138,6 +161,7 @@ void init(void);
 void init_panels(void);
 unsigned char getFreeMem(void);
 void nc_ini_load(void);
+void nc_ini_save(void);
 void nc_capture_startup_path(void);
 unsigned char panel_request_unique_page(unsigned char *page_out);
 
@@ -161,7 +185,26 @@ void ui_fill_chars(unsigned char x, unsigned char y, unsigned char sym, unsigned
 
 void panel_draw_footer(PanelState *panel, unsigned char start_x);
 void panel_fmt_size(char *dst, unsigned long size, unsigned char is_dir);
+void panel_fmt_size_brief(char *dst, unsigned long size, unsigned char is_dir);
 
 unsigned char show_dialog(DialogWindow *dlg, char *buffer, unsigned char max_len, unsigned char btn_mask);
+
+/* Resident (C000): caller must map residentPg before r_* — use ui_* wrappers from main. */
+unsigned char r_ui_dialog_input(const char *title, const char *prompt);
+unsigned char r_ui_dialog_confirm(const char *title, const char *prompt, unsigned char btn_mask);
+unsigned char r_ui_dialog_delete_confirm(const char *title, const char *prompt);
+void r_ui_alert_dialog(const char *title, const char *prompt);
+void r_ui_error_dialog(const char *title, const char *msg);
+unsigned char r_copy_dest_exists(const char *path);
+unsigned char r_copy_dir_exists(const char *path);
+unsigned char r_copy_overwrite_resolve(unsigned char exists, const char *dialog_msg);
+
+unsigned char ui_dialog_input(const char *title, const char *prompt);
+unsigned char ui_dialog_confirm(const char *title, const char *prompt, unsigned char btn_mask);
+unsigned char ui_dialog_delete_confirm(const char *title, const char *prompt);
+void ui_alert_dialog(const char *title, const char *prompt);
+void ui_error_dialog(const char *title, const char *msg);
+
+void fileop_progress_restore(void);
 
 #endif
