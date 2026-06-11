@@ -50,9 +50,11 @@
  *   Copy I/O page ?? SETPG32KHIGH(g_copy_io_page):
  *     0xC000 .. 0xFFFF  COPY_IO_ADDR, chunk COPY_IO_CHUNK (16384)
  *
- * === ????? ???? (gopher OS_SHELL ? term.com) ===
- *     OS_SHELL("cmd.com M:/path/file.bat") loads term.com via readfile_pages_dehl order:
- *     window_0 @ 0xC100 (tail), window_1..3 @ 0xC000 (full pages); cmdline at 0xC080.
+ * === External run (single path: nc_run_cmd_direct) ===
+ *     term.com cmd.com [handler] [file] via nc_run_bin_direct:
+ *     cwd = panel dir; load term from bin/; cmdline at 0xC080;
+ *     readfile_pages_dehl: window_0 @ 0xC100, pages 1..3 @ 0xC000.
+ *     Enter .com / nv.ext / F3 / F4 all use this chain.
  *
  * === ??? ? BSS nc.com ===
  *     0x0000..0xBFFF  CODE+DATA nc (?? ????, lnk.xcl), ?? CSTACK+200
@@ -3848,22 +3850,6 @@ nc_nvext_find_done:
 	return found;
 }
 
-static void nc_build_shell_cmd(const char *handler, const char *fullpath, char *out, unsigned int outsz)
-{
-	unsigned int n;
-
-	n = 0;
-	while (handler[n] != 0 && n + 1u < outsz)
-	{
-		out[n] = handler[n];
-		n++;
-	}
-	if (n + 1u < outsz)
-		out[n++] = ' ';
-	strncpy(out + n, fullpath, outsz - n - 1u);
-	out[outsz - 1u] = 0;
-}
-
 #define SHELL_LOAD_TAIL (0x10000u - 0xC100u) /* first page: 0xC100..0xFFFF */
 #define SHELL_LOAD_FULL 0x4000u				 /* next pages: full 16 KB at 0xC000 */
 
@@ -3903,95 +3889,8 @@ static void nc_app_discard(unsigned char pId, unsigned char resident_page)
 	SETPG32KHIGH(resident_page);
 }
 
-/* nv loadandrun: SETSYSDRV opens exe from bin/, setcurpaneldir before OS_NEWAPP. */
-static unsigned char nc_loadandrun(PanelState *panel, const char *exe, const char *args)
-{
-	unsigned char savedResidentPg;
-	unsigned char childId;
-	union APP_PAGES app_pg;
-	union APP_PAGES main_pg;
-	FILE *fp;
-	unsigned char cmdline[128];
-	unsigned int n;
-
-	if (!panel_chdir_only(panel->current_path))
-		return 0u;
-
-	OS_GETPATH((unsigned int)g_run_saved_cwd);
-
-	main_pg.l = OS_GETMAINPAGES();
-	savedResidentPg = main_pg.pgs.window_3;
-	SETPG32KHIGH(residentPg);
-	OS_SETSYSDRV();
-
-	fp = OS_OPENHANDLE((unsigned char *)exe, 0x80);
-	if (((int)fp) & 0xff)
-	{
-		print_cstr("Cannot open: ");
-		print_cstr(exe);
-		print_crlf();
-		SETPG32KHIGH(savedResidentPg);
-		return 0u;
-	}
-
-	if (!panel_chdir_only(panel->current_path))
-	{
-		OS_CLOSEHANDLE(fp);
-		SETPG32KHIGH(savedResidentPg);
-		return 0u;
-	}
-
-	OS_NEWAPP((unsigned int)&app_pg);
-	if (app_pg.pgs.error != 0u)
-	{
-		OS_CLOSEHANDLE(fp);
-		SETPG32KHIGH(savedResidentPg);
-		print_cstr("No free app slot.");
-		print_crlf();
-		return 0u;
-	}
-	childId = app_pg.pgs.pId;
-	app_pg.l = OS_GETAPPMAINPAGES(childId);
-
-	SETPG32KHIGH(app_pg.pgs.window_0);
-	strncpy((char *)cmdline, exe, sizeof(cmdline) - 1u);
-	cmdline[sizeof(cmdline) - 1u] = 0;
-	n = strlen((char *)cmdline);
-	if (args != NULL && args[0] != 0)
-	{
-		if (n + 1u < sizeof(cmdline))
-			cmdline[n++] = ' ';
-		strncpy((char *)cmdline + n, args, sizeof(cmdline) - n - 1u);
-		cmdline[sizeof(cmdline) - 1u] = 0;
-	}
-	n = strlen((char *)cmdline) + 1u;
-	if (n > 0x80u)
-		n = 0x80u;
-	memcpy((unsigned char *)0xC080, cmdline, n);
-	((unsigned char *)0xC080)[0x7Fu] = 0;
-
-	if (!nc_readfile_pages_dehl(&app_pg, fp))
-	{
-		OS_CLOSEHANDLE(fp);
-		nc_app_discard(childId, savedResidentPg);
-		print_cstr("Load failed: ");
-		print_cstr(exe);
-		print_crlf();
-		return 0u;
-	}
-
-	OS_CLOSEHANDLE(fp);
-	SETPG32KHIGH(savedResidentPg);
-	OS_RUNAPP(childId);
-	YIELD();
-
-	if (g_run_saved_cwd[0] != 0)
-		(void)OS_CHDIR((unsigned char *)g_run_saved_cwd);
-	return 1u;
-}
-
-/* nv/nvfast loadandrun for .com: CHDIR panel dir, open file, cmdline = bare name only. */
-static unsigned char nc_run_app_direct(PanelState *panel, const char *name)
+/* nv loadandrun: open exe from bin/, cwd = panel, run with cmdline. */
+static unsigned char nc_run_bin_direct(PanelState *panel, const char *exe, const char *cmdline)
 {
 	unsigned char savedResidentPg;
 	unsigned char childId;
@@ -4000,17 +3899,31 @@ static unsigned char nc_run_app_direct(PanelState *panel, const char *name)
 	FILE *fp;
 	unsigned int cmdLen;
 
+	if (exe == NULL || exe[0] == 0 || cmdline == NULL)
+		return 0u;
+
 	if (!panel_chdir_only(panel->current_path))
 		return 0u;
 
 	OS_GETPATH((unsigned int)g_run_saved_cwd);
 
-	fp = OS_OPENHANDLE((unsigned char *)name, 0x80);
+	OS_SETSYSDRV();
+	fp = OS_OPENHANDLE((unsigned char *)exe, 0x80);
 	if (((int)fp) & 0xff)
 	{
 		print_cstr("Cannot open: ");
-		print_cstr(name);
+		print_cstr(exe);
 		print_crlf();
+		if (g_run_saved_cwd[0] != 0)
+			(void)OS_CHDIR((unsigned char *)g_run_saved_cwd);
+		return 0u;
+	}
+
+	if (!panel_chdir_only(panel->current_path))
+	{
+		OS_CLOSEHANDLE(fp);
+		if (g_run_saved_cwd[0] != 0)
+			(void)OS_CHDIR((unsigned char *)g_run_saved_cwd);
 		return 0u;
 	}
 
@@ -4025,25 +3938,26 @@ static unsigned char nc_run_app_direct(PanelState *panel, const char *name)
 		SETPG32KHIGH(savedResidentPg);
 		print_cstr("No free app slot.");
 		print_crlf();
+		if (g_run_saved_cwd[0] != 0)
+			(void)OS_CHDIR((unsigned char *)g_run_saved_cwd);
 		return 0u;
 	}
 	childId = app_pg.pgs.pId;
 	app_pg.l = OS_GETAPPMAINPAGES(childId);
 
 	SETPG32KHIGH(app_pg.pgs.window_0);
-	cmdLen = strlen(name) + 1u;
-	if (cmdLen > 0x80u)
-		cmdLen = 0x80u;
-	memcpy((unsigned char *)0xC080, name, cmdLen);
-	((unsigned char *)0xC080)[0x7Fu] = 0;
+	cmdLen = strlen(cmdline) + 1u;
+	memcpy((unsigned char *)(0xC080), cmdline, cmdLen);
 
 	if (!nc_readfile_pages_dehl(&app_pg, fp))
 	{
 		OS_CLOSEHANDLE(fp);
 		nc_app_discard(childId, savedResidentPg);
 		print_cstr("Load failed: ");
-		print_cstr(name);
+		print_cstr(exe);
 		print_crlf();
+		if (g_run_saved_cwd[0] != 0)
+			(void)OS_CHDIR((unsigned char *)g_run_saved_cwd);
 		return 0u;
 	}
 
@@ -4057,21 +3971,37 @@ static unsigned char nc_run_app_direct(PanelState *panel, const char *name)
 	return 1u;
 }
 
-/* nv nv.ext: loadandrun cmd.com with "handler path" (no term.com ? term SETSYSDRV breaks cwd). */
-static void nc_run_shell_cmd(PanelState *panel, const char *handler, const char *fullpath)
+static void nc_build_handler_cmdline(const char *handler, const char *arg, char *cmdline, unsigned int cmdline_sz)
 {
-	char args[128];
 	unsigned int n;
 
-	strncpy(args, handler, sizeof(args) - 1u);
-	args[sizeof(args) - 1u] = 0;
-	n = strlen(args);
-	if (n + 1u < sizeof(args))
-		args[n++] = ' ';
-	strncpy(args + n, fullpath, sizeof(args) - n - 1u);
-	args[sizeof(args) - 1u] = 0;
+	strncpy(cmdline, handler, cmdline_sz - 1u);
+	cmdline[cmdline_sz - 1u] = 0;
+	if (arg == NULL || arg[0] == 0)
+		return;
+	n = strlen(cmdline);
+	if (n + 1u >= cmdline_sz)
+		return;
+	cmdline[n++] = ' ';
+	cmdline[n] = 0;
+	strncat(cmdline, arg, cmdline_sz - n - 1u);
+	cmdline[cmdline_sz - 1u] = 0;
+}
 
-	(void)nc_loadandrun(panel, "cmd.com", args);
+/* term -> cmd -> "handler [file]" (all external runs). */
+static unsigned char nc_run_cmd_direct(PanelState *panel, const char *handler, const char *arg)
+{
+	char cmdline[128];
+	char inner[96];
+	unsigned int n;
+
+	nc_build_handler_cmdline(handler, arg, inner, sizeof(inner));
+	strncpy(cmdline, "term.com cmd.com ", sizeof(cmdline) - 1u);
+	cmdline[sizeof(cmdline) - 1u] = 0;
+	n = strlen(cmdline);
+	strncat(cmdline, inner, sizeof(cmdline) - n - 1u);
+	cmdline[sizeof(cmdline) - 1u] = 0;
+	return nc_run_bin_direct(panel, "term.com", cmdline);
 }
 
 static void nc_run_restore_ui(PanelState *panel)
@@ -4113,7 +4043,6 @@ static unsigned char nc_get_file_under_cursor(PanelState *panel, char *name_out,
 
 static void nc_run_selected_file(PanelState *panel)
 {
-	char fullpath[200];
 	char name[64];
 	char handler[64];
 	const char *ext;
@@ -4124,7 +4053,6 @@ static void nc_run_selected_file(PanelState *panel)
 	if (is_dir)
 		return;
 
-	build_full_path(fullpath, panel->current_path, name);
 	panel_chdir_only(panel->current_path);
 
 	ext = strrchr(name, '.');
@@ -4140,11 +4068,11 @@ static void nc_run_selected_file(PanelState *panel)
 
 	if (nc_nvext_find_handler(ext, handler, sizeof(handler)))
 	{
-		nc_run_shell_cmd(panel, handler, fullpath);
+		(void)nc_run_cmd_direct(panel, handler, name);
 	}
 	else if (ext_cmp(ext, "com") == 0 || ext_cmp(ext, "bin") == 0)
 	{
-		(void)nc_run_app_direct(panel, name);
+		(void)nc_run_cmd_direct(panel, name, NULL);
 	}
 	else
 	{
@@ -4157,7 +4085,6 @@ static void nc_run_selected_file(PanelState *panel)
 
 static void nc_action_view(PanelState *panel)
 {
-	char fullpath[200];
 	char name[64];
 	unsigned char is_dir;
 
@@ -4166,14 +4093,12 @@ static void nc_action_view(PanelState *panel)
 	if (is_dir)
 		return;
 
-	build_full_path(fullpath, panel->current_path, name);
-	nc_run_shell_cmd(panel, g_ini_viewer, fullpath);
+	(void)nc_run_cmd_direct(panel, g_ini_viewer, name);
 	nc_run_restore_ui(panel);
 }
 
 static void nc_action_edit(PanelState *panel)
 {
-	char fullpath[200];
 	char name[64];
 	unsigned char is_dir;
 
@@ -4182,8 +4107,7 @@ static void nc_action_edit(PanelState *panel)
 	if (is_dir)
 		return;
 
-	build_full_path(fullpath, panel->current_path, name);
-	nc_run_shell_cmd(panel, g_ini_editor, fullpath);
+	(void)nc_run_cmd_direct(panel, g_ini_editor, name);
 	nc_run_restore_ui(panel);
 }
 
