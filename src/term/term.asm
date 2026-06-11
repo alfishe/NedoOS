@@ -71,8 +71,14 @@ begin
         ld de,ansipal
         OS_SETPAL
 
-        OS_SETSYSDRV
- 
+        
+        push de
+        ld de,term_saved_cmd
+        OS_GETPATH
+        pop de
+
+        OS_SETSYSDRV ;nc: keep parent cwd (panel dir), do not reset to bin/
+
         ld de,tpipename
         push de
         OS_OPENHANDLE
@@ -2281,7 +2287,15 @@ cls_halfpg
 readapp
         ld a,b
         ld (curhandle),a
-        
+
+        push de
+        push bc
+        ld de,term_saved_cmd
+        OS_CHDIR
+        pop bc
+        pop de
+
+
         OS_NEWAPP ;для первой создаваемой задачи будут созданы первые два пайпа и подключены
 ;dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error
         push bc ;b=id
@@ -2417,7 +2431,10 @@ trecodeback
 fnt
         incbin "1125ver6.fnt"
        endif
-        
+
+term_saved_cmd 
+     ds 70   
+
 end
        if TEXTMODE
 	savebin "term.com",begin,end-begin
