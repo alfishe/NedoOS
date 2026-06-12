@@ -628,7 +628,7 @@ char readCdPosition(char channel)
 
     memset(&cd_pos, 0, sizeof(ATAPI_SUB_CHANNEL));
     ptr = (unsigned char *)&cd_pos;
-
+    disable_interrupt();
     for (i = 0; i < words_to_read; i++)
     {
         unsigned char low = input(hdddatlo);
@@ -648,7 +648,7 @@ char readCdPosition(char channel)
         if ((input(hddstat) & 0x08) == 0)
             break;
     }
-
+    enable_interrupt();
     return true;
 }
 
@@ -882,6 +882,7 @@ void runVisualPlayer(void)
         {
             quit();
         }
+    YIELD();
     }
     clearStatus();
     set.current_track = cd_toc.first_track;
@@ -997,7 +998,7 @@ void runVisualPlayer(void)
 
         /* 2. …‹ŽŠˆ“ž™ˆ‰ ŽŽ‘ Š‹€‚ˆ€’“› */
         key = OS_GETKEY();
-
+        // 248 - ‹¥¢®  251 ¢¯à ¢®  250 - ‚¢¥àå 249 - ¢­¨§
         if (key != 0)
         {
             if (key == 250 || key == 'A' || key == 'a')
