@@ -9,28 +9,10 @@
  * Callable while panel pages are mapped on 0xC000; uses globals in 0100-BFFF only.
  */
 
-unsigned char getFreeMem(void)
-{
-	unsigned char freeMem = 0;
-	unsigned char counter;
-
-	for (counter = 0; counter < set.totalMem; counter++)
-	{
-		unsigned char owner;
-
-		owner = OS_GETPAGEOWNER(~counter);
-		if (owner == 0)
-			freeMem++;
-	}
-	return (unsigned char)(freeMem - 8u);
-}
-
 void init(void)
 {
 	main_pg.l = OS_GETMAINPAGES();
 	residentPg = main_pg.pgs.window_3;
-	set.totalMem = 255;
-	set.freeMem = getFreeMem();
 }
 
 void init_panels(void)

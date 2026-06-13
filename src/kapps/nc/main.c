@@ -84,25 +84,18 @@
 #define COLOR_PANEL_MARKED MAKE_COLOR(BR_BOTH, BLUE, YELLOW)
 #define COLOR_PANEL_CURSOR_MARKED MAKE_COLOR(BR_BOTH, CYAN, YELLOW)
 /* Insert (key_ins) or '*' toggles file mark in active panel. */
+#define NC_KEY_HOME 28
 #define NC_KEY_MARK_INS 29
+#define NC_KEY_END 30
+#define NC_KEY_FOCUS 31 /* app regained focus: reload dirs and redraw */
 #define NC_KEY_MARK_STAR 42
 #define NC_KEY_SHIFT_6 94
-#define NC_KEY_FOCUS 31 /* app regained focus: reload dirs and redraw */
 /* NedOOS F-keys: extbase=0xB0 (sysdefs.asm key_F1..key_F10) */
 #define NC_KEY_F10 176
 #define NC_KEY_F9 185
 #define COPY_CH_BAR_FILL 219
 #define COPY_CH_BAR_EMPTY 176
 
-#define COPY_OW_SKIP_ALL 0u
-#define COPY_OW_ASK_EACH 1u
-#define COPY_OW_REPLACE_ALL 2u
-#define COPY_OW_ABORT 3u
-
-#define COPY_FILE_OK 0u
-#define COPY_FILE_ERR 1u
-#define COPY_FILE_SKIP 2u
-#define COPY_FILE_ABORT 3u
 #define COPY_ITEM_NOMEM 255u
 
 /* Key 8 ? delete: one Yes/No confirm, then silent tree purge. */
@@ -624,11 +617,11 @@ static unsigned char panel_banks_ok(const PanelState *panel)
 	unsigned char a;
 	unsigned char b;
 
-	for (a = 0; a < PAGES_PER_PANEL; a++)
+	for (a = 0; a < NC_PAGES_PER_PANEL; a++)
 	{
 		if (panel->bank_ids[a] == 0)
 			return 0;
-		for (b = (unsigned char)(a + 1u); b < PAGES_PER_PANEL; b++)
+		for (b = (unsigned char)(a + 1u); b < NC_PAGES_PER_PANEL; b++)
 		{
 			if (panel->bank_ids[a] == panel->bank_ids[b])
 				return 0;
@@ -741,16 +734,6 @@ static unsigned char panel_fold_char(unsigned char c)
 	if (c >= 'a' && c <= 'z')
 		return (unsigned char)(c - ('a' - 'A'));
 	return c;
-}
-
-static void panel_name_to_key4(const char *name, unsigned char *k4)
-{
-	unsigned int i;
-
-	for (i = 0; i < PANEL_SORT_KEY_LEN; i++)
-		k4[i] = 0;
-	for (i = 0; i < PANEL_SORT_KEY_LEN && name[i] != 0; i++)
-		k4[i] = panel_fold_char((unsigned char)name[i]);
 }
 
 static void panel_name_to_key4_at(const char *name, unsigned int skip, unsigned char *k4)
@@ -1018,6 +1001,11 @@ static void panel_cache_entry_lfn(PanelState *panel, unsigned int real_idx, unsi
 	unsigned char kind;
 	unsigned char lfn4[PANEL_SORT_KEY_LEN];
 	unsigned char lfnext4[PANEL_SORT_KEY_LEN];
+	unsigned char name4[PANEL_SORT_KEY_LEN];
+	unsigned char ext4[PANEL_SORT_KEY_LEN];
+	unsigned long fsize;
+	unsigned int fdate;
+	unsigned int ftime;
 	unsigned char *base;
 	unsigned char *extra;
 
@@ -1031,8 +1019,13 @@ static void panel_cache_entry_lfn(PanelState *panel, unsigned int real_idx, unsi
 		kind = PANEL_KIND_FILE;
 
 	disp = panel_entry_name(fi);
-	panel_name_to_key4(disp, lfn4);
+	panel_name_to_key4_at(disp, 0u, lfn4);
 	panel_name_to_ext4(disp, lfnext4);
+	panel_name_to_key4_at(disp, 4u, name4);
+	panel_name_to_key4_at(disp, 8u, ext4);
+	fsize = fi->fsize;
+	fdate = fi->fdate;
+	ftime = fi->ftime;
 
 	extra = (unsigned char *)(BANK_WINDOW_ADDRESS + PANEL_PAGE_EXTRA_OFF + PAGE_EXTRA_FIRSTCHAR_OFF);
 	if (disp[0] != 0)
@@ -1046,11 +1039,11 @@ static void panel_cache_entry_lfn(PanelState *panel, unsigned int real_idx, unsi
 	base[PANEL_META_OFF_KIND + real_idx] = kind;
 	memcpy(base + PANEL_META_OFF_LFN4 + real_idx * PANEL_SORT_KEY_LEN, lfn4, PANEL_SORT_KEY_LEN);
 	memcpy(base + PANEL_META_OFF_LFNEXT4 + real_idx * PANEL_SORT_KEY_LEN, lfnext4, PANEL_SORT_KEY_LEN);
-	panel_name_to_key4_at(disp, 4u, base + PANEL_META_OFF_NAME4 + real_idx * PANEL_SORT_KEY_LEN);
-	panel_name_to_key4_at(disp, 8u, base + PANEL_META_OFF_EXT4 + real_idx * PANEL_SORT_KEY_LEN);
-	*(unsigned long *)(base + PANEL_META_OFF_SIZE + real_idx * 4u) = fi->fsize;
-	*(unsigned short *)(base + PANEL_META_OFF_DATE + real_idx * 2u) = (unsigned short)fi->fdate;
-	*(unsigned short *)(base + PANEL_META_OFF_TIME + real_idx * 2u) = (unsigned short)fi->ftime;
+	memcpy(base + PANEL_META_OFF_NAME4 + real_idx * PANEL_SORT_KEY_LEN, name4, PANEL_SORT_KEY_LEN);
+	memcpy(base + PANEL_META_OFF_EXT4 + real_idx * PANEL_SORT_KEY_LEN, ext4, PANEL_SORT_KEY_LEN);
+	*(unsigned long *)(base + PANEL_META_OFF_SIZE + real_idx * 4u) = fsize;
+	*(unsigned short *)(base + PANEL_META_OFF_DATE + real_idx * 2u) = (unsigned short)fdate;
+	*(unsigned short *)(base + PANEL_META_OFF_TIME + real_idx * 2u) = (unsigned short)ftime;
 }
 
 /* Short sort meta from fileInfo already in hand (no file-page SETPG). */
@@ -1058,6 +1051,9 @@ static void panel_cache_entry_short_fi(PanelState *panel, unsigned int real_idx,
 {
 	unsigned char kind;
 	unsigned char cpm11[11];
+	unsigned long fsize;
+	unsigned int fdate;
+	unsigned int ftime;
 	unsigned char *base;
 
 	if (fi->fname[0] == '.' && fi->fname[1] == '.')
@@ -1068,6 +1064,9 @@ static void panel_cache_entry_short_fi(PanelState *panel, unsigned int real_idx,
 		kind = PANEL_KIND_FILE;
 
 	panel_fi_to_cpm11(fi, cpm11);
+	fsize = fi->fsize;
+	fdate = fi->fdate;
+	ftime = fi->ftime;
 	panel_meta_map(panel);
 	base = (unsigned char *)BANK_WINDOW_ADDRESS;
 	panel_meta_idx_set(base, real_idx, real_idx);
@@ -1078,9 +1077,9 @@ static void panel_cache_entry_short_fi(PanelState *panel, unsigned int real_idx,
 	base[PANEL_META_OFF_EXT4 + real_idx * PANEL_SORT_KEY_LEN + 2u] = cpm11[10];
 	base[PANEL_META_OFF_EXT4 + real_idx * PANEL_SORT_KEY_LEN + 3u] = ' ';
 	memcpy(base + PANEL_META_OFF_LFN4 + real_idx * PANEL_SORT_KEY_LEN, cpm11 + 4, PANEL_SORT_KEY_LEN);
-	*(unsigned long *)(base + PANEL_META_OFF_SIZE + real_idx * 4u) = fi->fsize;
-	*(unsigned short *)(base + PANEL_META_OFF_DATE + real_idx * 2u) = (unsigned short)fi->fdate;
-	*(unsigned short *)(base + PANEL_META_OFF_TIME + real_idx * 2u) = (unsigned short)fi->ftime;
+	*(unsigned long *)(base + PANEL_META_OFF_SIZE + real_idx * 4u) = fsize;
+	*(unsigned short *)(base + PANEL_META_OFF_DATE + real_idx * 2u) = (unsigned short)fdate;
+	*(unsigned short *)(base + PANEL_META_OFF_TIME + real_idx * 2u) = (unsigned short)ftime;
 }
 
 /* Short sort: CPM11 keys + cpm[4..7] in LFN4 slot; no LFN keys / page-extra / SETPG in sort. */
@@ -1092,7 +1091,6 @@ static void panel_cache_entry_short(PanelState *panel, unsigned int real_idx, un
 }
 
 /* Short-name compare helpers (panel_heap_sort_fn83). */
-#define SORTFN_KEY_LEN 4u
 #define SORTFN_KIND_DIR 1u
 #define SORTFN_KIND_DOTDOT 2u
 
@@ -1113,7 +1111,7 @@ static int sortfn_cmp_key4(const unsigned char *a, const unsigned char *b)
 	unsigned int i;
 	int cmp;
 
-	for (i = 0; i < SORTFN_KEY_LEN; i++)
+	for (i = 0; i < PANEL_SORT_KEY_LEN; i++)
 	{
 		cmp = sortfn_cmp_byte(a[i], b[i]);
 		if (cmp != 0)
@@ -1991,7 +1989,7 @@ static void print_crlf(void)
 	putchar('\n');
 }
 
-void fast_print_str_width(const char *str, unsigned char width)
+static void fast_print_str_width(const char *str, unsigned char width)
 {
 	unsigned char i;
 	i = 0;
@@ -2100,6 +2098,27 @@ static void panel_place_cursor_on_dotdot(PanelState *panel)
 	panel->scroll_offset = 0;
 	panel_file_map(panel, 0);
 	panel_clamp_scroll(panel);
+}
+
+static void panel_place_cursor_on_last(PanelState *panel)
+{
+	unsigned int phys;
+
+	if (panel->file_count == 0u)
+	{
+		panel->cursor_idx = 0;
+		panel->scroll_offset = 0;
+		return;
+	}
+
+	panel->cursor_idx = panel->file_count - 1u;
+	if (panel->file_count > 18u)
+		panel->scroll_offset = panel->file_count - 18u;
+	else
+		panel->scroll_offset = 0;
+	panel_clamp_scroll(panel);
+	phys = panel_meta_get_index(panel, panel->cursor_idx);
+	switch_file_page(panel, phys);
 }
 
 static unsigned char read_panel_dir_at(PanelState *panel, const char *dir_path, unsigned char preserve_cursor)
@@ -2739,13 +2758,14 @@ static void panel_drive_build_list(const PanelState *panel)
 	unsigned char i;
 	unsigned char saved;
 	unsigned char neogs;
+	unsigned char zxnet;
 	char saved_path[64];
 
 	strncpy(saved_path, panel->current_path, sizeof(saved_path) - 1u);
 	saved_path[sizeof(saved_path) - 1u] = 0;
 	saved = panel_drive_saved_letter(panel);
 	neogs = panel_hw_neogs_sd_present();
-	/* zxnet = panel_hw_zxnet_present(); always show O: (probe disabled) */
+	zxnet = panel_hw_zxnet_present();
 	g_drive_count = 0;
 
 	for (i = 0; i < PANEL_DRIVE_TABLE_LEN; i++)
@@ -2754,7 +2774,8 @@ static void panel_drive_build_list(const PanelState *panel)
 
 		if (def->filter == DRVF_NEOGS && neogs == 0u)
 			continue;
-		/* if (def->filter == DRVF_ZXNET && zxnet == 0u) continue; */
+		if (def->filter == DRVF_ZXNET && zxnet == 0u)
+			continue;
 		if ((def->filter & (DRVF_TRDOS | DRVF_ZXNET)) == 0u && !panel_drive_chdrv_ok(def->letter))
 			continue;
 		if (nc_ini_drive_hidden(def->letter))
@@ -3249,18 +3270,6 @@ static void panels_refresh_after_copy_snaps(PanelState *src_panel, PanelState *d
 	g_focus_pending = 0;
 	copy_prog.drawn = 0;
 	panels_draw_all(active_p);
-}
-
-static void panels_refresh_after_copy(PanelState *src_panel, PanelState *dst_panel, const char *hint)
-{
-	char snap_left[64];
-	char snap_right[64];
-
-	strncpy(snap_left, left_panel.current_path, sizeof(snap_left) - 1u);
-	snap_left[sizeof(snap_left) - 1u] = 0;
-	strncpy(snap_right, right_panel.current_path, sizeof(snap_right) - 1u);
-	snap_right[sizeof(snap_right) - 1u] = 0;
-	panels_refresh_after_copy_snaps(src_panel, dst_panel, snap_left, snap_right, hint);
 }
 
 void panels_refresh_all(const char *next_file_hint)
@@ -4155,22 +4164,22 @@ unsigned char copy_single_file_core(const char *src_path, const char *dst_path, 
 	bank_saved = resident_bank_push();
 
 	ow = copy_check_overwrite(dst_path);
-	if (ow == COPY_FILE_SKIP)
+	if (ow == NC_COPY_FILE_SKIP)
 	{
 		resident_bank_pop(bank_saved);
-		return COPY_FILE_SKIP;
+		return NC_COPY_FILE_SKIP;
 	}
-	if (ow == COPY_FILE_ABORT)
+	if (ow == NC_COPY_FILE_ABORT)
 	{
 		resident_bank_pop(bank_saved);
-		return COPY_FILE_ABORT;
+		return NC_COPY_FILE_ABORT;
 	}
 
 	h_src = OS_OPENHANDLE((unsigned char *)src_path, 0x80);
 	if (((int)h_src) & 0xff)
 	{
 		resident_bank_pop(bank_saved);
-		return COPY_FILE_ERR;
+		return NC_COPY_FILE_ERR;
 	}
 
 	if (fdate == 0 && ftime == 0)
@@ -4185,7 +4194,7 @@ unsigned char copy_single_file_core(const char *src_path, const char *dst_path, 
 	{
 		OS_CLOSEHANDLE(h_src);
 		resident_bank_pop(bank_saved);
-		return COPY_FILE_ERR;
+		return NC_COPY_FILE_ERR;
 	}
 
 	/* I/O phase: only g_copy_io_page at C000; no resident/CODE_RESIDENT calls until unmap. */
@@ -4199,7 +4208,7 @@ unsigned char copy_single_file_core(const char *src_path, const char *dst_path, 
 			OS_CLOSEHANDLE(h_dst);
 			OS_CLOSEHANDLE(h_src);
 			(void)OS_DELETE((unsigned char *)dst_path);
-			return COPY_FILE_ABORT;
+			return NC_COPY_FILE_ABORT;
 		}
 		SETPG32KHIGH(g_copy_io_page);
 		chunk = (remaining > COPY_IO_CHUNK) ? COPY_IO_CHUNK : (unsigned int)remaining;
@@ -4211,7 +4220,7 @@ unsigned char copy_single_file_core(const char *src_path, const char *dst_path, 
 			OS_CLOSEHANDLE(h_dst);
 			OS_CLOSEHANDLE(h_src);
 			(void)OS_DELETE((unsigned char *)dst_path);
-			return COPY_FILE_ERR;
+			return NC_COPY_FILE_ERR;
 		}
 
 		errno = 0;
@@ -4222,7 +4231,7 @@ unsigned char copy_single_file_core(const char *src_path, const char *dst_path, 
 			OS_CLOSEHANDLE(h_dst);
 			OS_CLOSEHANDLE(h_src);
 			(void)OS_DELETE((unsigned char *)dst_path);
-			return COPY_FILE_ERR;
+			return NC_COPY_FILE_ERR;
 		}
 
 		if (bytes_read >= remaining)
@@ -4247,7 +4256,7 @@ unsigned char copy_single_file_core(const char *src_path, const char *dst_path, 
 	OS_CLOSEHANDLE(h_dst);
 	OS_CLOSEHANDLE(h_src);
 	OS_SETFILETIME((unsigned char *)dst_path, fdate, ftime);
-	return COPY_FILE_OK;
+	return NC_COPY_FILE_OK;
 }
 
 static void copy_tree_iter(const char *base_src, const char *base_dst)
@@ -4280,7 +4289,7 @@ static void copy_tree_iter(const char *base_src, const char *base_dst)
 	frame->snap_valid = 0;
 	frame->dir_more = 0;
 
-	/* Do not gate on COPY_OW_ABORT here: Move sets it up-front to skip overwrite
+	/* Do not gate on NC_COPY_OW_ABORT here: Move sets it up-front to skip overwrite
 	 * dialogs; abort is handled per-file in copy_single_file_core and via break. */
 	while (g_copy_sp > 0u && !g_fileop_abort)
 	{
@@ -4356,7 +4365,7 @@ static void copy_tree_iter(const char *base_src, const char *base_dst)
 				if (!r_copy_dir_exists(r_dst_full))
 				{
 					g_copy_tree_failed = 1;
-					g_copy_overwrite_mode = COPY_OW_ABORT;
+					g_copy_overwrite_mode = NC_COPY_OW_ABORT;
 					break;
 				}
 				/* Existing subdir: merge contents without prompting. */
@@ -4367,7 +4376,7 @@ static void copy_tree_iter(const char *base_src, const char *base_dst)
 			if (g_copy_sp >= COPY_DIR_STACK_MAX)
 			{
 				g_copy_tree_failed = 1;
-				g_copy_overwrite_mode = COPY_OW_ABORT;
+				g_copy_overwrite_mode = NC_COPY_OW_ABORT;
 				break;
 			}
 			child = copy_stack_frame_ptr(g_copy_sp);
@@ -4392,13 +4401,13 @@ static void copy_tree_iter(const char *base_src, const char *base_dst)
 			snap_ftime = copy_stack_dates_ptr(COPY_STACK_SNAPTIME_OFF)[snap_idx];
 			SETPG32KHIGH(residentPg);
 			copy_res = copy_single_file_core(r_src_full, r_dst_full, snap_fdate, snap_ftime);
-			if (copy_res == COPY_FILE_ABORT || copy_res == COPY_FILE_ERR || g_fileop_abort)
+			if (copy_res == NC_COPY_FILE_ABORT || copy_res == NC_COPY_FILE_ERR || g_fileop_abort)
 			{
-				if (copy_res == COPY_FILE_ABORT || copy_res == COPY_FILE_ERR)
+				if (copy_res == NC_COPY_FILE_ABORT || copy_res == NC_COPY_FILE_ERR)
 					g_copy_tree_failed = 1;
 				break;
 			}
-			if (g_move_active && copy_res == COPY_FILE_OK)
+			if (g_move_active && copy_res == NC_COPY_FILE_OK)
 				move_delete_path(r_src_full);
 		}
 
@@ -4455,25 +4464,25 @@ static unsigned char copy_do_one_item_res(PanelState *src_panel, const char *fil
 			{
 				resident_bank_pop(saved);
 				g_copy_tree_failed = 1;
-				return COPY_FILE_ERR;
+				return NC_COPY_FILE_ERR;
 			}
 			merge = copy_check_dir_merge(full_dst_path);
 			resident_bank_pop(saved);
-			if (merge == COPY_FILE_SKIP)
-				return COPY_FILE_SKIP;
-			if (merge == COPY_FILE_ABORT)
+			if (merge == NC_COPY_FILE_SKIP)
+				return NC_COPY_FILE_SKIP;
+			if (merge == NC_COPY_FILE_ABORT)
 			{
 				g_fileop_abort = 1;
-				return COPY_FILE_ABORT;
+				return NC_COPY_FILE_ABORT;
 			}
 		}
 		copy_progress_file_begin(filename, 1);
 		copy_tree_iter(full_src_path, full_dst_path);
 		if (g_fileop_abort)
-			return COPY_FILE_ABORT;
+			return NC_COPY_FILE_ABORT;
 		if (g_copy_tree_failed)
-			return COPY_FILE_ERR;
-		return COPY_FILE_OK;
+			return NC_COPY_FILE_ERR;
+		return NC_COPY_FILE_OK;
 	}
 
 	if (!*io_active)
@@ -4485,7 +4494,7 @@ static unsigned char copy_do_one_item_res(PanelState *src_panel, const char *fil
 	copy_progress_file_begin(filename, 0);
 	copy_res = copy_single_file_core(full_src_path, full_dst_path, set.bank_array[page_offset].fdate,
 									 set.bank_array[page_offset].ftime);
-	if (g_move_active && copy_res == COPY_FILE_OK)
+	if (g_move_active && copy_res == NC_COPY_FILE_OK)
 		move_delete_path(full_src_path);
 	return copy_res;
 }
@@ -4503,13 +4512,6 @@ static unsigned char action_copy_try_one(PanelState *src_panel, const char *file
 		return 0;
 	}
 	return 1;
-}
-
-/* 1=continue batch, 0=stop (no memory) */
-static unsigned char action_move_try_one(PanelState *src_panel, const char *filename, unsigned char is_directory,
-										 unsigned int page_offset, unsigned char *ws_active, unsigned char *io_active)
-{
-	return action_copy_try_one(src_panel, filename, is_directory, page_offset, ws_active, io_active);
 }
 
 static void action_move_common_finish(PanelState *src_panel, PanelState *dst_panel, const char *snap_left,
@@ -4561,14 +4563,14 @@ static unsigned char move_samedrive_rename(const char *src_full, const char *dst
 	path_on_volume(src_full, src_rel);
 	path_on_volume(dst_full, dst_rel);
 	if (src_rel[0] == 0 || dst_rel[0] == 0)
-		return COPY_FILE_ERR;
+		return NC_COPY_FILE_ERR;
 
 	path_drive_root(src_full, drv_root);
 	if ((unsigned char)OS_CHDIR((unsigned char *)drv_root) != 0u)
-		return COPY_FILE_ERR;
+		return NC_COPY_FILE_ERR;
 	if ((unsigned char)OS_RENAME((unsigned char *)src_rel, (unsigned char *)dst_rel) != 0u)
-		return COPY_FILE_ERR;
-	return COPY_FILE_OK;
+		return NC_COPY_FILE_ERR;
+	return NC_COPY_FILE_OK;
 }
 
 /* Same-volume move: OS_RENAME from drive root; folder merge falls back to copy+delete. */
@@ -4586,13 +4588,13 @@ static unsigned char move_samedrive_one_item(PanelState *src_panel, const char *
 	build_full_path(full_dst_path, set.temp_path, filename);
 
 	if (strcmp(full_src_path, full_dst_path) == 0)
-		return COPY_FILE_OK;
+		return NC_COPY_FILE_OK;
 
 	if (!is_directory)
 	{
 		saved = resident_bank_push();
 		ow = copy_check_overwrite(full_dst_path);
-		if (ow == COPY_FILE_SKIP || ow == COPY_FILE_ABORT)
+		if (ow == NC_COPY_FILE_SKIP || ow == NC_COPY_FILE_ABORT)
 		{
 			resident_bank_pop(saved);
 			return ow;
@@ -4602,12 +4604,12 @@ static unsigned char move_samedrive_one_item(PanelState *src_panel, const char *
 		copy_progress_file_begin(filename, 0);
 		res = move_samedrive_rename(full_src_path, full_dst_path);
 		resident_bank_pop(saved);
-		if (res != COPY_FILE_OK)
+		if (res != NC_COPY_FILE_OK)
 		{
 			g_copy_tree_failed = 1;
-			return COPY_FILE_ERR;
+			return NC_COPY_FILE_ERR;
 		}
-		return COPY_FILE_OK;
+		return NC_COPY_FILE_OK;
 	}
 
 	saved = resident_bank_push();
@@ -4616,12 +4618,12 @@ static unsigned char move_samedrive_one_item(PanelState *src_panel, const char *
 		copy_progress_file_begin(filename, 1);
 		res = move_samedrive_rename(full_src_path, full_dst_path);
 		resident_bank_pop(saved);
-		if (res != COPY_FILE_OK)
+		if (res != NC_COPY_FILE_OK)
 		{
 			g_copy_tree_failed = 1;
-			return COPY_FILE_ERR;
+			return NC_COPY_FILE_ERR;
 		}
-		return COPY_FILE_OK;
+		return NC_COPY_FILE_OK;
 	}
 	resident_bank_pop(saved);
 
@@ -4641,7 +4643,7 @@ static unsigned char action_move_samedrive_try_one(PanelState *src_panel, const 
 		copy_progress_draw_name("No memory page");
 		return 0;
 	}
-	if (res == COPY_FILE_ABORT)
+	if (res == NC_COPY_FILE_ABORT)
 		g_fileop_abort = 1;
 	return 1;
 }
@@ -4661,7 +4663,7 @@ static void action_move_samedrive_run(PanelState *src_panel, PanelState *dst_pan
 	fileop_abort_clear();
 	g_copy_tree_failed = 0;
 	g_move_active = 1;
-	g_copy_overwrite_mode = COPY_OW_ASK_EACH;
+	g_copy_overwrite_mode = NC_COPY_OW_ASK_EACH;
 	fileop_progress_begin_title(0, "Moving");
 	ws_active = 0;
 	io_active = 0;
@@ -4826,7 +4828,7 @@ static void action_move_run(PanelState *src_panel, PanelState *dst_panel, const 
 			goto move_finish;
 		}
 		copy_name_preserve_case(&set.bank_array[page_offset], saved_filename);
-		(void)action_move_try_one(src_panel, saved_filename, is_directory, page_offset, &ws_active, &io_active);
+		(void)action_copy_try_one(src_panel, saved_filename, is_directory, page_offset, &ws_active, &io_active);
 	}
 	else
 	{
@@ -4843,7 +4845,7 @@ static void action_move_run(PanelState *src_panel, PanelState *dst_panel, const 
 			if (is_directory && panel_entry_is_dotdot(&set.bank_array[page_offset]))
 				continue;
 			copy_name_preserve_case(&set.bank_array[page_offset], saved_filename);
-			res = action_move_try_one(src_panel, saved_filename, is_directory, page_offset, &ws_active, &io_active);
+			res = action_copy_try_one(src_panel, saved_filename, is_directory, page_offset, &ws_active, &io_active);
 			if (res == 0)
 				break;
 			fileop_poll_abort();
@@ -4910,7 +4912,7 @@ void Action_Copy(void)
 	if (len > 0 && set.temp_path[len - 1] != '/' && set.temp_path[len - 1] != '\\')
 		strcat(set.temp_path, "/");
 
-	g_copy_overwrite_mode = COPY_OW_ASK_EACH;
+	g_copy_overwrite_mode = NC_COPY_OW_ASK_EACH;
 
 	dialog_result = ui_dialog_input(dlg_title, "Copy to:");
 	if (dialog_result == D_RES_CANCEL)
@@ -5027,7 +5029,7 @@ void Action_Move(void)
 		action_move_samedrive_run(src_panel, dst_panel, snap_left, snap_right, n_marked);
 	else
 	{
-		g_copy_overwrite_mode = COPY_OW_ASK_EACH;
+		g_copy_overwrite_mode = NC_COPY_OW_ASK_EACH;
 		action_move_run(src_panel, dst_panel, snap_left, snap_right, n_marked);
 	}
 }
@@ -5716,6 +5718,20 @@ C_task main(void)
 			active_p = (left_panel.is_active) ? &left_panel : &right_panel;
 			draw_file_line(&left_panel, 0, left_panel.cursor_idx);
 			draw_file_line(&right_panel, 40, right_panel.cursor_idx);
+			draw_bottom_info(active_p);
+			continue;
+		}
+
+		if (key == NC_KEY_HOME || key == NC_KEY_END)
+		{
+			unsigned char start_x;
+
+			start_x = (left_panel.is_active) ? 0 : 40;
+			if (key == NC_KEY_HOME)
+				panel_place_cursor_on_dotdot(active_p);
+			else
+				panel_place_cursor_on_last(active_p);
+			draw_panel(active_p, start_x, 18);
 			draw_bottom_info(active_p);
 			continue;
 		}

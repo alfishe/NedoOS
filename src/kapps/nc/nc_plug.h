@@ -22,9 +22,8 @@
 #define NC_MFI_READ_ON_FOCUS 7u
 #define NC_MFI_BRIEF 8u
 #define NC_PANEL_ROW_WIDTH 38u
-#define NC_PANEL_BRIEF_SIZE_W 9u
-#define NC_PANEL_BRIEF_SEP_W 1u
-/* Name 28 + sep + size 8 + 1 pad = 38; size column one char left of old 30..37. */
+#define NC_PANEL_BRIEF_SIZE_W 8u
+/* Name 28 + sep + size 8 + 1 pad = 38 */
 #define NC_PANEL_BRIEF_NAME_W 28u
 #define NC_PANEL_BRIEF_SIZE_OFF 29u
 #define NC_MENU_POPUP_X 0u
@@ -38,8 +37,6 @@
 #define NC_INI_DIR "../ini"
 #define NC_INI_NAME "nc.ini"
 #define NC_INI_BUF_SIZE 512u
-
-#define PAGES_PER_PANEL NC_PAGES_PER_PANEL
 
 #define D_BTN_OK 0x01
 #define D_BTN_CANCEL 0x02
@@ -147,8 +144,6 @@ extern union APP_PAGES main_pg;
 
 struct setup
 {
-	unsigned char freeMem;
-	unsigned char totalMem;
 	fileInfo current_file;
 	char local_dir_name[64];
 	char exited_dir_name[64];
@@ -159,7 +154,6 @@ extern struct setup set;
 
 void init(void);
 void init_panels(void);
-unsigned char getFreeMem(void);
 void nc_ini_load(void);
 void nc_ini_save(void);
 void nc_capture_startup_path(void);
