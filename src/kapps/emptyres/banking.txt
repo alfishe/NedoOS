@@ -1,0 +1,27 @@
+Создан шаблон emptyres ? собирается без ошибок, emptyres.com лежит в C:\TEMP\NOS\release\bin\.
+
+Структура
+
+emptyres/
+  app_bank.h / app_bank.c   ? универсальный банкинг @ C000
+  emptyres_plug.h           ? слоты, константы, r_* / ui_* API
+  emptyres_inc.h            ? includes
+  resident.c                ? CODE_RESIDENT, mock-функции
+  main.c                    ? init + демо + ui_* обёртки
+  lnk.xcl / Makefile / build.bat
+app_bank ? инструментарий
+
+API	Назначение
+
+bank_os_new_page / bank_os_release_page
+страница от OS
+bank_window_current / bank_window_map
+что сейчас на C000
+bank_push / bank_pop
+map ? работа ? restore
+bank_push_stack / bank_pop_stack
+вложенные map
+bank_slot_set/get/push_slot
+именованные слоты (resident, data, ?)
+bank_data_peek/poke_*, bank_data_fill
+data-банки через C000+off
