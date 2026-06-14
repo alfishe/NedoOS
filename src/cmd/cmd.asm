@@ -45,15 +45,22 @@ cmd_begin
         ld de,params
         call strcopy
         
-        pop hl ;ld hl,COMMANDLINE ;command line
-        ld de,wordbuf
-        call getword
+        ld hl,params
+        call cmd_skip_cmdcom
         call skipspaces
         ld (cmdlineword2),hl
         ld a,(hl)
         or a
-        jr z,cmd_interactive
-;command line = "cmd <command to run>"
+        jp z,cmd_interactive
+;command line = "cmd [/k|/p] <command>"
+        xor a
+        ld (cmd_afterrun),a
+        call cmd_skipflags
+        ld a,(cmd_afterrun)
+        ld (cmd_afterrun_saved),a
+        ld a,(hl)
+        or a
+        jr z,cmd_onerun_nocmd
         ld de,cmdbuf
         call strcopy
         
@@ -63,6 +70,20 @@ cmd_begin
         ;or a
         ;call nz,callcmd;strcpexec_tryrun ;запускает по фону
         YIELD ;чтобы запущенная задача успела захватить фокус ;???
+        jp cmd_afterrun_done
+cmd_onerun_nocmd
+        jp cmd_afterrun_done
+cmd_afterrun_done
+        ld a,(cmd_afterrun_saved)
+        or a
+        jr z,cmd_afterrun_use_live
+        ld (cmd_afterrun),a
+cmd_afterrun_use_live
+        ld a,(cmd_afterrun)
+        cp 1
+        jp z,cmd_interactive ; /k
+        cp 2
+        jp z,cmd_press_exit ; /p
 ;если командная строка была со словом autoexec.bat в параметре, то это начальный запуск autoexec.bat, из него надо входить в интерактивный режим
         ld hl,tautoexecbat
 cmdlineword2=$+1
@@ -73,14 +94,38 @@ cmd_exit
 lastresult=$+1
        ld hl,0
         QUIT
+
+cmd_press_exit
+        call cmd_flushstdin
+        ld hl,tpresstoexit
+        call prtext
+cmd_press_exit0
+        call cmd_pause_infin
+        cp key_enter
+        jr z,cmd_press_exit0
+        jp cmd_exit
+
+cmd_flushstdin
+        call receivechar
+        ret c
+        or a
+        jr nz,cmd_flushstdin
+        ret
         
 tautoexecbat
         db "autoexec.bat",0
-		
+
+tpresstoexit
+        db "Press any key to exit...",0x0d,0x0a,0
 version_text
 		defb "Command line interpreter. rev.",0
 		
 cmd_interactive
+        xor a
+        ld (cmd_afterrun),a ; /k|/p only for initial one-shot
+        ld (cmdbuf),a
+        ld (oldcmd),a
+        ld (curcmdscroll),a
 	ld hl,version_text
         call prtext
         ifdef SVNREVISION
@@ -472,6 +517,18 @@ strcpexec0
         call strcp
         pop hl
         jr nz,strcpexec_fail
+        push bc
+        ld hl,cmd_exit
+        ld a,b
+        cp h
+        jr nz,strcpexec_docall
+        ld a,c
+        cp l
+        jr nz,strcpexec_docall
+        pop bc
+        jp cmd_exit
+strcpexec_docall
+        pop bc
         ld h,b
         ld l,c
         call jphl ;execute command
@@ -1177,6 +1234,36 @@ skipspaces
         inc hl
         jr skipspaces
 
+cmd_skipflags
+;hl=after "cmd.com", skip optional /k /p
+        ld a,(hl)
+        or a
+        ret z
+        cp '/'
+        ret nz
+        inc hl
+        ld a,(hl)
+        or 0x20
+        dec hl
+        cp 'k'
+        jr z,cmd_skipflags_k
+        cp 'p'
+        jr z,cmd_skipflags_p
+        ret
+cmd_skipflags_k
+        ld b,1
+        jr cmd_skipflags_set
+cmd_skipflags_p
+        ld b,2
+        jr cmd_skipflags_set
+cmd_skipflags_set
+        inc hl
+        inc hl
+        ld a,b
+        ld (cmd_afterrun),a
+        call skipspaces
+        jr cmd_skipflags
+
 strcopy
 ;hl->de
 strcopy0
@@ -1683,9 +1770,27 @@ cmd_pause_loop	;ждем окончания счетчика, либо кнопку
 		
 cmd_pause_infin
         call yieldgetkeyloop ;YIELDGETKEYLOOP
-         cp key_redraw
-         jr z,cmd_pause
+        cp key_redraw
+        jr z,cmd_pause_infin
         ret
+
+cmd_skip_cmdcom
+;in: hl=command line, out: hl=after optional "cmd.com"
+        ld de,wordbuf
+        push hl
+        call getword
+        ld bc,hl
+        ld hl,wordbuf
+        ld de,tcmdcom
+        call strcp
+        pop hl
+        ret nz
+        ld hl,bc
+        call skipspaces
+        ret
+
+tcmdcom
+        db "cmd.com",0
 
 cmd_copydir
         ld hl,(execcmd_pars)
@@ -2060,6 +2165,11 @@ oldpath ;TODO убрать (когда будет loadapp через OPENHANDLE)
 sysdir
         ds MAXPATH_sz
         
+cmd_afterrun
+        ds 1
+cmd_afterrun_saved
+        ds 1
+
 oldcmd
         ds MAXCMDSZ+1
         
