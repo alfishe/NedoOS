@@ -89,10 +89,27 @@
 #define NC_KEY_END 30
 #define NC_KEY_FOCUS 31 /* app regained focus: reload dirs and redraw */
 #define NC_KEY_MARK_STAR 42
-#define NC_KEY_SHIFT_6 94
-/* NedOOS F-keys: extbase=0xB0 (sysdefs.asm key_F1..key_F10) */
-#define NC_KEY_F10 176
-#define NC_KEY_F9 185
+#define NC_KEY_MOVE 94 /* ssH '^' */
+/* sysdefs.asm: extbase=0xB0, ss1..ss9 = Ctrl+1..9, ss0 = Ctrl+0 */
+#define NC_KEY_EXTBASE 0xB0
+#define NC_KEY_F10 (NC_KEY_EXTBASE + 0)
+#define NC_KEY_F1  (NC_KEY_EXTBASE + 1)
+#define NC_KEY_F9  (NC_KEY_EXTBASE + 9)
+#define NC_KEY_SS0 95
+#define NC_KEY_SS1 33
+#define NC_KEY_SS2 64
+#define NC_KEY_SS3 35
+#define NC_KEY_SS4 36
+#define NC_KEY_SS5 37
+#define NC_KEY_SS6 38
+#define NC_KEY_SS7 39
+#define NC_KEY_SS8 40
+#define NC_KEY_SS9 41
+#define NC_KEY_LEFT 248
+#define NC_KEY_RIGHT 251
+#define NC_KEY_DEL_FWD 252
+#define NC_KEY_CSENTER 253 /* csbase+10 Shift+Enter: paste name into cmdline */
+#define NC_CMDLINE_LEN 80
 #define COPY_CH_BAR_FILL 219
 #define COPY_CH_BAR_EMPTY 176
 
@@ -164,7 +181,7 @@ int ext_cmp(const char *s1, const char *s2);
 void build_full_path(char *dest, const char *path, const char *filename);
 
 unsigned char uVer[] = "0.5";
-unsigned char botMenu[] = "1Left  2Right 3View 4Edit 5Copy 6Rename 7MkDir 8Delete 9Menu 0Quit";
+unsigned char botMenu[] = "F1Left F2Right F3View F4Edit F5Copy F6Ren F7MkDir F8Del F9Menu F10Quit ^Mov";
 
 static char r_src_full[200];
 static char r_dst_full[200];
@@ -263,6 +280,10 @@ static void move_delete_dir_path(const char *full_dir_path);
 static void delete_progress_ensure(void);
 static void panels_redraw_current(PanelState *active_p);
 static unsigned char g_copy_sp;
+static unsigned char g_cmd_active;
+static char g_cmd_line[NC_CMDLINE_LEN];
+static unsigned char g_cmd_len;
+static unsigned char g_cmd_cursor;
 
 static void fileop_abort_clear(void)
 {
@@ -276,8 +297,37 @@ static void fileop_poll_abort(void)
 	k = (unsigned char)OS_GETKEY();
 	if (k == NC_KEY_FOCUS)
 		g_focus_pending = 1;
-	else if (k == 27 || k == 176)
+	else if (k == 27 || k == NC_KEY_F10)
 		g_fileop_abort = 1;
+}
+
+static unsigned char nc_normalize_action_key(unsigned char key)
+{
+	switch (key)
+	{
+	case NC_KEY_F10:
+		return NC_KEY_SS0;
+	case NC_KEY_F1:
+		return NC_KEY_SS1;
+	case 178:
+		return NC_KEY_SS2;
+	case 179:
+		return NC_KEY_SS3;
+	case 180:
+		return NC_KEY_SS4;
+	case 181:
+		return NC_KEY_SS5;
+	case 182:
+		return NC_KEY_SS6;
+	case 183:
+		return NC_KEY_SS7;
+	case 184:
+		return NC_KEY_SS8;
+	case NC_KEY_F9:
+		return NC_KEY_SS9;
+	default:
+		return key;
+	}
 }
 
 unsigned char residentPg;
@@ -394,6 +444,7 @@ unsigned char g_ini_has_left_path;
 unsigned char g_ini_has_right_path;
 unsigned char g_ini_read_on_focus;
 unsigned char g_ini_panel_brief;
+unsigned char g_ini_cmd_flag;
 char g_nc_startup_path[64];
 static char g_drive_labels[PANEL_DRIVE_MAX][26];
 
@@ -2516,6 +2567,30 @@ void draw_bottom_info(PanelState *active_p)
 	unsigned long f_size;
 	unsigned char is_dir;
 
+	SETPG32KHIGH(residentPg);
+	OS_SETCOLOR(MAKE_COLOR(BR_BOTH, BLACK, WHITE));
+	OS_SETXY(0, 22);
+
+	if (g_cmd_active)
+	{
+		fast_print_str_pad("", 80);
+		OS_SETXY(0, 22);
+		putchar('>');
+		fast_print_str_pad(g_cmd_line, 79);
+		return;
+	}
+
+	if (active_p->file_count == 0u)
+	{
+		SETPG32KHIGH(residentPg);
+		OS_SETXY(0, 22);
+		fast_print_str_pad("Sz:", 3);
+		fast_print_str_pad("<DIR>", 10);
+		fast_print_str_pad("Nm:", 3);
+		fast_print_str_pad("", 64);
+		return;
+	}
+
 	panel_meta_map(active_p);
 	meta_base = (const unsigned char *)BANK_WINDOW_ADDRESS;
 	phys_idx = panel_meta_idx_get(meta_base, active_p->cursor_idx);
@@ -3005,18 +3080,20 @@ void menu_apply_choice(unsigned char choice)
 		active_p->sort_desc = 1;
 	else if (choice == NC_MFI_LFN_SORT)
 	{
-		active_p->sort_lfn = (unsigned char)(active_p->sort_lfn ? 0u : 1u);
 		if (active_p->file_count > 0u)
 			panel_refresh_sort_cache(active_p);
+		resort = 0;
 	}
 	else if (choice == NC_MFI_READ_ON_FOCUS)
 	{
-		g_ini_read_on_focus = (unsigned char)(g_ini_read_on_focus ? 0u : 1u);
 		resort = 0;
 	}
 	else if (choice == NC_MFI_BRIEF)
 	{
-		g_ini_panel_brief = (unsigned char)(g_ini_panel_brief ? 0u : 1u);
+		resort = 0;
+	}
+	else if (choice == NC_MFI_CMD_FLAG)
+	{
 		resort = 0;
 	}
 
@@ -3973,7 +4050,7 @@ static unsigned char nc_run_bin_direct(PanelState *panel, const char *exe, const
 	OS_CLOSEHANDLE(fp);
 	SETPG32KHIGH(savedResidentPg);
 	OS_RUNAPP(childId);
-	YIELD();
+	(void)OS_WAITPID(childId);
 
 	if (g_run_saved_cwd[0] != 0)
 		(void)OS_CHDIR((unsigned char *)g_run_saved_cwd);
@@ -4050,6 +4127,155 @@ static unsigned char nc_get_file_under_cursor(PanelState *panel, char *name_out,
 	return 1;
 }
 
+static void nc_cmd_clear(void)
+{
+	g_cmd_active = 0;
+	g_cmd_len = 0;
+	g_cmd_cursor = 0;
+	g_cmd_line[0] = 0;
+}
+
+static void nc_cmd_insert_char(unsigned char ch)
+{
+	unsigned char i;
+
+	if (g_cmd_len >= NC_CMDLINE_LEN - 1u || ch < 32 || ch >= 127)
+		return;
+	for (i = g_cmd_len; i > g_cmd_cursor; i--)
+		g_cmd_line[i] = g_cmd_line[i - 1];
+	g_cmd_line[g_cmd_cursor] = (char)ch;
+	g_cmd_cursor++;
+	g_cmd_len++;
+	g_cmd_line[g_cmd_len] = 0;
+}
+
+static void nc_cmd_begin(unsigned char ch)
+{
+	g_cmd_active = 1;
+	g_cmd_len = 0;
+	g_cmd_cursor = 0;
+	g_cmd_line[0] = 0;
+	nc_cmd_insert_char(ch);
+}
+
+static void nc_cmd_backspace(void)
+{
+	unsigned char i;
+
+	if (g_cmd_cursor == 0 || g_cmd_len == 0)
+		return;
+	for (i = (unsigned char)(g_cmd_cursor - 1); i < g_cmd_len; i++)
+		g_cmd_line[i] = g_cmd_line[i + 1];
+	g_cmd_cursor--;
+	g_cmd_len--;
+	g_cmd_line[g_cmd_len] = 0;
+}
+
+static void nc_cmd_delete_fwd(void)
+{
+	unsigned char i;
+
+	if (g_cmd_cursor >= g_cmd_len)
+		return;
+	for (i = g_cmd_cursor; i < g_cmd_len; i++)
+		g_cmd_line[i] = g_cmd_line[i + 1];
+	g_cmd_len--;
+	g_cmd_line[g_cmd_len] = 0;
+}
+
+static void nc_cmd_insert_text(const char *text)
+{
+	while (text[0] != 0 && g_cmd_len < NC_CMDLINE_LEN - 1u)
+	{
+		nc_cmd_insert_char((unsigned char)text[0]);
+		text++;
+	}
+}
+
+static void nc_cmd_paste_name(PanelState *panel)
+{
+	char name[64];
+	unsigned char is_dir;
+
+	if (!nc_get_file_under_cursor(panel, name, &is_dir))
+		return;
+	if (is_dir)
+		return;
+	if (g_cmd_len > 0 && g_cmd_cursor > 0 && g_cmd_line[g_cmd_cursor - 1] != ' ')
+		nc_cmd_insert_char(' ');
+	nc_cmd_insert_text(name);
+}
+
+static const char *nc_cmd_term_prefix(void)
+{
+	if (g_ini_cmd_flag == NC_CMD_FLAG_K)
+		return "term.com cmd.com /k ";
+	if (g_ini_cmd_flag == NC_CMD_FLAG_P)
+		return "term.com cmd.com /p ";
+	return "term.com cmd.com ";
+}
+
+static void nc_cmd_execute(PanelState *panel)
+{
+	char cmdline[128];
+	unsigned int n;
+
+	if (!g_cmd_active || g_cmd_len == 0)
+		return;
+	strncpy(cmdline, nc_cmd_term_prefix(), sizeof(cmdline) - 1u);
+	cmdline[sizeof(cmdline) - 1u] = 0;
+	n = strlen(cmdline);
+	strncat(cmdline, g_cmd_line, sizeof(cmdline) - n - 1u);
+	cmdline[sizeof(cmdline) - 1u] = 0;
+	(void)nc_run_bin_direct(panel, "term.com", cmdline);
+	nc_run_restore_ui(panel);
+	nc_cmd_clear();
+}
+
+static unsigned char nc_cmd_handle_key(unsigned char key, PanelState *panel)
+{
+	if (!g_cmd_active)
+	{
+		if (key >= 32 && key < 127)
+		{
+			nc_cmd_begin(key);
+			return 1;
+		}
+		return 0;
+	}
+
+	switch (key)
+	{
+	case 27:
+		nc_cmd_clear();
+		return 1;
+	case NC_KEY_CSENTER:
+		nc_cmd_paste_name(panel);
+		return 1;
+	case NC_KEY_LEFT:
+		if (g_cmd_cursor > 0)
+			g_cmd_cursor--;
+		return 1;
+	case NC_KEY_RIGHT:
+		if (g_cmd_cursor < g_cmd_len)
+			g_cmd_cursor++;
+		return 1;
+	case 8:
+		nc_cmd_backspace();
+		return 1;
+	case NC_KEY_DEL_FWD:
+		nc_cmd_delete_fwd();
+		return 1;
+	default:
+		if (key >= 32 && key < 127)
+		{
+			nc_cmd_insert_char(key);
+			return 1;
+		}
+		return 0;
+	}
+}
+
 static void nc_run_selected_file(PanelState *panel)
 {
 	char name[64];
@@ -4092,11 +4318,25 @@ static void nc_run_selected_file(PanelState *panel)
 	nc_run_restore_ui(panel);
 }
 
+static unsigned char nc_action_blocked_entry(PanelState *panel)
+{
+	unsigned int phys;
+
+	if (panel->file_count == 0u)
+		return 1;
+	phys = panel_meta_get_index(panel, panel->cursor_idx);
+	if (panel_meta_get_kind(panel, phys) == PANEL_KIND_DOTDOT)
+		return 1;
+	return 0;
+}
+
 static void nc_action_view(PanelState *panel)
 {
 	char name[64];
 	unsigned char is_dir;
 
+	if (nc_action_blocked_entry(panel))
+		return;
 	if (!nc_get_file_under_cursor(panel, name, &is_dir))
 		return;
 	if (is_dir)
@@ -4111,6 +4351,8 @@ static void nc_action_edit(PanelState *panel)
 	char name[64];
 	unsigned char is_dir;
 
+	if (nc_action_blocked_entry(panel))
+		return;
 	if (!nc_get_file_under_cursor(panel, name, &is_dir))
 		return;
 	if (is_dir)
@@ -5659,9 +5901,7 @@ C_task main(void)
 			continue;
 		}
 
-		/* F10..F1 (176..185) -> '0'..'9' */
-		if (key >= NC_KEY_F10 && key <= NC_KEY_F9)
-			key = (unsigned char)('0' + (key - NC_KEY_F10));
+		key = nc_normalize_action_key(key);
 
 		switch (key)
 		{
@@ -5669,38 +5909,38 @@ C_task main(void)
 			YIELD();
 			nc_clock_draw(0);
 			continue;
-		case '0':
+		case NC_KEY_SS0:
 			nc_ini_save();
 			exit(0);
 			continue;
-		case '1':
+		case NC_KEY_SS1:
 			panel_drive_open(&left_panel);
 			continue;
-		case '2':
+		case NC_KEY_SS2:
 			panel_drive_open(&right_panel);
 			continue;
-		case '3':
+		case NC_KEY_SS3:
 			nc_action_view(active_p);
 			continue;
-		case '4':
+		case NC_KEY_SS4:
 			nc_action_edit(active_p);
 			continue;
-		case '9':
+		case NC_KEY_SS9:
 			menu_open();
 			continue;
-		case '8':
+		case NC_KEY_SS8:
 			Action_Delete();
 			break;
-		case '5':
+		case NC_KEY_SS5:
 			Action_Copy();
 			break;
-		case '6':
+		case NC_KEY_SS6:
 			Action_Rename();
 			break;
-		case NC_KEY_SHIFT_6:
+		case NC_KEY_MOVE:
 			Action_Move();
 			break;
-		case '7':
+		case NC_KEY_SS7:
 			Action_MkDir();
 			break;
 		}
@@ -5805,6 +6045,13 @@ C_task main(void)
 			continue;
 		}
 
+		if (g_cmd_active && (key == NC_KEY_LEFT || key == NC_KEY_RIGHT))
+		{
+			nc_cmd_handle_key(key, active_p);
+			draw_bottom_info(active_p);
+			continue;
+		}
+
 		if (key == 248)
 		{
 			if (active_p->cursor_idx > 0)
@@ -5860,10 +6107,33 @@ C_task main(void)
 			continue;
 		}
 
+		if (key == NC_KEY_CSENTER)
+		{
+			if (!g_cmd_active)
+			{
+				g_cmd_active = 1;
+				g_cmd_len = 0;
+				g_cmd_cursor = 0;
+				g_cmd_line[0] = 0;
+			}
+			nc_cmd_paste_name(active_p);
+			draw_bottom_info(active_p);
+			continue;
+		}
+
 		if (key == 13)
 		{
-			handle_enter(active_p);
+			if (g_cmd_active)
+				nc_cmd_execute(active_p);
+			else
+				handle_enter(active_p);
 
+			draw_bottom_info(active_p);
+			continue;
+		}
+
+		if (nc_cmd_handle_key(key, active_p))
+		{
 			draw_bottom_info(active_p);
 			continue;
 		}

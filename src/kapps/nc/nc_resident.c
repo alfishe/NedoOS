@@ -152,6 +152,33 @@ static unsigned char ini_parse_bool(const char *v)
 	return 0;
 }
 
+static unsigned char ini_parse_cmd_flag(const char *v)
+{
+	if (v[0] == 'k' || v[0] == 'K')
+		return NC_CMD_FLAG_K;
+	if (v[0] == 'p' || v[0] == 'P')
+		return NC_CMD_FLAG_P;
+	return NC_CMD_FLAG_NONE;
+}
+
+static const char *ini_cmd_flag_name(unsigned char f)
+{
+	if (f == NC_CMD_FLAG_K)
+		return "k";
+	if (f == NC_CMD_FLAG_P)
+		return "p";
+	return "none";
+}
+
+static const char *menu_cmd_flag_label(void)
+{
+	if (g_ini_cmd_flag == NC_CMD_FLAG_K)
+		return "Cmd: /k";
+	if (g_ini_cmd_flag == NC_CMD_FLAG_P)
+		return "Cmd: /p";
+	return "Cmd: none";
+}
+
 static unsigned char ini_set_location(void)
 {
 	unsigned int res;
@@ -238,6 +265,8 @@ static void ini_apply_key(const char *key, const char *val)
 		g_ini_read_on_focus = ini_parse_bool(val);
 	else if (strcmp(key, "BriefView") == 0 || strcmp(key, "brief_view") == 0)
 		g_ini_panel_brief = ini_parse_bool(val);
+	else if (strcmp(key, "CmdFlag") == 0 || strcmp(key, "cmd_flag") == 0)
+		g_ini_cmd_flag = ini_parse_cmd_flag(val);
 }
 
 void nc_ini_load(void)
@@ -257,6 +286,7 @@ void nc_ini_load(void)
 	g_ini_has_right_path = 0;
 	g_ini_read_on_focus = 0;
 	g_ini_panel_brief = 0;
+	g_ini_cmd_flag = NC_CMD_FLAG_NONE;
 
 	if (!ini_set_location())
 	{
@@ -427,6 +457,8 @@ void nc_ini_save(void)
 	ini_append_kv_u8(g_ini_save_buf, &pos, "ReadOnFocus", g_ini_read_on_focus);
 	ini_append(g_ini_save_buf, &pos, "# 1 = brief panel view (name + size only)\r\n");
 	ini_append_kv_u8(g_ini_save_buf, &pos, "BriefView", g_ini_panel_brief);
+	ini_append(g_ini_save_buf, &pos, "# Console cmd line: none / k / p (F9 menu)\r\n");
+	ini_append_kv(g_ini_save_buf, &pos, "CmdFlag", ini_cmd_flag_name(g_ini_cmd_flag));
 
 	if (!ini_set_location())
 	{
@@ -1440,6 +1472,9 @@ menu_draw_item(NC_MENU_ITEM_X, y, NC_MENU_POPUP_INNER_W, cursor_on, "Read on foc
 	case NC_MFI_BRIEF:
 menu_draw_item(NC_MENU_ITEM_X, y, NC_MENU_POPUP_INNER_W, cursor_on, "Brief view", g_ini_panel_brief);
 		break;
+	case NC_MFI_CMD_FLAG:
+menu_draw_item(NC_MENU_ITEM_X, y, NC_MENU_POPUP_INNER_W, cursor_on, menu_cmd_flag_label(), 0);
+		break;
 	}
 }
 
@@ -1479,6 +1514,69 @@ static void menu_sel_move(PanelState *active_p, unsigned char new_sel)
 
 	menu_draw_files_row(active_p, old_sel, 0);
 	menu_draw_files_row(active_p, new_sel, 1);
+}
+
+static void menu_redraw_sort_rows(PanelState *active_p, unsigned char cursor_idx)
+{
+	menu_draw_files_row(active_p, NC_MFI_NAME, (unsigned char)(cursor_idx == NC_MFI_NAME));
+	menu_draw_files_row(active_p, NC_MFI_EXT, (unsigned char)(cursor_idx == NC_MFI_EXT));
+	menu_draw_files_row(active_p, NC_MFI_SIZE, (unsigned char)(cursor_idx == NC_MFI_SIZE));
+	menu_draw_files_row(active_p, NC_MFI_TIME, (unsigned char)(cursor_idx == NC_MFI_TIME));
+}
+
+static void menu_redraw_sort_dir_rows(PanelState *active_p, unsigned char cursor_idx)
+{
+	menu_draw_files_row(active_p, NC_MFI_AZ, (unsigned char)(cursor_idx == NC_MFI_AZ));
+	menu_draw_files_row(active_p, NC_MFI_ZA, (unsigned char)(cursor_idx == NC_MFI_ZA));
+}
+
+static unsigned char menu_cycle_val(unsigned char val, unsigned char count, signed char delta)
+{
+	if (delta > 0)
+		return (unsigned char)((val + 1u) % count);
+	return (unsigned char)((val + count - 1u) % count);
+}
+
+static void menu_adjust_item(PanelState *active_p, signed char delta)
+{
+	unsigned char idx;
+
+	idx = g_menu_sel;
+	if (idx <= NC_MFI_TIME)
+	{
+		active_p->sort_mode = menu_cycle_val(active_p->sort_mode, 4u, delta);
+		menu_redraw_sort_rows(active_p, idx);
+		return;
+	}
+	if (idx == NC_MFI_AZ || idx == NC_MFI_ZA)
+	{
+		active_p->sort_desc = menu_cycle_val(active_p->sort_desc, 2u, delta);
+		menu_redraw_sort_dir_rows(active_p, idx);
+		return;
+	}
+	if (idx == NC_MFI_LFN_SORT)
+	{
+		active_p->sort_lfn = menu_cycle_val(active_p->sort_lfn, 2u, delta);
+		menu_draw_files_row(active_p, idx, 1);
+		return;
+	}
+	if (idx == NC_MFI_READ_ON_FOCUS)
+	{
+		g_ini_read_on_focus = menu_cycle_val(g_ini_read_on_focus, 2u, delta);
+		menu_draw_files_row(active_p, idx, 1);
+		return;
+	}
+	if (idx == NC_MFI_BRIEF)
+	{
+		g_ini_panel_brief = menu_cycle_val(g_ini_panel_brief, 2u, delta);
+		menu_draw_files_row(active_p, idx, 1);
+		return;
+	}
+	if (idx == NC_MFI_CMD_FLAG)
+	{
+		g_ini_cmd_flag = menu_cycle_val(g_ini_cmd_flag, 3u, delta);
+		menu_draw_files_row(active_p, idx, 1);
+	}
 }
 
 void draw_menu_overlay(void)
@@ -1529,16 +1627,26 @@ unsigned char menu_handle_key(unsigned char key)
 		return 1;
 	}
 
-	if (key == 250 || key == 248)
+	if (key == 250)
 	{
 		if (g_menu_sel > 0)
 			menu_sel_move(active_p, (unsigned char)(g_menu_sel - 1u));
 		return 1;
 	}
-	if (key == 249 || key == 251)
+	if (key == 249)
 	{
 		if (g_menu_sel < NC_MENU_FILES_ITEMS - 1u)
 			menu_sel_move(active_p, (unsigned char)(g_menu_sel + 1u));
+		return 1;
+	}
+	if (key == 248)
+	{
+		menu_adjust_item(active_p, -1);
+		return 1;
+	}
+	if (key == 251)
+	{
+		menu_adjust_item(active_p, 1);
 		return 1;
 	}
 	if (key == 13)

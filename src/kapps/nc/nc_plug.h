@@ -11,7 +11,7 @@
 #define NC_PANEL_SORT_TIME 3u
 #define NC_MENU_LEVEL_TOP 0u
 #define NC_MENU_LEVEL_FILES 1u
-#define NC_MENU_FILES_ITEMS 9u
+#define NC_MENU_FILES_ITEMS 10u
 #define NC_MFI_NAME 0u
 #define NC_MFI_EXT 1u
 #define NC_MFI_SIZE 2u
@@ -21,6 +21,11 @@
 #define NC_MFI_LFN_SORT 6u
 #define NC_MFI_READ_ON_FOCUS 7u
 #define NC_MFI_BRIEF 8u
+#define NC_MFI_CMD_FLAG 9u
+
+#define NC_CMD_FLAG_NONE 0u
+#define NC_CMD_FLAG_K    1u
+#define NC_CMD_FLAG_P    2u
 #define NC_PANEL_ROW_WIDTH 38u
 #define NC_PANEL_BRIEF_SIZE_W 8u
 /* Name 28 + sep + size 8 + 1 pad = 38 */
@@ -131,6 +136,7 @@ extern unsigned char g_ini_has_left_path;
 extern unsigned char g_ini_has_right_path;
 extern unsigned char g_ini_read_on_focus;
 extern unsigned char g_ini_panel_brief;
+extern unsigned char g_ini_cmd_flag;
 
 extern unsigned char g_copy_overwrite_mode;
 extern char g_copy_ow_msg[80];
