@@ -5,16 +5,16 @@
 #define NC_MAIN_BASE           0x0100u
 #define NC_MAIN_LIMIT          0xBFFFu
 #define NC_MAIN_SIZE           0xBF00u
-#define NC_MAIN_USED_END       0xAB05u /* CSTACK top */
-#define NC_MAIN_FREE           0x14FAu
-#define NC_MAIN_CODE_BYTES     54487u
-#define NC_MAIN_DATA_BYTES     4668u
+#define NC_MAIN_USED_END       0xAD5Fu /* CSTACK top */
+#define NC_MAIN_FREE           0x12A0u
+#define NC_MAIN_CODE_BYTES     55098u
+#define NC_MAIN_DATA_BYTES     5180u
 
 #define NC_RES_BASE            0xC000u
 #define NC_RES_LIMIT           0xFFFFu
 #define NC_RES_SIZE            0x4000u
-#define NC_RES_CODE_END        0xFD1Au
-#define NC_RES_CODE_USED       0x3D1Bu
-#define NC_RES_CODE_FREE       0x02E5u
+#define NC_RES_CODE_END        0xFF23u
+#define NC_RES_CODE_USED       0x3F24u
+#define NC_RES_CODE_FREE       0x00DCu
 
 #endif

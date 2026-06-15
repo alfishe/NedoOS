@@ -9,13 +9,13 @@
  * Resident code at C000 (window_3 / residentPg).
  * Callable while panel pages are mapped on 0xC000; uses globals in 0100-BFFF only.
  *
- * ===  ¬ïâì CODE_RESIDENT (C000-FFFF) ===
- *   § ­ïâ® ...... NC_RES_CODE_USED B (C000..NC_RES_CODE_END)
- *   á¢®¡®¤­® .... NC_RES_CODE_FREE B
+ * === ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ CODE_RESIDENT (C000-FFFF) ===
+ *   ï¿½ï¿½ï¿½ï¿½ï¿½ ...... NC_RES_CODE_USED B (C000..NC_RES_CODE_END)
+ *   á¢®ï¿½ï¿½ï¿½ï¿½ï¿½ .... NC_RES_CODE_FREE B
  *
- * ===  ¬ïâì main (0100-BFFF), globals resident ===
+ * === ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ main (0100-BFFF), globals resident ===
  *   code ........ NC_MAIN_CODE_BYTES B
- *   data+stack .. NC_MAIN_USED_END, á¢®¡®¤­® NC_MAIN_FREE B
+ *   data+stack .. NC_MAIN_USED_END, á¢®ï¿½ï¿½ï¿½ï¿½ï¿½ NC_MAIN_FREE B
  */
 
 void init(void)
@@ -388,21 +388,24 @@ static const char *ini_sort_mode_name(unsigned char mode)
 	}
 }
 
-static void ini_append(char *buf, unsigned int *pos, const char *text)
+static unsigned char ini_append(char *buf, unsigned int *pos, const char *text)
 {
 	unsigned int n;
+	unsigned int new_pos;
 
 	n = 0;
 	while (text[n] != 0)
 		n++;
-	if (*pos + n >= NC_INI_BUF_SIZE - 1u)
-		return;
+	new_pos = *pos + n;
+	if (new_pos >= NC_INI_BUF_SIZE - 1u)
+		return 0;
 	memcpy(buf + *pos, text, n);
-	*pos += n;
+	*pos = new_pos;
 	buf[*pos] = 0;
+	return 1;
 }
 
-static void ini_append_u8(char *buf, unsigned int *pos, unsigned char v)
+static unsigned char ini_append_u8(char *buf, unsigned int *pos, unsigned char v)
 {
 	char tmp[4];
 	unsigned char n;
@@ -420,23 +423,47 @@ static void ini_append_u8(char *buf, unsigned int *pos, unsigned char v)
 	}
 	tmp[n++] = (char)('0' + v);
 	tmp[n] = 0;
-	ini_append(buf, pos, tmp);
+	return ini_append(buf, pos, tmp);
 }
 
-static void ini_append_kv(char *buf, unsigned int *pos, const char *key, const char *val)
+static unsigned char ini_append_kv(char *buf, unsigned int *pos, const char *key, const char *val)
 {
-	ini_append(buf, pos, key);
-	ini_append(buf, pos, "=");
-	ini_append(buf, pos, val);
-	ini_append(buf, pos, "\r\n");
+	unsigned int saved;
+
+	saved = *pos;
+	if (!ini_append(buf, pos, key))
+		goto fail;
+	if (!ini_append(buf, pos, "="))
+		goto fail;
+	if (!ini_append(buf, pos, val))
+		goto fail;
+	if (!ini_append(buf, pos, "\r\n"))
+		goto fail;
+	return 1;
+fail:
+	*pos = saved;
+	buf[saved] = 0;
+	return 0;
 }
 
-static void ini_append_kv_u8(char *buf, unsigned int *pos, const char *key, unsigned char val)
+static unsigned char ini_append_kv_u8(char *buf, unsigned int *pos, const char *key, unsigned char val)
 {
-	ini_append(buf, pos, key);
-	ini_append(buf, pos, "=");
-	ini_append_u8(buf, pos, val);
-	ini_append(buf, pos, "\r\n");
+	unsigned int saved;
+
+	saved = *pos;
+	if (!ini_append(buf, pos, key))
+		goto fail;
+	if (!ini_append(buf, pos, "="))
+		goto fail;
+	if (!ini_append_u8(buf, pos, val))
+		goto fail;
+	if (!ini_append(buf, pos, "\r\n"))
+		goto fail;
+	return 1;
+fail:
+	*pos = saved;
+	buf[saved] = 0;
+	return 0;
 }
 
 static char g_ini_save_buf[NC_INI_BUF_SIZE];
@@ -449,6 +476,13 @@ void nc_ini_save(void)
 	pos = 0;
 	g_ini_save_buf[0] = 0;
 	ini_append(g_ini_save_buf, &pos, "# NC settings\r\n");
+	ini_append(g_ini_save_buf, &pos, "# Console cmd line: none / k / p (F9 menu)\r\n");
+	ini_append_kv(g_ini_save_buf, &pos, "CmdFlag", ini_cmd_flag_name(g_ini_cmd_flag));
+	ini_append(g_ini_save_buf, &pos, "# 1 = re-read both panels when app regains focus (key 31)\r\n");
+	ini_append_kv_u8(g_ini_save_buf, &pos, "ReadOnFocus", g_ini_read_on_focus);
+	ini_append(g_ini_save_buf, &pos, "# 1 = brief panel view (name + size only)\r\n");
+	ini_append_kv_u8(g_ini_save_buf, &pos, "BriefView", g_ini_panel_brief);
+	ini_append_kv_u8(g_ini_save_buf, &pos, "LeftActive", left_panel.is_active);
 	ini_append_kv(g_ini_save_buf, &pos, "LeftPath", left_panel.current_path);
 	ini_append_kv(g_ini_save_buf, &pos, "RightPath", right_panel.current_path);
 	ini_append_kv(g_ini_save_buf, &pos, "LeftSort", ini_sort_mode_name(left_panel.sort_mode));
@@ -457,18 +491,11 @@ void nc_ini_save(void)
 	ini_append_kv(g_ini_save_buf, &pos, "RightSortDir", right_panel.sort_desc ? "desc" : "asc");
 	ini_append_kv_u8(g_ini_save_buf, &pos, "LeftSortLfn", left_panel.sort_lfn);
 	ini_append_kv_u8(g_ini_save_buf, &pos, "RightSortLfn", right_panel.sort_lfn);
-	ini_append_kv_u8(g_ini_save_buf, &pos, "LeftActive", left_panel.is_active);
 	ini_append(g_ini_save_buf, &pos, "# Comma-separated letters to hide in drive menu (e.g. J,K,L)\r\n");
 	ini_append_kv(g_ini_save_buf, &pos, "HideDrives", g_ini_hide_drives);
 	ini_append(g_ini_save_buf, &pos, "# F3 viewer / F4 editor: .com launched with file path as argument\r\n");
 	ini_append_kv(g_ini_save_buf, &pos, "Viewer", g_ini_viewer);
 	ini_append_kv(g_ini_save_buf, &pos, "Editor", g_ini_editor);
-	ini_append(g_ini_save_buf, &pos, "# 1 = re-read both panels when app regains focus (key 31)\r\n");
-	ini_append_kv_u8(g_ini_save_buf, &pos, "ReadOnFocus", g_ini_read_on_focus);
-	ini_append(g_ini_save_buf, &pos, "# 1 = brief panel view (name + size only)\r\n");
-	ini_append_kv_u8(g_ini_save_buf, &pos, "BriefView", g_ini_panel_brief);
-	ini_append(g_ini_save_buf, &pos, "# Console cmd line: none / k / p (F9 menu)\r\n");
-	ini_append_kv(g_ini_save_buf, &pos, "CmdFlag", ini_cmd_flag_name(g_ini_cmd_flag));
 
 	if (!ini_set_location())
 	{
@@ -801,6 +828,14 @@ void r_draw_panel_background(PanelState *panel, unsigned char start_x)
 		r_ui_clock_redraw();
 }
 
+static unsigned char ui_invert_attr(unsigned char attr)
+{
+	return (unsigned char)(((attr & 0x40) << 1) |
+						   ((attr & 0x07) << 3) |
+						   ((attr & 0x80) >> 1) |
+						   ((attr & 0x38) >> 3));
+}
+
 void r_draw_bottom_info(const NCBottomInfo *snap)
 {
 	OS_SETCOLOR(NC_COLOR_CMDLINE);
@@ -810,8 +845,38 @@ void r_draw_bottom_info(const NCBottomInfo *snap)
 
 	if (snap->mode == NC_BOTTOM_CMD)
 	{
+		unsigned char i;
+		unsigned char len;
+		unsigned char ch;
+		unsigned char cursor_x;
+		const unsigned char base_color = NC_COLOR_CMDLINE;
+		const unsigned char cursor_color = ui_invert_attr(base_color);
+
+		len = 0;
+		while (snap->cmd_line[len] != 0 && len < 79u)
+			len++;
+
+		cursor_x = snap->cmd_cursor;
+		if (cursor_x > 79u)
+			cursor_x = 79u;
+
+		OS_SETCOLOR(base_color);
 		putchar('>');
-		ui_fast_print_str_pad(snap->cmd_line, 79);
+		for (i = 0; i < 79u; i++)
+		{
+			OS_SETXY((unsigned char)(1u + i), NC_STATUS_ROW);
+			if (i == cursor_x)
+			{
+				OS_SETCOLOR(cursor_color);
+				ch = (i < len) ? (unsigned char)snap->cmd_line[i] : (unsigned char)' ';
+			}
+			else
+			{
+				OS_SETCOLOR(base_color);
+				ch = (i < len) ? (unsigned char)snap->cmd_line[i] : (unsigned char)' ';
+			}
+			putchar(ch);
+		}
 		return;
 	}
 
@@ -1780,20 +1845,31 @@ static unsigned char show_dialog(DialogWindow *dlg, char *buffer, unsigned char 
 	}
 
 	numButtons = 0;
-	if (btn_mask & D_BTN_YES)
-		btn_types[numButtons++] = D_RES_YES;
-	if (btn_mask & D_BTN_NO)
-		btn_types[numButtons++] = D_RES_NO;
-	if (btn_mask & D_BTN_OK)
-		btn_types[numButtons++] = D_RES_OK;
-	if (btn_mask & D_BTN_SKIP)
-		btn_types[numButtons++] = D_RES_SKIP;
-	if (btn_mask & D_BTN_SKIP_ALL)
-		btn_types[numButtons++] = D_RES_SKIP_ALL;
-	if (btn_mask & D_BTN_REPLACE_ALL)
-		btn_types[numButtons++] = D_RES_REPLACE_ALL;
-	if (btn_mask & D_BTN_CANCEL)
-		btn_types[numButtons++] = D_RES_CANCEL;
+	if (btn_mask & D_BTN_TO_MOVE)
+	{
+		if (btn_mask & D_BTN_CANCEL)
+			btn_types[numButtons++] = D_RES_CANCEL;
+		btn_types[numButtons++] = D_RES_TO_MOVE;
+		if (btn_mask & D_BTN_OK)
+			btn_types[numButtons++] = D_RES_OK;
+	}
+	else
+	{
+		if (btn_mask & D_BTN_YES)
+			btn_types[numButtons++] = D_RES_YES;
+		if (btn_mask & D_BTN_NO)
+			btn_types[numButtons++] = D_RES_NO;
+		if (btn_mask & D_BTN_OK)
+			btn_types[numButtons++] = D_RES_OK;
+		if (btn_mask & D_BTN_SKIP)
+			btn_types[numButtons++] = D_RES_SKIP;
+		if (btn_mask & D_BTN_SKIP_ALL)
+			btn_types[numButtons++] = D_RES_SKIP_ALL;
+		if (btn_mask & D_BTN_REPLACE_ALL)
+			btn_types[numButtons++] = D_RES_REPLACE_ALL;
+		if (btn_mask & D_BTN_CANCEL)
+			btn_types[numButtons++] = D_RES_CANCEL;
+	}
 
 	activeBtn = 0;
 
@@ -1898,11 +1974,11 @@ static unsigned char show_dialog(DialogWindow *dlg, char *buffer, unsigned char 
 					{
 						static const char *const btn_labels[] = {
 							"[ Cancel ]", "[   OK   ]", "[  Yes   ]", "[   No   ]",
-							"[  Skip  ]", "[Skip All]", "[Yes  All]"};
+							"[  Skip  ]", "[Skip All]", "[Yes  All]", "[ to Move]"};
 						unsigned char bid;
 
 						bid = btn_types[global_idx];
-						if (bid <= D_RES_REPLACE_ALL)
+						if (bid <= D_RES_TO_MOVE)
 							ui_fast_print_str_width(btn_labels[bid], 10);
 					}
 
@@ -2022,6 +2098,11 @@ static unsigned char show_dialog(DialogWindow *dlg, char *buffer, unsigned char 
 				if (focusOnButtons == 1 && (btn_mask & D_BTN_CANCEL))
 					return D_RES_CANCEL;
 				goto dialog_type_char;
+			case 'm':
+			case 'M':
+				if (focusOnButtons == 1 && (btn_mask & D_BTN_TO_MOVE))
+					return D_RES_TO_MOVE;
+				goto dialog_type_char;
 
 			default:
 			dialog_type_char:
@@ -2067,6 +2148,14 @@ unsigned char r_ui_dialog_input(const char *title, const char *prompt)
 
 	ui_dlg_centered(&dlg, UI_DLG_INPUT_W, UI_DLG_INPUT_H, UI_DLG_INPUT_Y, NC_COLOR_COPY_UI, title, prompt);
 	return show_dialog(&dlg, set.temp_path, sizeof(set.temp_path), D_MASK_OK_CANCEL);
+}
+
+unsigned char r_ui_dialog_rename_input(const char *title, const char *prompt)
+{
+	DialogWindow dlg;
+
+	ui_dlg_centered(&dlg, UI_DLG_INPUT_W, UI_DLG_INPUT_H, UI_DLG_INPUT_Y, NC_COLOR_COPY_UI, title, prompt);
+	return show_dialog(&dlg, set.temp_path, sizeof(set.temp_path), D_MASK_RENAME);
 }
 
 static unsigned char r_ui_dialog_confirm(const char *title, const char *prompt, unsigned char btn_mask)
@@ -2323,6 +2412,7 @@ static void menu_adjust_item(PanelState *active_p, signed char delta)
 	{
 		g_ini_cmd_flag = menu_cycle_val(g_ini_cmd_flag, 3u, delta);
 		menu_draw_files_row(active_p, idx, 1);
+		nc_ini_save();
 	}
 }
 

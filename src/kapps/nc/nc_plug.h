@@ -49,7 +49,7 @@
 #define NC_INI_APP_LEN 128u
 #define NC_INI_DIR "../ini"
 #define NC_INI_NAME "nc.ini"
-#define NC_INI_BUF_SIZE 512u
+#define NC_INI_BUF_SIZE 1024u
 
 #define D_BTN_OK 0x01
 #define D_BTN_CANCEL 0x02
@@ -58,8 +58,10 @@
 #define D_BTN_SKIP 0x10
 #define D_BTN_SKIP_ALL 0x20
 #define D_BTN_REPLACE_ALL 0x40
+#define D_BTN_TO_MOVE 0x80
 
 #define D_MASK_OK_CANCEL (D_BTN_OK | D_BTN_CANCEL)
+#define D_MASK_RENAME (D_BTN_CANCEL | D_BTN_TO_MOVE | D_BTN_OK)
 #define D_MASK_OVERWRITE \
 	(D_BTN_YES | D_BTN_NO | D_BTN_SKIP | D_BTN_SKIP_ALL | D_BTN_REPLACE_ALL | D_BTN_CANCEL)
 #define D_MASK_DELETE (D_BTN_YES | D_BTN_NO)
@@ -71,6 +73,7 @@
 #define D_RES_SKIP 4
 #define D_RES_SKIP_ALL 5
 #define D_RES_REPLACE_ALL 6
+#define D_RES_TO_MOVE 7
 
 #define NC_COPY_OW_SKIP_ALL 0u
 #define NC_COPY_OW_ASK_EACH 1u
@@ -128,6 +131,7 @@ typedef struct
 typedef struct
 {
 	unsigned char mode;
+	unsigned char cmd_cursor;
 	char cmd_line[NC_CMDLINE_LEN];
 	char name[65];
 	unsigned long f_size;
@@ -252,6 +256,7 @@ void m_draw_panel(PanelState *panel, unsigned char start_x, unsigned char height
 
 /* Resident (C000): caller must map residentPg before r_* ? use ui_* wrappers from main. */
 unsigned char r_ui_dialog_input(const char *title, const char *prompt);
+unsigned char r_ui_dialog_rename_input(const char *title, const char *prompt);
 unsigned char r_ui_dialog_delete_confirm(const char *title, const char *prompt);
 void r_ui_alert_dialog(const char *title, const char *prompt);
 void r_ui_error_dialog(const char *title, const char *msg);
@@ -260,6 +265,7 @@ unsigned char r_copy_dir_exists(const char *path);
 unsigned char r_copy_overwrite_resolve(unsigned char exists, const char *dialog_msg);
 
 unsigned char ui_dialog_input(const char *title, const char *prompt);
+unsigned char ui_dialog_rename_input(const char *title, const char *prompt);
 unsigned char ui_dialog_delete_confirm(const char *title, const char *prompt);
 void ui_alert_dialog(const char *title, const char *prompt);
 void ui_error_dialog(const char *title, const char *msg);

@@ -110,7 +110,6 @@
 #define NC_KEY_RIGHT 251
 #define NC_KEY_DEL_FWD 252
 #define NC_KEY_CSENTER 253 /* csbase+10 Shift+Enter: paste name into cmdline */
-
 #define COPY_ITEM_NOMEM 255u
 
 /* Key 8 ? delete: one Yes/No confirm, then silent tree purge. */
@@ -440,6 +439,18 @@ unsigned char ui_dialog_input(const char *title, const char *prompt)
 
 	saved = resident_bank_push();
 	res = r_ui_dialog_input(title, prompt);
+	resident_bank_pop(saved);
+	ui_resident_map();
+	return res;
+}
+
+unsigned char ui_dialog_rename_input(const char *title, const char *prompt)
+{
+	unsigned char saved;
+	unsigned char res;
+
+	saved = resident_bank_push();
+	res = r_ui_dialog_rename_input(title, prompt);
 	resident_bank_pop(saved);
 	ui_resident_map();
 	return res;
@@ -2292,6 +2303,7 @@ void draw_bottom_info(PanelState *active_p)
 	if (g_cmd_active)
 	{
 		snap.mode = NC_BOTTOM_CMD;
+		snap.cmd_cursor = g_cmd_cursor;
 		strncpy(snap.cmd_line, g_cmd_line, sizeof(snap.cmd_line) - 1u);
 		snap.cmd_line[sizeof(snap.cmd_line) - 1u] = 0;
 		ui_resident_map();
@@ -2808,6 +2820,7 @@ void menu_apply_choice(unsigned char choice)
 	else if (choice == NC_MFI_CMD_FLAG)
 	{
 		resort = 0;
+		nc_ini_save();
 	}
 
 	g_menu_active = 0;
@@ -4834,10 +4847,15 @@ void Action_Rename(void)
 	strncpy(set.temp_path, saved_filename, sizeof(set.temp_path) - 1u);
 	set.temp_path[sizeof(set.temp_path) - 1u] = 0;
 
-	dialog_result = ui_dialog_input(is_directory ? "Rename directory" : "Rename file", "Rename to:");
+	dialog_result = ui_dialog_rename_input(is_directory ? "Rename directory" : "Rename file", "Rename to:");
 	if (dialog_result == D_RES_CANCEL)
 	{
 		panels_restore_snaps_redraw_both(snap_left, snap_right, active_p);
+		return;
+	}
+	if (dialog_result == D_RES_TO_MOVE)
+	{
+		Action_Move();
 		return;
 	}
 
@@ -5635,7 +5653,12 @@ C_task main(void)
 		if (key == 13)
 		{
 			if (g_cmd_active)
-				nc_cmd_execute(active_p);
+			{
+				if (g_cmd_len == 0u)
+					nc_cmd_clear();
+				else
+					nc_cmd_execute(active_p);
+			}
 			else
 				handle_enter(active_p);
 
