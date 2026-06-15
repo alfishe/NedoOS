@@ -3,10 +3,19 @@
 
 #include "nc_inc.h"
 #include "nc_plug.h"
+#include "nc_mem.h"
 
 /*
  * Resident code at C000 (window_3 / residentPg).
  * Callable while panel pages are mapped on 0xC000; uses globals in 0100-BFFF only.
+ *
+ * === Память CODE_RESIDENT (C000-FFFF) ===
+ *   занято ...... NC_RES_CODE_USED B (C000..NC_RES_CODE_END)
+ *   свободно .... NC_RES_CODE_FREE B
+ *
+ * === Память main (0100-BFFF), globals resident ===
+ *   code ........ NC_MAIN_CODE_BYTES B
+ *   data+stack .. NC_MAIN_USED_END, свободно NC_MAIN_FREE B
  */
 
 void init(void)
@@ -62,6 +71,7 @@ void init_panels(void)
 	g_menu_active = 0;
 	g_menu_level = NC_MENU_LEVEL_TOP;
 	g_menu_sel = 0;
+	g_menu_panel = NULL;
 	g_drive_active = 0;
 	g_drive_panel = NULL;
 	g_drive_sel = 0;
@@ -497,17 +507,7 @@ void nc_capture_startup_path(void)
 	}
 }
 
-/* --- status bar, clock, menu overlay (no SETPG32 / panel banking) --- */
-
-#define UI_BLACK 0
-#define UI_CYAN 5
-#define UI_BR_BOTH 0xC0
-#define UI_MAKE_COLOR(bright, paper, ink) ((unsigned char)((bright) | ((paper) << 3) | (ink)))
-#define UI_COLOR_STATUS_BAR UI_MAKE_COLOR(UI_BR_BOTH, UI_CYAN, UI_BLACK)
-#define UI_COLOR_MENU_NORM UI_COLOR_STATUS_BAR
-#define UI_COLOR_MENU_HILITE UI_MAKE_COLOR(UI_BR_BOTH, UI_BLACK, UI_CYAN)
-
-static unsigned char g_clock_old_minutes = 255u;
+/* --- menu overlay (no SETPG32 / panel banking) --- */
 
 static void ui_print_cstr(const char *s)
 {
@@ -547,19 +547,6 @@ static void ui_fast_print_str_pad(const char *str, unsigned char width)
 	}
 }
 
-void ui_put_char_at(unsigned char x, unsigned char y, unsigned char sym)
-{
-	OS_SETXY(x, y);
-	putchar(sym);
-}
-
-void ui_put_char_color(unsigned char x, unsigned char y, unsigned char sym, unsigned char color)
-{
-	OS_SETXY(x, y);
-	OS_SETCOLOR(color);
-	putchar(sym);
-}
-
 void ui_fill_chars(unsigned char x, unsigned char y, unsigned char sym, unsigned char count, unsigned char color)
 {
 	unsigned char i;
@@ -572,14 +559,818 @@ void ui_fill_chars(unsigned char x, unsigned char y, unsigned char sym, unsigned
 		putchar(sym);
 }
 
-#define UI_BLUE 1
-#define UI_WHITE 7
-#define UI_YELLOW 6
-#define UI_COLOR_PANEL_MAIN UI_MAKE_COLOR(UI_BR_BOTH, UI_BLUE, UI_WHITE)
-#define UI_COLOR_PANEL_FOOTER_MARK UI_MAKE_COLOR(UI_BR_BOTH, UI_BLUE, UI_YELLOW)
+/* --- status bar, panel chrome, progress, drive (moved from main.c) --- */
 
+#define NC_COPY_CH_BAR_FILL 219
+#define NC_COPY_CH_BAR_EMPTY 176
+
+#define NC_PANEL_COL_WIDTH 40u
+#define NC_PANEL_COL_LEFT 0u
+#define NC_PANEL_COL_RIGHT 40u
+#define NC_PANEL_DRIVE_MAX 15u
+#define NC_DRIVE_POPUP_Y 1u
+#define NC_DRIVE_POPUP_INNER_W 26u
+#define NC_DRIVE_ITEM_W NC_DRIVE_POPUP_INNER_W
+#define NC_DRVF_NONE 0u
+#define NC_DRVF_NEOGS 1u
+#define NC_DRVF_ZXNET 2u
+#define NC_DRVF_TRDOS 4u
+#define NC_PANEL_PORT_NEOGS_GSCFG 0x0Fu
+#define NC_PANEL_PORT_SL811_SEL 0xABu
+#define NC_PANEL_SORT_NOTICE_FILES 50u
 #define NC_SZ_1MB 1048576UL
 #define NC_SZ_100MB 104857600UL
+
+static void ui_bdbox(unsigned char xbox, unsigned char ybox, unsigned char wbox, unsigned char hbox,
+					 unsigned char cbox, unsigned char character);
+static void ui_draw_frame(unsigned char x, unsigned char y, unsigned char w, unsigned char h, unsigned char color,
+						  const char *title);
+void r_fileop_progress_begin_title(unsigned char is_delete, const char *title);
+
+static unsigned char g_clock_old_minutes = 255u;
+static unsigned char g_drive_popup_x;
+static unsigned char g_menu_popup_x;
+
+static unsigned char menu_popup_x_for(const PanelState *panel)
+{
+	unsigned char start;
+
+	start = (panel == &right_panel) ? NC_PANEL_COL_RIGHT : NC_PANEL_COL_LEFT;
+	return (unsigned char)(start + (NC_PANEL_COL_WIDTH - NC_MENU_POPUP_INNER_W - 2u) / 2u);
+}
+
+static unsigned char menu_item_x(void)
+{
+	return (unsigned char)(g_menu_popup_x + 1u);
+}
+static char g_drive_labels[NC_PANEL_DRIVE_MAX][26];
+static unsigned char g_drive_letters[NC_PANEL_DRIVE_MAX];
+
+static void ui_print_hint_bar(unsigned char y, const char *s, unsigned char pad_width)
+{
+	unsigned char si;
+	unsigned char col;
+	unsigned char hint_color;
+
+	OS_SETXY(0, y);
+	si = 0;
+	col = 0;
+	hint_color = NC_COLOR_HINT;
+	while (s[si] != 0 && col < pad_width)
+	{
+		if (s[si] == '{')
+			hint_color = NC_COLOR_HINT_KEY;
+		else if (s[si] == '}')
+			hint_color = NC_COLOR_HINT;
+		else
+		{
+			OS_SETCOLOR(hint_color);
+			putchar((unsigned char)s[si]);
+			col++;
+		}
+		si++;
+	}
+	while (col < pad_width)
+	{
+		OS_SETCOLOR(NC_COLOR_HINT);
+		putchar(' ');
+		col++;
+	}
+}
+
+static void ui_res_fast_print_size(unsigned long size)
+{
+	unsigned int total_mb;
+	unsigned int whole;
+	unsigned int frac;
+	unsigned char d[6];
+	unsigned char i;
+	unsigned char lead;
+
+	if (size >= NC_SZ_100MB)
+	{
+		total_mb = (unsigned int)(size / NC_SZ_1MB);
+		whole = total_mb / 1024u;
+		frac = (total_mb % 1024u) * 100u / 1024u;
+		putchar((unsigned char)('0' + whole));
+		putchar('.');
+		putchar((unsigned char)('0' + frac / 10u));
+		putchar((unsigned char)('0' + frac % 10u));
+		putchar('G');
+		putchar(' ');
+		return;
+	}
+
+	if (size >= NC_SZ_1MB)
+	{
+		whole = (unsigned int)(size / NC_SZ_1MB);
+		frac = (unsigned int)(((size % NC_SZ_1MB) * 100UL) / NC_SZ_1MB);
+		if (whole >= 10u)
+			putchar((unsigned char)('0' + whole / 10u));
+		else
+			putchar(' ');
+		putchar((unsigned char)('0' + whole % 10u));
+		putchar('.');
+		putchar((unsigned char)('0' + frac / 10u));
+		putchar((unsigned char)('0' + frac % 10u));
+		putchar('M');
+		return;
+	}
+
+	d[5] = (unsigned char)(size % 10UL);
+	size /= 10UL;
+	d[4] = (unsigned char)(size % 10UL);
+	size /= 10UL;
+	d[3] = (unsigned char)(size % 10UL);
+	size /= 10UL;
+	d[2] = (unsigned char)(size % 10UL);
+	size /= 10UL;
+	d[1] = (unsigned char)(size % 10UL);
+	size /= 10UL;
+	d[0] = (unsigned char)(size % 10UL);
+
+	lead = 0;
+	for (i = 0; i < 5u; i++)
+	{
+		if (d[i] != 0u || lead)
+		{
+			putchar((unsigned char)('0' + d[i]));
+			lead = 1;
+		}
+		else
+			putchar(' ');
+	}
+	putchar((unsigned char)('0' + d[5]));
+}
+
+void r_ui_begin_full_redraw(void)
+{
+	OS_CLS(0);
+}
+
+static void ui_res_clock_draw(unsigned char force)
+{
+	unsigned long dos_time;
+	unsigned char hours;
+	unsigned char minutes;
+	char buf[6];
+
+	dos_time = OS_GETTIME();
+	hours = (unsigned char)((dos_time >> 11) & 31u);
+	minutes = (unsigned char)((dos_time >> 5) & 63u);
+	if (!force && minutes == g_clock_old_minutes)
+		return;
+	g_clock_old_minutes = minutes;
+	buf[0] = (char)('0' + hours / 10u);
+	buf[1] = (char)('0' + hours % 10u);
+	buf[2] = ':';
+	buf[3] = (char)('0' + minutes / 10u);
+	buf[4] = (char)('0' + minutes % 10u);
+	buf[5] = 0;
+	OS_SETCOLOR(NC_COLOR_HINT);
+	OS_SETXY(NC_CLOCK_X, NC_CLOCK_Y);
+	ui_fast_print_str_width(buf, NC_CLOCK_LEN);
+}
+
+void r_ui_clock_redraw(void)
+{
+	ui_res_clock_draw(1);
+}
+
+void r_ui_nc_clock_draw(unsigned char force)
+{
+	ui_res_clock_draw(force);
+}
+
+void r_ui_draw_status_bar(void)
+{
+	ui_print_hint_bar(NC_HINT_ROW, (const char *)botMenu, NC_HINT_WIDTH);
+}
+
+void r_draw_panel_background(PanelState *panel, unsigned char start_x)
+{
+	int i;
+
+	draw_panel_frame(start_x, NC_COLOR_PANEL);
+	ui_bdbox((unsigned char)(start_x + 1u), 3u, 38u, 18u, NC_COLOR_PANEL, ' ');
+
+	OS_SETCOLOR(NC_COLOR_PANEL);
+	OS_SETXY((unsigned char)(start_x + 2), 0);
+	putchar('[');
+	i = 0;
+	while (panel->current_path[i] != 0)
+	{
+		putchar((unsigned char)panel->current_path[i]);
+		i++;
+	}
+	putchar(']');
+
+	OS_SETXY((unsigned char)(start_x + 1), 1);
+	OS_SETCOLOR(NC_COLOR_PANEL);
+
+	if (g_ini_panel_brief)
+	{
+		unsigned char hdr_used;
+
+		ui_fast_print_str_pad("Name", NC_PANEL_BRIEF_NAME_W);
+		putchar(179);
+		ui_fast_print_str_pad("Size", NC_PANEL_BRIEF_SIZE_W);
+		hdr_used = (unsigned char)(NC_PANEL_BRIEF_NAME_W + 1u + NC_PANEL_BRIEF_SIZE_W);
+		while (hdr_used < NC_PANEL_ROW_WIDTH)
+		{
+			putchar(' ');
+			hdr_used++;
+		}
+	}
+	else
+	{
+		ui_fast_print_str_pad("Name", 18);
+		putchar(179);
+		ui_fast_print_str_pad("Size", 6);
+		putchar(179);
+		ui_fast_print_str_pad(" Date/Time", 12);
+	}
+
+	OS_SETXY((unsigned char)(start_x + 1), 2);
+	OS_SETCOLOR(NC_COLOR_PANEL);
+	for (i = 0; i < 38; i++)
+		putchar(196);
+
+	panel_draw_footer(panel, start_x);
+	if (start_x == 40u)
+		r_ui_clock_redraw();
+}
+
+void r_draw_bottom_info(const NCBottomInfo *snap)
+{
+	OS_SETCOLOR(NC_COLOR_CMDLINE);
+	OS_SETXY(0, NC_STATUS_ROW);
+	ui_fast_print_str_pad("", 80);
+	OS_SETXY(0, NC_STATUS_ROW);
+
+	if (snap->mode == NC_BOTTOM_CMD)
+	{
+		putchar('>');
+		ui_fast_print_str_pad(snap->cmd_line, 79);
+		return;
+	}
+
+	if (snap->mode == NC_BOTTOM_EMPTY)
+	{
+		ui_fast_print_str_pad("Sz:", 3);
+		ui_fast_print_str_pad("<DIR>", 10);
+		ui_fast_print_str_pad("Nm:", 3);
+		ui_fast_print_str_pad("", 64);
+		return;
+	}
+
+	ui_fast_print_str_pad("Sz:", 3);
+	if (snap->is_dir)
+		ui_fast_print_str_pad("<DIR>", 10);
+	else
+	{
+		ui_res_fast_print_size(snap->f_size);
+		putchar(' ');
+		putchar(' ');
+		putchar(' ');
+	}
+	ui_fast_print_str_pad("Nm:", 3);
+	ui_fast_print_str_pad(snap->name, 64);
+}
+
+static void ui_res_print_centered(unsigned char x, unsigned char y, unsigned char width, const char *str)
+{
+	unsigned char len;
+	unsigned char pad;
+	unsigned char i;
+	const char *show;
+
+	show = str;
+	if (show == NULL)
+		show = "";
+	len = 0;
+	while (show[len] != 0)
+		len++;
+	if (len > width)
+	{
+		show = show + len - width;
+		len = width;
+	}
+	pad = (unsigned char)((width - len) / 2u);
+	OS_SETXY(x, y);
+	for (i = 0; i < width; i++)
+		putchar(' ');
+	if (len != 0u)
+	{
+		OS_SETXY((unsigned char)(x + pad), y);
+		for (i = 0; i < len; i++)
+			putchar(show[i]);
+	}
+}
+
+void r_panel_sort_notice_show(PanelState *panel)
+{
+	unsigned char col_x;
+	unsigned char frame_x;
+	unsigned char frame_y;
+	unsigned char inner_y;
+	const char *msg = "Sorting catalog...";
+	const unsigned char box_w = 24u;
+	const unsigned char box_h = 4u;
+
+	col_x = (panel == &right_panel) ? NC_PANEL_COL_RIGHT : NC_PANEL_COL_LEFT;
+	frame_x = (unsigned char)(col_x + (NC_PANEL_COL_WIDTH - (box_w + 2u)) / 2u);
+	frame_y = (unsigned char)(3u + (18u - (box_h + 1u)) / 2u);
+	ui_draw_frame(frame_x, frame_y, box_w, box_h, NC_COLOR_HINT, "NC");
+	OS_SETCOLOR(NC_COLOR_HINT);
+	inner_y = (unsigned char)(frame_y + 1u + (box_h - 1u) / 2u);
+	ui_res_print_centered((unsigned char)(frame_x + 1u), inner_y, box_w, msg);
+	YIELD();
+}
+
+static void fileop_progress_layout(unsigned char with_bar)
+{
+	if (with_bar)
+	{
+		copy_prog.w = UI_DLG_INPUT_W;
+		copy_prog.h = UI_DLG_INPUT_H;
+		copy_prog.x = (unsigned char)((NC_SCREEN_WIDTH - copy_prog.w - 2u) / 2u);
+		copy_prog.y = UI_DLG_INPUT_Y;
+		copy_prog.name_y = (unsigned char)(copy_prog.y + 4u);
+		copy_prog.bar_w = (unsigned char)(copy_prog.w - 10u);
+		copy_prog.bar_x = (unsigned char)(copy_prog.x + 5u);
+		copy_prog.bar_y = (unsigned char)(copy_prog.y + 2u);
+	}
+	else
+	{
+		copy_prog.w = UI_DLG_PROGRESS_W;
+		copy_prog.h = UI_DLG_PROGRESS_H;
+		copy_prog.x = (unsigned char)((NC_SCREEN_WIDTH - copy_prog.w - 2u) / 2u);
+		copy_prog.y = UI_DLG_PROGRESS_Y;
+		copy_prog.name_y = (unsigned char)(copy_prog.y + 2u);
+	}
+}
+
+static void fileop_progress_fill_bg(unsigned char color)
+{
+	unsigned char row;
+	unsigned char col;
+
+	OS_SETCOLOR(color);
+	for (row = 1; row < copy_prog.h; row++)
+	{
+		OS_SETXY((unsigned char)(copy_prog.x + 1), (unsigned char)(copy_prog.y + row));
+		for (col = 0; col < copy_prog.w; col++)
+			putchar(' ');
+	}
+}
+
+void r_copy_progress_draw_name(const char *name)
+{
+	const char *show;
+
+	if (!copy_prog.drawn)
+		r_fileop_progress_begin_title(g_delete_progress, g_fileop_title);
+
+	show = name;
+	if (show == NULL)
+		show = "";
+
+	OS_SETCOLOR(g_delete_progress ? NC_COLOR_OVERWRITE_UI : NC_COLOR_COPY_UI);
+	ui_res_print_centered((unsigned char)(copy_prog.x + 1u), copy_prog.name_y, copy_prog.w, show);
+}
+
+void r_fileop_progress_store_name(const char *name)
+{
+	const char *show;
+
+	show = name;
+	if (show == NULL)
+		show = "";
+	strncpy(copy_prog_current_name, show, sizeof(copy_prog_current_name) - 1u);
+	copy_prog_current_name[sizeof(copy_prog_current_name) - 1u] = 0;
+	copy_prog.last_pct = 255u;
+	r_copy_progress_draw_name(copy_prog_current_name);
+}
+
+void r_copy_progress_draw_bar(unsigned char pct)
+{
+	unsigned char i;
+	unsigned char filled;
+
+	if (g_delete_progress)
+		return;
+
+	if (pct > 100)
+		pct = 100;
+	if (copy_prog.drawn && pct == copy_prog.last_pct)
+		return;
+	copy_prog.last_pct = pct;
+
+	if (!copy_prog.drawn)
+		r_fileop_progress_begin_title(g_delete_progress, g_fileop_title);
+
+	filled = (unsigned char)(((unsigned int)copy_prog.bar_w * pct) / 100u);
+
+	OS_SETXY(copy_prog.bar_x, copy_prog.bar_y);
+	OS_SETCOLOR(NC_COLOR_COPY_UI);
+	putchar('[');
+	for (i = 0; i < copy_prog.bar_w; i++)
+	{
+		if (i < filled)
+		{
+			OS_SETCOLOR(NC_COLOR_COPY_BAR);
+			putchar((char)NC_COPY_CH_BAR_FILL);
+		}
+		else
+		{
+			OS_SETCOLOR(NC_COLOR_COPY_UI);
+			putchar((char)NC_COPY_CH_BAR_EMPTY);
+		}
+	}
+	OS_SETCOLOR(NC_COLOR_COPY_UI);
+	putchar(']');
+}
+
+static void fileop_progress_repaint(unsigned char color, const char *title, unsigned char restore_bar)
+{
+	unsigned char pct;
+
+	if (!copy_prog.drawn)
+		return;
+
+	pct = 0u;
+	if (restore_bar)
+	{
+		pct = copy_prog.last_pct;
+		if (pct > 100u)
+			pct = 0u;
+	}
+
+	ui_draw_frame(copy_prog.x, copy_prog.y, copy_prog.w, copy_prog.h, color, title);
+	fileop_progress_fill_bg(color);
+	copy_prog.last_pct = 255u;
+	r_copy_progress_draw_name(copy_prog_current_name);
+	if (restore_bar && !g_delete_progress)
+		r_copy_progress_draw_bar(pct);
+}
+
+static void fileop_progress_open(unsigned char color, const char *title, unsigned char with_bar)
+{
+	fileop_progress_layout(with_bar);
+	copy_prog.last_pct = 255;
+	copy_prog.drawn = 0;
+	ui_draw_frame(copy_prog.x, copy_prog.y, copy_prog.w, copy_prog.h, color, title);
+	fileop_progress_fill_bg(color);
+	copy_prog.drawn = 1;
+	if (with_bar)
+		r_copy_progress_draw_bar(0);
+	r_fileop_progress_store_name("");
+}
+
+void r_fileop_progress_begin_title(unsigned char is_delete, const char *title)
+{
+	const char *show;
+
+	show = title;
+	if (show == NULL || show[0] == 0)
+		show = is_delete ? "Deleting" : "Copying";
+	strncpy(g_fileop_title, show, sizeof(g_fileop_title) - 1u);
+	g_fileop_title[sizeof(g_fileop_title) - 1u] = 0;
+	g_delete_progress = is_delete;
+	fileop_progress_open(is_delete ? NC_COLOR_OVERWRITE_UI : NC_COLOR_COPY_UI, g_fileop_title, !is_delete);
+}
+
+void r_fileop_progress_begin(unsigned char is_delete)
+{
+	r_fileop_progress_begin_title(is_delete, is_delete ? "Deleting" : "Copying");
+}
+
+void r_fileop_progress_restore(void)
+{
+	fileop_progress_repaint(g_delete_progress ? NC_COLOR_OVERWRITE_UI : NC_COLOR_COPY_UI, g_fileop_title,
+							g_delete_progress ? 0u : 1u);
+}
+
+static unsigned char nc_ini_drive_hidden(unsigned char letter)
+{
+	const char *p;
+	unsigned char u;
+
+	u = letter;
+	if (u >= 'a' && u <= 'z')
+		u = (unsigned char)(u - 'a' + 'A');
+	p = g_ini_hide_drives;
+	while (*p != 0)
+	{
+		unsigned char c;
+
+		c = (unsigned char)*p;
+		if (c == ',' || c == ' ' || c == '\t')
+		{
+			p++;
+			continue;
+		}
+		if (c >= 'a' && c <= 'z')
+			c = (unsigned char)(c - 'a' + 'A');
+		if (c == u)
+		{
+			p++;
+			if (*p == 0 || *p == ',' || *p == ' ' || *p == '\t')
+				return 1;
+		}
+		p++;
+	}
+	return 0;
+}
+
+static unsigned char panel_hw_neogs_sd_present(void)
+{
+	return (unsigned char)(input(NC_PANEL_PORT_NEOGS_GSCFG) != 0xFFu);
+}
+
+static unsigned char panel_hw_zxnet_present(void)
+{
+	unsigned char v;
+
+	v = input(NC_PANEL_PORT_SL811_SEL);
+	v = (unsigned char)(v & 0xAFu);
+	output(NC_PANEL_PORT_SL811_SEL, v);
+	output(NC_PANEL_PORT_SL811_SEL, 0x0Du);
+	v = input(NC_PANEL_PORT_SL811_SEL);
+	if (v == 0u)
+		return 0u;
+	if ((v & 0x40u) == 0u)
+		return 0u;
+	return 1u;
+}
+
+typedef struct
+{
+	unsigned char letter;
+	const char *caption;
+	unsigned char filter;
+} PanelDriveDef;
+
+static const PanelDriveDef g_drive_table[] = {
+	{'A', "1st Floppy", NC_DRVF_TRDOS},
+	{'B', "2nd Floppy", NC_DRVF_TRDOS},
+	{'C', "3rd Floppy", NC_DRVF_TRDOS},
+	{'D', "4th Floppy", NC_DRVF_TRDOS},
+	{'E', "IDE Master p.1", NC_DRVF_NONE},
+	{'F', "IDE Master p.2", NC_DRVF_NONE},
+	{'G', "IDE Master p.3", NC_DRVF_NONE},
+	{'H', "IDE Master p.4", NC_DRVF_NONE},
+	{'I', "IDE Slave p.1", NC_DRVF_NONE},
+	{'J', "IDE Slave p.2", NC_DRVF_NONE},
+	{'K', "IDE Slave p.3", NC_DRVF_NONE},
+	{'L', "IDE Slave p.4", NC_DRVF_NONE},
+	{'M', "SD Z-controller", NC_DRVF_NONE},
+	{'N', "SD NeoGS", NC_DRVF_NEOGS},
+	{'O', "USB flash zx-net", NC_DRVF_ZXNET},
+};
+
+#define NC_PANEL_DRIVE_TABLE_LEN (sizeof(g_drive_table) / sizeof(g_drive_table[0]))
+
+static unsigned char panel_drive_chdrv_ok(unsigned char letter)
+{
+	return (unsigned char)(OS_CHDRV(letter) == 0u);
+}
+
+static void panel_drive_build_list(const PanelState *panel)
+{
+	unsigned char i;
+	unsigned char saved;
+	unsigned char neogs;
+	unsigned char zxnet;
+	char saved_path[64];
+
+	strncpy(saved_path, panel->current_path, sizeof(saved_path) - 1u);
+	saved_path[sizeof(saved_path) - 1u] = 0;
+	saved = panel_drive_saved_letter(panel);
+	neogs = panel_hw_neogs_sd_present();
+	zxnet = panel_hw_zxnet_present();
+	g_drive_count = 0;
+
+	for (i = 0; i < NC_PANEL_DRIVE_TABLE_LEN; i++)
+	{
+		const PanelDriveDef *def = &g_drive_table[i];
+
+		if (def->filter == NC_DRVF_NEOGS && neogs == 0u)
+			continue;
+		if (def->filter == NC_DRVF_ZXNET && zxnet == 0u)
+			continue;
+		if ((def->filter & (NC_DRVF_TRDOS | NC_DRVF_ZXNET)) == 0u && !panel_drive_chdrv_ok(def->letter))
+			continue;
+		if (nc_ini_drive_hidden(def->letter))
+			continue;
+		g_drive_letters[g_drive_count] = def->letter;
+		panel_drive_format_line(g_drive_labels[g_drive_count], def->letter, def->caption);
+		g_drive_count++;
+		if (g_drive_count >= NC_PANEL_DRIVE_MAX)
+			break;
+	}
+
+	OS_CHDRV(saved);
+	m_panel_chdir_only(saved_path);
+}
+
+static unsigned char panel_drive_popup_x_for(const PanelState *panel)
+{
+	unsigned char start;
+
+	start = (panel == &right_panel) ? NC_PANEL_COL_RIGHT : NC_PANEL_COL_LEFT;
+	return (unsigned char)(start + (NC_PANEL_COL_WIDTH - NC_DRIVE_POPUP_INNER_W - 2u) / 2u);
+}
+
+static unsigned char panel_drive_popup_inner_h(void)
+{
+	unsigned char n;
+
+	n = g_drive_count;
+	if (n == 0u)
+		n = 1u;
+	return (unsigned char)(n + 1u);
+}
+
+static void panel_drive_draw_row(unsigned char idx, unsigned char selected)
+{
+	unsigned char y;
+
+	if (idx >= g_drive_count)
+		return;
+	y = (unsigned char)(NC_DRIVE_POPUP_Y + 1u + idx);
+	menu_draw_item((unsigned char)(g_drive_popup_x + 1u), y, NC_DRIVE_ITEM_W, selected, g_drive_labels[idx], 0);
+}
+
+static void panel_drive_redraw(void)
+{
+	unsigned char i;
+	unsigned char inner_h;
+
+	inner_h = panel_drive_popup_inner_h();
+	ui_draw_frame(g_drive_popup_x, NC_DRIVE_POPUP_Y, NC_DRIVE_POPUP_INNER_W, inner_h, NC_COLOR_MENU_NORM, "Drive");
+	for (i = 0; i < g_drive_count; i++)
+		panel_drive_draw_row(i, (unsigned char)(i == g_drive_sel));
+}
+
+void r_panel_drive_redraw(void)
+{
+	panel_drive_redraw();
+}
+
+static void panel_drive_dismiss(PanelState *panel, unsigned char redraw_panel)
+{
+	g_drive_active = 0;
+	g_drive_panel = NULL;
+	g_drive_sel = 0;
+	m_panels_remap_bank_window();
+	if (redraw_panel && panel != NULL)
+	{
+		unsigned char start_x;
+
+		start_x = (panel == &right_panel) ? 40u : 0u;
+		draw_panel_background(panel, start_x);
+		m_draw_panel(panel, start_x, 18);
+	}
+	draw_bottom_info((left_panel.is_active) ? &left_panel : &right_panel);
+}
+
+static void panel_drive_msg(unsigned char letter, const char *text)
+{
+	unsigned char i;
+
+	i = 0;
+	set.temp_path[i++] = (char)letter;
+	set.temp_path[i++] = ':';
+	set.temp_path[i++] = ' ';
+	while (text[0] != 0 && i < sizeof(set.temp_path) - 1u)
+	{
+		set.temp_path[i++] = text[0];
+		text++;
+	}
+	set.temp_path[i] = 0;
+	r_ui_alert_dialog("Drive error", set.temp_path);
+	m_panels_redraw_both();
+}
+
+static unsigned char panel_drive_apply(PanelState *panel, unsigned char letter)
+{
+	char path[8];
+	char saved_path[64];
+	unsigned char saved_letter;
+	unsigned char start_x;
+
+	strncpy(saved_path, panel->current_path, sizeof(saved_path) - 1u);
+	saved_path[sizeof(saved_path) - 1u] = 0;
+	saved_letter = panel_drive_saved_letter(panel);
+
+	if (OS_CHDRV(letter) != 0u)
+	{
+		panel_drive_msg(letter, "not available");
+		return 0;
+	}
+
+	path[0] = (char)letter;
+	path[1] = ':';
+	path[2] = '/';
+	path[3] = 0;
+
+	panel->cursor_idx = 0u;
+	panel->scroll_offset = 0u;
+	start_x = (panel == &left_panel) ? 0u : 40u;
+	if (!m_read_panel_dir_at(panel, path, 0))
+	{
+		OS_CHDRV(saved_letter);
+		m_read_panel_dir_at(panel, saved_path, 1);
+		m_panel_chdir_only(saved_path);
+		panel_drive_msg(letter, "cannot read");
+		return 0;
+	}
+
+	m_panel_chdir_only(panel->current_path);
+	m_panels_remap_bank_window();
+	draw_panel_background(panel, start_x);
+	m_draw_panel(panel, start_x, 18);
+	return 0;
+}
+
+static void panel_drive_sel_move(unsigned char new_sel)
+{
+	unsigned char old_sel;
+
+	if (g_drive_count == 0u)
+		return;
+	if (new_sel >= g_drive_count)
+		new_sel = (unsigned char)(g_drive_count - 1u);
+	old_sel = g_drive_sel;
+	if (new_sel == old_sel)
+		return;
+	g_drive_sel = new_sel;
+	panel_drive_draw_row(old_sel, 0);
+	panel_drive_draw_row(new_sel, 1);
+}
+
+void r_panel_drive_open(PanelState *panel)
+{
+	unsigned char i;
+	unsigned char saved;
+
+	panel_drive_build_list(panel);
+	g_drive_popup_x = panel_drive_popup_x_for(panel);
+	g_drive_panel = panel;
+	g_drive_active = 1;
+	g_drive_sel = 0;
+	saved = panel_drive_saved_letter(panel);
+	for (i = 0; i < g_drive_count; i++)
+	{
+		if (g_drive_letters[i] == saved)
+		{
+			g_drive_sel = i;
+			break;
+		}
+	}
+	panel_drive_redraw();
+}
+
+unsigned char r_panel_drive_handle_key(unsigned char key)
+{
+	PanelState *panel;
+
+	panel = g_drive_panel;
+	if (panel == NULL)
+		return 1;
+
+	if (key == 27)
+	{
+		panel_drive_dismiss(panel, 1);
+		return 1;
+	}
+	if (g_drive_count == 0u)
+		return 1;
+
+	if (key == 250 || key == 248)
+	{
+		if (g_drive_sel > 0u)
+			panel_drive_sel_move((unsigned char)(g_drive_sel - 1u));
+		return 1;
+	}
+	if (key == 249 || key == 251)
+	{
+		if (g_drive_sel + 1u < g_drive_count)
+			panel_drive_sel_move((unsigned char)(g_drive_sel + 1u));
+		return 1;
+	}
+	if (key == 13)
+	{
+		unsigned char redraw_panel;
+
+		redraw_panel = panel_drive_apply(panel, g_drive_letters[g_drive_sel]);
+		panel_drive_dismiss(panel, redraw_panel);
+		return 1;
+	}
+	return 1;
+}
 
 void panel_fmt_size(char *dst, unsigned long size, unsigned char is_dir)
 {
@@ -852,7 +1643,7 @@ void panel_draw_footer(PanelState *panel, unsigned char start_x)
 		line[right_start + i] = right_box[i];
 
 	OS_SETXY((unsigned char)(start_x + 1u), 21);
-	OS_SETCOLOR(marked_active ? UI_COLOR_PANEL_FOOTER_MARK : UI_COLOR_PANEL_MAIN);
+	OS_SETCOLOR(marked_active ? NC_COLOR_PANEL_MARK : NC_COLOR_PANEL);
 	for (i = 0; i < NC_PANEL_ROW_WIDTH; i++)
 		putchar((unsigned char)line[i]);
 }
@@ -946,7 +1737,7 @@ static void ui_dlg_print_centered(unsigned char x, unsigned char y, unsigned cha
 	}
 }
 
-unsigned char show_dialog(DialogWindow *dlg, char *buffer, unsigned char max_len, unsigned char btn_mask)
+static unsigned char show_dialog(DialogWindow *dlg, char *buffer, unsigned char max_len, unsigned char btn_mask)
 {
 	unsigned char byte;
 
@@ -1251,9 +2042,6 @@ unsigned char show_dialog(DialogWindow *dlg, char *buffer, unsigned char max_len
 }
 
 #define NC_SCREEN_WIDTH 80u
-#define UI_RED 2
-#define UI_COLOR_COPY_UI UI_MAKE_COLOR(UI_BR_BOTH, UI_YELLOW, UI_BLACK)
-#define UI_COLOR_OVERWRITE_UI UI_MAKE_COLOR(UI_BR_BOTH, UI_RED, UI_WHITE)
 
 static void ui_dlg_preset(DialogWindow *dlg, unsigned char x, unsigned char y, unsigned char w, unsigned char h,
 						  unsigned char color, const char *title, const char *prompt)
@@ -1277,15 +2065,15 @@ unsigned char r_ui_dialog_input(const char *title, const char *prompt)
 {
 	DialogWindow dlg;
 
-	ui_dlg_centered(&dlg, UI_DLG_INPUT_W, UI_DLG_INPUT_H, UI_DLG_INPUT_Y, UI_COLOR_COPY_UI, title, prompt);
+	ui_dlg_centered(&dlg, UI_DLG_INPUT_W, UI_DLG_INPUT_H, UI_DLG_INPUT_Y, NC_COLOR_COPY_UI, title, prompt);
 	return show_dialog(&dlg, set.temp_path, sizeof(set.temp_path), D_MASK_OK_CANCEL);
 }
 
-unsigned char r_ui_dialog_confirm(const char *title, const char *prompt, unsigned char btn_mask)
+static unsigned char r_ui_dialog_confirm(const char *title, const char *prompt, unsigned char btn_mask)
 {
 	DialogWindow dlg;
 
-	ui_dlg_centered(&dlg, UI_DLG_CONFIRM_W, UI_DLG_CONFIRM_H, UI_DLG_CONFIRM_Y, UI_COLOR_OVERWRITE_UI, title,
+	ui_dlg_centered(&dlg, UI_DLG_CONFIRM_W, UI_DLG_CONFIRM_H, UI_DLG_CONFIRM_Y, NC_COLOR_OVERWRITE_UI, title,
 					prompt);
 	return show_dialog(&dlg, NULL, 0, btn_mask);
 }
@@ -1294,7 +2082,7 @@ unsigned char r_ui_dialog_delete_confirm(const char *title, const char *prompt)
 {
 	DialogWindow dlg;
 
-	ui_dlg_centered(&dlg, UI_DLG_PROGRESS_W, UI_DLG_PROGRESS_H, UI_DLG_PROGRESS_Y, UI_COLOR_OVERWRITE_UI, title,
+	ui_dlg_centered(&dlg, UI_DLG_PROGRESS_W, UI_DLG_PROGRESS_H, UI_DLG_PROGRESS_Y, NC_COLOR_OVERWRITE_UI, title,
 					prompt);
 	return show_dialog(&dlg, NULL, 0, D_MASK_DELETE);
 }
@@ -1303,7 +2091,7 @@ void r_ui_alert_dialog(const char *title, const char *prompt)
 {
 	DialogWindow dlg;
 
-	ui_dlg_preset(&dlg, UI_DLG_ALERT_X, UI_DLG_ALERT_Y, UI_DLG_CONFIRM_W, UI_DLG_ALERT_H, UI_COLOR_OVERWRITE_UI,
+	ui_dlg_preset(&dlg, UI_DLG_ALERT_X, UI_DLG_ALERT_Y, UI_DLG_CONFIRM_W, UI_DLG_ALERT_H, NC_COLOR_OVERWRITE_UI,
 				  title, prompt);
 	(void)show_dialog(&dlg, NULL, 0, D_BTN_OK);
 }
@@ -1312,7 +2100,7 @@ void r_ui_error_dialog(const char *title, const char *msg)
 {
 	DialogWindow dlg;
 
-	ui_dlg_centered(&dlg, UI_DLG_INPUT_W, UI_DLG_ALERT_H, UI_DLG_INPUT_Y, UI_COLOR_OVERWRITE_UI, title, msg);
+	ui_dlg_centered(&dlg, UI_DLG_INPUT_W, UI_DLG_ALERT_H, UI_DLG_INPUT_Y, NC_COLOR_OVERWRITE_UI, title, msg);
 	(void)show_dialog(&dlg, NULL, 0, D_BTN_OK);
 }
 
@@ -1356,7 +2144,7 @@ unsigned char r_copy_overwrite_resolve(unsigned char exists, const char *dialog_
 		return NC_COPY_FILE_ABORT;
 
 	res = r_ui_dialog_confirm(g_move_active ? "Move" : "Copy", dialog_msg, D_MASK_OVERWRITE);
-	fileop_progress_restore();
+	r_fileop_progress_restore();
 
 	switch (res)
 	{
@@ -1378,53 +2166,12 @@ unsigned char r_copy_overwrite_resolve(unsigned char exists, const char *dialog_
 	}
 }
 
-static void nc_clock_format(unsigned char hours, unsigned char minutes, char *buf)
-{
-	buf[0] = '[';
-	buf[1] = (char)('0' + hours / 10u);
-	buf[2] = (char)('0' + hours % 10u);
-	buf[3] = ':';
-	buf[4] = (char)('0' + minutes / 10u);
-	buf[5] = (char)('0' + minutes % 10u);
-	buf[6] = ']';
-	buf[7] = 0;
-}
-
-void nc_clock_draw(unsigned char force)
-{
-	unsigned long dos_time;
-	unsigned char hours;
-	unsigned char minutes;
-	char buf[8];
-
-	dos_time = OS_GETTIME();
-	hours = (unsigned char)((dos_time >> 11) & 31u);
-	minutes = (unsigned char)((dos_time >> 5) & 63u);
-
-	if (!force && minutes == g_clock_old_minutes)
-		return;
-
-	g_clock_old_minutes = minutes;
-	nc_clock_format(hours, minutes, buf);
-	OS_SETCOLOR(UI_COLOR_STATUS_BAR);
-	OS_SETXY(NC_CLOCK_X, NC_CLOCK_Y);
-	ui_print_cstr(buf);
-}
-
-void draw_status_bar(void)
-{
-	OS_SETCOLOR(UI_COLOR_STATUS_BAR);
-	OS_SETXY(0, 23);
-	ui_fast_print_str_pad((const char *)botMenu, 80);
-	nc_clock_draw(1);
-}
-
 void menu_draw_item(unsigned char x0, unsigned char y, unsigned char width, unsigned char selected,
 					const char *label, unsigned char current)
 {
 	unsigned char fill_color;
 
-	fill_color = selected ? UI_COLOR_MENU_HILITE : UI_COLOR_MENU_NORM;
+	fill_color = selected ? NC_COLOR_MENU_HILITE : NC_COLOR_MENU_NORM;
 	ui_fill_chars(x0, y, ' ', width, fill_color);
 	OS_SETXY((unsigned char)(x0 + 1), y);
 	ui_fast_print_str_pad(label, (unsigned char)(width - 2));
@@ -1440,40 +2187,40 @@ static void menu_draw_files_row(PanelState *active_p, unsigned char idx, unsigne
 	switch (idx)
 	{
 	case NC_MFI_NAME:
-menu_draw_item(NC_MENU_ITEM_X, y, NC_MENU_POPUP_INNER_W, cursor_on, "Name",
+		menu_draw_item(menu_item_x(), y, NC_MENU_POPUP_INNER_W, cursor_on, "Name",
 					   (unsigned char)(active_p->sort_mode == NC_PANEL_SORT_NAME));
 		break;
 	case NC_MFI_EXT:
-menu_draw_item(NC_MENU_ITEM_X, y, NC_MENU_POPUP_INNER_W, cursor_on, "Extension",
+		menu_draw_item(menu_item_x(), y, NC_MENU_POPUP_INNER_W, cursor_on, "Extension",
 					   (unsigned char)(active_p->sort_mode == NC_PANEL_SORT_EXT));
 		break;
 	case NC_MFI_SIZE:
-menu_draw_item(NC_MENU_ITEM_X, y, NC_MENU_POPUP_INNER_W, cursor_on, "Size",
+		menu_draw_item(menu_item_x(), y, NC_MENU_POPUP_INNER_W, cursor_on, "Size",
 					   (unsigned char)(active_p->sort_mode == NC_PANEL_SORT_SIZE));
 		break;
 	case NC_MFI_TIME:
-menu_draw_item(NC_MENU_ITEM_X, y, NC_MENU_POPUP_INNER_W, cursor_on, "Time",
+		menu_draw_item(menu_item_x(), y, NC_MENU_POPUP_INNER_W, cursor_on, "Time",
 					   (unsigned char)(active_p->sort_mode == NC_PANEL_SORT_TIME));
 		break;
 	case NC_MFI_AZ:
-menu_draw_item(NC_MENU_ITEM_X, y, NC_MENU_POPUP_INNER_W, cursor_on, "A-Z",
+		menu_draw_item(menu_item_x(), y, NC_MENU_POPUP_INNER_W, cursor_on, "A-Z",
 					   (unsigned char)(active_p->sort_desc == 0));
 		break;
 	case NC_MFI_ZA:
-menu_draw_item(NC_MENU_ITEM_X, y, NC_MENU_POPUP_INNER_W, cursor_on, "Z-A",
+		menu_draw_item(menu_item_x(), y, NC_MENU_POPUP_INNER_W, cursor_on, "Z-A",
 					   (unsigned char)(active_p->sort_desc != 0));
 		break;
 	case NC_MFI_LFN_SORT:
-menu_draw_item(NC_MENU_ITEM_X, y, NC_MENU_POPUP_INNER_W, cursor_on, "LFN sort", active_p->sort_lfn);
+		menu_draw_item(menu_item_x(), y, NC_MENU_POPUP_INNER_W, cursor_on, "LFN sort", active_p->sort_lfn);
 		break;
 	case NC_MFI_READ_ON_FOCUS:
-menu_draw_item(NC_MENU_ITEM_X, y, NC_MENU_POPUP_INNER_W, cursor_on, "Read on focus", g_ini_read_on_focus);
+		menu_draw_item(menu_item_x(), y, NC_MENU_POPUP_INNER_W, cursor_on, "Read on focus", g_ini_read_on_focus);
 		break;
 	case NC_MFI_BRIEF:
-menu_draw_item(NC_MENU_ITEM_X, y, NC_MENU_POPUP_INNER_W, cursor_on, "Brief view", g_ini_panel_brief);
+		menu_draw_item(menu_item_x(), y, NC_MENU_POPUP_INNER_W, cursor_on, "Brief view", g_ini_panel_brief);
 		break;
 	case NC_MFI_CMD_FLAG:
-menu_draw_item(NC_MENU_ITEM_X, y, NC_MENU_POPUP_INNER_W, cursor_on, menu_cmd_flag_label(), 0);
+		menu_draw_item(menu_item_x(), y, NC_MENU_POPUP_INNER_W, cursor_on, menu_cmd_flag_label(), 0);
 		break;
 	}
 }
@@ -1482,16 +2229,16 @@ static void menu_files_open(PanelState *active_p)
 {
 	unsigned char i;
 
-	ui_draw_frame(NC_MENU_POPUP_X, NC_MENU_POPUP_Y, NC_MENU_POPUP_INNER_W,
-				  (unsigned char)(NC_MENU_FILES_ITEMS + 1u), UI_COLOR_MENU_NORM, "Files");
+	ui_draw_frame(g_menu_popup_x, NC_MENU_POPUP_Y, NC_MENU_POPUP_INNER_W,
+				  (unsigned char)(NC_MENU_FILES_ITEMS + 1u), NC_COLOR_MENU_NORM, "Files");
 	for (i = 0; i < NC_MENU_FILES_ITEMS; i++)
 		menu_draw_files_row(active_p, i, (unsigned char)(i == g_menu_sel));
 }
 
 static void menu_top_open(void)
 {
-	ui_draw_frame(NC_MENU_POPUP_X, NC_MENU_POPUP_Y, NC_MENU_POPUP_INNER_W, 2u, UI_COLOR_MENU_NORM, "Menu");
-menu_draw_item(NC_MENU_ITEM_X, (unsigned char)(NC_MENU_POPUP_Y + 1u), NC_MENU_POPUP_INNER_W,
+	ui_draw_frame(g_menu_popup_x, NC_MENU_POPUP_Y, NC_MENU_POPUP_INNER_W, 2u, NC_COLOR_MENU_NORM, "Menu");
+	menu_draw_item(menu_item_x(), (unsigned char)(NC_MENU_POPUP_Y + 1u), NC_MENU_POPUP_INNER_W,
 				   (unsigned char)(g_menu_sel == 0), "Files", 0);
 }
 
@@ -1581,32 +2328,29 @@ static void menu_adjust_item(PanelState *active_p, signed char delta)
 
 void draw_menu_overlay(void)
 {
-	PanelState *active_p;
-
-	if (!g_menu_active)
+	if (!g_menu_active || g_menu_panel == NULL)
 		return;
-
-	active_p = (left_panel.is_active) ? &left_panel : &right_panel;
 
 	if (g_menu_level == NC_MENU_LEVEL_TOP)
 		menu_top_open();
 	else
-		menu_files_open(active_p);
+		menu_files_open(g_menu_panel);
 }
 
 void menu_open(void)
 {
+	g_menu_panel = (left_panel.is_active) ? &left_panel : &right_panel;
+	g_menu_popup_x = menu_popup_x_for(g_menu_panel);
 	g_menu_active = 1;
 	g_menu_level = NC_MENU_LEVEL_TOP;
 	g_menu_sel = 0;
-draw_menu_overlay();
+	draw_menu_overlay();
 }
 
 unsigned char menu_handle_key(unsigned char key)
 {
-	PanelState *active_p;
-
-	active_p = (left_panel.is_active) ? &left_panel : &right_panel;
+	if (g_menu_panel == NULL)
+		g_menu_panel = (left_panel.is_active) ? &left_panel : &right_panel;
 
 	if (key == 27)
 	{
@@ -1619,10 +2363,10 @@ unsigned char menu_handle_key(unsigned char key)
 		if (key == 13)
 		{
 			g_menu_level = NC_MENU_LEVEL_FILES;
-			g_menu_sel = active_p->sort_mode;
+			g_menu_sel = g_menu_panel->sort_mode;
 			if (g_menu_sel > NC_MFI_TIME)
 				g_menu_sel = NC_MFI_NAME;
-			menu_files_open(active_p);
+			menu_files_open(g_menu_panel);
 		}
 		return 1;
 	}
@@ -1630,23 +2374,23 @@ unsigned char menu_handle_key(unsigned char key)
 	if (key == 250)
 	{
 		if (g_menu_sel > 0)
-			menu_sel_move(active_p, (unsigned char)(g_menu_sel - 1u));
+			menu_sel_move(g_menu_panel, (unsigned char)(g_menu_sel - 1u));
 		return 1;
 	}
 	if (key == 249)
 	{
 		if (g_menu_sel < NC_MENU_FILES_ITEMS - 1u)
-			menu_sel_move(active_p, (unsigned char)(g_menu_sel + 1u));
+			menu_sel_move(g_menu_panel, (unsigned char)(g_menu_sel + 1u));
 		return 1;
 	}
 	if (key == 248)
 	{
-		menu_adjust_item(active_p, -1);
+		menu_adjust_item(g_menu_panel, -1);
 		return 1;
 	}
 	if (key == 251)
 	{
-		menu_adjust_item(active_p, 1);
+		menu_adjust_item(g_menu_panel, 1);
 		return 1;
 	}
 	if (key == 13)

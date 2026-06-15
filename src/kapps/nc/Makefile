@@ -18,3 +18,8 @@ XCLFILE	:= lnk.xcl
 
 
 include ../../kapps/iarlib/iar.mk
+
+nc_mem.h: $(OBJ)/cout.html
+	python gen_nc_mem.py $(OBJ)/cout.html nc_mem.h
+
+all: nc_mem.h

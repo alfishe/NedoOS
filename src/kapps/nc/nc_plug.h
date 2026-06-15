@@ -31,12 +31,20 @@
 /* Name 28 + sep + size 8 + 1 pad = 38 */
 #define NC_PANEL_BRIEF_NAME_W 28u
 #define NC_PANEL_BRIEF_SIZE_OFF 29u
-#define NC_MENU_POPUP_X 0u
 #define NC_MENU_POPUP_Y 1u
 #define NC_MENU_POPUP_INNER_W 20u
-#define NC_MENU_ITEM_X 1u
-#define NC_CLOCK_X 73u
-#define NC_CLOCK_Y 23u
+#define NC_SCREEN_WIDTH 80u
+#define NC_STATUS_ROW 22u
+#define NC_HINT_ROW 23u
+#define NC_HINT_WIDTH (NC_SCREEN_WIDTH - 1u) /* col 79 stays black, like nv thint */
+#define NC_CLOCK_LEN 5u /* "HH:MM" like nv */
+#define NC_CLOCK_X (NC_SCREEN_WIDTH - 1u - NC_CLOCK_LEN)
+#define NC_CLOCK_Y 0u
+
+#define NC_CMDLINE_LEN 80u
+#define NC_BOTTOM_CMD 0u
+#define NC_BOTTOM_EMPTY 1u
+#define NC_BOTTOM_FILE 2u
 
 #define NC_INI_APP_LEN 128u
 #define NC_INI_DIR "../ini"
@@ -117,6 +125,35 @@ typedef struct
 	const char *prompt;
 } DialogWindow;
 
+typedef struct
+{
+	unsigned char mode;
+	char cmd_line[NC_CMDLINE_LEN];
+	char name[65];
+	unsigned long f_size;
+	unsigned char is_dir;
+} NCBottomInfo;
+
+typedef struct
+{
+	unsigned char x;
+	unsigned char y;
+	unsigned char w;
+	unsigned char h;
+	unsigned char bar_x;
+	unsigned char bar_y;
+	unsigned char bar_w;
+	unsigned char name_y;
+	unsigned char last_pct;
+	unsigned char drawn;
+} NCCopyProg;
+
+extern unsigned char botMenu[];
+extern NCCopyProg copy_prog;
+extern char copy_prog_current_name[64];
+extern unsigned char g_delete_progress;
+extern char g_fileop_title[16];
+
 extern PanelState left_panel;
 extern PanelState right_panel;
 extern unsigned char g_panel_page_used[256];
@@ -124,6 +161,7 @@ extern unsigned char g_panel_page_used[256];
 extern unsigned char g_menu_active;
 extern unsigned char g_menu_level;
 extern unsigned char g_menu_sel;
+extern PanelState *g_menu_panel;
 extern unsigned char g_drive_active;
 extern PanelState *g_drive_panel;
 extern unsigned char g_drive_sel;
@@ -144,7 +182,6 @@ extern unsigned char g_move_active;
 
 extern char g_nc_startup_path[64];
 
-extern unsigned char botMenu[];
 extern unsigned char residentPg;
 extern union APP_PAGES main_pg;
 
@@ -165,8 +202,6 @@ void nc_ini_save(void);
 void nc_capture_startup_path(void);
 unsigned char panel_request_unique_page(unsigned char *page_out);
 
-void nc_clock_draw(unsigned char force);
-void draw_status_bar(void);
 void menu_draw_item(unsigned char x0, unsigned char y, unsigned char width, unsigned char selected,
 					const char *label, unsigned char current);
 void menu_open(void);
@@ -179,19 +214,44 @@ void panel_drive_format_line(char *buf, unsigned char letter, const char *cap);
 void menu_close_and_redraw(void);
 void menu_apply_choice(unsigned char choice);
 
-void ui_put_char_at(unsigned char x, unsigned char y, unsigned char sym);
-void ui_put_char_color(unsigned char x, unsigned char y, unsigned char sym, unsigned char color);
 void ui_fill_chars(unsigned char x, unsigned char y, unsigned char sym, unsigned char count, unsigned char color);
 
 void panel_draw_footer(PanelState *panel, unsigned char start_x);
 void panel_fmt_size(char *dst, unsigned long size, unsigned char is_dir);
 void panel_fmt_size_brief(char *dst, unsigned long size, unsigned char is_dir);
 
-unsigned char show_dialog(DialogWindow *dlg, char *buffer, unsigned char max_len, unsigned char btn_mask);
+void draw_panel_frame(unsigned char start_x, unsigned char color);
+void draw_panel_background(PanelState *panel, unsigned char start_x);
+void draw_bottom_info(PanelState *active_p);
 
-/* Resident (C000): caller must map residentPg before r_* — use ui_* wrappers from main. */
+/* CODE_RESIDENT: caller maps residentPg (or use ui_* wrappers in main). */
+void r_ui_begin_full_redraw(void);
+void r_ui_draw_status_bar(void);
+void r_ui_clock_redraw(void);
+void r_ui_nc_clock_draw(unsigned char force);
+void r_draw_panel_background(PanelState *panel, unsigned char start_x);
+void r_draw_bottom_info(const NCBottomInfo *snap);
+void r_panel_sort_notice_show(PanelState *panel);
+void r_fileop_progress_begin(unsigned char is_delete);
+void r_fileop_progress_begin_title(unsigned char is_delete, const char *title);
+void r_fileop_progress_restore(void);
+void r_fileop_progress_store_name(const char *name);
+void r_copy_progress_draw_bar(unsigned char pct);
+void r_copy_progress_draw_name(const char *name);
+void r_panel_drive_open(PanelState *panel);
+void r_panel_drive_redraw(void);
+unsigned char r_panel_drive_handle_key(unsigned char key);
+
+/* Main bank callbacks (0100-BFFF CODE) for resident drive popup. */
+unsigned char m_panel_chdir_only(const char *path);
+unsigned char m_read_panel_dir_at(PanelState *panel, const char *dir_path, unsigned char preserve_cursor);
+void m_panels_remap_bank_window(void);
+void m_redraw_panels_full(void);
+void m_panels_redraw_both(void);
+void m_draw_panel(PanelState *panel, unsigned char start_x, unsigned char height);
+
+/* Resident (C000): caller must map residentPg before r_* ? use ui_* wrappers from main. */
 unsigned char r_ui_dialog_input(const char *title, const char *prompt);
-unsigned char r_ui_dialog_confirm(const char *title, const char *prompt, unsigned char btn_mask);
 unsigned char r_ui_dialog_delete_confirm(const char *title, const char *prompt);
 void r_ui_alert_dialog(const char *title, const char *prompt);
 void r_ui_error_dialog(const char *title, const char *msg);
@@ -200,7 +260,6 @@ unsigned char r_copy_dir_exists(const char *path);
 unsigned char r_copy_overwrite_resolve(unsigned char exists, const char *dialog_msg);
 
 unsigned char ui_dialog_input(const char *title, const char *prompt);
-unsigned char ui_dialog_confirm(const char *title, const char *prompt, unsigned char btn_mask);
 unsigned char ui_dialog_delete_confirm(const char *title, const char *prompt);
 void ui_alert_dialog(const char *title, const char *prompt);
 void ui_error_dialog(const char *title, const char *msg);

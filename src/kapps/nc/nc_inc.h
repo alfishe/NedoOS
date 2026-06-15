@@ -8,4 +8,6 @@
 #include <osfs.h>
 #include <ctype.h>
 
+#include "nc_colors.h"
+
 #endif
