@@ -3829,6 +3829,7 @@ static void nc_run_selected_file(PanelState *panel)
 	char handler[64];
 	const char *ext;
 	unsigned char is_dir;
+	unsigned char ran;
 
 	if (!nc_get_file_under_cursor(panel, name, &is_dir))
 		return;
@@ -3843,26 +3844,19 @@ static void nc_run_selected_file(PanelState *panel)
 		print_cstr("No extension: ");
 		print_cstr(name);
 		print_crlf();
-		nc_run_restore_ui(panel);
 		return;
 	}
 	ext++;
 
+	ran = 0;
 	if (nc_nvext_find_handler(ext, handler, sizeof(handler)))
-	{
-		(void)nc_run_cmd_direct(panel, handler, name);
-	}
+		ran = nc_run_cmd_direct(panel, handler, name);
 	else if (ext_cmp(ext, "com") == 0 || ext_cmp(ext, "bin") == 0)
-	{
-		(void)nc_run_cmd_direct(panel, name, NULL);
-	}
+		ran = nc_run_cmd_direct(panel, name, NULL);
 	else
-	{
-		print_cstr("No handler for .");
-		print_cstr(ext);
-		print_crlf();
-	}
-	nc_run_restore_ui(panel);
+		return;
+	if (ran)
+		nc_run_restore_ui(panel);
 }
 
 static unsigned char nc_action_blocked_entry(PanelState *panel)
