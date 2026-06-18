@@ -12,6 +12,15 @@ void OS_PRATTR(unsigned char attribute);
 void OS_SETXY(unsigned char x, unsigned char y);
 void OS_SETXYW(unsigned int w);
 void OS_SETMUSIC(void (*play)(void), unsigned char pg);
+
+typedef struct
+{
+	void *data;
+	void *pagetable;
+	unsigned char delay; /* BDOS reads IXH ("hx" in SDK asm) */
+} OS_COVOX_PLAY;
+
+void OS_PLAYCOVOX(const OS_COVOX_PLAY *args);
 void os_initstdio(void);
 void print(unsigned char *);
 unsigned int OS_GETXY(void);
@@ -42,7 +51,7 @@ unsigned long OS_GETMOUSE(void); // BC HL
 unsigned int OS_READSECTORS(struct diskOp *);
 unsigned int OS_WRITESECTORS(struct diskOp *);
 unsigned long OS_GETTIME(void); // out: bc=date, hl=time
-unsigned int OS_NEWPAGE(void);
+unsigned int OS_NEWPAGE(void); /* iarlib: HL=(err<<8)|page, err=0 ok */
 unsigned char OS_DELPAGE(char pageNumber);
 unsigned int OS_GETSCR0(void); // return user_scr0_high, user_scr0_low
 unsigned int OS_GETSCR1(void); // return user_scr1_high, user_scr1_low

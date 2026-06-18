@@ -178,6 +178,47 @@ OS_SETMUSIC:	;DE - proc_ptr, A - ?
 	pop ix
 	ret
 	ENDMOD
+
+	MODULE OSPLAYCOVOX
+	PUBLIC OS_PLAYCOVOX
+	#include "sysdefs.asm"
+	RSEG CODE
+;void OS_PLAYCOVOX(const OS_COVOX_PLAY *args);
+;struct { void *data; void *pagetable; unsigned char delay; }
+;BDOS: HL=data (0xC000+), DE=pagetable (0x0000+), HX=delay. Clobbers all regs.
+;IAR: ld hx,r -> ld ixr,r (DD 60+reg); games use ld hx,d (DD 62).
+OS_PLAYCOVOX:
+	push bc
+	push de
+	push hl
+	push ix
+	push iy
+	ex de,hl
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	inc hl
+	ld c,(hl)
+	inc hl
+	ld b,(hl)
+	inc hl
+	push de			;data
+	push bc			;pagetable
+	ld a,(hl)		;delay
+	ld d,a
+	ld ixh,d		; ld hx,d
+	ld ixl,0
+	pop de			;DE=pagetable
+	pop hl			;HL=data
+	ld c,CMD_PLAYCOVOX
+	call BDOS
+	pop iy
+	pop ix
+	pop hl
+	pop de
+	pop bc
+	ret
+	ENDMOD
 	
 	MODULE OSGETCONFIG
 	PUBLIC OS_GETCONFIG
