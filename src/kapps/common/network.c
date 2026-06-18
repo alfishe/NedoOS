@@ -1,20 +1,25 @@
+#define OS_CALL_OK(todo) ((todo) <= 32767)
+#define OS_CALL_ERR(todo) ((unsigned char)((todo) & 255))
+#define OS_CALL_SOCKET(todo) ((signed char)(((todo) >> 8) & 255))
+
+static unsigned char dnsPkt[512];
+
 void delayLong(unsigned long counter)
 {
-  unsigned long start, finish;
+  unsigned long finish;
+
   counter = counter / 20;
   if (counter < 1)
   {
     counter = 1;
   }
-  start = time();
-  finish = start + counter;
-
-  while (start < finish)
+  finish = time() + counter;
+  while (time() < finish)
   {
-    start = time();
     YIELD();
   }
 }
+
 int httpError(void)
 {
   const char *httpRes;
@@ -131,6 +136,7 @@ void errorPrint(unsigned int error)
     break;
   }
 }
+
 void testOperation(const char *process, int socket)
 {
   if (socket < 0)
@@ -145,34 +151,42 @@ void testOperation(const char *process, int socket)
 
 char OpenSock(unsigned char family, unsigned char protocol)
 {
-  signed char socket;
   unsigned int todo;
+
   todo = OS_NETSOCKET((family << 8) + protocol);
-  if (todo > 32767)
+  if (!OS_CALL_OK(todo))
   {
-    return 0 - (todo & 255);
+    return 0 - OS_CALL_ERR(todo);
   }
-  else
-  {
-    socket = ((todo & 65280) >> 8);
-    // printf("OS_NETSOCKET: Socket #%d created\n\r", socket);
-  }
-  return socket;
+  return OS_CALL_SOCKET(todo);
 }
 
 char netShutDown(signed char socket, unsigned char type)
 {
   unsigned int todo;
-  todo = OS_NETSHUTDOWN(socket, type);
-  if (todo > 32767)
+  unsigned char err;
+
+  if (socket < 0)
   {
-    return 0 - (todo & 255);
+    return socket;
   }
-  else
+
+  for (;;)
   {
-    // printf("Socket #%d closed.\n\r", socket);
+    todo = OS_NETSHUTDOWN(socket, type);
+    if (OS_CALL_OK(todo))
+    {
+      return socket;
+    }
+
+    err = OS_CALL_ERR(todo);
+    if (type == 1 && err == ERR_EAGAIN)
+    {
+      YIELD();
+      continue;
+    }
+    return 0 - err;
   }
-  return socket;
 }
 
 char netConnect(signed char socket, unsigned char retry)
@@ -183,26 +197,31 @@ char netConnect(signed char socket, unsigned char retry)
   {
     todo = OS_NETCONNECT(socket, &targetadr);
 
-    if (todo > 32767)
+    if (OS_CALL_OK(todo))
     {
-      retry--;
-      delayLong(500);
-      netShutDown(socket, 0);
-      socket = OpenSock(AF_INET, SOCK_STREAM);
-      testOperation("OS_NETSOCKET", socket);
-    }
-    else
-    {
-      // printf("OS_NETCONNECT: connection successful, %u\n\r", (todo & 255));
       return socket;
     }
+
+    retry--;
+    if (retry == 0)
+    {
+      break;
+    }
+
+    delayLong(150);
+    netShutDown(socket, 0);
+    socket = OpenSock(AF_INET, SOCK_STREAM);
+    testOperation("OS_NETSOCKET", socket);
   }
-  return 0 - (todo & 255);
+
+  netShutDown(socket, 0);
+  return 0 - OS_CALL_ERR(todo);
 }
 
 int tcpSend(signed char socket, unsigned int messageadr, unsigned int size, unsigned char retry)
 {
   unsigned int todo = 0;
+
   readStruct.socket = socket;
   readStruct.BufAdr = messageadr;
   readStruct.bufsize = size;
@@ -210,18 +229,18 @@ int tcpSend(signed char socket, unsigned int messageadr, unsigned int size, unsi
   while (retry != 0)
   {
     todo = OS_WIZNETWRITE(&readStruct);
-    if (todo > 32767)
+    if (OS_CALL_OK(todo))
     {
-      retry--;
-      delayLong(500);
-    }
-    else
-    {
-      // printf("OS_WIZNETWRITE: %u bytes written. \n\r", todo);
       return todo;
     }
+
+    retry--;
+    if (retry != 0)
+    {
+      delayLong(100);
+    }
   }
-  return 0 - (todo & 255);
+  return 0 - OS_CALL_ERR(todo);
 }
 
 int tcpRead(signed char socket, unsigned char retry)
@@ -238,29 +257,30 @@ int tcpRead(signed char socket, unsigned char retry)
   {
     todo = OS_WIZNETREAD(&readStruct);
 
-    if (todo > 32767)
+    if (OS_CALL_OK(todo))
     {
-      if ((todo & 255) != ERR_EAGAIN) // nodata
+      return todo;
+    }
+
+    if (OS_CALL_ERR(todo) != ERR_EAGAIN)
+    {
+      retry--;
+      if (retry != 0)
       {
-        retry--;
-        delayLong(500);
-      }
-      else
-      {
-        key = _low_level_get();
-        if (key == 27)
-        {
-          break;
-        }
+        delayLong(100);
       }
     }
     else
     {
-      // printf("OS_WIZNETREAD: %u bytes read. \n\r", todo);
-      return todo; // succes
+      YIELD();
+      key = _low_level_get();
+      if (key == 27)
+      {
+        break;
+      }
     }
   }
-  return 0 - (todo & 255); // timeout
+  return 0 - OS_CALL_ERR(todo);
 }
 
 unsigned char dnsResolve(const char *domainName)
@@ -273,6 +293,11 @@ unsigned char dnsResolve(const char *domainName)
   unsigned char dnsQuery2[] = {0x00, 0x00, 0x01, 0x00, 0x01};
 
   domainLng = strlen(domainName);
+  if (domainLng == 0 || domainLng > 126)
+  {
+    return 0;
+  }
+
   comaCount = 0;
   loop = domainLng;
   buf[loop + 1] = 0;
@@ -293,57 +318,53 @@ unsigned char dnsResolve(const char *domainName)
   } while (loop != 0);
   buf[0] = comaCount;
 
-  memcpy(netbuf, dnsQuery1, sizeof(dnsQuery1));
-  memcpy(netbuf + sizeof(dnsQuery1), buf, domainLng + 1);
-  memcpy(netbuf + domainLng + sizeof(dnsQuery1) + 1, dnsQuery2, sizeof(dnsQuery2));
+  memcpy(dnsPkt, dnsQuery1, sizeof(dnsQuery1));
+  memcpy(dnsPkt + sizeof(dnsQuery1), buf, domainLng + 1);
+  memcpy(dnsPkt + domainLng + sizeof(dnsQuery1) + 1, dnsQuery2, sizeof(dnsQuery2));
   reqSize = sizeof(dnsQuery1) + sizeof(dnsQuery2) + domainLng + 1;
 
   socket = OpenSock(AF_INET, SOCK_DGRAM);
+  if (socket < 0)
+  {
+    return 0;
+  }
+
   readStruct.socket = socket;
-  readStruct.BufAdr = (unsigned int)&netbuf;
+  readStruct.BufAdr = (unsigned int)&dnsPkt;
   readStruct.bufsize = (unsigned int)reqSize;
   readStruct.protocol = SOCK_DGRAM;
 
   todo = OS_WIZNETWRITE_UDP(&readStruct, &dnsaddress);
-  if (todo > 32767)
+  if (!OS_CALL_OK(todo))
   {
     putchar('\r');
-    errorPrint(todo & 255);
+    errorPrint(OS_CALL_ERR(todo));
+    netShutDown(socket, 0);
     return 0;
   }
-  else
-  {
-    // printf("OS_WIZNETWRITE_UDP: %u bytes written. \n\r", todo);
-  }
 
-  readStruct.BufAdr = (unsigned int)&netbuf;
-  readStruct.bufsize = (unsigned int)sizeof(netbuf);
+  readStruct.BufAdr = (unsigned int)&dnsPkt;
+  readStruct.bufsize = (unsigned int)sizeof(dnsPkt);
   retry = 10;
   do
   {
     todo = OS_WIZNETREAD_UDP(&readStruct, &dnsaddress);
-    if (todo > 32767)
+    if (!OS_CALL_OK(todo))
     {
-      // errorPrint(todo & 255);
       if (retry == 0)
       {
-        // clearStatus();
-        // printf(" Error quering[Response] DNS server.");
         netShutDown(socket, 0);
         return 0;
       }
       retry--;
-      delayLong(200);
-      // printf(" Retry [%d]\r\n", retryInv - retry);
+      delayLong(80);
     }
-  } while (todo > 32767);
+  } while (!OS_CALL_OK(todo));
 
   netShutDown(socket, 0);
 
-  if (!(netbuf[2] && 0x0f))
+  if ((dnsPkt[2] & 0x80) == 0 || (dnsPkt[3] & 0x0f) != 0)
   {
-    // clearStatus();
-    // printf(" Error quering[Parsing] DNS server.");
     return 0;
   }
 
@@ -351,34 +372,29 @@ unsigned char dnsResolve(const char *domainName)
   do
   {
     queryPos++;
-  } while (netbuf[queryPos] != 0);
+  } while (dnsPkt[queryPos] != 0);
 
-  queryPos = queryPos + 7; // Skip to answer data
+  queryPos = queryPos + 7;
   do
   {
     unsigned int queryLng;
-    if (queryPos > sizeof(netbuf) - 11)
+    if (queryPos > sizeof(dnsPkt) - 11)
     {
-      // clearStatus();
-      // printf(" Error quering DNS server[Buffer overrun]. ");
       return 0;
     }
-    queryType = netbuf[queryPos] * 256 + netbuf[queryPos + 1];
-    // printf("Query type (0x0001): %d\r\n", queryType);
+    queryType = dnsPkt[queryPos] * 256 + dnsPkt[queryPos + 1];
 
-    queryPos = queryPos + 8; // Skip to answer lenght
+    queryPos = queryPos + 8;
 
-    queryLng = netbuf[queryPos] * 256 + netbuf[queryPos + 1];
-    // printf("Query data lenght: %d\r\n", queryLng);
+    queryLng = dnsPkt[queryPos] * 256 + dnsPkt[queryPos + 1];
     queryPos = queryPos + queryLng + 4;
   } while (queryType != 1);
 
-  targetadr.b1 = netbuf[queryPos - 6];
-  targetadr.b2 = netbuf[queryPos - 5];
-  targetadr.b3 = netbuf[queryPos - 4];
-  targetadr.b4 = netbuf[queryPos - 3];
+  targetadr.b1 = dnsPkt[queryPos - 6];
+  targetadr.b2 = dnsPkt[queryPos - 5];
+  targetadr.b3 = dnsPkt[queryPos - 4];
+  targetadr.b4 = dnsPkt[queryPos - 3];
 
-  // printf("\r\nAddress:%u.%u.%u.%u:%u\r\n", targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4, targetadr.porth * 256 + targetadr.portl);
   return 1;
 }
 
