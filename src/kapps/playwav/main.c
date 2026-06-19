@@ -1,3 +1,10 @@
+/*
+ * playwav ? load a WAV file into 16K RAM pages and play via Covox.
+ * Supports PCM 8/16 mono/stereo and MS IMA ADPCM (0x11).
+ * -p: asm covox_play_pages() ? all pages in one di loop, fast bank switch
+ *     at each 16K boundary (no ret to C between pages).
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,24 +15,28 @@
 
 extern unsigned char covox_hx;
 extern void covox_play(void);
+extern void covox_play_pages(void);
+extern unsigned char covox_play_stopped;
 
 unsigned char pagetable[256];
 
 #define IOBUF ((unsigned char *)0x8000)
 #define IOBUF_SIZE 16384u
 
-static unsigned char sample_pages[256];
-static unsigned char page_count;
-static unsigned char pages_loaded;
+unsigned char sample_pages[256];
+unsigned long page_samples[256];
+unsigned char page_count;
+unsigned char pages_loaded;
 static unsigned char saved_c000_page;
+static unsigned char play_paged_mode;
 
-static void free_pages(void);
-
+/* Restore C000 window mapping saved at startup. */
 static void restore_c000_page(void)
 {
 	SETPG32KHIGH(saved_c000_page);
 }
 
+/* Count free 16K pages, reserving a few for the system. */
 static unsigned char get_free_pages(void)
 {
 	unsigned char free_pages = 0;
@@ -41,6 +52,16 @@ static unsigned char get_free_pages(void)
 	return free_pages;
 }
 
+static void free_pages(void)
+{
+	unsigned char i;
+
+	for (i = 0; i < page_count; ++i)
+		OS_DELPAGE((char)sample_pages[i]);
+	page_count = 0;
+}
+
+/* Allocate count pages and fill pagetable[] for covox_play(). */
 static unsigned char alloc_pages(unsigned char count)
 {
 	unsigned char i;
@@ -63,15 +84,20 @@ static unsigned char alloc_pages(unsigned char count)
 	return 1;
 }
 
-static void free_pages(void)
+/* Drop pages allocated above used count; zero tail of pagetable[]. */
+static void trim_unused_pages(unsigned char used)
 {
 	unsigned char i;
+	unsigned char allocated = page_count;
 
-	for (i = 0; i < page_count; ++i)
+	page_count = used;
+	for (i = used; i < allocated; ++i)
 		OS_DELPAGE((char)sample_pages[i]);
-	page_count = 0;
+	for (i = used; i < (unsigned char)255; ++i)
+		pagetable[i] = 0;
 }
 
+/* Remember current C000 page before we remap it for loading. */
 static void init_memory(void)
 {
 	union APP_PAGES main_pg;
@@ -80,53 +106,7 @@ static void init_memory(void)
 	saved_c000_page = main_pg.pgs.window_3;
 }
 
-static unsigned char raw_to_covox(unsigned char raw)
-{
-	if (raw == 0)
-		return 1;
-	return raw;
-}
-
-static void fix_zeros_in_place(unsigned char *data, unsigned int len)
-{
-	unsigned int i;
-
-	for (i = 0; i < len; ++i)
-		data[i] = raw_to_covox(data[i]);
-}
-
-static unsigned char mix_stereo_byte(unsigned char left, unsigned char right)
-{
-	unsigned int sum;
-
-	left = raw_to_covox(left);
-	right = raw_to_covox(right);
-	sum = (unsigned int)left + (unsigned int)right;
-	return (unsigned char)((sum + 1u) >> 1);
-}
-
-#define ADPCM_DECODE_OBUF 2048u
-
-static unsigned char adpcm_decobuf[ADPCM_DECODE_OBUF];
-
-static unsigned char adpcm_emit_sample(unsigned char sample,
-									   unsigned char *page_idx, unsigned int *page_off, unsigned char max_pages)
-{
-	if (*page_idx >= max_pages)
-		return 0;
-
-	((unsigned char *)0xC000)[*page_off] = sample;
-	++(*page_off);
-	if (*page_off >= WAV_PAGE_BYTES)
-	{
-		*page_off = 0;
-		++(*page_idx);
-		if (*page_idx < max_pages)
-			SETPG32KHIGH(sample_pages[*page_idx]);
-	}
-	return 1;
-}
-
+/* Top up IOBUF from file; compact leftover bytes after partial block consume. */
 static unsigned char adpcm_refill_buf(FILE *fp, unsigned int ba,
 									  unsigned int *buf_pos, unsigned int *buf_len)
 {
@@ -148,16 +128,20 @@ static unsigned char adpcm_refill_buf(FILE *fp, unsigned int ba,
 	if (*buf_len < ba)
 	{
 		unsigned int got;
-
+		
+		putchar('.');
 		got = OS_READHANDLE(IOBUF + *buf_len, fp, IOBUF_SIZE - *buf_len);
 		if (got == 0)
 			return 0;
-		putchar('.');
 		*buf_len += got;
 	}
 	return 1;
 }
 
+/*
+ * Stream-decode IMA ADPCM from file into 16K pages (16384 bytes each).
+ * Reads through IOBUF; decodes only full blocks except at EOF.
+ */
 static unsigned char load_adpcm_streaming(FILE *fp, const wav_info_t *info,
 										  unsigned char max_pages, unsigned int *last_page_off)
 {
@@ -169,7 +153,6 @@ static unsigned char load_adpcm_streaming(FILE *fp, const wav_info_t *info,
 	unsigned int buf_len;
 	unsigned int block_len;
 	unsigned int decoded;
-	unsigned int i;
 	unsigned char truncated;
 	unsigned long total;
 
@@ -178,8 +161,6 @@ static unsigned char load_adpcm_streaming(FILE *fp, const wav_info_t *info,
 
 	ba = info->block_align;
 	if (ba == 0 || ba > IOBUF_SIZE)
-		return 0;
-	if (info->samples_per_block > ADPCM_DECODE_OBUF)
 		return 0;
 
 	hdr_min = (unsigned int)info->channels * 4u;
@@ -204,18 +185,12 @@ static unsigned char load_adpcm_streaming(FILE *fp, const wav_info_t *info,
 				block_len = buf_len - buf_pos;
 				if (block_len >= hdr_min)
 				{
-					decoded = wav_ima_decode_block(IOBUF + buf_pos, block_len,
-												   info, adpcm_decobuf, ADPCM_DECODE_OBUF);
-					for (i = 0; i < decoded; ++i)
-					{
-						if (!adpcm_emit_sample(adpcm_decobuf[i], &page_idx, &page_off,
-											   max_pages))
-						{
-							truncated = 1;
-							goto done;
-						}
-						++total;
-					}
+					decoded = wav_ima_decode_block_pages(IOBUF + buf_pos, block_len,
+														 info, &page_idx, &page_off,
+														 max_pages);
+					total += decoded;
+					if (page_idx >= max_pages)
+						truncated = 1;
 				}
 				break;
 			}
@@ -230,24 +205,20 @@ static unsigned char load_adpcm_streaming(FILE *fp, const wav_info_t *info,
 		}
 
 		block_len = ba;
-		decoded = wav_ima_decode_block(IOBUF + buf_pos, block_len, info,
-									   adpcm_decobuf, ADPCM_DECODE_OBUF);
+		decoded = wav_ima_decode_block_pages(IOBUF + buf_pos, block_len, info,
+											 &page_idx, &page_off, max_pages);
 		if (decoded == 0)
 			break;
 
-		for (i = 0; i < decoded; ++i)
+		total += decoded;
+		if (page_idx >= max_pages)
 		{
-			if (!adpcm_emit_sample(adpcm_decobuf[i], &page_idx, &page_off, max_pages))
-			{
-				truncated = 1;
-				goto done;
-			}
-			++total;
+			truncated = 1;
+			break;
 		}
 		buf_pos += ba;
 	}
 
-done:
 	if (total == 0)
 		return 0;
 
@@ -261,9 +232,22 @@ done:
 		pages_loaded = (unsigned char)(page_idx + 1u);
 		*last_page_off = page_off;
 	}
+
+	{
+		unsigned char i;
+
+		for (i = 0; i + 1u < pages_loaded; ++i)
+			page_samples[i] = WAV_PAGE_BYTES;
+		page_samples[pages_loaded - 1u] = *last_page_off;
+	}
+
+	if (truncated)
+		printf("Warn: out of memory during ADPCM decode\r\n");
+
 	return 1;
 }
 
+/* Load one 16K page of PCM (any supported bit depth/channels) into C000. */
 static unsigned char load_page_pcm(FILE *fp, const wav_info_t *info,
 								   unsigned char page_idx, unsigned long samples_in_page)
 {
@@ -288,14 +272,24 @@ static unsigned char load_page_pcm(FILE *fp, const wav_info_t *info,
 
 	if (!bits16 && !stereo)
 	{
+		unsigned char b;
+
 		n = (unsigned int)samples_in_page;
 		putchar('.');
 		if (OS_READHANDLE(dst, fp, n) != n)
 			return 0;
-		fix_zeros_in_place(dst, n);
+		for (i = 0; i < n; ++i)
+		{
+			b = dst[i];
+			if (b == 0)
+				dst[i] = 1;
+		}
 	}
 	else if (!bits16 && stereo)
 	{
+		unsigned char left;
+		unsigned char right;
+
 		remaining = samples_in_page;
 		while (remaining > 0)
 		{
@@ -307,7 +301,16 @@ static unsigned char load_page_pcm(FILE *fp, const wav_info_t *info,
 				return 0;
 			out = 0;
 			for (i = 0; i + 1u < chunk_bytes; i += 2u)
-				dst[out++] = mix_stereo_byte(IOBUF[i], IOBUF[i + 1u]);
+			{
+				left = IOBUF[i];
+				right = IOBUF[i + 1u];
+				if (left == 0)
+					left = 1;
+				if (right == 0)
+					right = 1;
+				dst[out++] = (unsigned char)(
+					((unsigned int)left + (unsigned int)right + 1u) >> 1);
+			}
 			dst += out;
 			remaining -= out;
 		}
@@ -326,7 +329,7 @@ static unsigned char load_page_pcm(FILE *fp, const wav_info_t *info,
 				return 0;
 			for (i = 0; i < chunk_samples; ++i)
 			{
-				dst[i] = wav_s16_to_covox(
+				dst[i] = WAV_S16_TO_COVOX(
 					(int)(short)((unsigned int)IOBUF[i * 2u] + ((unsigned int)IOBUF[i * 2u + 1u] << 8)));
 			}
 			dst += chunk_samples;
@@ -354,7 +357,7 @@ static unsigned char load_page_pcm(FILE *fp, const wav_info_t *info,
 				left = (int)(short)((unsigned int)IOBUF[i * 4u] + ((unsigned int)IOBUF[i * 4u + 1u] << 8));
 				right = (int)(short)((unsigned int)IOBUF[i * 4u + 2u] + ((unsigned int)IOBUF[i * 4u + 3u] << 8));
 				mix = (left + right) >> 1;
-				dst[i] = wav_s16_to_covox(mix);
+				dst[i] = WAV_S16_TO_COVOX(mix);
 			}
 			dst += chunk_samples;
 			remaining -= chunk_samples;
@@ -367,12 +370,18 @@ static unsigned char load_page_pcm(FILE *fp, const wav_info_t *info,
 	return 1;
 }
 
+/* Write Covox stop byte (0x00) after the last audio byte in continuous mode. */
 static void write_terminator(unsigned char page_idx, unsigned int page_off)
 {
 	SETPG32KHIGH(sample_pages[page_idx]);
 	((unsigned char *)(0xC000u + page_off))[0] = 0;
 }
 
+/*
+ * Load WAV sample data into allocated pages.
+ * Continuous mode: one 0x00 terminator on the last page only.
+ * Paged mode (-p): no terminators; covox_play_pages() plays by byte count.
+ */
 static unsigned char load_sample_data(FILE *fp, const wav_info_t *info, unsigned char max_pages)
 {
 	unsigned long samples_left;
@@ -393,19 +402,9 @@ static unsigned char load_sample_data(FILE *fp, const wav_info_t *info, unsigned
 			free_pages();
 			return 0;
 		}
-
-		{
-			unsigned char i;
-			unsigned char allocated = page_count;
-
-			page_count = pages_loaded;
-			for (i = pages_loaded; i < allocated; ++i)
-				OS_DELPAGE((char)sample_pages[i]);
-			for (i = pages_loaded; i < (unsigned char)255; ++i)
-				pagetable[i] = 0;
-		}
-
-		write_terminator((unsigned char)(pages_loaded - 1u), last_page_off);
+		trim_unused_pages(pages_loaded);
+		if (!play_paged_mode)
+			write_terminator((unsigned char)(pages_loaded - 1u), last_page_off);
 		return 1;
 	}
 
@@ -420,6 +419,7 @@ static unsigned char load_sample_data(FILE *fp, const wav_info_t *info, unsigned
 		if (samples_in_page > WAV_PAGE_BYTES)
 			samples_in_page = WAV_PAGE_BYTES;
 
+		/* Leave room for stop byte on the final page when it would fill 16K. */
 		if (samples_left <= samples_in_page && samples_in_page >= WAV_PAGE_BYTES)
 			samples_in_page = WAV_PAGE_BYTES - 1u;
 
@@ -431,6 +431,7 @@ static unsigned char load_sample_data(FILE *fp, const wav_info_t *info, unsigned
 			free_pages();
 			return 0;
 		}
+		page_samples[page_idx] = samples_in_page;
 		samples_left -= samples_in_page;
 		last_page_off = (unsigned int)samples_in_page;
 		++page_idx;
@@ -440,18 +441,9 @@ static unsigned char load_sample_data(FILE *fp, const wav_info_t *info, unsigned
 	if (pages_loaded == 0)
 		return 0;
 
-	{
-		unsigned char i;
-		unsigned char allocated = page_count;
-
-		page_count = pages_loaded;
-		for (i = pages_loaded; i < allocated; ++i)
-			OS_DELPAGE((char)sample_pages[i]);
-		for (i = pages_loaded; i < (unsigned char)255; ++i)
-			pagetable[i] = 0;
-	}
-
-	write_terminator((unsigned char)(pages_loaded - 1u), last_page_off);
+	trim_unused_pages(pages_loaded);
+	if (!play_paged_mode)
+		write_terminator((unsigned char)(pages_loaded - 1u), last_page_off);
 	return 1;
 }
 
@@ -487,7 +479,8 @@ static void print_wav_info(const wav_info_t *info)
 	}
 }
 
-static void play_sample(const wav_info_t *info)
+/* Single covox_play() over full pagetable[] (kernel switches pages). */
+static void play_sample_continuous(const wav_info_t *info)
 {
 	if (page_count == 0 || info->covox_delay == 0)
 		return;
@@ -495,6 +488,24 @@ static void play_sample(const wav_info_t *info)
 	covox_hx = info->covox_delay;
 	covox_play();
 	restore_c000_page();
+}
+
+/*
+ * Asm multi-page player: fast bank switch, keyboard poll between pages.
+ * Any key sets covox_play_stopped and ends playback.
+ */
+static void play_sample_paged(const wav_info_t *info)
+{
+	if (pages_loaded == 0 || info->covox_delay == 0)
+		return;
+
+	covox_hx = info->covox_delay;
+	covox_play_stopped = 0;
+	covox_play_pages();
+	restore_c000_page();
+
+	if (covox_play_stopped != 0)
+		printf("Stopped (key %u).\r\n", (unsigned int)covox_play_stopped);
 }
 
 static void wait_key(void)
@@ -507,6 +518,13 @@ static void wait_key(void)
 	} while (key == 0);
 }
 
+static void print_usage(void)
+{
+	printf("Usage: playwav [-p] <file.wav>\r\n");
+	printf("  -p  paged play + key to stop (use plain playwav for music)\r\n");
+	printf("PCM 8/16-bit or IMA ADPCM WAV.\r\n");
+}
+
 C_task main(int argc, char *argv[])
 {
 	FILE *fp;
@@ -515,15 +533,29 @@ C_task main(int argc, char *argv[])
 	unsigned int pages_needed;
 	unsigned char pages_to_use;
 	unsigned char err;
+	char *wav_path;
+	int i;
 
 	os_initstdio();
 	OS_SETGFX(0x86);
 	OS_CLS(0);
 
-	if (argc < 2)
+	/* Parse -p anywhere on the command line; last non-flag arg is the file.
+	 * Keep argv use inside main ? IAR Z80 passes argv poorly to helpers. */
+	play_paged_mode = 0;
+	wav_path = NULL;
+
+	for (i = 1; i < argc; ++i)
 	{
-		printf("Usage: playwav <file.wav>\r\n");
-		printf("PCM 8/16-bit or IMA ADPCM WAV.\r\n");
+		if (argv[i][0] == '-' && argv[i][1] == 'p' && argv[i][2] == 0)
+			play_paged_mode = 1;
+		else
+			wav_path = argv[i];
+	}
+
+	if (wav_path == NULL)
+	{
+		print_usage();
 		wait_key();
 		exit(1);
 	}
@@ -531,10 +563,10 @@ C_task main(int argc, char *argv[])
 	init_memory();
 	free_mem = get_free_pages();
 
-	fp = OS_OPENHANDLE((unsigned char *)argv[1], 0x80);
+	fp = OS_OPENHANDLE((unsigned char *)wav_path, 0x80);
 	if (((int)fp) & 0xff)
 	{
-		printf("Error: %s\r\n", argv[1]);
+		printf("Error: %s\r\n", wav_path);
 		wait_key();
 		exit(1);
 	}
@@ -579,8 +611,22 @@ C_task main(int argc, char *argv[])
 		exit(1);
 	}
 
+	printf("\r\nLoaded %u pages, %s play...\r\n",
+		   (unsigned int)pages_loaded,
+		   play_paged_mode ? "paged" : "continuous");
+
 	OS_CLOSEHANDLE(fp);
-	play_sample(&info);
+
+	if (play_paged_mode)
+	{
+		OS_SETGFX(0x0e);
+		YIELD();
+		play_sample_paged(&info);
+		OS_SETGFX(0x86);
+	}
+	else
+		play_sample_continuous(&info);
+
 	putchar('\n');
 	free_pages();
 	restore_c000_page();
