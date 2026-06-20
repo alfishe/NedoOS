@@ -7,7 +7,7 @@
 #include "term_doc.h"
 #include "ansi_file.h"
 
-#define ANSI_READ_CHUNK 2048u
+#define ANSI_READ_CHUNK 512u
 
 /* BDOS extended key codes (sysdefs.asm cs5..cs8). */
 #define TERM_KEY_UP    250u
@@ -39,7 +39,7 @@ static void show_error(const char *msg)
 {
   term_cls(0x4Fu);
   term_set_xy(0u, 0u);
-  printf("atelnet: %s\r\n", msg);
+  printf("ansiview: %s\r\n", msg);
   term_set_xy(0u, 2u);
   printf("Press any key...");
   read_key();

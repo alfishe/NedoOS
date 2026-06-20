@@ -4,8 +4,6 @@
 #include "atelnet.h"
 #include "term_doc.h"
 
-extern void term_scroll_up_n(unsigned char count);
-extern void term_scroll_down_n(unsigned char count);
 extern void term_palette_begin(void);
 extern void term_palette_restore(void);
 
@@ -390,7 +388,7 @@ void term_scroll_up(unsigned char count)
     term_doc_get_vis_xy(&term_col, &term_row);
     return;
   }
-  term_scroll_up_n(count);
+  OS_SCROLL_SCREEN_UP(count);
 }
 
 void term_scroll_down(unsigned char count)
@@ -405,7 +403,7 @@ void term_scroll_down(unsigned char count)
     term_doc_get_vis_xy(&term_col, &term_row);
     return;
   }
-  term_scroll_down_n(count);
+  OS_SCROLL_SCREEN_DOWN(count);
 }
 
 static void ansi_reset_args(void)

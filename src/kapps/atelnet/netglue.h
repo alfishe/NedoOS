@@ -3,7 +3,7 @@
 
 #include <tcp.h>
 
-#define ATELNET_NETBUF_SIZE 4096u
+#define ATELNET_NETBUF_SIZE 896u
 
 extern unsigned char netbuf[ATELNET_NETBUF_SIZE];
 extern struct sockaddr_in targetadr;

@@ -7,7 +7,7 @@
 
 extern void term_putchar_stay(unsigned char ch);
 
-#define TERM_DOC_MAX_LINES 128u
+#define TERM_DOC_MAX_LINES 86u
 
 static void term_doc_paint_char(unsigned char vis_y, unsigned char x, unsigned char ch)
 {
@@ -32,6 +32,17 @@ static unsigned char doc_active;
 static unsigned char doc_follow;
 static unsigned char doc_defer_paint;
 static unsigned char doc_color;
+static unsigned char doc_screen_ok;
+
+static void term_doc_mark_screen_bad(void)
+{
+  doc_screen_ok = 0u;
+}
+
+static void term_doc_mark_screen_ok(void)
+{
+  doc_screen_ok = 1u;
+}
 
 static void term_doc_paint_maybe(void)
 {
@@ -161,6 +172,7 @@ void term_doc_begin(void)
   doc_abs_line = 0u;
   doc_col = 0u;
   doc_vis_row = 0u;
+  doc_screen_ok = 0u;
   term_doc_clear_line(0u, doc_color);
 }
 
@@ -187,18 +199,74 @@ void term_doc_set_follow(unsigned char follow)
 
 void term_doc_set_defer_paint(unsigned char defer)
 {
+  if (doc_defer_paint != 0u && defer == 0u)
+  {
+    term_doc_mark_screen_bad();
+  }
   doc_defer_paint = defer;
 }
 
 void term_doc_goto_top(void)
 {
   doc_view = 0u;
+  term_doc_mark_screen_bad();
+}
+
+static void term_doc_paint_row(unsigned char vis_y, unsigned int src_line)
+{
+  if (src_line <= doc_high_line && src_line < doc_count)
+  {
+    unsigned char x;
+    unsigned char attr;
+    unsigned char prev_attr;
+    unsigned char ch;
+
+    prev_attr = doc_at[src_line][0];
+    OS_SETXY(0u, vis_y);
+    OS_SETCOLOR(prev_attr);
+    for (x = 0u; x < TERM_COLS; x++)
+    {
+      attr = doc_at[src_line][x];
+      ch = doc_ch[src_line][x];
+      if (attr != prev_attr)
+      {
+        OS_SETXY(x, vis_y);
+        OS_SETCOLOR(attr);
+        prev_attr = attr;
+      }
+      term_doc_paint_char(vis_y, x, ch);
+    }
+  }
+  else
+  {
+    unsigned char x;
+
+    OS_SETXY(0u, vis_y);
+    OS_SETCOLOR(0x07u);
+    for (x = 0u; x < TERM_COLS; x++)
+    {
+      term_doc_paint_char(vis_y, x, (unsigned char)' ');
+    }
+  }
+}
+
+static void term_doc_scroll_screen_step(signed char delta)
+{
+  if (delta > 0)
+  {
+    OS_SCROLL_SCREEN_UP(1u);
+    term_doc_paint_row(TERM_LAST_ROW, doc_view + (unsigned int)TERM_VIEW_ROWS - 1u);
+  }
+  else
+  {
+    OS_SCROLL_SCREEN_DOWN(1u);
+    term_doc_paint_row(0u, doc_view);
+  }
 }
 
 void term_doc_paint(void)
 {
   unsigned char vis_y;
-  unsigned int src_line;
 
   if (doc_active == 0u)
   {
@@ -206,48 +274,17 @@ void term_doc_paint(void)
   }
   for (vis_y = 0u; vis_y < TERM_VIEW_ROWS; vis_y++)
   {
-    src_line = doc_view + (unsigned int)vis_y;
-    OS_SETXY(0u, vis_y);
-    if (src_line <= doc_high_line && src_line < doc_count)
-    {
-      unsigned char x;
-      unsigned char attr;
-      unsigned char prev_attr;
-      unsigned char ch;
-
-      prev_attr = doc_at[src_line][0];
-      OS_SETCOLOR(prev_attr);
-      for (x = 0u; x < TERM_COLS; x++)
-      {
-        attr = doc_at[src_line][x];
-        ch = doc_ch[src_line][x];
-        if (attr != prev_attr)
-        {
-          OS_SETXY(x, vis_y);
-          OS_SETCOLOR(attr);
-          prev_attr = attr;
-        }
-        term_doc_paint_char(vis_y, x, ch);
-      }
-    }
-    else
-    {
-      unsigned char x;
-
-      OS_SETXY(0u, vis_y);
-      OS_SETCOLOR(0x07u);
-      for (x = 0u; x < TERM_COLS; x++)
-      {
-        term_doc_paint_char(vis_y, x, (unsigned char)' ');
-      }
-    }
+    term_doc_paint_row(vis_y, doc_view + (unsigned int)vis_y);
   }
+  term_doc_mark_screen_ok();
 }
 
 int term_doc_scroll_view(signed char delta)
 {
   unsigned int new_view;
   unsigned int max_view;
+  unsigned int old_view;
+  unsigned int steps;
 
   if (doc_active == 0u || delta == 0)
   {
@@ -274,8 +311,36 @@ int term_doc_scroll_view(signed char delta)
     }
     new_view = doc_view + 1u;
   }
+  old_view = doc_view;
   doc_view = new_view;
-  term_doc_paint_maybe();
+  if (doc_defer_paint != 0u)
+  {
+    return 1;
+  }
+  if (doc_screen_ok != 0u)
+  {
+    if (new_view > old_view)
+    {
+      steps = new_view - old_view;
+      while (steps-- != 0u)
+      {
+        term_doc_scroll_screen_step(1);
+      }
+      term_doc_mark_screen_ok();
+      return 1;
+    }
+    if (new_view < old_view)
+    {
+      steps = old_view - new_view;
+      while (steps-- != 0u)
+      {
+        term_doc_scroll_screen_step(-1);
+      }
+      term_doc_mark_screen_ok();
+      return 1;
+    }
+  }
+  term_doc_paint();
   return 1;
 }
 
@@ -313,6 +378,7 @@ void term_doc_cls(unsigned char attr)
   doc_color = attr;
   doc_col = 0u;
   doc_vis_row = 0u;
+  term_doc_mark_screen_bad();
   if (doc_follow == 0u)
   {
     for (r = 0u; r < TERM_VIEW_ROWS; r++)
@@ -393,9 +459,20 @@ void term_doc_newline(void)
   term_doc_note_abs_line(doc_abs_line);
   doc_vis_row = TERM_VIEW_ROWS - 1u;
   term_doc_sync_view_follow();
-  if (doc_view != old_view || doc_follow != 0u)
+  if (doc_defer_paint == 0u)
   {
-    term_doc_paint_maybe();
+    if (doc_screen_ok != 0u && doc_view == old_view + 1u)
+    {
+      term_doc_scroll_screen_step(1);
+    }
+    else if (doc_screen_ok != 0u && doc_view == old_view)
+    {
+      term_doc_scroll_screen_step(1);
+    }
+    else
+    {
+      term_doc_paint();
+    }
   }
 }
 
@@ -486,6 +563,7 @@ void term_doc_erase_display(unsigned char mode)
   doc_col = saved_col;
   doc_vis_row = saved_vis_row;
   term_doc_vis_to_abs();
+  term_doc_mark_screen_bad();
   term_doc_paint_maybe();
 }
 
@@ -605,15 +683,27 @@ void term_doc_scroll_up(unsigned char count)
     if (doc_follow == 0u)
     {
       term_doc_scroll_viewport_up();
+      term_doc_mark_screen_bad();
     }
     else
     {
       term_doc_shift_region_up();
+      if (doc_defer_paint == 0u && doc_screen_ok != 0u)
+      {
+        term_doc_scroll_screen_step(1);
+      }
+      else
+      {
+        term_doc_mark_screen_bad();
+      }
     }
     count--;
   }
   term_doc_vis_to_abs();
-  term_doc_paint_maybe();
+  if (doc_defer_paint == 0u && doc_screen_ok == 0u)
+  {
+    term_doc_paint();
+  }
 }
 
 void term_doc_scroll_down(unsigned char count)
@@ -626,15 +716,27 @@ void term_doc_scroll_down(unsigned char count)
       {
         doc_parse_base--;
       }
+      term_doc_mark_screen_bad();
     }
     else
     {
       term_doc_shift_region_down();
+      if (doc_defer_paint == 0u && doc_screen_ok != 0u)
+      {
+        term_doc_scroll_screen_step(-1);
+      }
+      else
+      {
+        term_doc_mark_screen_bad();
+      }
     }
     count--;
   }
   term_doc_vis_to_abs();
-  term_doc_paint_maybe();
+  if (doc_defer_paint == 0u && doc_screen_ok == 0u)
+  {
+    term_doc_paint();
+  }
 }
 
 void term_doc_set_color(unsigned char attr)

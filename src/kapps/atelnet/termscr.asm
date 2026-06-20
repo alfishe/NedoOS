@@ -19,52 +19,6 @@ term_putchar_stay:
 	ret
 	ENDMOD
 
-	MODULE term_scroll
-	PUBLIC term_scroll_up_n, term_scroll_down_n
-	#include "sysdefs.asm"
-	RSEG CODE
-
-; void term_scroll_up_n(unsigned char count);  E=count
-term_scroll_up_n:
-	ld b,e
-	or b
-	ret z
-tsu_loop:
-	push bc
-	ld de,0
-	ld h,25
-	ld l,80
-	ld c,CMD_SCROLLUP
-	push ix
-	push iy
-	call BDOS
-	pop iy
-	pop ix
-	pop bc
-	djnz tsu_loop
-	ret
-
-; void term_scroll_down_n(unsigned char count);  E=count
-term_scroll_down_n:
-	ld b,e
-	or b
-	ret z
-tsd_loop:
-	push bc
-	ld de,0
-	ld h,25
-	ld l,80
-	ld c,CMD_SCROLLDOWN
-	push ix
-	push iy
-	call BDOS
-	pop iy
-	pop ix
-	pop bc
-	djnz tsd_loop
-	ret
-	ENDMOD
-
 	MODULE term_palette
 	PUBLIC term_set_ansi_palette, term_palette_save
 	PUBLIC term_palette_begin, term_palette_restore
