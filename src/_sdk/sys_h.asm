@@ -659,7 +659,7 @@ __1=$
 ;Примечание: во время проигрывания не вызывайте YIELD и не полагайтесь на прерывания.
 ;Для фонового звука используйте OS_SETMUSIC (PT3) или AY-эффекты; OS_PLAYCOVOX ? для
 ;коротких синхронных сэмплов (выстрел, взрыв, щелчок и т.п.).
-        macro OS_PLAYCOVOX ;hl=data (0xc000+, 0x00=end), de=pagetable (0x0000+), hx=delay (18=11kHz, 7=22kHz, 1=44kHz)
+        macro OS_PLAYCOVOX ;hl=data (0xc000+, 0x00=end), de=pagetable (0x0000+), hx=delay
         ld c,CMD_PLAYCOVOX
 	CALLBDOS_NOPARAM_A
         endm

@@ -308,6 +308,125 @@ BDOS_countattraddr
         inc l
         ret
         
+BDOS_pchar_stay
+;e=char
+         ld hl,(appaddr)
+         ld bc,(focusappaddr)
+         or a
+         sbc hl,bc
+         ret nz
+        ld h,trecode/256
+        ld l,e
+        ld a,(hl)
+        ld l,(iy+app.textcuraddr)
+        ld h,(iy+app.textcuraddr+1)
+        ld e,a
+        ld a,pgscr0_1
+        call sys_setpgc000
+        ld (hl),e
+        ld a,pgscr0_0
+        call sys_setpgc000
+        ld a,h
+        xor 0x20
+        ld h,a
+        and 0x20
+        jr nz,BDOS_pchar_stay_attr
+        inc l
+BDOS_pchar_stay_attr
+        ld a,(iy+app.curcolor)
+        ld (hl),a
+        ld a,pgkillable
+        call sys_setpgc000
+        xor a
+        ret
+
+BDOS_paint_row_step
+; advance text cursor hl; clamp last column (no scroll)
+        ld a,h
+        xor 0x20
+        ld h,a
+        and 0x20
+        jr nz,BDOS_paint_row_step0
+        inc l
+BDOS_paint_row_step0
+        ld a,l
+        and 0x3f
+        cp 80/2
+        ret nz
+        ld a,l
+        and 0xc0
+        ld l,a
+        ret
+
+BDOS_paint_row
+; B=y, IX=ch[80], HL=attr[80]
+         ld hl,(appaddr)
+         ld bc,(focusappaddr)
+         or a
+         sbc hl,bc
+         ret nz
+
+         push hl
+         push ix
+
+         ld d,b
+         ld e,0
+         call BDOS_countxy
+         ld (BDOS_paint_row_scr),hl
+
+         pop ix
+         pop de
+
+         ld a,pgscr0_1
+         call sys_setpgc000
+         ld hl,(BDOS_paint_row_scr)
+         ld b,80
+BDOS_paint_row_text0
+         push bc
+         push hl
+         ld a,(ix+0)
+         inc ix
+         ld c,a
+         pop hl
+         push hl
+         ld a,c
+         ld h,trecode/256
+         ld l,a
+         ld a,(hl)
+         pop hl
+         ld (hl),a
+         call BDOS_paint_row_step
+         pop bc
+         djnz BDOS_paint_row_text0
+
+         ld a,pgscr0_0
+         call sys_setpgc000
+         ld hl,(BDOS_paint_row_scr)
+         ld b,80
+BDOS_paint_row_attr0
+         push bc
+         ld a,(de)
+         inc de
+         ld c,a
+         push hl
+         ld a,h
+         xor 0x20
+         ld h,a
+         and 0x20
+         jr nz,BDOS_paint_row_attr1
+         inc l
+BDOS_paint_row_attr1
+         ld (hl),c
+         pop hl
+         call BDOS_paint_row_step
+         pop bc
+         djnz BDOS_paint_row_attr0
+
+         ld a,pgkillable
+         call sys_setpgc000
+         xor a
+         ret
+
 BDOS_prattr
 ;e=color byte
          ld hl,(appaddr)
@@ -524,6 +643,9 @@ BDOS_scrollpagelinelayer_wid=$+1
         pop de
         ret
 
+BDOS_paint_row_scr
+        dw 0
+
 BDOS_scrolldown
 ;de=topyx, hl=hgt,wid
 ;x, wid even
@@ -728,8 +850,8 @@ BDOS_playcovox0
         xor a ;4
 BDOS_playcovox0_a0
 	or (hl)	;7
+	jr z,BDOS_playcovoxdone	;0x00 = end marker, do not send to covox
 	out (0xfb),a	;11
-	jr z,BDOS_playcovoxdone	;7/12
 	inc hl		;6
 	bit 6,h		;8
 	jr z,BDOS_playcovoxpage	;7/12
@@ -3059,7 +3181,14 @@ BDOS_getmemports
 
 ;*****************çÖÑéäìåÖçíàêéÇÄççõÖ*********************
 ;¢ÎßÆ¢ ‰„≠™Ê®® DE · ™†‡‚Æ© ™•‡≠†´Ô.
+;D=0xFE: B=y, IX=ch[80], HL=attr[80] ? fast row paint.
+;D=0xFF: E=char, put at cursor without advance (for full-screen repaint).
 BDOS_reserv_1
+        ld a,d
+        cp 0xfe
+        jp z,BDOS_paint_row
+        cp 0xff
+        jp z,BDOS_pchar_stay
     di
         call BDOS_preparedepage
         call BDOS_setdepage
