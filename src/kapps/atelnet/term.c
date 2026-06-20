@@ -41,6 +41,7 @@ static unsigned char term_cpr_fix_corner;
 #define TERM_REPLY_MAX 24u
 static unsigned char term_reply[TERM_REPLY_MAX];
 static unsigned char term_reply_len;
+static unsigned char term_hw_sync;
 
 static void term_reply_push(unsigned char b)
 {
@@ -117,6 +118,22 @@ void term_drain_replies(void (*emit)(unsigned char b))
   term_reply_len = 0u;
 }
 
+unsigned char term_has_replies(void)
+{
+  return term_reply_len > 0u;
+}
+
+static void term_sync_hw(void)
+{
+  OS_SETXY(term_col, term_row);
+  term_hw_sync = 1u;
+}
+
+static void term_desync_hw(void)
+{
+  term_hw_sync = 0u;
+}
+
 void term_init(void)
 {
   term_color = 0x07u;
@@ -131,6 +148,7 @@ void term_init(void)
   term_wire_cp866 = 0u;
   term_cpr_fix_corner = 0u;
   term_doc_end();
+  term_desync_hw();
 }
 
 void term_set_wire_cp437(void)
@@ -163,10 +181,15 @@ void term_cls(unsigned char attr)
   OS_CLS(attr);
   term_col = 0u;
   term_row = 0u;
+  term_hw_sync = 1u;
 }
 
 void term_set_color(unsigned char attr)
 {
+  if (term_color == attr)
+  {
+    return;
+  }
   term_color = attr;
   if (term_doc_active() != 0u)
   {
@@ -183,6 +206,11 @@ unsigned char term_get_color(void)
 
 void term_set_xy(unsigned char col, unsigned char row)
 {
+  unsigned char old_col;
+  unsigned char old_row;
+
+  old_col = term_col;
+  old_row = term_row;
   if (col > TERM_LAST_COL)
   {
     col = TERM_LAST_COL;
@@ -198,7 +226,11 @@ void term_set_xy(unsigned char col, unsigned char row)
     term_doc_set_vis_xy(col, row);
     return;
   }
-  OS_SETXY(col, row);
+  if (term_hw_sync != 0u && col == old_col && row == old_row)
+  {
+    return;
+  }
+  term_sync_hw();
 }
 
 void term_get_xy(unsigned char *col, unsigned char *row)
@@ -232,6 +264,10 @@ static void term_fill_spaces(unsigned char count)
 
   for (i = 0u; i < count; i++)
   {
+    if (term_hw_sync == 0u)
+    {
+      term_sync_hw();
+    }
     term_emit_bdos(' ');
     if (term_col < TERM_LAST_COL)
     {
@@ -252,13 +288,14 @@ static void term_newline(void)
   if (term_row < term_last_row())
   {
     term_row++;
-    OS_SETXY(term_col, term_row);
+    term_sync_hw();
     return;
   }
+  term_desync_hw();
   term_scroll_up(1u);
-  OS_SETXY(0u, term_last_row());
   term_col = 0u;
   term_row = term_last_row();
+  term_sync_hw();
 }
 
 static void term_backspace(void)
@@ -274,24 +311,27 @@ static void term_backspace(void)
     return;
   }
   term_col--;
-  OS_SETXY(term_col, term_row);
+  term_sync_hw();
   term_emit_bdos(' ');
-  OS_SETXY(term_col, term_row);
+  term_sync_hw();
 }
 
 static void term_tab(void)
 {
   unsigned char next;
+  unsigned char spaces;
 
   next = (unsigned char)(((term_col >> 3) + 1u) << 3);
   if (next > TERM_COLS)
   {
     next = TERM_COLS;
   }
-  while (term_col < next)
+  if (term_col >= next)
   {
-    term_putchar((unsigned char)' ');
+    return;
   }
+  spaces = (unsigned char)(next - term_col);
+  term_fill_spaces(spaces);
 }
 
 void term_putchar(unsigned char cp437)
@@ -325,7 +365,7 @@ void term_putchar(unsigned char cp437)
       term_doc_set_vis_xy(0u, term_row);
       return;
     }
-    OS_SETXY(0u, term_row);
+    term_sync_hw();
     return;
   }
   if (cp437 == 0x0Cu)
@@ -355,7 +395,7 @@ void term_putchar(unsigned char cp437)
     {
       term_newline();
     }
-    OS_SETXY(term_col, term_row);
+    term_sync_hw();
     return;
   }
 
@@ -366,13 +406,17 @@ void term_putchar(unsigned char cp437)
     term_doc_get_vis_xy(&term_col, &term_row);
     return;
   }
-  OS_SETXY(term_col, term_row);
+  if (term_hw_sync == 0u)
+  {
+    term_sync_hw();
+  }
   term_emit_bdos(ch);
   if (term_col < TERM_LAST_COL)
   {
     term_col++;
     return;
   }
+  term_desync_hw();
   term_newline();
 }
 
@@ -388,6 +432,7 @@ void term_scroll_up(unsigned char count)
     term_doc_get_vis_xy(&term_col, &term_row);
     return;
   }
+  term_desync_hw();
   OS_SCROLL_SCREEN_UP(count);
 }
 
@@ -403,6 +448,7 @@ void term_scroll_down(unsigned char count)
     term_doc_get_vis_xy(&term_col, &term_row);
     return;
   }
+  term_desync_hw();
   OS_SCROLL_SCREEN_DOWN(count);
 }
 
@@ -545,23 +591,23 @@ static void term_erase_line(unsigned char mode)
     /* EL0: clear to EOL; cursor position must not change (BSRealm login prompt). */
     term_fill_spaces((unsigned char)(TERM_COLS - col));
     term_col = col;
-    OS_SETXY(col, term_row);
+    term_sync_hw();
   }
   else if (mode == 1u)
   {
-    OS_SETXY(0u, term_row);
     term_col = 0u;
+    term_sync_hw();
     term_fill_spaces((unsigned char)(col + 1u));
-    OS_SETXY(col, term_row);
     term_col = col;
+    term_sync_hw();
   }
   else if (mode == 2u)
   {
-    OS_SETXY(0u, term_row);
     term_col = 0u;
+    term_sync_hw();
     term_fill_spaces(TERM_COLS);
-    OS_SETXY(0u, term_row);
     term_col = 0u;
+    term_hw_sync = 1u;
   }
 }
 
@@ -585,9 +631,9 @@ static void term_erase_display(unsigned char mode)
     term_erase_line(0u);
     for (r = (unsigned char)(term_row + 1u); r <= term_last_row(); r++)
     {
-      OS_SETXY(0u, r);
       term_col = 0u;
       term_row = r;
+      term_desync_hw();
       term_fill_spaces(TERM_COLS);
     }
   }
@@ -595,13 +641,13 @@ static void term_erase_display(unsigned char mode)
   {
     for (r = 0u; r < term_row; r++)
     {
-      OS_SETXY(0u, r);
       term_col = 0u;
       term_row = r;
+      term_desync_hw();
       term_fill_spaces(TERM_COLS);
     }
-    OS_SETXY(0u, term_row);
     term_col = 0u;
+    term_sync_hw();
     term_erase_line(1u);
   }
   else if (mode == 2u)
@@ -609,9 +655,9 @@ static void term_erase_display(unsigned char mode)
     term_cls(term_color);
     return;
   }
-  OS_SETXY(saved_col, saved_row);
   term_col = saved_col;
   term_row = saved_row;
+  term_sync_hw();
 }
 
 static void term_cursor_up(unsigned char count)
@@ -634,7 +680,7 @@ static void term_cursor_up(unsigned char count)
   {
     term_row = (unsigned char)(term_row - count);
   }
-  OS_SETXY(term_col, term_row);
+  term_sync_hw();
 }
 
 static void term_cursor_down(unsigned char count)
@@ -661,7 +707,7 @@ static void term_cursor_down(unsigned char count)
   {
     term_row = (unsigned char)(term_row + count);
   }
-  OS_SETXY(term_col, term_row);
+  term_sync_hw();
 }
 
 static void term_cursor_left(unsigned char count)
@@ -684,7 +730,7 @@ static void term_cursor_left(unsigned char count)
   {
     term_col = (unsigned char)(term_col - count);
   }
-  OS_SETXY(term_col, term_row);
+  term_sync_hw();
 }
 
 static void term_cursor_right(unsigned char count)
@@ -710,7 +756,7 @@ static void term_cursor_right(unsigned char count)
   {
     term_col = (unsigned char)(term_col + count);
   }
-  OS_SETXY(term_col, term_row);
+  term_sync_hw();
 }
 
 static void term_cursor_col(unsigned char col)

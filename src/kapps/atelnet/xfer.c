@@ -31,6 +31,7 @@ static unsigned int g_xfer_qtail;
 static unsigned char g_xfer_active;
 static unsigned char g_sniff[XFER_SNIFF_MAX];
 static unsigned char g_sniff_len;
+static unsigned char g_sniff_wr;
 unsigned char g_xfer_block[XBLK1K];
 
 static unsigned int crc16_ccitt(unsigned char *data, unsigned int len)
@@ -111,6 +112,36 @@ static unsigned char g_sniff_pending;
 static unsigned char g_xfer_prefilled;
 static unsigned char g_auto_xfer_proto = 0xFFu;
 
+static unsigned char xfer_sniff_peek(unsigned char idx)
+{
+  unsigned char pos;
+
+  if (idx >= g_sniff_len)
+  {
+    return 0u;
+  }
+  if (g_sniff_len < XFER_SNIFF_MAX)
+  {
+    return g_sniff[idx];
+  }
+  pos = (unsigned char)((g_sniff_wr + idx) % XFER_SNIFF_MAX);
+  return g_sniff[pos];
+}
+
+static void xfer_sniff_push(unsigned char b)
+{
+  if (g_xfer_active != 0u)
+  {
+    return;
+  }
+  g_sniff[g_sniff_wr] = b;
+  g_sniff_wr = (unsigned char)((g_sniff_wr + 1u) % XFER_SNIFF_MAX);
+  if (g_sniff_len < XFER_SNIFF_MAX)
+  {
+    g_sniff_len++;
+  }
+}
+
 static unsigned char xfer_sniff_match(unsigned char a, unsigned char b, unsigned char c)
 {
   if (a == '*' && b == '*')
@@ -153,7 +184,7 @@ static unsigned char xfer_b_after_star(unsigned char i, unsigned char *bpos)
   unsigned char b;
   unsigned char c;
 
-  if (g_sniff[i] != '*')
+  if (xfer_sniff_peek(i) != '*')
   {
     return 0u;
   }
@@ -161,7 +192,7 @@ static unsigned char xfer_b_after_star(unsigned char i, unsigned char *bpos)
   {
     return 0u;
   }
-  b = g_sniff[i + 1u];
+  b = xfer_sniff_peek((unsigned char)(i + 1u));
   if (b == 'B' || b == 'b')
   {
     *bpos = (unsigned char)(i + 1u);
@@ -169,7 +200,7 @@ static unsigned char xfer_b_after_star(unsigned char i, unsigned char *bpos)
   }
   if (b == XFER_ZDLE && i + 2u < g_sniff_len)
   {
-    c = g_sniff[i + 2u];
+    c = xfer_sniff_peek((unsigned char)(i + 2u));
     if (c == 'B' || c == 'b')
     {
       *bpos = (unsigned char)(i + 2u);
@@ -178,7 +209,7 @@ static unsigned char xfer_b_after_star(unsigned char i, unsigned char *bpos)
   }
   if (b == '*' && i + 2u < g_sniff_len)
   {
-    c = g_sniff[i + 2u];
+    c = xfer_sniff_peek((unsigned char)(i + 2u));
     if (c == 'B' || c == 'b')
     {
       *bpos = (unsigned char)(i + 2u);
@@ -186,7 +217,8 @@ static unsigned char xfer_b_after_star(unsigned char i, unsigned char *bpos)
     }
     if (c == XFER_ZDLE && i + 3u < g_sniff_len)
     {
-      if (g_sniff[i + 3u] == 'B' || g_sniff[i + 3u] == 'b')
+      if (xfer_sniff_peek((unsigned char)(i + 3u)) == 'B' ||
+          xfer_sniff_peek((unsigned char)(i + 3u)) == 'b')
       {
         *bpos = (unsigned char)(i + 3u);
         return 1u;
@@ -213,14 +245,15 @@ static unsigned char xfer_sniff_zrqinit_complete(unsigned char *trig)
     {
       continue;
     }
-    if (g_sniff[bpos + 1u] != '0' || g_sniff[bpos + 2u] != '0')
+    if (xfer_sniff_peek((unsigned char)(bpos + 1u)) != '0' ||
+        xfer_sniff_peek((unsigned char)(bpos + 2u)) != '0')
     {
       continue;
     }
     got = 0u;
     for (j = (unsigned char)(bpos + 1u); j < g_sniff_len; j++)
     {
-      if (xfer_is_hex(g_sniff[j]) != 0u)
+      if (xfer_is_hex(xfer_sniff_peek(j)) != 0u)
       {
         got++;
         if (got >= 14u)
@@ -242,13 +275,13 @@ static unsigned char xfer_sniff_find_zmodem(unsigned char *trig)
 
   for (i = 0u; i < g_sniff_len; i++)
   {
-    if (g_sniff[i] != '*')
+    if (xfer_sniff_peek(i) != '*')
     {
       continue;
     }
     if (i + 1u < g_sniff_len)
     {
-      b = g_sniff[i + 1u];
+      b = xfer_sniff_peek((unsigned char)(i + 1u));
       if (b == 'B' || b == 'b')
       {
         *trig = i;
@@ -256,7 +289,7 @@ static unsigned char xfer_sniff_find_zmodem(unsigned char *trig)
       }
       if (b == XFER_ZDLE && i + 2u < g_sniff_len)
       {
-        c = g_sniff[i + 2u];
+        c = xfer_sniff_peek((unsigned char)(i + 2u));
         if (c == 'B' || c == 'b')
         {
           *trig = i;
@@ -265,7 +298,7 @@ static unsigned char xfer_sniff_find_zmodem(unsigned char *trig)
       }
       if (b == '*' && i + 2u < g_sniff_len)
       {
-        c = g_sniff[i + 2u];
+        c = xfer_sniff_peek((unsigned char)(i + 2u));
         if (c == 'B' || c == 'b')
         {
           *trig = i;
@@ -273,7 +306,8 @@ static unsigned char xfer_sniff_find_zmodem(unsigned char *trig)
         }
         if (c == XFER_ZDLE && i + 3u < g_sniff_len)
         {
-          if (g_sniff[i + 3u] == 'B' || g_sniff[i + 3u] == 'b')
+          if (xfer_sniff_peek((unsigned char)(i + 3u)) == 'B' ||
+              xfer_sniff_peek((unsigned char)(i + 3u)) == 'b')
           {
             *trig = i;
             return XFER_PROTO_ZMODEM;
@@ -314,16 +348,18 @@ void xfer_sniff_replay(void)
   {
     for (i = g_sniff_trigger; i < g_sniff_len; i++)
     {
-      xfer_q_push_raw(g_sniff[i]);
+      xfer_q_push_raw(xfer_sniff_peek(i));
     }
   }
   g_sniff_len = 0u;
+  g_sniff_wr = 0u;
   g_sniff_pending = 0u;
 }
 
 void xfer_sniff_reset(void)
 {
   g_sniff_len = 0u;
+  g_sniff_wr = 0u;
   g_sniff_trigger = 0u;
   g_sniff_pending = 0u;
 }
@@ -337,7 +373,7 @@ static void xfer_arm_capture(unsigned char proto)
   {
     for (i = g_sniff_trigger; i < g_sniff_len; i++)
     {
-      xfer_dbg_log_rx(g_sniff[i]);
+      xfer_dbg_log_rx(xfer_sniff_peek(i));
     }
   }
   g_xfer_prefilled = 1u;
@@ -379,56 +415,7 @@ unsigned char xfer_is_prefilled(void)
 
 unsigned char xfer_sniff_byte(unsigned char b)
 {
-  unsigned char i;
-  unsigned char proto;
-  unsigned char trig;
-
-  if (g_xfer_active != 0u)
-  {
-    return 0xFFu;
-  }
-  if (b == XSOH || b == XSTX)
-  {
-    g_sniff_trigger = g_sniff_len;
-    g_sniff_pending = 1u;
-    if (g_sniff_len < XFER_SNIFF_MAX)
-    {
-      g_sniff[g_sniff_len++] = b;
-    }
-    return XFER_PROTO_YMODEM;
-  }
-  if (g_sniff_len < XFER_SNIFF_MAX)
-  {
-    g_sniff[g_sniff_len++] = b;
-  }
-  else
-  {
-    for (i = 0u; i < XFER_SNIFF_MAX - 1u; i++)
-    {
-      g_sniff[i] = g_sniff[i + 1u];
-    }
-    g_sniff[XFER_SNIFF_MAX - 1u] = b;
-  }
-  proto = xfer_sniff_zrqinit_complete(&trig);
-  if (proto != 0xFFu)
-  {
-    g_sniff_trigger = trig;
-    g_sniff_pending = 1u;
-    return proto;
-  }
-  if (g_sniff_len >= 3u)
-  {
-    for (i = 0u; i + 2u < g_sniff_len; i++)
-    {
-      proto = xfer_sniff_match(g_sniff[i], g_sniff[i + 1u], g_sniff[i + 2u]);
-      if (proto != 0xFFu)
-      {
-        g_sniff_trigger = i;
-        g_sniff_pending = 1u;
-        return proto;
-      }
-    }
-  }
+  xfer_sniff_push(b);
   return 0xFFu;
 }
 

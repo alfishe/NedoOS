@@ -2,3 +2,6 @@
 "../../../tools/dmimg.exe" ../../../us/sd_nedo.vhd put atelnet.com /bin/atelnet.com
 "../../../tools/dmimg.exe" ../../../us/sd_nedo.vhd put ansiview.com /bin/ansiview.com
 if "%makeall%"=="" ..\..\..\us\emul.exe
+del atelnet.com
+del ansiview.com
+rd /Q /S obj

@@ -261,7 +261,10 @@ static void telnet_feed_term(unsigned char b)
   {
     return;
   }
-  telnet_flush_replies();
+  if (term_has_replies() != 0u)
+  {
+    telnet_flush_replies();
+  }
 }
 
 static XferIO g_xfer_io;
@@ -459,8 +462,6 @@ static void telnet_start_receive(unsigned char proto)
 
 static void telnet_data_byte(unsigned char b)
 {
-  unsigned char proto;
-
   if (xfer_dbg_capturing() != 0u)
   {
     xfer_dbg_log_rx(b);
@@ -470,12 +471,7 @@ static void telnet_data_byte(unsigned char b)
     (void)xfer_rx_byte(b);
     return;
   }
-  proto = xfer_sniff_byte(b);
-  if (proto != 0xFFu)
-  {
-    xfer_preflight(proto);
-    return;
-  }
+  /* Keep RX path minimal: no auto-sniff in normal telnet rendering. */
   telnet_feed_term(b);
 }
 
@@ -854,16 +850,6 @@ int telnet_session(const char *host, unsigned int port, unsigned char debug, uns
     if (g_txlen > 0u)
     {
       telnet_flush_tx();
-    }
-    {
-      unsigned char auto_proto;
-
-      auto_proto = xfer_take_auto();
-      if (auto_proto != 0xFFu)
-      {
-        telnet_start_receive(auto_proto);
-        continue;
-      }
     }
     key = (unsigned char)(OS_GETKEY() & 0xFFL);
     if (key != 0u)
