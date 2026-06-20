@@ -28,6 +28,7 @@ void term_scroll_down(unsigned char count);
 int term_feed(unsigned char b); /* 0 = stop (SAUCE/0x1A marker) */
 void term_drain_replies(void (*emit)(unsigned char b));
 unsigned char term_has_replies(void);
+unsigned char term_take_ed2_needs_cr(void);
 void term_palette_begin(void);
 void term_palette_restore(void);
 

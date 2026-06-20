@@ -512,7 +512,6 @@ void xfer_dbg_draw(unsigned char qdepth)
 
 void xfer_dbg_note(const char *msg)
 {
-  (void)msg;
 }
 
 void xfer_dbg_frame(unsigned char rc, unsigned char typ, unsigned char idle)

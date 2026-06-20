@@ -60,7 +60,7 @@ install: $(ATELNET_BIN) $(ANSIVIEW_BIN)
 	$(CP) $(ANSIVIEW_BIN) $(ROOTDIR)/release/$(INSTDIR)
 
 $(OBJ)/%.r01: %.c $(SRCH) $(LIBH) | $(OBJ)
-	$(ICCZ80) -C -v0 -ml -s7 -S -uu -e -K -gA -O$(OBJ)/ -L$(OBJ)/ -A$(OBJ)/ -I$(IARINC) -I$(LIBDIR) $<
+	$(ICCZ80) -C -v0 -ml -s7 -S -uu -e -K -gA -w -O$(OBJ)/ -L$(OBJ)/ -A$(OBJ)/ -I$(IARINC) -I$(LIBDIR) $<
 
 $(OBJ)/%.r01: %.asm $(OSSDK)/sysdefs.asm | $(OBJ)
 	$(AZ80) -uu -S -v0 -O$(OBJ)/ -I$(OSSDK) $<

@@ -34,7 +34,8 @@ OS_GETATTR:
 	ENDMOD
 	
 	MODULE OSSETXY
-	PUBLIC OS_SETXY,OS_SCROLLUP,OS_SCROLLDOWN	//,OS_CLS,OS_SETGFX
+	PUBLIC OS_SETXY,OS_SCROLLUP,OS_SCROLLDOWN
+	PUBLIC OS_SCROLL_SCREEN_UP,OS_SCROLL_SCREEN_DOWN
 	PUBLIC panel_files_scroll_up,panel_files_scroll_down
 	PUBLIC _OS_GFX_CALL,OS_SETXYW
 	#include "sysdefs.asm"
@@ -95,6 +96,40 @@ panel_files_scroll_up:
 	ld b,18
 	ld c,40
 	jp OS_SCROLLUP
+
+; void OS_SCROLL_SCREEN_UP(unsigned char count); full 80x25 text screen
+OS_SCROLL_SCREEN_UP:
+	ld b,e
+	or b
+	ret z
+ossu_loop:
+	push bc
+	xor a
+	ld d,a
+	ld e,a
+	ld b,25
+	ld c,80
+	call OS_SCROLLUP
+	pop bc
+	djnz ossu_loop
+	ret
+
+; void OS_SCROLL_SCREEN_DOWN(unsigned char count);
+OS_SCROLL_SCREEN_DOWN:
+	ld b,e
+	or b
+	ret z
+ossd_loop:
+	push bc
+	xor a
+	ld d,a
+	ld e,a
+	ld b,25
+	ld c,80
+	call OS_SCROLLDOWN
+	pop bc
+	djnz ossd_loop
+	ret
 	ENDMOD
 	
 	MODULE OSGETXY

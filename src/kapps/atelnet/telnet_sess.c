@@ -53,6 +53,7 @@ static unsigned char g_echo_remote;
 static unsigned char g_debug;
 static unsigned char g_sock_err;
 static unsigned char g_tn_sga;
+static unsigned char g_tn_binary;
 static unsigned char g_cpr_ga_debt;
 static unsigned char g_wait_hint;
 static unsigned int g_rx_total;
@@ -151,7 +152,11 @@ static void telnet_handle_do(unsigned char opt)
     telnet_flush_tx();
     break;
   case TN_TTYPE:
+    telnet_send_iac(TN_WILL, opt);
+    telnet_flush_tx();
+    break;
   case TN_BIN:
+    g_tn_binary = 1u;
     telnet_send_iac(TN_WILL, opt);
     telnet_flush_tx();
     break;
@@ -174,6 +179,10 @@ static void telnet_handle_cmd(unsigned char cmd, unsigned char opt)
     {
       g_echo_remote = 0u;
     }
+    else if (opt == TN_BIN)
+    {
+      g_tn_binary = 0u;
+    }
     telnet_send_iac(TN_WONT, opt);
     telnet_flush_tx();
     break;
@@ -188,6 +197,10 @@ static void telnet_handle_cmd(unsigned char cmd, unsigned char opt)
       g_tn_sga = 1u;
       telnet_flush_ga_debt();
     }
+    else if (opt == TN_BIN)
+    {
+      g_tn_binary = 1u;
+    }
     telnet_send_iac(TN_DO, opt);
     telnet_flush_tx();
     break;
@@ -199,6 +212,10 @@ static void telnet_handle_cmd(unsigned char cmd, unsigned char opt)
     else if (opt == TN_SGA)
     {
       g_tn_sga = 0u;
+    }
+    else if (opt == TN_BIN)
+    {
+      g_tn_binary = 0u;
     }
     telnet_send_iac(TN_DONT, opt);
     telnet_flush_tx();
@@ -285,7 +302,6 @@ static unsigned char telnet_xfer_read_byte(XferIO *io, unsigned char *out)
   unsigned char key;
   unsigned char i;
 
-  (void)io;
   if (xfer_queue_pop_for_io(out) != 0u)
   {
     return 1u;
@@ -311,7 +327,6 @@ static unsigned char telnet_xfer_read_byte(XferIO *io, unsigned char *out)
 
 static void telnet_xfer_write_byte(XferIO *io, unsigned char b)
 {
-  (void)io;
   telnet_send_byte(b);
   if (b == TN_IAC)
   {
@@ -324,7 +339,6 @@ static void telnet_xfer_pump(XferIO *io)
 {
   unsigned char i;
 
-  (void)io;
   for (i = 0u; i < 128u; i++)
   {
     if (telnet_poll_rx() <= 0)
@@ -336,7 +350,6 @@ static void telnet_xfer_pump(XferIO *io)
 
 static void telnet_xfer_flush(XferIO *io)
 {
-  (void)io;
   telnet_flush_tx();
 }
 
@@ -344,7 +357,6 @@ static void telnet_xfer_write_buf(XferIO *io, const unsigned char *buf, unsigned
 {
   unsigned int i;
 
-  (void)io;
   for (i = 0u; i < len; i++)
   {
     telnet_xfer_write_byte(io, buf[i]);
@@ -355,7 +367,6 @@ static void telnet_xfer_write_buf(XferIO *io, const unsigned char *buf, unsigned
 
 static void telnet_xfer_status(XferIO *io, const char *msg)
 {
-  (void)io;
   term_set_xy(0u, 23u);
   term_set_color(0x4Eu);
   printf("%-78s", msg);
@@ -601,12 +612,13 @@ static void telnet_status_draw(void)
   term_get_xy(&col, &row);
   term_set_xy(0u, TERM_LAST_ROW);
   term_set_color(0x70u);
-  printf("RX:%u TX:%u cpr:%u ga:%u sga:%u echo:%s err:%u ",
+  printf("RX:%u TX:%u cpr:%u ga:%u sga:%u bin:%u echo:%s err:%u ",
          g_rx_total,
          g_tx_total,
          g_cpr_tx,
          g_ga_tx,
          (unsigned int)g_tn_sga,
+         (unsigned int)g_tn_binary,
          g_echo_remote != 0u ? "srv" : "loc",
          (unsigned int)g_sock_err);
   term_set_color(0x07u);
@@ -658,7 +670,6 @@ static void telnet_send_key(unsigned char key)
   case KEY_CSENTER:
   case 10:
     telnet_send_byte(13u);
-    telnet_send_byte(10u);
     break;
   default:
     if (key >= 32 && key < 127)
@@ -703,6 +714,7 @@ static void show_connecting(const char *host, unsigned int port)
 {
   term_cls(0x07u);
   term_set_xy(0u, 0u);
+  term_set_color(0x07u);
   printf("Connecting %s:%u ...", host, port);
 }
 
@@ -773,6 +785,7 @@ int telnet_session(const char *host, unsigned int port, unsigned char debug, uns
   g_debug = debug;
   g_sock_err = 0u;
   g_tn_sga = 0u;
+  g_tn_binary = 0u;
   g_cpr_ga_debt = 0u;
   g_wait_hint = 0u;
   g_rx_total = 0u;
@@ -795,9 +808,8 @@ int telnet_session(const char *host, unsigned int port, unsigned char debug, uns
     return 0;
   }
 
-  term_cls(0x07u);
   term_init();
-  term_set_color(0x07u);
+  term_cls(0x07u);
   if (cp866 != 0u)
   {
     term_set_wire_cp866();
@@ -840,6 +852,12 @@ int telnet_session(const char *host, unsigned int port, unsigned char debug, uns
     if (running == 0u)
     {
       break;
+    }
+    if (term_take_ed2_needs_cr() != 0u && xfer_is_active() == 0u)
+    {
+      telnet_send_byte(13u);
+      telnet_flush_tx();
+      continue;
     }
     if (poll_rc == 0)
     {

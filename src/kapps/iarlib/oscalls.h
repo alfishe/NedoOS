@@ -11,6 +11,15 @@ void OS_SETCOLOR(unsigned char color);
 void OS_PRATTR(unsigned char attribute);
 void OS_SETXY(unsigned char x, unsigned char y);
 void OS_SETXYW(unsigned int w);
+/* BDOS text scroll: xy=(y<<8)|x, wh=(height<<8)|width; x and width must be even. */
+void OS_SCROLLUP(unsigned int xy, unsigned int wh);
+void OS_SCROLLDOWN(unsigned int xy, unsigned int wh);
+#define OS_SCROLL_XY(y, x) (((unsigned int)(y) << 8) | (unsigned int)(x))
+#define OS_SCROLL_WH(h, w) (((unsigned int)(h) << 8) | (unsigned int)(w))
+#define OS_SCROLL_SCREEN_H 25u
+#define OS_SCROLL_SCREEN_W 80u
+void OS_SCROLL_SCREEN_UP(unsigned char count);
+void OS_SCROLL_SCREEN_DOWN(unsigned char count);
 void OS_SETMUSIC(void (*play)(void), unsigned char pg);
 
 typedef struct

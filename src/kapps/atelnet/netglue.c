@@ -11,8 +11,6 @@ struct readstructure readStruct;
 
 void writeLog(char *a, char *b)
 {
-  (void)a;
-  (void)b;
 }
 
 #include "../common/network.c"
