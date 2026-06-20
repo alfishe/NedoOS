@@ -146,7 +146,8 @@
 #define PANEL_META_USED_BYTES (PANEL_META_OFF_MARK + PANEL_META_MARK_BYTES)
 #define NC_NVEXT_OFF PANEL_META_USED_BYTES
 #define NC_NVEXT_SPARE (BANK_PAGE_SIZE - PANEL_META_USED_BYTES)
-#define NC_NVEXT_MAX 1024u /* nv.ext; must fit in NC_NVEXT_SPARE (~1804 B) */
+#define NC_NVEXT_MAX 1024u /* nv.ext+nc.ext; must fit in NC_NVEXT_SPARE (~1804 B) */
+#define NC_EXT_HANDLER_MAX 96u /* handler may include args, e.g. atelnet.com -f */
 
 #define PANEL_KIND_FILE 0u
 #define PANEL_KIND_DIR 1u
@@ -526,6 +527,8 @@ NCCopyProg copy_prog;
 char copy_prog_current_name[64];
 
 static unsigned int g_nvext_size;
+static unsigned int g_ncext_off;
+static unsigned int g_ncext_size;
 static char g_run_saved_cwd[64];
 
 static unsigned char copy_workspace_begin(void)
@@ -3364,8 +3367,8 @@ static void nc_nvext_unmap(void)
 
 static void nc_nvext_load(void)
 {
-	FILE *nvf;
-	unsigned int nvextSize;
+	FILE *fp;
+	unsigned int fileSize;
 	unsigned int loop;
 	unsigned int loaded;
 	unsigned int toRead;
@@ -3373,13 +3376,15 @@ static void nc_nvext_load(void)
 	char io_chunk[128];
 
 	g_nvext_size = 0;
+	g_ncext_off = 0;
+	g_ncext_size = 0;
 	if (!panel_banks_ok(&left_panel))
 		return;
 
 	SETPG32KHIGH(residentPg);
 	OS_SETSYSDRV();
-	nvf = OS_OPENHANDLE((unsigned char *)"nv.ext", 0x80);
-	if (((int)nvf) & 0xff)
+	fp = OS_OPENHANDLE((unsigned char *)"nv.ext", 0x80);
+	if (((int)fp) & 0xff)
 	{
 		print_cstr("nv.ext not found.");
 		print_crlf();
@@ -3387,20 +3392,20 @@ static void nc_nvext_load(void)
 	}
 
 	SETPG32KHIGH(residentPg);
-	nvextSize = OS_GETFILESIZE(nvf);
-	if (nvextSize >= NC_NVEXT_MAX)
-		nvextSize = NC_NVEXT_MAX - 1u;
+	fileSize = OS_GETFILESIZE(fp);
+	if (fileSize >= NC_NVEXT_MAX)
+		fileSize = NC_NVEXT_MAX - 1u;
 
 	nc_nvext_map();
 	dst = nc_nvext_base();
 	loop = 0;
-	while (loop < nvextSize)
+	while (loop < fileSize)
 	{
-		toRead = nvextSize - loop;
+		toRead = fileSize - loop;
 		if (toRead > sizeof(io_chunk))
 			toRead = (unsigned int)sizeof(io_chunk);
 		SETPG32KHIGH(residentPg);
-		loaded = OS_READHANDLE((unsigned char *)io_chunk, nvf, toRead);
+		loaded = OS_READHANDLE((unsigned char *)io_chunk, fp, toRead);
 		if (loaded == 0)
 			break;
 		nc_nvext_map();
@@ -3408,16 +3413,52 @@ static void nc_nvext_load(void)
 		loop += loaded;
 	}
 	SETPG32KHIGH(residentPg);
-	OS_CLOSEHANDLE(nvf);
+	OS_CLOSEHANDLE(fp);
 	g_nvext_size = loop;
+	nc_nvext_map();
+	dst[loop] = 0;
+	SETPG32KHIGH(residentPg);
+
+	if (loop + 2u >= NC_NVEXT_MAX)
+		return;
+
+	fp = OS_OPENHANDLE((unsigned char *)NC_EXT_NAME, 0x80);
+	if (((int)fp) & 0xff)
+		return;
+
+	SETPG32KHIGH(residentPg);
+	fileSize = OS_GETFILESIZE(fp);
+	if (fileSize + loop + 1u >= NC_NVEXT_MAX)
+		fileSize = NC_NVEXT_MAX - loop - 2u;
+
+	g_ncext_off = loop + 1u;
+	nc_nvext_map();
+	dst = nc_nvext_base() + g_ncext_off;
+	loop = 0;
+	while (loop < fileSize)
+	{
+		toRead = fileSize - loop;
+		if (toRead > sizeof(io_chunk))
+			toRead = (unsigned int)sizeof(io_chunk);
+		SETPG32KHIGH(residentPg);
+		loaded = OS_READHANDLE((unsigned char *)io_chunk, fp, toRead);
+		if (loaded == 0)
+			break;
+		nc_nvext_map();
+		memcpy(dst + loop, io_chunk, loaded);
+		loop += loaded;
+	}
+	SETPG32KHIGH(residentPg);
+	OS_CLOSEHANDLE(fp);
+	g_ncext_size = loop;
 	nc_nvext_map();
 	dst[loop] = 0;
 	SETPG32KHIGH(residentPg);
 }
 
-static unsigned char nc_nvext_find_handler(const char *ext, char *handler, unsigned int handler_sz)
+static unsigned char nc_ext_db_find_handler(const unsigned char *pDb, unsigned int dbSize, const char *ext,
+											char *handler, unsigned int handler_sz)
 {
-	const unsigned char *pDb;
 	const unsigned char *pEnd;
 	const unsigned char *pLineStart;
 	unsigned char extLow[4];
@@ -3425,7 +3466,7 @@ static unsigned char nc_nvext_find_handler(const char *ext, char *handler, unsig
 	unsigned int i;
 
 	found = 0;
-	if (g_nvext_size == 0u)
+	if (dbSize == 0u)
 		return 0;
 
 	for (i = 0; i < 3u && ext[i] != 0 && ext[i] != ' '; i++)
@@ -3434,9 +3475,7 @@ static unsigned char nc_nvext_find_handler(const char *ext, char *handler, unsig
 	if (extLow[0] == 0)
 		return 0;
 
-	nc_nvext_map();
-	pDb = (const unsigned char *)nc_nvext_base();
-	pEnd = pDb + g_nvext_size;
+	pEnd = pDb + dbSize;
 
 	while (pDb < pEnd && *pDb != 0)
 	{
@@ -3460,7 +3499,7 @@ static unsigned char nc_nvext_find_handler(const char *ext, char *handler, unsig
 						handler[i++] = (char)*pDb++;
 					handler[i] = 0;
 					found = 1;
-					goto nc_nvext_find_done;
+					goto nc_ext_db_find_done;
 				}
 			}
 			while (pDb < pEnd && *pDb != ',' && *pDb != ':' && *pDb != 0x0d && *pDb != 0x0a && *pDb != 0)
@@ -3479,7 +3518,27 @@ static unsigned char nc_nvext_find_handler(const char *ext, char *handler, unsig
 			pDb++;
 	}
 
-nc_nvext_find_done:
+nc_ext_db_find_done:
+	return found;
+}
+
+static unsigned char nc_nvext_find_handler(const char *ext, char *handler, unsigned int handler_sz)
+{
+	unsigned char found;
+
+	found = 0;
+	if (g_ncext_size != 0u)
+	{
+		nc_nvext_map();
+		found = nc_ext_db_find_handler((const unsigned char *)nc_nvext_base() + g_ncext_off, g_ncext_size, ext,
+									   handler, handler_sz);
+	}
+	if (!found && g_nvext_size != 0u)
+	{
+		nc_nvext_map();
+		found = nc_ext_db_find_handler((const unsigned char *)nc_nvext_base(), g_nvext_size, ext, handler,
+									   handler_sz);
+	}
 	nc_nvext_unmap();
 	return found;
 }
@@ -3826,7 +3885,7 @@ static unsigned char nc_cmd_handle_key(unsigned char key, PanelState *panel)
 static void nc_run_selected_file(PanelState *panel)
 {
 	char name[64];
-	char handler[64];
+	char handler[NC_EXT_HANDLER_MAX];
 	const char *ext;
 	unsigned char is_dir;
 
@@ -3848,7 +3907,11 @@ static void nc_run_selected_file(PanelState *panel)
 	}
 	ext++;
 
-	if (nc_nvext_find_handler(ext, handler, sizeof(handler)))
+	if (ext_cmp(ext, "bat") == 0)
+	{
+		(void)nc_run_cmd_direct(panel, name, NULL);
+	}
+	else if (nc_nvext_find_handler(ext, handler, sizeof(handler)))
 	{
 		(void)nc_run_cmd_direct(panel, handler, name);
 	}
@@ -3857,11 +3920,7 @@ static void nc_run_selected_file(PanelState *panel)
 		(void)nc_run_cmd_direct(panel, name, NULL);
 	}
 	else
-	{
-		print_cstr("No handler for .");
-		print_cstr(ext);
-		print_crlf();
-	}
+		return;
 	nc_run_restore_ui(panel);
 }
 

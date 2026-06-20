@@ -49,6 +49,7 @@
 #define NC_INI_APP_LEN 128u
 #define NC_INI_DIR "../ini"
 #define NC_INI_NAME "nc.ini"
+#define NC_EXT_NAME NC_INI_DIR "/nc.ext"
 #define NC_INI_BUF_SIZE 1024u
 
 #define D_BTN_OK 0x01

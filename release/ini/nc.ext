@@ -1,0 +1,2 @@
+# NC-only associations (handler may include cmd args; overrides nv.ext)
+ans: atelnet.com -f
