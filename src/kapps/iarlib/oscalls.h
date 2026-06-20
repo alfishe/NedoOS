@@ -17,10 +17,14 @@ typedef struct
 {
 	void *data;
 	void *pagetable;
-	unsigned char delay; /* BDOS reads IXH ("hx" in SDK asm) */
+	unsigned char delay; /* BDOS reads HX via ld ixh,d (DD 62) */
 } OS_COVOX_PLAY;
 
+/* Legacy: struct pointer (no C000 page restore). Prefer OS_PLAYCOVOX_PLAY. */
 void OS_PLAYCOVOX(const OS_COVOX_PLAY *args);
+
+/* Play Covox sample; restores C000 page mapping on return. */
+void OS_PLAYCOVOX_PLAY(unsigned char hx, void *data, void *pagetable);
 void os_initstdio(void);
 void print(unsigned char *);
 unsigned int OS_GETXY(void);

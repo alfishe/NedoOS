@@ -184,9 +184,9 @@ OS_SETMUSIC:	;DE - proc_ptr, A - ?
 	#include "sysdefs.asm"
 	RSEG CODE
 ;void OS_PLAYCOVOX(const OS_COVOX_PLAY *args);
+;Legacy C wrapper. No curpgc000 restore. Use OS_PLAYCOVOX_PLAY for new code.
 ;struct { void *data; void *pagetable; unsigned char delay; }
-;BDOS: HL=data (0xC000+), DE=pagetable (0x0000+), HX=delay. Clobbers all regs.
-;IAR: ld hx,r -> ld ixr,r (DD 60+reg); games use ld hx,d (DD 62).
+;BDOS: HL=data (0xC000+), DE=pagetable (0x0000+), HX=delay.
 OS_PLAYCOVOX:
 	push bc
 	push de
