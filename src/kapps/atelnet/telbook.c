@@ -22,6 +22,7 @@
 #define TELBOOK_WIN_W 78u
 #define TELBOOK_BOX_H 16u
 #define TELBOOK_HELP_Y 18u
+#define TELBOOK_GLOBAL_HINT_Y 19u
 #define TELBOOK_FRAME_X 0u
 #define TELBOOK_FRAME_Y 1u
 #define TELBOOK_FRAME_BOT 17u
@@ -53,7 +54,6 @@
 #define TELBOOK_ATTR_ROW 0x67u
 #define TELBOOK_ATTR_SEL 0xBCu
 #define TELBOOK_ATTR_HDR 0x67u
-#define TELBOOK_ATTR_TITLE 0x67u
 #define TELBOOK_CHIP_ENTER 0x30u
 #define TELBOOK_CHIP_EDIT 0x1Fu
 #define TELBOOK_CHIP_ADD 0x0Fu
@@ -110,12 +110,7 @@ static const char telbook_default[] =
 
 static unsigned char telbook_total_items(void)
 {
-  return (unsigned char)(telbook_count + 1u);
-}
-
-static unsigned char telbook_is_file_item(unsigned char idx)
-{
-  return (idx >= telbook_count) ? 1u : 0u;
+  return telbook_count;
 }
 
 static void telbook_trim_line(char *s)
@@ -460,10 +455,12 @@ static void telbook_draw_help(void)
   }
 }
 
-static void telbook_draw_title(void)
+static void telbook_draw_global_hint(void)
 {
-  telbook_draw_chip(1u, TELBOOK_TITLE_Y, 24u, TELBOOK_ATTR_TITLE, " atelnet address book ");
-  telbook_draw_chip(56u, TELBOOK_TITLE_Y, 23u, TELBOOK_ATTR_TITLE, " user.tel            ");
+  telbook_fill_rect(1u, TELBOOK_GLOBAL_HINT_Y, 78u, 1u, 0x07u);
+  OS_SETCOLOR(0x07u);
+  OS_SETXY(27u, TELBOOK_GLOBAL_HINT_Y);
+  printf("F10 exit   F2 address book");
 }
 
 static void telbook_paste(char *line, unsigned char off, unsigned char w, const char *text)
@@ -536,12 +533,6 @@ static void telbook_build_row(char *line, unsigned char item_idx, unsigned char 
   line[TB_INNER_W] = 0;
   line[TB_ROW_O_MARK] = (selected != 0u) ? '>' : ' ';
 
-  if (telbook_is_file_item(item_idx))
-  {
-    telbook_paste(line, TB_ROW_O_LABEL, (unsigned char)(TB_INNER_W - TB_ROW_O_LABEL), "File browser");
-    return;
-  }
-
   telbook_field_text(TELBOOK_F_LABEL, &telbook[item_idx], text, sizeof(text));
   telbook_paste(line, TB_ROW_O_LABEL, TB_W_LABEL, text);
   telbook_field_text(TELBOOK_F_HOST, &telbook[item_idx], text, sizeof(text));
@@ -599,7 +590,7 @@ static void telbook_draw_edit_cursor(unsigned char y, unsigned char item_idx, co
   unsigned char cx;
   char ch;
 
-  if (telbook_editing == 0u || item_idx != tel_sel || telbook_is_file_item(item_idx))
+  if (telbook_editing == 0u || item_idx != tel_sel)
   {
     return;
   }
@@ -689,11 +680,10 @@ static void telbook_draw_list(void)
 static void telbook_draw_static(void)
 {
   term_cls(0x07u);
-  telbook_fill_rect(TELBOOK_WIN_X, TELBOOK_TITLE_Y, TELBOOK_WIN_W, 1u, TELBOOK_ATTR_ROW);
   telbook_fill_rect(TELBOOK_WIN_X, TELBOOK_BOX_Y, TELBOOK_WIN_W, TELBOOK_BOX_H, TELBOOK_ATTR_ROW);
   telbook_draw_frame();
-  telbook_draw_title();
   telbook_draw_help();
+  telbook_draw_global_hint();
 }
 
 static void telbook_clamp_scroll(void)
@@ -737,10 +727,6 @@ static void telbook_port_sync_to_entry(unsigned char idx)
 
 static void telbook_begin_edit(unsigned char idx)
 {
-  if (telbook_is_file_item(idx))
-  {
-    return;
-  }
   telbook_editing = 1u;
   telbook_ed_field = TELBOOK_F_LABEL;
   telbook_ed_curs = (unsigned char)strlen(telbook[idx].label);
@@ -754,7 +740,7 @@ static void telbook_end_edit(unsigned char apply)
   {
     return;
   }
-  if (apply != 0u && !telbook_is_file_item(tel_sel))
+  if (apply != 0u)
   {
     telbook_port_sync_to_entry(tel_sel);
     if (telbook[tel_sel].label[0] == 0)
@@ -952,7 +938,7 @@ static void telbook_delete_entry(void)
 {
   unsigned char i;
 
-  if (telbook_is_file_item(tel_sel) || telbook_count == 0u)
+  if (telbook_count == 0u)
   {
     return;
   }
@@ -964,19 +950,6 @@ static void telbook_delete_entry(void)
   telbook_count--;
   telbook_dirty = 1u;
   telbook_clamp_scroll();
-}
-
-static void telbook_file_stub(void)
-{
-  term_cls(0x07u);
-  OS_SETCOLOR(0x0Fu);
-  term_set_xy(4u, 10u);
-  printf("File browser");
-  term_set_xy(4u, 12u);
-  printf("Coming soon.");
-  term_set_xy(4u, 22u);
-  printf("Press any key...");
-  telbook_wait_key();
 }
 
 static int telbook_confirm_quit(void)
@@ -1007,12 +980,6 @@ static int telbook_confirm_quit(void)
 
 static unsigned char telbook_handle_edit_key(unsigned char key)
 {
-  if (telbook_is_file_item(tel_sel))
-  {
-    telbook_editing = 0u;
-    return 1u;
-  }
-
   if (key == 27u)
   {
     telbook_end_edit(0u);
@@ -1105,6 +1072,7 @@ static void telbook_redraw_flush(unsigned char *kind, unsigned char *old_sel,
   if (*help != 0u)
   {
     telbook_draw_help();
+    telbook_draw_global_hint();
   }
   *kind = TEL_RB_NONE;
   *help = 0u;
@@ -1223,13 +1191,7 @@ int telbook_run(char *host, unsigned int host_sz, unsigned int *port,
     }
     else if (key == 13u)
     {
-      if (telbook_is_file_item(tel_sel))
-      {
-        telbook_file_stub();
-        telbook_draw_static();
-        rb_kind = TEL_RB_LIST;
-      }
-      else if (telbook[tel_sel].host[0] != 0)
+      if (telbook[tel_sel].host[0] != 0)
       {
         telbook_end_edit(1u);
         strncpy(host, telbook[tel_sel].host, host_sz - 1u);

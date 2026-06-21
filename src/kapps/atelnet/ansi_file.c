@@ -87,6 +87,7 @@ int ansi_show_file(const char *path)
   term_init();
   term_palette_begin();
   term_doc_begin();
+  term_doc_set_canvas(1u);
   term_doc_set_defer_paint(1u);
   stop = 0u;
 

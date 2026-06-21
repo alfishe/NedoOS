@@ -5,6 +5,7 @@
 
 void term_doc_begin(void);
 void term_doc_end(void);
+void term_doc_set_canvas(unsigned char canvas);
 unsigned char term_doc_active(void);
 unsigned char term_doc_content_last_row(void);
 
@@ -20,6 +21,7 @@ void term_doc_set_color(unsigned char attr);
 void term_doc_cls(unsigned char attr);
 void term_doc_set_vis_xy(unsigned char col, unsigned char vis_row);
 void term_doc_get_vis_xy(unsigned char *col, unsigned char *vis_row);
+void term_doc_carriage_return(void);
 void term_doc_put_atm(unsigned char ch);
 void term_doc_newline(void);
 void term_doc_backspace(void);

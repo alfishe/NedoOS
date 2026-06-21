@@ -416,12 +416,24 @@ void term_putchar(unsigned char cp437)
   }
   if (cp437 == 0x0Au)
   {
+    if (term_doc_active() != 0u)
+    {
+      term_doc_newline();
+      term_doc_get_vis_xy(&term_col, &term_row);
+      return;
+    }
     term_emit_bdos(0x0Au);
     term_pull_hw_xy();
     return;
   }
   if (cp437 == 0x0Du)
   {
+    if (term_doc_active() != 0u)
+    {
+      term_doc_carriage_return();
+      term_doc_get_vis_xy(&term_col, &term_row);
+      return;
+    }
     term_emit_bdos(0x0Du);
     term_pull_hw_xy();
     return;

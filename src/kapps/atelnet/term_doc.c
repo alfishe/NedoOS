@@ -31,6 +31,7 @@ static unsigned char doc_vis_row;
 static unsigned char doc_active;
 static unsigned char doc_follow;
 static unsigned char doc_defer_paint;
+static unsigned char doc_canvas;
 static unsigned char doc_color;
 static unsigned char doc_screen_ok;
 
@@ -151,18 +152,43 @@ static unsigned int term_doc_max_view(void)
 
 static void term_doc_vis_to_abs(void)
 {
-  doc_abs_line = doc_parse_base + (unsigned int)doc_vis_row;
-  if (doc_follow == 0u && doc_abs_line >= TERM_DOC_MAX_LINES)
+  if (doc_canvas != 0u)
   {
-    doc_abs_line = TERM_DOC_MAX_LINES - 1u;
+    doc_abs_line = doc_view + (unsigned int)doc_vis_row;
+  }
+  else
+  {
+    doc_abs_line = doc_parse_base + (unsigned int)doc_vis_row;
+    if (doc_follow == 0u && doc_abs_line >= TERM_DOC_MAX_LINES)
+    {
+      doc_abs_line = TERM_DOC_MAX_LINES - 1u;
+    }
   }
   term_doc_note_abs_line(doc_abs_line);
+}
+
+static void term_doc_canvas_scroll_up(void)
+{
+  unsigned int base;
+  unsigned int line;
+  unsigned int bottom;
+
+  base = doc_view;
+  bottom = base + (unsigned int)TERM_VIEW_ROWS - 1u;
+  term_doc_ensure_abs_line(bottom);
+  for (line = base; line < bottom; line++)
+  {
+    memcpy(doc_ch[line], doc_ch[line + 1u], TERM_COLS);
+    memcpy(doc_at[line], doc_at[line + 1u], TERM_COLS);
+  }
+  term_doc_clear_line(bottom, doc_color);
 }
 
 void term_doc_begin(void)
 {
   doc_active = 1u;
   doc_follow = 0u;
+  doc_canvas = 0u;
   doc_defer_paint = 0u;
   doc_color = 0x07u;
   doc_count = 1u;
@@ -180,6 +206,12 @@ void term_doc_end(void)
 {
   doc_active = 0u;
   doc_follow = 0u;
+  doc_canvas = 0u;
+}
+
+void term_doc_set_canvas(unsigned char canvas)
+{
+  doc_canvas = canvas;
 }
 
 unsigned char term_doc_active(void)
@@ -381,6 +413,16 @@ void term_doc_cls(unsigned char attr)
   term_doc_mark_screen_bad();
   if (doc_follow == 0u)
   {
+    if (doc_canvas != 0u)
+    {
+      for (r = 0u; r < TERM_VIEW_ROWS; r++)
+      {
+        term_doc_clear_line(doc_view + (unsigned int)r, attr);
+        term_doc_note_abs_line(doc_view + (unsigned int)r);
+      }
+      term_doc_paint_maybe();
+      return;
+    }
     for (r = 0u; r < TERM_VIEW_ROWS; r++)
     {
       term_doc_clear_line(doc_parse_base + (unsigned int)r, attr);
@@ -419,6 +461,12 @@ void term_doc_get_vis_xy(unsigned char *col, unsigned char *vis_row)
   *vis_row = doc_vis_row;
 }
 
+void term_doc_carriage_return(void)
+{
+  doc_col = 0u;
+  term_doc_vis_to_abs();
+}
+
 void term_doc_put_atm(unsigned char ch)
 {
   term_doc_vis_to_abs();
@@ -440,13 +488,20 @@ void term_doc_newline(void)
   if (doc_vis_row + 1u < TERM_VIEW_ROWS)
   {
     doc_vis_row++;
-    doc_abs_line = doc_parse_base + (unsigned int)doc_vis_row;
-    term_doc_note_abs_line(doc_abs_line);
+    term_doc_vis_to_abs();
     return;
   }
   old_view = doc_view;
   if (doc_follow == 0u)
   {
+    if (doc_canvas != 0u)
+    {
+      term_doc_canvas_scroll_up();
+      doc_col = 0u;
+      doc_vis_row = TERM_VIEW_ROWS - 1u;
+      term_doc_vis_to_abs();
+      return;
+    }
     term_doc_scroll_viewport_up();
     doc_vis_row = TERM_VIEW_ROWS - 1u;
     return;
@@ -682,8 +737,16 @@ void term_doc_scroll_up(unsigned char count)
   {
     if (doc_follow == 0u)
     {
-      term_doc_scroll_viewport_up();
-      term_doc_mark_screen_bad();
+      if (doc_canvas != 0u)
+      {
+        term_doc_canvas_scroll_up();
+        term_doc_mark_screen_bad();
+      }
+      else
+      {
+        term_doc_scroll_viewport_up();
+        term_doc_mark_screen_bad();
+      }
     }
     else
     {

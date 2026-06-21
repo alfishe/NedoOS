@@ -4,6 +4,7 @@
 #include <oscalls.h>
 #include "atelnet.h"
 #include "netglue.h"
+#include "telbook.h"
 #include "telnet_sess.h"
 #include "xfer.h"
 #include "xfer_dbg.h"
@@ -31,15 +32,16 @@
 #define TXBUF_SIZE 256u
 #define IDLE_HINT_LOOPS 120000ul
 
-/* BDOS key codes (sysdefs.asm cs5..cs8, ext5=F5). */
+/* BDOS key codes (sysdefs.asm ext0=F10, ext2=F2, cs5..cs8 arrows). */
 #define KEY_LEFT   248u
 #define KEY_DOWN   249u
 #define KEY_UP     250u
 #define KEY_RIGHT  251u
-#define KEY_F5     181u
+#define KEY_F2     178u
 #define KEY_F6     182u
 #define KEY_F7     183u
 #define KEY_F8     184u
+#define KEY_F10    176u
 #define KEY_ENTER  13u
 #define KEY_CSENTER 253u
 
@@ -318,7 +320,7 @@ static unsigned char telnet_xfer_read_byte(XferIO *io, unsigned char *out)
     }
   }
   key = (unsigned char)(OS_GETKEY() & 0xFFL);
-  if (key == KEY_F5)
+  if (key == KEY_F10)
   {
     g_xfer_io.cancelled = 1u;
   }
@@ -771,147 +773,198 @@ static void show_session_end(unsigned char user_quit)
 
 int telnet_session(const char *host, unsigned int port, unsigned char debug, unsigned char cp866)
 {
+  char cur_host[128];
+  unsigned int cur_port;
+  unsigned char cur_debug;
+  unsigned char cur_cp866;
   unsigned char running;
   unsigned char user_quit;
+  unsigned char do_reconnect;
   unsigned char kick;
   int poll_rc;
 
-  g_socket = -1;
-  g_rx_state = RX_DATA;
-  g_sb_opt = 0u;
-  g_txlen = 0u;
-  /* BBS echo typed chars; never mirror locally (avoids doubled letters). */
-  g_echo_remote = 1u;
-  g_debug = debug;
-  g_sock_err = 0u;
-  g_tn_sga = 0u;
-  g_tn_binary = 0u;
-  g_cpr_ga_debt = 0u;
-  g_wait_hint = 0u;
-  g_rx_total = 0u;
-  g_tx_total = 0u;
-  g_cpr_tx = 0u;
-  g_ga_tx = 0u;
-  g_idle_loops = 0ul;
+  strncpy(cur_host, host, sizeof(cur_host) - 1u);
+  cur_host[sizeof(cur_host) - 1u] = 0;
+  cur_port = port;
+  cur_debug = debug;
+  cur_cp866 = cp866;
 
-  show_connecting(host, port);
-  if (!net_resolve_host(host))
+  for (;;)
   {
-    show_net_error("DNS failed");
-    return 0;
-  }
+    g_socket = -1;
+    g_rx_state = RX_DATA;
+    g_sb_opt = 0u;
+    g_txlen = 0u;
+    /* BBS echo typed chars; never mirror locally (avoids doubled letters). */
+    g_echo_remote = 1u;
+    g_debug = cur_debug;
+    g_sock_err = 0u;
+    g_tn_sga = 0u;
+    g_tn_binary = 0u;
+    g_cpr_ga_debt = 0u;
+    g_wait_hint = 0u;
+    g_rx_total = 0u;
+    g_tx_total = 0u;
+    g_cpr_tx = 0u;
+    g_ga_tx = 0u;
+    g_idle_loops = 0ul;
 
-  g_socket = net_connect_tcp(port, 5u);
-  if (g_socket < 0)
-  {
-    show_net_error("connect failed");
-    return 0;
-  }
-
-  term_init();
-  term_cls(0x07u);
-  if (cp866 != 0u)
-  {
-    term_set_wire_cp866();
-  }
-  else
-  {
-    term_set_wire_cp437();
-  }
-  term_palette_begin();
-
-  for (kick = 0u; kick < 64u; kick++)
-  {
-    poll_rc = telnet_poll_rx();
-    if (poll_rc < 0)
+    show_connecting(cur_host, cur_port);
+    if (!net_resolve_host(cur_host))
     {
-      break;
+      show_net_error("DNS failed");
+      return 0;
     }
-    if (g_rx_total > 0u)
+
+    g_socket = net_connect_tcp(cur_port, 5u);
+    if (g_socket < 0)
     {
-      break;
+      show_net_error("connect failed");
+      return 0;
     }
-    YIELD();
-  }
 
-  running = 1u;
-  user_quit = 0u;
-  while (running)
-  {
-    unsigned char key;
+    term_init();
+    term_cls(0x07u);
+    if (cur_cp866 != 0u)
+    {
+      term_set_wire_cp866();
+    }
+    else
+    {
+      term_set_wire_cp437();
+    }
+    term_palette_begin();
 
-    do
+    for (kick = 0u; kick < 64u; kick++)
     {
       poll_rc = telnet_poll_rx();
       if (poll_rc < 0)
       {
-        running = 0u;
         break;
       }
-    } while (poll_rc > 0);
-    if (running == 0u)
-    {
-      break;
+      if (g_rx_total > 0u)
+      {
+        break;
+      }
+      YIELD();
     }
-    if (term_take_ed2_needs_cr() != 0u && xfer_is_active() == 0u)
+
+    running = 1u;
+    user_quit = 0u;
+    do_reconnect = 0u;
+    while (running)
     {
-      telnet_send_byte(13u);
-      telnet_flush_tx();
-      continue;
-    }
-    if (poll_rc == 0)
-    {
-      g_idle_loops++;
-    }
-    telnet_waiting_hint();
-    telnet_status_draw();
-    if (g_txlen > 0u)
-    {
-      telnet_flush_tx();
-    }
-    key = (unsigned char)(OS_GETKEY() & 0xFFL);
-    if (key != 0u)
-    {
-      if (key == KEY_F5)
+      unsigned char key;
+
+      do
       {
-        running = 0u;
-        user_quit = 1u;
+        poll_rc = telnet_poll_rx();
+        if (poll_rc < 0)
+        {
+          running = 0u;
+          break;
+        }
+      } while (poll_rc > 0);
+      if (running == 0u)
+      {
+        break;
       }
-      else if (key == 27)
+      if (term_take_ed2_needs_cr() != 0u && xfer_is_active() == 0u)
       {
-        telnet_send_esc();
+        telnet_send_byte(13u);
+        telnet_flush_tx();
+        continue;
       }
-      else if (key == KEY_F6)
+      if (poll_rc == 0)
       {
-        telnet_start_receive(XFER_PROTO_ZMODEM);
+        g_idle_loops++;
       }
-      else if (key == KEY_F7)
+      telnet_waiting_hint();
+      telnet_status_draw();
+      if (g_txlen > 0u)
       {
-        telnet_start_receive(XFER_PROTO_YMODEM);
+        telnet_flush_tx();
       }
-      else if (key == KEY_F8)
+      key = (unsigned char)(OS_GETKEY() & 0xFFL);
+      if (key != 0u)
       {
-        telnet_start_receive(XFER_PROTO_XMODEM);
-      }
-      else if (key == KEY_LEFT || key == KEY_RIGHT || key == KEY_UP || key == KEY_DOWN)
-      {
-        telnet_send_arrow((unsigned char)key);
+        if (key == KEY_F10)
+        {
+          running = 0u;
+          user_quit = 1u;
+        }
+        else if (key == KEY_F2)
+        {
+          char book_host[128];
+          unsigned int book_port;
+          unsigned char book_cp866;
+          unsigned char book_debug;
+
+          book_cp866 = cur_cp866;
+          book_debug = cur_debug;
+          telnet_flush_tx();
+          term_palette_restore();
+          netShutDown(g_socket, 0u);
+          g_socket = -1;
+          if (telbook_run(book_host, sizeof(book_host), &book_port, &book_cp866, &book_debug))
+          {
+            strncpy(cur_host, book_host, sizeof(cur_host) - 1u);
+            cur_host[sizeof(cur_host) - 1u] = 0;
+            cur_port = book_port;
+            cur_cp866 = book_cp866;
+            cur_debug = book_debug;
+            do_reconnect = 1u;
+            running = 0u;
+          }
+          else
+          {
+            user_quit = 1u;
+            running = 0u;
+          }
+        }
+        else if (key == 27)
+        {
+          telnet_send_esc();
+        }
+        else if (key == KEY_F6)
+        {
+          telnet_start_receive(XFER_PROTO_ZMODEM);
+        }
+        else if (key == KEY_F7)
+        {
+          telnet_start_receive(XFER_PROTO_YMODEM);
+        }
+        else if (key == KEY_F8)
+        {
+          telnet_start_receive(XFER_PROTO_XMODEM);
+        }
+        else if (key == KEY_LEFT || key == KEY_RIGHT || key == KEY_UP || key == KEY_DOWN)
+        {
+          telnet_send_arrow((unsigned char)key);
+        }
+        else
+        {
+          telnet_send_key((unsigned char)key);
+        }
       }
       else
       {
-        telnet_send_key((unsigned char)key);
+        YIELD();
       }
     }
-    else
-    {
-      YIELD();
-    }
-  }
 
-  telnet_flush_tx();
-  netShutDown(g_socket, 0u);
-  g_socket = -1;
-  term_palette_restore();
-  show_session_end(user_quit);
-  return 1;
+    telnet_flush_tx();
+    if (g_socket >= 0)
+    {
+      netShutDown(g_socket, 0u);
+      g_socket = -1;
+    }
+    if (do_reconnect != 0u)
+    {
+      continue;
+    }
+    term_palette_restore();
+    show_session_end(user_quit);
+    return 1;
+  }
 }

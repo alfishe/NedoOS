@@ -5,9 +5,9 @@
 #define NC_MAIN_BASE           0x0100u
 #define NC_MAIN_LIMIT          0xBFFFu
 #define NC_MAIN_SIZE           0xBF00u
-#define NC_MAIN_USED_END       0xAF30u /* CSTACK top */
-#define NC_MAIN_FREE           0x10CFu
-#define NC_MAIN_CODE_BYTES     55559u
+#define NC_MAIN_USED_END       0xAF54u /* CSTACK top */
+#define NC_MAIN_FREE           0x10ABu
+#define NC_MAIN_CODE_BYTES     55595u
 #define NC_MAIN_DATA_BYTES     5184u
 
 #define NC_RES_BASE            0xC000u

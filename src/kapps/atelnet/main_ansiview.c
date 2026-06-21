@@ -5,7 +5,7 @@
 #include "atelnet.h"
 #include "ansi_file.h"
 
-static const unsigned char ver[] = "ansiview 1.01";
+static const unsigned char ver[] = "ansiview 1.02";
 
 static char g_path_buf[128];
 

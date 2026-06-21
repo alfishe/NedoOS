@@ -1018,7 +1018,7 @@ int xfer_receive(unsigned char proto, XferIO *io)
   xfer_overlay("Receiving ");
   term_set_xy(11u, XFER_STATUS_Y);
   term_set_color(0x70u);
-  printf("%s  F5=cancel", name);
+  printf("%s  F10=cancel", name);
   term_set_color(0x07u);
 
   if (proto == XFER_PROTO_XMODEM)
