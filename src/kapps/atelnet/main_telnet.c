@@ -9,7 +9,7 @@
 #include "telnet_sess.h"
 #include "telbook.h"
 
-static const unsigned char ver[] = "atelnet 1.59";
+static const unsigned char ver[] = "atelnet 1.60";
 
 static void wait_key(void)
 {

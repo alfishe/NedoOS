@@ -13,19 +13,19 @@
 #define TELBOOK_HOST_STORE 48u
 #define TELBOOK_HOST_VIEW 28u
 #define TELBOOK_PORT_LEN 5u
-#define TELBOOK_VIEW_H 14u
+#define TELBOOK_VIEW_H 8u
 #define TELBOOK_TITLE_Y 0u
 #define TELBOOK_WIN_X 1u
 #define TELBOOK_BOX_Y 1u
 #define TELBOOK_HDR_Y 2u
 #define TELBOOK_LIST_Y 3u
 #define TELBOOK_WIN_W 78u
-#define TELBOOK_BOX_H 16u
-#define TELBOOK_HELP_Y 18u
-#define TELBOOK_GLOBAL_HINT_Y 19u
+#define TELBOOK_FRAME_BOT (TELBOOK_LIST_Y + TELBOOK_VIEW_H)
+#define TELBOOK_BOX_H (TELBOOK_FRAME_BOT - TELBOOK_BOX_Y)
+#define TELBOOK_HELP_Y (TELBOOK_FRAME_BOT + 1u)
+#define TELBOOK_GLOBAL_HINT_Y (TELBOOK_HELP_Y + 1u)
 #define TELBOOK_FRAME_X 0u
 #define TELBOOK_FRAME_Y 1u
-#define TELBOOK_FRAME_BOT 17u
 #define TELBOOK_FRAME_ATTR 0x67u
 #define TELBOOK_SYM_TL 201u
 #define TELBOOK_SYM_TR 187u
@@ -414,7 +414,7 @@ static void telbook_draw_frame(void)
   OS_SETXY(79u, TELBOOK_FRAME_Y);
   putchar((int)TELBOOK_SYM_TR);
 
-  for (y = 2u; y <= 16u; y++)
+  for (y = 2u; y < TELBOOK_FRAME_BOT; y++)
   {
     OS_SETXY(TELBOOK_FRAME_X, y);
     putchar((int)TELBOOK_SYM_V);
@@ -459,7 +459,7 @@ static void telbook_draw_global_hint(void)
 {
   telbook_fill_rect(1u, TELBOOK_GLOBAL_HINT_Y, 78u, 1u, 0x07u);
   OS_SETCOLOR(0x07u);
-  OS_SETXY(27u, TELBOOK_GLOBAL_HINT_Y);
+  OS_SETXY(25u, TELBOOK_GLOBAL_HINT_Y);
   printf("F10 exit   F2 address book");
 }
 
