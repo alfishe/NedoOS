@@ -161,7 +161,7 @@ GO
         
         ld a,pgpic
         call OUTA
-        ld hl,WASPGPIC
+        ld hl,wastileset
         ld de,tiledisp
         ld bc,sztileset
         ldir
@@ -191,6 +191,10 @@ GO
 
 ;сейчас у нас включены страницы программы, как было
 	call swapimer
+        
+        ld a,(pgmain4000)
+        ld hl,music
+        OS_SETMUSIC
         jp BEGIN
         
 tpgscrdata
@@ -217,184 +221,6 @@ showscrdata_a
         ex af,af' ;'
         jp showscrdata
 
-    if 0
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-        ld a,(timer)
-        ld (uvoldtimer),a
-        
-;главный цикл
-mainloop
-
-;вывод фона или восстановление фона под спрайтами
-;... рекомендую взять из sprexamp!
-restorer_cursprlist=$+1
-        ld hl,sprlist1
-        ld de,sprlist1^sprlist2
-        ld a,h
-        xor d
-        ld h,a
-        ld a,l
-        xor e
-        ld l,a
-        ld (restorer_cursprlist),hl
-       push hl ;curlist
-
-restorer0
-        ld e,(hl) ;x/2
-        ld a,e
-        cp 200
-        jr z,restorer0q
-        inc hl
-        ld c,(hl) ;y
-        inc hl
-       ld a,scrhgt
-       sub (hl) ;hgt
-       ld b,a
-        inc hl
-       push hl
-        ld a,e ;x/2
-        sub +(sprmaxwid-1)
-        jr nc,$+3
-        xor a ;если <0
-        ;cp scrwid-sprmaxwid
-        ;jr c,$+4
-        ;ld a,scrwid-sprmaxwid
-        srl a
-        srl a
-        ld e,a ;x/8 >=0
-        ld a,c ;y
-        cp -(sprmaxhgt-1)
-        jr c,$+3
-        xor a ;если <0
-        cp b
-        jr c,$+3
-        ld a,b
-        ld c,a
-;e=x/8 >=0
-;c=y >=0
-        ld b,0
-        ld l,c
-        ld h,b;0
-        add hl,hl ;y*2
-        add hl,hl ;y*4
-        add hl,bc ;y*5
-        add hl,hl ;y*10
-        add hl,hl ;y*20
-        add hl,hl ;y*40
-        ld d,b;0
-        add hl,de ;+x/8
-        ld bc,0x4000
-        add hl,bc
-	;ld hl,0x4000 ;hl=scr
-	;ld de,scrwid/4 + (256*scrhgt) ;d=hgt,e=wid (/8)
-	ld de,3 + (256*16) ;d=hgt,e=wid (/8)        
-        call copyimgega_defaulttoshadow
-       pop hl
-        jr restorer0
-restorer0q
-;вывод спрайтов
-;...
-        call setpgsscr40008000 ;включили страницы экрана
-
-        ;ld hl,sprlist1
-       pop hl
-        ld (cursprlistaddr),hl
-
-	ld iy,spaceship0
-	ld e,50 ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
-	ld c,50 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
-        call keepspr
-	call prspr
-	ld iy,fly0
-curx=$+1
-	ld e,80 ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
-       ld a,e
-       ;add a,sprmaxwid-1
-       cp scrwid-1+(sprmaxwid-1)
-       jr nc,noprspr
-cury=$+1
-	ld c,60 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
-       ld a,c
-       add a,sprmaxhgt-1
-       cp scrhgt-1+(sprmaxhgt-1)
-       jr nc,noprspr
-        call keepspr
-	call prspr
-noprspr
-	ld iy,explosion4
-	ld e,60 ;e=x = -(sprmaxwid-1)..159 (кодируется как x+(sprmaxwid-1))
-	ld c,60 ;c=y = -(sprmaxhgt-1)..199 (кодируется как есть)
-        call keepspr
-	call prspr
-
-	call endkeepspr
-
-        call setpgsmain40008000 ;включили страницы программы в 4000,8000, как было
-
-;закончили рисовать
-       ld a,(timer)
-       push af
-        call changescrpg ;с этого момента (точнее, с прерывания) можем видеть, что нарисовали
-
-;логика
-;... её вызывать столько раз, сколько прошло прерываний!
-mainloop_uvwaittimer0
-        ld a,(timer)
-uvoldtimer=$+1
-        ld b,0
-        ld (uvoldtimer),a
-        sub b
-        ld b,a
-        jr z,mainloop_uvwaittimer0 ;если ни одного прерывания не прошло, крутимся тут
-;b=сколько прошло прерываний
-mainloop_uvlogic0
-        push bc
-        ;call logic ;<----------------- свою логику пиши сюда
-        ld hl,curx
-        inc (hl)
-        ld hl,cury
-        inc (hl)
-        pop bc
-        djnz mainloop_uvlogic0
-
-;ждём физического переключения экрана!
-;можем начать новую отрисовку, только если с момента changescrpg прошло хотя бы одно прерывание (возможно, внутри logic)
-       pop bc ;b=timer на момент changescrpg
-waitchangescr0
-        ld a,(timer)
-        cp b
-        jr z,waitchangescr0
-
-        ld a,(curkey)
-        cp key_esc
-        jp nz,mainloop ;выход по esc (break)
-        
-        ;YIELDGETKEYLOOP ;ждём кнопку
-	call swapimer
-        QUIT
-        
-keepspr
-cursprlistaddr=$+1
-        ld hl,0
-        ld (hl),e ;x
-        inc hl
-        ld (hl),c ;y
-        inc hl
-        ld a,(iy-1)
-        ld (hl),a ;hgt
-        inc hl
-        ld (cursprlistaddr),hl
-        ret
-        
-endkeepspr
-        ld hl,(cursprlistaddr)
-        ld (hl),200
-        ret
-        
-   endif
 
 showscrdata
 ;a=pgscrdata0
@@ -431,10 +257,12 @@ copypal0
         ldir ;перебросили на экран
         ret
 
+       if 0
 sprlist1
         ds 3*128,200
 sprlist2
         ds 3*128,200
+       endif
 
 pal
         ds 32 ;тут будет палитра картинки
@@ -686,17 +514,9 @@ oldH=$+1
         XOR #80
         LD (HL),A
 noH
-tuneON=$
-        SCF 
-    if 1 ;TODO OS_SETMUSIC
-       PUSH AF
-muzer=$+1
-        CALL C,RETER;muz+5;muzzam+5
-       POP AF
-        CALL AYFF ;AY #1(0)
-        CALL NC,SHUTAY ;если music off
-       CALL AFXFRAME ;pgmuz!
-    endif
+        ;ld a,(pgmain4000)
+        ;SETPG4000
+        ;call music ;TODO OS_SETMUSIC
 
 haltON=$
         DB 55+128
@@ -708,6 +528,10 @@ gamescf=$
 
 nogame
 RETER   RET 
+
+tuneON=$
+        scf
+
 TIMEBACK
         LD HL,TTIME2+3-1
         DEC (HL)
@@ -736,7 +560,7 @@ TIMEBACK
        LD A,(gameover)
        OR A
        LD A,fxtimeout
-       CALL Z,AFXPLAY
+       CALL Z,AFXPRAY
         LD A,3
         LD (gameover),A
 PRCLK
@@ -879,8 +703,6 @@ muzmenuNAME
         DB "SMR_PLTS.pt3",0
 picNAME
         DB "0pic1.bmpx",0
-
-        INCLUDE "afxplay3.asm"
 
 ;2:gameovers
 ANYKEY
@@ -1101,7 +923,21 @@ HEROESFROMsz=$-HEROESFROM
 
        ;ORG #C000,pgpic
         ds 0x4000-$
-WASPGPIC
+music
+        ld a,(tuneON)
+        rla
+        ccf
+       PUSH AF
+muzer=$+1
+        CALL C,muzRETER;muz+5;muzzam+5
+       POP AF
+        CALL AYFF ;AY #1(0)
+        CALL NC,SHUTAY ;если music off
+       CALL AFXFRAME ;pgmuz!
+muzRETER
+        ret
+
+wastileset
 tiledisp=#C000
        DISP tiledisp
 tileset
@@ -1115,6 +951,7 @@ sztileset=$-tileset
 muz
         ;ds 9,0xc9;INCBIN "PLAYTS" ;TODO
         include "../../_sdk/ptsplay.asm"
+        INCLUDE "afxplay3.asm"
 MDLADDR
 muzmenu
 Lmuz=$-#C000
