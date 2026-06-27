@@ -1,0 +1,61 @@
+;label autonumbering: label#8=... or label$4 or label$4#8
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;b: b/w tiles: chrdata...
+;B: colour tiles: chrdata...
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;z: b/w sprites: antipixelsw... (right to left)
+;Z: b/w sprites: antipixelsw... (left to right)
+;w: b/w sprites: antipixelsw, antimaskw...
+;W: b/w image by columns
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+;L: 16c 16x16 tiles (N of tiles in "defaultcolor"): N of tile for each square
+;i: 16c image
+;P: DDp palette
+
+beton=x,80,0,32,8
+treelog=x,112,0,32,8
+doska=x,112,8,32,6
+betonv=x,232,40,8,32
+logv=x,224,40,8,32
+glassv=x,240,40,8,32
+glassvbr=x,248,40,8,32
+doskabrk=x,80,8,32,6
+sand1=x,164,40,16,16
+sand2=x,180,40,16,16
+sand3=x,68,56,16,16
+sand4=x,84,56,16,16
+sand5=x,100,56,16,16
+sand6=x,116,56,16,16
+sand7=x,132,56,16,16
+sand8=x,148,56,16,16
+ch1=x,176,0,16,14
+ch2=x,192,0,16,14
+ch3=x,208,0,16,14
+ch4=x,224,0,16,14
+ch5=x,240,0,16,14
+n5=x,22,0,10,10
+n10=x,16,0,16,10
+n15=x,32,0,16,10
+n25=x,48,0,16,10
+n50=x,64,0,16,10
+;s0=x, 0,40,24,24
+;s2=x,0,40,24,24
+;s4=x,0,40,24,24
+;s6=x,0,40,24,24
+;s8=x,0,40,24,24
+;sA=x,0,40,24,24
+;sC=x,0,40,24,24
+;sE=x,0,40,24,24
+;sG=x,0,40,24,24
+;sI=x,0,40,24,24
+;sK=x,0,40,24,24
+;sM=x,0,40,24,24
+;sO=x,0,40,24,24
+;sQ=x,0,40,24,24
+;sS=x,0,40,24,24
+;sU=x,0,40,24,24

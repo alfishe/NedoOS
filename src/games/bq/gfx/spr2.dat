@@ -1,0 +1,52 @@
+;label autonumbering: label#8=... or label$4 or label$4#8
+;x,y,wid,hgt,defaultcolor(0..15 that will be used as ink in empty chr$)
+;6912: color 0 in bmp is for mask
+;16c: color 16 in bmp is for mask
+;formats:
+;b: b/w tiles: chrdata...
+;B: colour tiles: chrdata...
+;s: b/w sprites: wid8, hgt, (antimask, antipixels, ...)
+;z: b/w sprites: antipixelsw... (right to left)
+;Z: b/w sprites: antipixelsw... (left to right)
+;w: b/w sprites: antipixelsw, antimaskw...
+;W: b/w image by columns
+;[S: colour sprites: wid8, hgt, (antimask, antipixels, ...)]
+;T: colour tilepic 28xN (size 0xN00 bytes)
+;x: 16c sprite: wid/2,hgt,(column:and,or...),(0x4000-((hgt-1)*40))...,prsprqwid
+;L: 16c 16x16 tiles (N of tiles in "defaultcolor"): N of tile for each square
+;i: 16c image
+;P: DDp palette
+
+exit1=x,24,56,16,8
+exit2=x,0,64,16,8
+exit3=x,16,64,16,8
+exit4=x,0,0,16,8
+spi1=x,0,14,32,26
+spi2=x,32,14,32,26
+spi3=x,64,14,32,26
+spi4=x,96,14,32,26
+spi5=x,128,14,32,26
+spi6=x,160,14,32,26
+spi7=x,192,14,32,26
+spi8=x,224,14,32,26
+bottle1=x,164,56,12,16
+bottle2=x,176,56,12,16
+bottle3=x,188,56,12,16
+bottle4=x,200,56,12,16
+bottle5=x,212,56,12,16
+weight1=x,120,40,14,16
+weight2=x,134,40,14,16
+weight3=x,148,40,16,16
+key1=x,24,40,16,16
+key2=x,40,40,16,16
+key3=x,56,40,16,16
+key4=x,72,40,16,16
+key5=x,88,40,16,16
+key6=x,104,40,16,16
+diam1=x,196,40,14,10
+diam3=x,210,40,14,10
+arright=x,54,56,14,16
+arleft=x,40,56,14,16
+arup=x,160,0,16,14
+ardown=x,144,0,16,14
+sprempty=x,180,40,2,1
