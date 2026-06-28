@@ -2,6 +2,10 @@
 #define OS_CALL_ERR(todo) ((unsigned char)((todo) & 255))
 #define OS_CALL_SOCKET(todo) ((signed char)(((todo) >> 8) & 255))
 
+#ifndef NETBUF_BYTES
+#define NETBUF_BYTES sizeof(netbuf)
+#endif
+
 static unsigned char dnsPkt[512];
 
 void delayLong(unsigned long counter)
@@ -249,7 +253,7 @@ int tcpRead(signed char socket, unsigned char retry)
 
   readStruct.socket = socket;
   readStruct.BufAdr = (unsigned int)&netbuf;
-  readStruct.bufsize = sizeof(netbuf);
+  readStruct.bufsize = NETBUF_BYTES;
   readStruct.protocol = SOCK_STREAM;
 
   while (retry != 0)
@@ -284,7 +288,8 @@ int tcpRead(signed char socket, unsigned char retry)
 
 unsigned char dnsResolve(const char *domainName)
 {
-  unsigned char socket, retry;
+  int socket;
+  unsigned char retry;
   unsigned int todo, queryPos, queryType, domainLng, comaCount, reqSize;
   unsigned int loop;
   unsigned char buf[128];

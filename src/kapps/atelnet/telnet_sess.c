@@ -39,7 +39,6 @@
 #define KEY_F2     178u
 #define KEY_F6     182u
 #define KEY_F10    176u
-#define KEY_CAN    24u
 #define KEY_ENTER  13u
 #define KEY_CSENTER 253u
 
@@ -363,6 +362,7 @@ static void telnet_start_zmodem(void)
     YIELD();
   }
 
+  g_rx_state = RX_DATA;
   zm_io_begin(telnet_zm_tx, telnet_poll_rx, telnet_zm_flush);
   zm_io_drain_input();
   rc = zmodem_session_receive();
@@ -449,10 +449,59 @@ static void telnet_process(unsigned char b)
   }
 }
 
+static void telnet_zm_feed_chunk(unsigned char *buf, unsigned int n)
+{
+  unsigned int i;
+  unsigned int out;
+
+  i = 0u;
+  out = 0u;
+  while (i < n)
+  {
+    switch (g_rx_state)
+    {
+    case RX_DATA:
+      if (buf[i] == TN_IAC)
+      {
+        g_rx_state = RX_IAC;
+        i++;
+      }
+      else
+      {
+        buf[out++] = buf[i++];
+      }
+      break;
+
+    case RX_IAC:
+      g_rx_state = RX_DATA;
+      if (buf[i] == TN_IAC)
+      {
+        buf[out++] = TN_IAC;
+      }
+      i++;
+      break;
+
+    default:
+      g_rx_state = RX_DATA;
+      i++;
+      break;
+    }
+  }
+  if (out > 0u)
+  {
+    zm_io_nb_supply(out);
+  }
+}
+
 static int telnet_poll_rx(void)
 {
   unsigned int i;
   int n;
+
+  if (zm_io_active() != 0u && zm_io_nb_pending() != 0u)
+  {
+    return 1;
+  }
 
   n = telnet_tcp_read(g_socket);
   if (n < 0)
@@ -466,9 +515,16 @@ static int telnet_poll_rx(void)
   }
   g_rx_total += (unsigned int)n;
   g_idle_loops = 0ul;
-  for (i = 0u; i < (unsigned int)n; i++)
+  if (zm_io_active() != 0u)
   {
-    telnet_process(netbuf[i]);
+    telnet_zm_feed_chunk(netbuf, (unsigned int)n);
+  }
+  else
+  {
+    for (i = 0u; i < (unsigned int)n; i++)
+    {
+      telnet_process(netbuf[i]);
+    }
   }
   if (g_txlen > 0u)
   {

@@ -30,6 +30,8 @@ extern void testexist(char *filename);
 extern void checkpath(char *name);
 extern void testrxc(short timeout);
 extern int wcsend(int argc, char *argp[]);
+extern int wcreceive(char *filename);
+extern int asciisend(char *filename);
 extern int wcputsec(char *buf, int sectnum, int cseclen);
 extern int wcrxpn(char *rpn);
 extern int endstat(int result, int count);
@@ -39,12 +41,6 @@ void xmchout(char c);
 /* ========== from zmxfer.c ========== */
 
 /***************************** Transfer Module ******************************/
-
-
-
-extern int wcreceive(char *filename);
-extern int wcsend(int argc, char *argp[]);
-extern int asciisend(char *filename);
 
 char *frametypes[FRTYPES + FTOFFSET] = {
    "Carrier Lost",      /* -3 */
@@ -495,8 +491,7 @@ cleanup:
 
 void checkpath(char *name)  /* eliminate bad paths in receive */
 {
-   char *p, c;
-   short i;
+   char *p, *dot, c;
    static char badchar[] = ",;:_[]=<>/";   /* disallowed f/n characters */
 
    for (p=name; *p; p++) {             /* dump strange characters */
@@ -506,12 +501,17 @@ void checkpath(char *name)  /* eliminate bad paths in receive */
          strcat(name,p+1);
       }
    }
-   if ((i = strchr(name,'.') - name) > 8) {
-      p = name + i + 1;
-      name[8] = '.';
-      name[9] = '\0';
-      p[3] = '\0';
-      strcat(name,p);
+   dot = strchr(name, '.');
+   if (dot != 0) {
+      if ((dot - name) > 8) {
+         p = dot + 1;
+         name[8] = '.';
+         name[9] = '\0';
+         p[3] = '\0';
+         strcat(name,p);
+      }
+   } else if (strlen(name) > 8u) {
+      name[8] = '\0';
    }
    name[12] = '\0';
    report(PATHNAME,name);
@@ -2484,7 +2484,9 @@ int rzfile(void)
       }
       stohdr(rxbytes);
       zm_log("TX ZRPOS");
+      g_zm_skip_purge = 1u;
       zshhdr(ZRPOS, Txhdr);
+      g_zm_skip_purge = 0u;
 nxthdr:
       if (opabort()) {
          return NERROR;
@@ -3074,6 +3076,22 @@ int zrdata(char *buf, int length)
    crc = Rxcount = 0;  
    end = buf + length;
    while (buf <= end) {
+      {
+         static unsigned got;
+         static char *p;
+
+         while (buf <= end) {
+            got = zm_rx_take_plain(buf, (unsigned)(end - buf + 1), Zctlesc);
+            if (got == 0u)
+               break;
+            p = buf;
+            while (got-- != 0u) {
+               crc = updcrc((unsigned char)*p, crc);
+               p++;
+            }
+            buf += (unsigned)(p - buf);
+         }
+      }
       if ((c = zdlread()) & ~0377) {
 crcfoo:
          switch (c) {
@@ -3131,6 +3149,22 @@ int zrdat32(char *buf, int length)
    Rxcount = 0;  
    end = buf + length;
    while (buf <= end) {
+      {
+         static unsigned got;
+         static char *p;
+
+         while (buf <= end) {
+            got = zm_rx_take_plain(buf, (unsigned)(end - buf + 1), Zctlesc);
+            if (got == 0u)
+               break;
+            p = buf;
+            while (got-- != 0u) {
+               crc = updc32((unsigned char)*p, crc);
+               p++;
+            }
+            buf += (unsigned)(p - buf);
+         }
+      }
       if ((c = zdlread()) & ~0377) {
 crcfoo:
          switch (c) {
