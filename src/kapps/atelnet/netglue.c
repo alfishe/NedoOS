@@ -9,9 +9,6 @@ struct sockaddr_in targetadr;
 struct sockaddr_in dnsaddress;
 struct readstructure readStruct;
 
-void writeLog(char *a, char *b)
-{
-}
 
 #include "../common/network.c"
 

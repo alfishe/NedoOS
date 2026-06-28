@@ -5,11 +5,11 @@ XCLFILE := lnk.xcl
 ATELNET_BIN := atelnet.com
 ANSIVIEW_BIN := ansiview.com
 
-ATELNET_C := main_telnet.c term.c cp437toatm.c netglue.c telnet_sess.c telbook.c xfer.c xfer_dbg.c zmodem.c term_doc_stub.c
+ATELNET_C := main_telnet.c term.c cp437toatm.c netglue.c telnet_sess.c telbook.c term_doc_stub.c zmodem.c zmodem_os.c
 ANSIVIEW_C := main_ansiview.c term.c term_doc.c cp437toatm.c ansi_file.c
 SRCA := termscr.asm
 
-SRCH := atelnet.h term_doc.h netglue.h telnet_sess.h ansi_file.h telbook.h xfer.h xfer_dbg.h
+SRCH := atelnet.h term_doc.h netglue.h telnet_sess.h ansi_file.h telbook.h zmodem.h
 
 LIBDIR	:= $(dir $(abspath $(lastword $(MAKEFILE_LIST))))../iarlib/
 ROOTDIR := $(abspath $(LIBDIR)../../..)
@@ -60,7 +60,7 @@ install: $(ATELNET_BIN) $(ANSIVIEW_BIN)
 	$(CP) $(ANSIVIEW_BIN) $(ROOTDIR)/release/$(INSTDIR)
 
 $(OBJ)/%.r01: %.c $(SRCH) $(LIBH) | $(OBJ)
-	$(ICCZ80) -C -v0 -ml -s7 -S -uu -e -K -gA -w -O$(OBJ)/ -L$(OBJ)/ -A$(OBJ)/ -I$(IARINC) -I$(LIBDIR) $<
+	$(ICCZ80) -C -v0 -ml -s7 -S -uu -e -K -gA -O$(OBJ)/ -L$(OBJ)/ -A$(OBJ)/ -I$(IARINC) -I$(LIBDIR) $<
 
 $(OBJ)/%.r01: %.asm $(OSSDK)/sysdefs.asm | $(OBJ)
 	$(AZ80) -uu -S -v0 -O$(OBJ)/ -I$(OSSDK) $<

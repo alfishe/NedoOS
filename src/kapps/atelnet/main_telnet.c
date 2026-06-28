@@ -9,7 +9,7 @@
 #include "telnet_sess.h"
 #include "telbook.h"
 
-static const unsigned char ver[] = "atelnet 1.60";
+static const unsigned char ver[] = "atelnet 1.82";
 
 static void wait_key(void)
 {
@@ -78,12 +78,8 @@ static void show_usage(void)
   term_set_xy(2u, 9u);
   printf("  F10=exit  F2=address book (in session)\r\n");
   term_set_xy(2u, 10u);
-  printf("  F6=Zmodem  F7=Ymodem  F8=dump log on fail\r\n");
+  printf("  F6=ZMODEM receive (after sz on host)\r\n");
   term_set_xy(2u, 11u);
-  printf("  On BBS: start download, then press F6 here\r\n");
-  term_set_xy(2u, 12u);
-  printf("  ANSI files: use ansiview.com\r\n");
-  term_set_xy(2u, 13u);
   printf("  ESC=send to host\r\n");
   term_set_xy(0u, TERM_LAST_ROW);
   printf("Press any key...");

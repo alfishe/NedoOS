@@ -1010,12 +1010,21 @@ int term_feed(unsigned char b)
     if (term_literal_next != 0u)
     {
       term_literal_next = 0u;
+      if (b == 0x1Bu)
+      {
+        ansi_state = ST_ESC;
+        return 1;
+      }
       term_putchar(b);
       return 1;
     }
     if (b == 0x00u)
     {
-      term_literal_next = 1u;
+      /* Synchronet invisible SGR: NUL then literal char moves cursor. */
+      if (term_color == 0x00u)
+      {
+        term_literal_next = 1u;
+      }
       return 1;
     }
     if (b == 0x1Bu)
