@@ -101,8 +101,6 @@ cmd_press_exit
         call prtext
 cmd_press_exit0
         call cmd_pause_infin
-        cp key_enter
-        jr z,cmd_press_exit0
         jp cmd_exit
 
 cmd_flushstdin
