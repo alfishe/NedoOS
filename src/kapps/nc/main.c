@@ -65,7 +65,7 @@
  *     term.com cmd.com [handler] [file] via nc_run_bin_direct:
  *     cwd = panel dir; load term from bin/; cmdline at 0xC080;
  *     readfile_pages_dehl: window_0 @ 0xC100, pages 1..3 @ 0xC000.
- *     Enter .com / nv.ext / F3 / F4 all use this chain.
+ *     Enter .com / nv.ext: nc_run_cmd_direct(..., with_cmd_flags=1); F3/F4: with_cmd_flags=0.
  *
  * === BSS nc.com ===
  *     0x0100..0xBFFF  main code+data (�. nc_mem.h)
@@ -3681,15 +3681,27 @@ static void nc_build_handler_cmdline(const char *handler, const char *arg, char 
 	cmdline[cmdline_sz - 1u] = 0;
 }
 
-/* term -> cmd -> "handler [file]" (all external runs). */
-static unsigned char nc_run_cmd_direct(PanelState *panel, const char *handler, const char *arg)
+static const char *nc_cmd_term_prefix(void)
+{
+	if (g_ini_cmd_flag == NC_CMD_FLAG_K)
+		return "term.com cmd.com /k ";
+	if (g_ini_cmd_flag == NC_CMD_FLAG_P)
+		return "term.com cmd.com /p ";
+	return "term.com cmd.com ";
+}
+
+/* term -> cmd -> "handler [file]". with_cmd_flags: /k|/p from menu (Enter on .com etc.). */
+static unsigned char nc_run_cmd_direct(PanelState *panel, const char *handler, const char *arg,
+									   unsigned char with_cmd_flags)
 {
 	char cmdline[128];
 	char inner[96];
 	unsigned int n;
+	const char *prefix;
 
 	nc_build_handler_cmdline(handler, arg, inner, sizeof(inner));
-	strncpy(cmdline, "term.com cmd.com ", sizeof(cmdline) - 1u);
+	prefix = with_cmd_flags ? nc_cmd_term_prefix() : "term.com cmd.com ";
+	strncpy(cmdline, prefix, sizeof(cmdline) - 1u);
 	cmdline[sizeof(cmdline) - 1u] = 0;
 	n = strlen(cmdline);
 	strncat(cmdline, inner, sizeof(cmdline) - n - 1u);
@@ -3812,15 +3824,6 @@ static void nc_cmd_paste_name(PanelState *panel)
 	nc_cmd_insert_text(name);
 }
 
-static const char *nc_cmd_term_prefix(void)
-{
-	if (g_ini_cmd_flag == NC_CMD_FLAG_K)
-		return "term.com cmd.com /k ";
-	if (g_ini_cmd_flag == NC_CMD_FLAG_P)
-		return "term.com cmd.com /p ";
-	return "term.com cmd.com ";
-}
-
 static void nc_cmd_execute(PanelState *panel)
 {
 	char cmdline[128];
@@ -3909,15 +3912,15 @@ static void nc_run_selected_file(PanelState *panel)
 
 	if (ext_cmp(ext, "bat") == 0)
 	{
-		(void)nc_run_cmd_direct(panel, name, NULL);
+		(void)nc_run_cmd_direct(panel, name, NULL, 1u);
 	}
 	else if (nc_nvext_find_handler(ext, handler, sizeof(handler)))
 	{
-		(void)nc_run_cmd_direct(panel, handler, name);
+		(void)nc_run_cmd_direct(panel, handler, name, 1u);
 	}
 	else if (ext_cmp(ext, "com") == 0 || ext_cmp(ext, "bin") == 0)
 	{
-		(void)nc_run_cmd_direct(panel, name, NULL);
+		(void)nc_run_cmd_direct(panel, name, NULL, 1u);
 	}
 	else
 		return;
@@ -3948,7 +3951,7 @@ static void nc_action_view(PanelState *panel)
 	if (is_dir)
 		return;
 
-	(void)nc_run_cmd_direct(panel, g_ini_viewer, name);
+	(void)nc_run_cmd_direct(panel, g_ini_viewer, name, 0u);
 	nc_run_restore_ui(panel);
 }
 
@@ -3964,7 +3967,7 @@ static void nc_action_edit(PanelState *panel)
 	if (is_dir)
 		return;
 
-	(void)nc_run_cmd_direct(panel, g_ini_editor, name);
+	(void)nc_run_cmd_direct(panel, g_ini_editor, name, 0u);
 	nc_run_restore_ui(panel);
 }
 
