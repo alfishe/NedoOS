@@ -938,7 +938,15 @@ strcpexec_tryrun_bat
         ld de,wordbuf ;pop de
         OS_OPENHANDLE
         or a
+        jr z,strcpexec_tryrun_bat_opened
+;retry basename only (nv passes m:/path/file.bat; cwd may already be that dir)
+        ld hl,wordbuf
+        call findlastslash.
+        ex de,hl
+        OS_OPENHANDLE
+        or a
         ret nz ;jp nz,execcmd_error ;NC!
+strcpexec_tryrun_bat_opened
         ld a,b
         ld (curbathandle),a
         
@@ -1773,12 +1781,14 @@ cmd_pause_infin
         ret
 
 cmd_skip_cmdcom
-;in: hl=command line, out: hl=after optional "cmd.com"
+;in: hl=command line, out: hl=after optional "cmd.com" (with optional path prefix)
         ld de,wordbuf
         push hl
         call getword
         ld bc,hl
         ld hl,wordbuf
+        call findlastslash. ;de=basename (e.g. cmd.com in bin/cmd.com)
+        ex de,hl
         ld de,tcmdcom
         call strcp
         pop hl
