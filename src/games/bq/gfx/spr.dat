@@ -19,12 +19,12 @@
 
 beton=x,80,0,32,8
 treelog=x,112,0,32,8
-doska=x,112,8,32,6
+doska=x,32,72,32,8
 betonv=x,232,40,8,32
 logv=x,224,40,8,32
 glassv=x,240,40,8,32
 glassvbr=x,248,40,8,32
-doskabrk=x,80,8,32,6
+doskabrk=x,0,72,32,8
 sand1=x,164,40,16,16
 sand2=x,180,40,16,16
 sand3=x,68,56,16,16

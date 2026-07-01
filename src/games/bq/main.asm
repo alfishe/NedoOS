@@ -19,7 +19,7 @@ msx=0;1
 ON16C=0;#01
 re=1
 border=0
-worlds=8 ;потом повторяются
+WORLDS=8 ;потом повторяются
 byting=1
 wallcode=%11 ;для byting=0
 maxlives=4
@@ -120,8 +120,8 @@ GO
         OS_HIDEFROMPARENT
         ld e,0+0x80 ;EGA
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode) +8=noturbo, +0x80=keep gfx pages
-        ;ld de,emptypal
-        ;OS_SETPAL ;включаем чёрную палитру, чтобы было незаметно переброску экрана
+        ld de,emptypal
+        OS_SETPAL ;включаем чёрную палитру, чтобы было незаметно переброску экрана
         ld e,0
         OS_CLS ;очистили текущий экран
 
@@ -195,6 +195,9 @@ GO
         ld a,(pgmain4000)
         ld hl,music
         OS_SETMUSIC
+        
+        ld de,pal
+        OS_SETPAL
         jp BEGIN
         
 tpgscrdata
@@ -215,25 +218,19 @@ loadpic
 showscrdata_a
         ld a,(tpgscrdata+0)
        ld (pgscrdata0),a
-        ex af,af' ;'
-        ld a,(tpgscrdata+1)
-       ld (pgscrdata1),a
-        ex af,af' ;'
-        jp showscrdata
-
-
-showscrdata
-;a=pgscrdata0
-;a'=pgscrdata1
         SETPGC000 ;включили страницу с данными в c000
         ;ld a,(user_scr0_low) ;ok
         ;SETPG4000 ;включили пол-экрана в 4000
+        ld de,emptypal
+        OS_SETPAL ;включаем чёрную палитру, чтобы было незаметно переброску экрана
+        halt
         call setpg14000
         ld hl,0xc000
         ld de,0x4000
         ld bc,0x4000
         ldir ;перебросили на экран
 
+       if 0
         ld hl,0x4000+8000 ;там в картинке палитра (по байту на цвет)
         ld de,pal
         ld b,16
@@ -245,8 +242,10 @@ copypal0
         ld (de),a
         inc de
         djnz copypal0 ;скопировали палитру в pal (по 2 байта на цвет)
+       endif
         
-        ex af,af' ;ld a,(pgscrdata1) ;'
+        ld a,(tpgscrdata+1)
+       ld (pgscrdata1),a
         SETPGC000 ;включили страницу с данными в c000
         ;ld a,(user_scr0_high) ;ok
         ;SETPG4000 ;включили другие пол-экрана в 4000
@@ -255,6 +254,8 @@ copypal0
         ld de,0x4000
         ld bc,0x4000
         ldir ;перебросили на экран
+        ld de,pal
+        OS_SETPAL ;включаем палитру
         ret
 
        if 0
@@ -265,7 +266,8 @@ sprlist2
        endif
 
 pal
-        ds 32 ;тут будет палитра картинки
+        ;ds 32 ;тут будет палитра картинки
+        include "gfx/sprpal.ast"
 emptypal
         ds 32,0xff ;палитра, где все цвета чёрные
 
@@ -449,18 +451,10 @@ picfilenames
         INCLUDE "BQIQ.asm"
 
 ;------------------------------------------------
-SHUTAY
-        LD DE,#E00
-SHUT0
-        LD BC,#FFFD
-        DEC D
-        OUT (C),D
-        LD B,#BF
-        OUT (C),E
-        jr NZ,SHUT0
-        RET 
-
 ON_INT
+        ld a,(pgmain4000)
+        SETPG4000 ;чтобы иметь доступ к tuneON
+
        CALL OUTIQ
         CALL INKEY
         LD A,C
@@ -476,30 +470,18 @@ ON_INT
 ON_INTnoshowdemo
        LD A,#FE
        IN A,(#FE)
+       AND %01100 ;X+C
+       ld a,2
+       jr Z,ON_INTgameover_a
+       LD A,#FE
+       IN A,(#FE)
        AND %10010 ;Z+V
        jr NZ,nobreakkey
 ON_INTgameover
        LD A,4 ;break
+ON_INTgameover_a
        LD (gameover),A
 nobreakkey
-        LD A,pgmuz
-        CALL OUTA
-        CALL AYFE ;AY #2(1)
-       LD A,#FB ;Q..T
-       IN A,(#FE)
-       AND 16 ;"T"
-oldT=$+1
-       CP -1
-       LD (oldT),A
-       jr Z,noT
-        OR A
-        jr NZ,noT
-        LD HL,tuneON
-        LD A,(HL)
-        XOR #80
-        LD (HL),A
-        CALL SHUTAY
-noT
        LD A,#BF ;En..H
        IN A,(-2)
        AND 16 ;"H"
@@ -514,9 +496,6 @@ oldH=$+1
         XOR #80
         LD (HL),A
 noH
-        ;ld a,(pgmain4000)
-        ;SETPG4000
-        ;call music ;TODO OS_SETMUSIC
 
 haltON=$
         DB 55+128
@@ -528,9 +507,6 @@ gamescf=$
 
 nogame
 RETER   RET 
-
-tuneON=$
-        scf
 
 TIMEBACK
         LD HL,TTIME2+3-1
@@ -595,6 +571,24 @@ OUTA
         
 ;curscr
         ;db 0
+
+        align 256
+tcol8tocol0
+       dup 256
+;цвета в байте хранятся так: RLrrrlll
+_b=$&0xff
+_r=((_b&0x80)>>4)+((_b&0x38)>>3)
+_l=((_b&0x40)>>3)+(_b&0x07)
+       if _r==8
+_r=0
+       endif
+       if _l==8
+_l=0
+       endif
+        db ((_r&8)<<4)+((_r&7)<<3)+((_l&8)<<3)+(_l&7)
+       edup
+
+        display "tpgs=",$
 
         align 256
 tpgs
@@ -715,18 +709,6 @@ ANYKY0  HALT
         jr Z,ANYKY0
         RET 
 
-AYFE
-        LD A,#FE  ;AY #2(1))
-        JR $+4
-AYFF
-        LD A,#FF  ;AY #1(0)
-       IF msx
-       ;OUT (#A0),A ;хотя все равно на MSX нет TS
-       ELSE 
-        LD BC,#FFFD
-        OUT (C),A ;AY #2(1)
-       ENDIF 
-        RET 
 ;2
 INKEY
 ;C=11LRDUBF (B=break)
@@ -924,18 +906,69 @@ HEROESFROMsz=$-HEROESFROM
        ;ORG #C000,pgpic
         ds 0x4000-$
 music
-        ld a,(tuneON)
-        rla
-        ccf
+        ;LD A,pgmuz
+        ;CALL OUTA
+        CALL AYFE_ ;AY #2(1)
+       LD A,#FB ;Q..T
+       IN A,(#FE)
+       AND 16 ;"T"
+oldT=$+1
+       CP -1
+       LD (oldT),A
+       jr Z,noT
+        OR A
+        jr NZ,noT
+        LD HL,tuneON
+        LD A,(HL)
+        XOR #80
+        LD (HL),A
+        CALL SHUTAY_
+noT
+tuneON=$
+        scf
+        ;ld a,(tuneON)
+        ;rla
+        ;ccf
        PUSH AF
 muzer=$+1
         CALL C,muzRETER;muz+5;muzzam+5
        POP AF
-        CALL AYFF ;AY #1(0)
-        CALL NC,SHUTAY ;если music off
+        CALL AYFF_ ;AY #1(0)
+        CALL NC,SHUTAY_ ;если music off
        CALL AFXFRAME ;pgmuz!
 muzRETER
         ret
+
+SHUTAY_
+        LD DE,#E00
+SHUT0
+        LD BC,#FFFD
+        DEC D
+        OUT (C),D
+        LD B,#BF
+        OUT (C),E
+        jr NZ,SHUT0
+        RET 
+
+AYFE_
+        LD A,#FE  ;AY #2(1))
+       IF msx
+       ;OUT (#A0),A ;хотя все равно на MSX нет TS
+       ELSE 
+        LD BC,#FFFD
+        OUT (C),A ;AY #2(1)
+       ENDIF 
+        RET 
+
+AYFF_
+        LD A,#FF  ;AY #1(0)
+       IF msx
+       ;OUT (#A0),A ;хотя все равно на MSX нет TS
+       ELSE 
+        LD BC,#FFFD
+        OUT (C),A ;AY #2(1)
+       ENDIF 
+        RET 
 
 wastileset
 tiledisp=#C000
@@ -996,7 +1029,8 @@ fxjump=24+fxd
         org 0x8000
 wasspr2
         disp 0xc000
-f88     INCBIN "gfx/fontgfx.C";,#800
+f88     ;INCBIN "gfx/fontgfx.C";,#800
+         include "gfx/fontgfx.ast"
          include "gfx/bqcoll2.ast"
 spr2end
         DISPLAY "spr2end=",$
