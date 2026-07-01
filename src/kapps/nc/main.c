@@ -3741,7 +3741,11 @@ static unsigned char nc_get_file_under_cursor(PanelState *panel, char *name_out,
 	}
 
 	*is_dir_out = 0;
-	strcpy(name_out, panel_entry_name(fi));
+	/* Launch/paste: 8.3 SFN like nv.com (dmm, gp, legacy tools). */
+	if (fi->fname[0] != 0)
+		strcpy(name_out, (char *)fi->fname);
+	else
+		strcpy(name_out, panel_entry_name(fi));
 	return 1;
 }
 
