@@ -251,6 +251,7 @@ static void panels_restore_snaps_redraw_both(const char *snap_left, const char *
 static char *panel_entry_name(const fileInfo *fi);
 static void panel_sort_notice_show(PanelState *panel);
 static void panel_clamp_scroll(PanelState *panel);
+static void panel_restore_view(PanelState *panel, unsigned int saved_cursor, unsigned int saved_scroll);
 static unsigned char panel_find_by_name(PanelState *panel, const char *hint, unsigned int *out_idx);
 static void fileop_progress_begin(unsigned char is_delete);
 static void fileop_progress_begin_title(unsigned char is_delete, const char *title);
@@ -2163,6 +2164,7 @@ static unsigned char read_panel_dir_at(PanelState *panel, const char *dir_path, 
 	unsigned char current_page;
 	char req_path[64];
 	char saved_name[64];
+	unsigned int saved_cursor_idx;
 	unsigned int saved_scroll;
 	unsigned int restore_idx;
 	unsigned char have_saved;
@@ -2186,6 +2188,7 @@ static unsigned char read_panel_dir_at(PanelState *panel, const char *dir_path, 
 	{
 		unsigned int save_ridx;
 
+		saved_cursor_idx = panel->cursor_idx;
 		save_ridx = panel_meta_get_index(panel, panel->cursor_idx);
 		switch_file_page(panel, save_ridx);
 		page_offset = save_ridx % FILES_PER_PAGE;
@@ -2281,11 +2284,16 @@ static unsigned char read_panel_dir_at(PanelState *panel, const char *dir_path, 
 		panel_sort_indices(panel);
 	}
 
-	if (have_saved && panel_find_by_name(panel, saved_name, &restore_idx))
+	if (have_saved)
 	{
-		panel->cursor_idx = restore_idx;
-		panel->scroll_offset = saved_scroll;
-		panel_clamp_scroll(panel);
+		if (panel_find_by_name(panel, saved_name, &restore_idx))
+		{
+			panel->cursor_idx = restore_idx;
+			panel->scroll_offset = saved_scroll;
+			panel_clamp_scroll(panel);
+		}
+		else
+			panel_restore_view(panel, saved_cursor_idx, saved_scroll);
 	}
 	else
 		panel_place_cursor_on_dotdot(panel);
@@ -2716,7 +2724,7 @@ static void panels_refresh_one_paint_both(PanelState *panel, const char *file_hi
 
 	g_focus_pending = 0;
 	copy_prog.drawn = 0;
-	read_panel_dir_at(panel, panel->current_path, 0);
+	read_panel_dir_at(panel, panel->current_path, 1);
 	if (file_hint != NULL && file_hint[0] != 0 && panel_find_by_name(panel, file_hint, &idx))
 	{
 		panel->cursor_idx = idx;
@@ -2993,6 +3001,35 @@ static void panel_clamp_scroll(PanelState *panel)
 		panel->scroll_offset = panel->cursor_idx;
 	else if (panel->cursor_idx >= panel->scroll_offset + 18u)
 		panel->scroll_offset = panel->cursor_idx - 18u + 1u;
+}
+
+/* After reread: keep list scroll top; cursor index clamped (next row if deleted). */
+static void panel_restore_view(PanelState *panel, unsigned int saved_cursor, unsigned int saved_scroll)
+{
+	unsigned int max_scroll;
+
+	if (panel->file_count == 0u)
+	{
+		panel->cursor_idx = 0;
+		panel->scroll_offset = 0;
+		return;
+	}
+	if (saved_cursor >= panel->file_count)
+		panel->cursor_idx = panel->file_count - 1u;
+	else
+		panel->cursor_idx = saved_cursor;
+
+	if (panel->file_count <= 18u)
+		panel->scroll_offset = 0;
+	else
+	{
+		max_scroll = panel->file_count - 18u;
+		if (saved_scroll > max_scroll)
+			panel->scroll_offset = max_scroll;
+		else
+			panel->scroll_offset = saved_scroll;
+	}
+	panel_clamp_scroll(panel);
 }
 
 static unsigned char panel_find_by_name(PanelState *panel, const char *hint, unsigned int *out_idx)
