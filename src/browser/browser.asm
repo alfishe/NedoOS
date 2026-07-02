@@ -1152,6 +1152,9 @@ adddefaultprotocol
 addslashafterserver
 ;add / after http://ser.ver
 ;hl=after "//"
+;a=protocol (0=file, 1=http, 2=gopher, 3=https)
+        or a
+        ret z ;for file:// do not append trailing slash
         call findslash
         ret z ;слеш уже есть
          ld (hl),c;0

@@ -50,14 +50,32 @@ init
         ;call setpgcode4000
         ;call setpgtemp8000
         
-;command line = "browser <file to load>"
+;command line = "browser [-f] [<file or url to load>]"
+;-f: load argument from disk (file://), for nc.ext / bare filenames
+        xor a
+        ld (init_forcefile),a
         ld hl,COMMANDLINE ;command line
         call skipword
         call skipspaces
+init_parseflags
         ld a,(hl)
         or a
-        jr nz,$+5
-         ld hl,defaultfilename
+        jr z,init_usedefault
+        cp '-'
+        jr nz,init_gotarg
+        push hl
+        ld de,tflagf
+        call strcp_tillde0
+        pop hl
+        jr nz,init_gotarg
+        call skipword ;skip "-f"
+        call skipspaces
+        ld a,1
+        ld (init_forcefile),a
+        jr init_parseflags
+init_usedefault
+        ld hl,defaultfilename
+init_gotarg
         ld de,linkbuf
         call strcopy
 
@@ -70,6 +88,9 @@ init
         call isprotocolpresent
         jr z,browser_recodefull_protocolpresent
 ;protocol absent
+        ld a,(init_forcefile)
+        or a
+        jr nz,browser_recodefull_forcefile
 ;1:/file... => file://1:/file...
 ;ser.ver... => http://ser.ver...
         ld a,(linkbuf+1)
@@ -77,6 +98,11 @@ init
         ld a,1
         jr nz,$+3
          xor a
+        call adddefaultprotocol
+        jr browser_recodefull_protocolpresent
+browser_recodefull_forcefile
+;nc.ext: browser.com -f page.htm => file://page.htm
+        xor a ;file protocol
         call adddefaultprotocol
 browser_recodefull_protocolpresent
 ;curfulllink OK
@@ -89,6 +115,11 @@ defaultfilename
         ;db "http://zxevo.ru/nos/",0
         db "file://browser/nos.htm",0
         ;db "https://rgb.yandex",0
+
+tflagf
+        db "-f",0
+init_forcefile
+        db 0
 
 zxpal
         incbin "zxpal"

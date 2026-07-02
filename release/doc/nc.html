@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=windows-1251">
+  <meta charset="windows-1251">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NC - файловый менеджер NedoOS</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --accent2: #3fb950;
+      --kbd-bg: #21262d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 16px/1.55 "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+    header { border-bottom: 1px solid var(--border); padding-bottom: 1.5rem; margin-bottom: 2rem; }
+    h1 { margin: 0 0 .35em; font-size: 2rem; font-weight: 600; }
+    .meta { color: var(--muted); font-size: .95rem; }
+    .meta code { background: var(--surface); padding: .1em .45em; border-radius: 4px; font-size: .9em; }
+    h2 { margin: 2rem 0 .75rem; font-size: 1.35rem; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: .35rem; }
+    h3 { margin: 1.5rem 0 .5rem; font-size: 1.1rem; color: var(--accent2); }
+    p { margin: .6rem 0; }
+    ul { margin: .4rem 0 .8rem; padding-left: 1.4rem; }
+    li { margin: .25rem 0; }
+    table { width: 100%; border-collapse: collapse; margin: .75rem 0 1.25rem; font-size: .95rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    th, td { padding: .55rem .75rem; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { background: #1c2128; font-weight: 600; color: var(--muted); width: 28%; }
+    tr:last-child td, tr:last-child th { border-bottom: none; }
+    kbd { display: inline-block; padding: .12em .5em; font: .88em/1.4 ui-monospace, Consolas, monospace; background: var(--kbd-bg); border: 1px solid var(--border); border-radius: 4px; }
+    .note { background: var(--surface); border-left: 3px solid var(--accent); padding: .75rem 1rem; margin: 1rem 0; border-radius: 0 6px 6px 0; color: var(--muted); font-size: .93rem; }
+    footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--muted); font-size: .85rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>NC - Norton Commander для NedoOS</h1>
+      <p class="meta">Версия <strong>0.7</strong> &middot; программа <code>nc.com</code> &middot; настройки <code>../ini/nc.ini</code> &middot; ассоциации <code>../ini/nc.ext</code></p>
+    </header>
+
+    <p>Двухпанельный файловый менеджер в духе Norton Commander и <strong>nv.com</strong>: левая и правая панели, строка подсказок, статусная строка с размером и именем файла, часы в правом верхнем углу активной панели.</p>
+
+    <h2>Экран</h2>
+    <table>
+      <tr><th>Зона</th><th>Строки</th><th>Содержимое</th></tr>
+      <tr><td>Панели</td><td>1&ndash;21</td><td>Список файлов (до 18 строк на панель)</td></tr>
+      <tr><td>Статус</td><td>22</td><td>Размер и имя под курсором, или командная строка <code>&gt;</code></td></tr>
+      <tr><td>Подсказки</td><td>23</td><td>Горячие клавиши <kbd>1</kbd>&ndash;<kbd>9</kbd>, <kbd>0</kbd></td></tr>
+      <tr><td>Часы</td><td>0, справа</td><td>Формат <code>HH:MM</code></td></tr>
+    </table>
+    <p><strong>Активная панель</strong> подсвечена. <kbd>Tab</kbd> переключает левую и правую панели. В подвале панели отображаются путь, число объектов и суммарный размер; при отметке файлов &mdash; количество отмеченных и их суммарный размер.</p>
+
+    <h2>Основные возможности</h2>
+    <h3>Навигация</h3>
+    <ul>
+      <li><kbd>Enter</kbd> на каталоге &mdash; войти; на <code>..</code> &mdash; подняться вверх.</li>
+      <li><kbd>Enter</kbd> на файле &mdash; запуск.</li>
+      <li>Сортировка: имя, расширение, размер, время; A&ndash;Z / Z&ndash;A; LFN sort.</li>
+    </ul>
+    <h3>Файловые операции</h3>
+    <ul>
+      <li><strong>Копирование (F5)</strong> &mdash; в другую панель или путь; каталоги, отмеченные файлы, дерево; диалог при конфликте имён.</li>
+      <li><strong>Перемещение (^)</strong> &mdash; аналогично копированию.</li>
+      <li><strong>Переименование (F6)</strong>, <strong>создание каталога (F7)</strong>, <strong>удаление (F8)</strong>.</li>
+    </ul>
+    <h3>Просмотр и редактирование</h3>
+    <ul>
+      <li><strong>F3</strong> &mdash; Viewer (<code>texted.com</code> по умолчанию).</li>
+      <li><strong>F4</strong> &mdash; Editor (<code>texted.com</code> по умолчанию). Без флагов <code>/k</code> и <code>/p</code>.</li>
+    </ul>
+    <h3>Запуск программ</h3>
+    <p>Цепочка: <code>term.com</code> &rarr; <code>cmd.com</code> &rarr; программа. Режим Cmd в F9: <code>none</code>, <code>/k</code>, <code>/p</code>.</p>
+    <h3>Отметка</h3>
+    <p><kbd>Insert</kbd> или <kbd>*</kbd>. F5, F8 и ^ работают с отмеченными.</p>
+    <h3>Диски</h3>
+    <p><kbd>F1</kbd> / <kbd>F2</kbd> &mdash; выбор диска для левой и правой панели (A&ndash;D, IDE E&ndash;L, SD M, NeoGS N, USB O).</p>
+    <h3>Командная строка</h3>
+    <p>Ввод с клавиатуы, <kbd>Shift</kbd>+<kbd>Enter</kbd> &mdash; вставить имя файла, <kbd>Esc</kbd> &mdash; отмена.</p>
+
+    <h2>Горячие клавиши</h2>
+    <table>
+      <tr><th>Клавиша</th><th>Действие</th></tr>
+      <tr><td><kbd>F1</kbd></td><td>Диск — левая панель</td></tr>
+      <tr><td><kbd>F2</kbd></td><td>Диск — правая панель</td></tr>
+      <tr><td><kbd>F3</kbd></td><td>Просмотр</td></tr>
+      <tr><td><kbd>F4</kbd></td><td>Редактирование</td></tr>
+      <tr><td><kbd>F5</kbd></td><td>Копировать</td></tr>
+      <tr><td><kbd>^</kbd></td><td>Переместить</td></tr>
+      <tr><td><kbd>F6</kbd></td><td>Переименовать</td></tr>
+      <tr><td><kbd>F7</kbd></td><td>Создать каталог</td></tr>
+      <tr><td><kbd>F8</kbd></td><td>Удалить</td></tr>
+      <tr><td><kbd>F9</kbd></td><td>Меню</td></tr>
+      <tr><td><kbd>F10</kbd></td><td>Выход (сохранение nc.ini)</td></tr>
+      <tr><td><kbd>&uarr;</kbd> <kbd>&darr;</kbd></td><td>Строка вверх / вниз</td></tr>
+      <tr><td><kbd>PgUp</kbd> <kbd>PgDn</kbd></td><td>Страница</td></tr>
+      <tr><td><kbd>Home</kbd> / <kbd>End</kbd></td><td><code>..</code> / последний файл</td></tr>
+      <tr><td><kbd>Tab</kbd></td><td>Смена панели</td></tr>
+      <tr><td><kbd>Insert</kbd>, <kbd>*</kbd></td><td>Отметка файла</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>Отмена; закрыть меню; прервать копирование</td></tr>
+    </table>
+    <p class="note">На клавиатуре Spectrum: <kbd>!</kbd> <kbd>@</kbd> <kbd>#</kbd> <kbd>$</kbd> <kbd>%</kbd> <kbd>&amp;</kbd> <kbd>'</kbd> <kbd>(</kbd> <kbd>)</kbd>, выход &mdash; <kbd>_</kbd>.</p>
+
+    <h2>Меню F9 &rarr; Files</h2>
+    <p>Меню открывается клавишей <kbd>F9</kbd>. Выберите пункт <strong>Files</strong> и нажмите <kbd>Enter</kbd>. Настройки действуют на <strong>активную</strong> панель (левую или правую; переключение &mdash; <kbd>Tab</kbd>).</p>
+    <table>
+      <tr><th>Пункт</th><th>Назначение</th></tr>
+      <tr><td><strong>Name</strong></td><td>Сортировка по имени файла. Звёздочка <code>*</code> у текущего режима.</td></tr>
+      <tr><td><strong>Extension</strong></td><td>Сортировка по расширению.</td></tr>
+      <tr><td><strong>Size</strong></td><td>Сортировка по размеру файла.</td></tr>
+      <tr><td><strong>Time</strong></td><td>Сортировка по дате и времени изменения.</td></tr>
+      <tr><td><strong>A-Z</strong></td><td>Возрастающий порядок (A&rarr;Z, меньше&rarr;больше, старые&rarr;новые).</td></tr>
+      <tr><td><strong>Z-A</strong></td><td>Убывающий порядок.</td></tr>
+      <tr><td><strong>LFN sort</strong></td><td>Сортировка по полному длинному имени (LFN), а не по короткому 8.3. <code>*</code> &mdash; включено.</td></tr>
+      <tr><td><strong>Read on focus</strong></td><td>При возвращении в NC после другой программы заново читать каталоги обеих панелей. Без флага &mdash; только перерисовка экрана.</td></tr>
+      <tr><td><strong>Brief view</strong></td><td>Краткий вид панели: только имя и размер (без даты/времени). Общий для обеих панелей.</td></tr>
+      <tr><td><strong>Cmd: none / /k / /p</strong></td><td>Флаги для <code>cmd.com</code> при запуске файлов с командной строки ипо <kbd>Enter</kbd> на <code>.com</code>/<code>.bat</code>. <code>/k</code> &mdash; оставить консоль открытой; <code>/p</code> &mdash; «Press any key» после вывода. F3/F4 флаги не используют.</td></tr>
+    </table>
+    <h3>Управление в меню</h3>
+    <ul>
+      <li><kbd>&uarr;</kbd> / <kbd>&darr;</kbd> &mdash; выбор пункта.</li>
+      <li><kbd>&larr;</kbd> / <kbd>&rarr;</kbd> &mdash; переключение значения (режим сортировки, направление, LFN, флаги).</li>
+      <li><kbd>Enter</kbd> &mdash; применить и закрыть меню. Для Name/Extension/Size/Time/A-Z/Z-A пересортировать список.</li>
+      <li><kbd>Esc</kbd> &mdash; закрыть без применения изменений сортировки (если ещё не нажат <kbd>Enter</kbd>).</li>
+    </ul>
+    <p class="note">Каталоги (<code>..</code>) всегда вверху списка, затем папки, затем файлы. Изменение <strong>Cmd</strong> сразу пишется в <code>nc.ini</code>; остальные настройки меню &mdash; при выходе <kbd>F10</kbd>.</p>
+
+    <h2>Файл nc.ini</h2>
+    <p>Расположение: <code>../ini/nc.ini</code> (относительно системного каталога). Читается при старте NC, записывается при <kbd>F10</kbd> (выход) и сразу при смене <strong>Cmd</strong> в меню. Формат: <code>Ключ=значение</code>, строки с <code>#</code> &mdash; комментарии. Имена ключей допускаются в виде <code>LeftPath</code> или <code>left_path</code>.</p>
+    <table>
+      <tr><th>Ключ</th><th>Значение</th><th>По умолчанию</th></tr>
+      <tr><td><code>CmdFlag</code></td><td>Режим консоли: <code>none</code>, <code>k</code> (<code>/k</code>), <code>p</code> (<code>/p</code>). См. меню Files.</td><td><code>none</code></td></tr>
+      <tr><td><code>ReadOnFocus</code></td><td><code>1</code> / <code>0</code> &mdash; обновлять каталоги обеих панелей при возвращении фокуса в NC.</td><td><code>0</code></td></tr>
+      <tr><td><code>BriefView</code></td><td><code>1</code> / <code>0</code> &mdash; краткий вид панелей (имя + размер).</td><td><code>0</code></td></tr>
+      <tr><td><code>LeftActive</code></td><td><code>1</code> &mdash; активна левая панель, <code>0</code> &mdash; правая.</td><td>левая</td></tr>
+      <tr><td><code>LeftPath</code></td><td>Стартовый каталог левой панели, напр. <code>M:/bin/</code>.</td><td><code>M:/bin/</code></td></tr>
+      <tr><td><code>RightPath</code></td><td>Стартовый каталог правой панели.</td><td><code>M:/test/</code></td></tr>
+      <tr><td><code>LeftSort</code></td><td>Режим сортировки левой панели: <code>name</code>, <code>ext</code>, <code>size</code>, <code>time</code>.</td><td><code>name</code></td></tr>
+      <tr><td><code>RightSort</code></td><td>То же для правой панели.</td><td><code>name</code></td></tr>
+      <tr><td><code>LeftSortDir</code></td><td>Направление: <code>asc</code> (A&ndash;Z) или <code>desc</code> (Z&ndash;A).</td><td><code>asc</code></td></tr>
+      <tr><td><code>RightSortDir</code></td><td>Направление правой панели.</td><td><code>asc</code></td></tr>
+      <tr><td><code>LeftSortLfn</code></td><td><code>1</code> / <code>0</code> &mdash; сортировка левой панели по LFN.</td><td><code>0</code></td></tr>
+      <tr><td><code>RightSortLfn</code></td><td>То же для правой панели.</td><td><code>0</code></td></tr>
+      <tr><td><code>HideDrives</code></td><td>Буквы дисков через запятую, которые <strong>не показывать</strong> в меню F1/F2, напр. <code>J,K,L</code>. Пустая строка &mdash; все доступные диски.</td><td><em>пусто</em></td></tr>
+      <tr><td><code>Viewer</code></td><td>Программа просмотра (F3). Запускается с путём к файлу в аргументе.</td><td><code>texted.com</code></td></tr>
+      <tr><td><code>Editor</code></td><td>Программа редактирования (F4).</td><td><code>texted.com</code></td></tr>
+    </table>
+    <p>Для логических значений <code>1</code>, <code>0</code>, <code>y</code>, <code>n</code>, <code>true</code>, <code>false</code> понимаются одинаково. При отсутствии файла или ключа используются значения по умолчанию из таблицы.</p>
+    <h3>Пример nc.ini</h3>
+    <pre style="background:var(--surface);border:1px solid var(--border);padding:1rem;border-radius:8px;overflow:auto;font-size:.9em;line-height:1.45"># NC settings
+CmdFlag=none
+ReadOnFocus=0
+BriefView=0
+LeftActive=1
+LeftPath=M:/bin/
+RightPath=M:/test/
+LeftSort=name
+RightSort=ext
+LeftSortDir=asc
+RightSortDir=desc
+LeftSortLfn=0
+RightSortLfn=1
+HideDrives=J,K,L
+Viewer=texted.com
+Editor=texted.com</pre>
+    <h2>nc.ext</h2>
+    <p>Ассоциации расширений (приоритет над nv.ext).</p>
+    <h2>Цвета</h2>
+    <p><code>.COM</code> и hobeta <code>.$C</code> выделяются цветом, как в NV.</p>
+
+    <footer>NedoOS &middot; NC v0.7 &middot; <code>nc.com</code></footer>
+  </div>
+</body>
+</html>
