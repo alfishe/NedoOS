@@ -243,7 +243,21 @@ void uartFlush(unsigned int millis)
 	uart_setrts(1);
 	while (time() < finish)
 	{
-		uart_read();
+		if (comType == 1)
+		{
+			disable_interrupt();
+			input(0x55fe); // Переход в режим команд
+			if (input(0xc2fe) != 0) // Получаем количество байт в приемном буфере
+			{
+				input(0x55fe); // Переход в режим команд
+				input(0x02fe); // Команда прочесть из порта
+			}
+			enable_interrupt();
+		}
+		else
+		{
+			uart_read();
+		}
 	}
 	uart_setrts(0);
 	// writeLog("Flushed data", "uartFlush      ");
@@ -273,8 +287,18 @@ unsigned int uartReadBlock(void)
 		}
 		return input(RBR_THR);
 	case 1: // ATM2 COM port
-		while (uart_hasByte() == 0)
+		for (;;)
 		{
+			disable_interrupt();
+			input(0x55fe); // Переход в режим команд
+			if (input(0xc2fe) != 0) // Получаем количество байт в приемном буфере
+			{
+				input(0x55fe);		  // Переход в режим команд
+				data = input(0x02fe); // Команда прочесть из порта
+				enable_interrupt();
+				return data;
+			}
+			enable_interrupt();
 			if (timerok == 0)
 			{
 				sprintf(cmd, "[ATM2 COM]receiving timeout.[c=%lu]", count);
@@ -291,11 +315,6 @@ unsigned int uartReadBlock(void)
 			input(0x00fe); // Снимаем готовность DTR и RTS
 			enable_interrupt();
 		}
-		disable_interrupt();
-		input(0x55fe);		  // Переход в режим команд
-		data = input(0x02fe); // Команда прочесть из порта
-		enable_interrupt();
-		return data;
 	case 2: // Kondratyev AFC
 		while ((1 & input(LSR)) == 0)
 		{
@@ -365,9 +384,18 @@ char getdataEsp(unsigned int counted)
 		for (counter = 0; counter < counted; counter++)
 		{
 			timerok = factor;
-
-			while (uart_hasByte() == 0)
+			for (;;)
 			{
+				disable_interrupt();
+				input(0x55fe); // Переход в режим команд
+				if (input(0xc2fe) != 0) // Получаем количество байт в приемном буфере
+				{
+					input(0x55fe);					 // Переход в режим команд
+					netbuf[counter] = input(0x02fe); // Команда прочесть из порта
+					enable_interrupt();
+					break;
+				}
+				enable_interrupt();
 				if (timerok == 0)
 				{
 					sprintf(cmd, "[ATM2 COM]Timeout.[Downloaded:%u of %u]", counter, counted);
@@ -384,10 +412,6 @@ char getdataEsp(unsigned int counted)
 				input(0x00fe); // Снимаем готовность DTR и RTS
 				enable_interrupt();
 			}
-			disable_interrupt();
-			input(0x55fe);					 // Переход в режим команд
-			netbuf[counter] = input(0x02fe); // Команда прочесть из порта
-			enable_interrupt();
 		}
 		return true;
 	case 2: // Kondratyev AFC
