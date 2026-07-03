@@ -78,7 +78,7 @@ unsigned int loaded;
 unsigned char crlf[2] = {13, 10};
 unsigned char cmd[512];
 unsigned char fileIdChar[10];
-unsigned char picture[14000];
+unsigned char picture[13700];
 unsigned char netbuf[4000];
 unsigned char curPath[128];
 

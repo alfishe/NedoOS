@@ -174,8 +174,10 @@ void uart_init(unsigned char divisor)
 		input(0x55fe);
 		input(0xc3fe);
 		input((divisor << 8) | 0x00fe);
+		input(0x55fe); // Переход в режим команд
+		input(0x43fe); // Команда установить статус
+		input(0x00fe); // Снимаем готовность DTR и RTS
 		enable_interrupt();
-		uart_setrts(0);
 		break;
 	case 3:
 		portOutput(IIR_FCR, 0x87);	  // Enable fifo 8 level, and clear it
@@ -240,10 +242,14 @@ void uartFlush(unsigned int millis)
 {
 	unsigned long finish;
 	finish = time() + (millis / 20);
-	uart_setrts(1);
-	while (time() < finish)
+	if (comType == 1)
 	{
-		if (comType == 1)
+		disable_interrupt();
+		input(0x55fe); // Переход в режим команд
+		input(0x43fe); // Команда установить статус
+		input(0x03fe); // Устанавливаем готовность DTR и RTS
+		enable_interrupt();
+		while (time() < finish)
 		{
 			disable_interrupt();
 			input(0x55fe); // Переход в режим команд
@@ -254,12 +260,21 @@ void uartFlush(unsigned int millis)
 			}
 			enable_interrupt();
 		}
-		else
+		disable_interrupt();
+		input(0x55fe); // Переход в режим команд
+		input(0x43fe); // Команда установить статус
+		input(0x00fe); // Снимаем готовность DTR и RTS
+		enable_interrupt();
+	}
+	else
+	{
+		uart_setrts(1);
+		while (time() < finish)
 		{
 			uart_read();
 		}
+		uart_setrts(0);
 	}
-	uart_setrts(0);
 	// writeLog("Flushed data", "uartFlush      ");
 }
 
@@ -466,14 +481,52 @@ char getdataEsp(unsigned int counted)
 void sendcommand(const char *commandline)
 {
 	unsigned int count, cmdLen;
+	unsigned char data;
 	cmdLen = strlen(commandline);
 	YIELD();
-	for (count = 0; count < cmdLen; count++)
+	if (comType == 1)
 	{
-		uart_write(commandline[count]);
+		for (count = 0; count < cmdLen; count++)
+		{
+			data = commandline[count];
+			disable_interrupt();
+			do
+			{
+				input(0x55fe); // Переход в режим команд
+			} while ((input(0x42fe) & 32) == 0); // Команда прочесть статус & Проверяем 5 бит
+			input(0x55fe);				 // Переход в режим команд
+			input(0x03fe);				 // Команда записать в порт
+			input((data << 8) | 0x00fe); // Записываем data в порт
+			enable_interrupt();
+		}
+		disable_interrupt();
+		do
+		{
+			input(0x55fe);
+		} while ((input(0x42fe) & 32) == 0);
+		input(0x55fe);
+		input(0x03fe);
+		input(0x0dfe); // '\r'
+		enable_interrupt();
+		disable_interrupt();
+		do
+		{
+			input(0x55fe);
+		} while ((input(0x42fe) & 32) == 0);
+		input(0x55fe);
+		input(0x03fe);
+		input(0x0afe); // '\n'
+		enable_interrupt();
 	}
-	uart_write('\r');
-	uart_write('\n');
+	else
+	{
+		for (count = 0; count < cmdLen; count++)
+		{
+			uart_write(commandline[count]);
+		}
+		uart_write('\r');
+		uart_write('\n');
+	}
 	YIELD();
 	// writeLog(commandline, "sendcommand    ");
 }
@@ -481,10 +534,30 @@ void sendcommand(const char *commandline)
 void sendcommandNrn(const char *commandline)
 {
 	unsigned int count, cmdLen;
+	unsigned char data;
 	cmdLen = strlen(commandline);
-	for (count = 0; count < cmdLen; count++)
+	if (comType == 1)
 	{
-		uart_write(commandline[count]);
+		for (count = 0; count < cmdLen; count++)
+		{
+			data = commandline[count];
+			disable_interrupt();
+			do
+			{
+				input(0x55fe); // Переход в режим команд
+			} while ((input(0x42fe) & 32) == 0); // Команда прочесть статус & Проверяем 5 бит
+			input(0x55fe);				 // Переход в режим команд
+			input(0x03fe);				 // Команда записать в порт
+			input((data << 8) | 0x00fe); // Записываем data в порт
+			enable_interrupt();
+		}
+	}
+	else
+	{
+		for (count = 0; count < cmdLen; count++)
+		{
+			uart_write(commandline[count]);
+		}
 	}
 	// writeLog(commandline, "sendcommandNrn ");
 	YIELD();
@@ -556,22 +629,20 @@ unsigned long uartBench(void)
 	case 1: // ATM2 COM port
 		for (count = 0; count < cycles; count++)
 		{
-			enable_interrupt();
-			input(0x55fe);		  // Переход в режим команд
+			disable_interrupt();
+			input(0x55fe); // Переход в режим команд
 			data = input(0xc2fe); // Получаем количество байт в приемном буфере
 			data = input(0xc2fe); // Получаем количество байт в приемном буфере
 			if (count == 0)
 			{
 			}
-			enable_interrupt();
-			enable_interrupt();
-			input(0x55fe);		  // Переход в режим команд
-			input(0x43fe);		  // Команда установить статус
-			input(0x03fe);		  // Устанавливаем готовность DTR и RTS
-			input(0x55fe);		  // Переход в режим команд
-			input(0x43fe);		  // Команда установить статус
-			input(0x00fe);		  // Снимаем готовность DTR и RTS
-			input(0x55fe);		  // Переход в режим команд
+			input(0x55fe); // Переход в режим команд
+			input(0x43fe); // Команда установить статус
+			input(0x03fe); // Устанавливаем готовность DTR и RTS
+			input(0x55fe); // Переход в режим команд
+			input(0x43fe); // Команда установить статус
+			input(0x00fe); // Снимаем готовность DTR и RTS
+			input(0x55fe); // Переход в режим команд
 			data = input(0x02fe); // Команда прочесть из порта
 			enable_interrupt();
 		}
