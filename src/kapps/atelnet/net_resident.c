@@ -1,14 +1,11 @@
+#pragma language=extended
+#pragma codeseg(CODE_RESIDENT)
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <oscalls.h>
 #include "netglue.h"
-
-unsigned char netbuf[ATELNET_NETBUF_SIZE];
-struct sockaddr_in targetadr;
-struct sockaddr_in dnsaddress;
-struct readstructure readStruct;
-
 
 #include "../common/network.c"
 
@@ -94,7 +91,6 @@ signed char net_connect_tcp(unsigned int port, unsigned char retry)
   return netConnect(socket, retry);
 }
 
-/* Non-blocking read for telnet: never steals ESC (tcpRead aborts on ESC). */
 int telnet_tcp_read(signed char socket)
 {
   unsigned int todo;

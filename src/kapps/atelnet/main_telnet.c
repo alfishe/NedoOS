@@ -5,123 +5,18 @@
 #include <oscalls.h>
 #include <osfs.h>
 #include "atelnet.h"
-#include "netglue.h"
 #include "telnet_sess.h"
 #include "telbook.h"
-
-static const unsigned char ver[] = "atelnet 1.82";
-
-static void wait_key(void)
-{
-  do
-  {
-    YIELD();
-  } while ((OS_GETKEY() & 0xFFL) == 0L);
-}
-
-static void show_ansiview_hint(const char *path)
-{
-  term_cls(0x4Fu);
-  term_set_xy(0u, 0u);
-  printf("ANSI files: use ansiview.com\r\n");
-  if (path != 0 && path[0] != 0)
-  {
-    term_set_xy(0u, 2u);
-    printf("ansiview %s\r\n", path);
-  }
-  term_set_xy(0u, TERM_LAST_ROW);
-  printf("Press any key...");
-  wait_key();
-}
-
-static int host_looks_like_file(const char *host)
-{
-  const char *dot;
-
-  if (strchr(host, '\\') != 0 || strchr(host, '/') != 0)
-  {
-    return 1;
-  }
-  dot = strrchr(host, '.');
-  if (dot == 0)
-  {
-    return 0;
-  }
-  if (strcmp(dot, ".ans") == 0 || strcmp(dot, ".ANS") == 0)
-  {
-    return 1;
-  }
-  if (strcmp(dot, ".asc") == 0 || strcmp(dot, ".ASC") == 0)
-  {
-    return 1;
-  }
-  return 0;
-}
-
-static void show_usage(void)
-{
-  term_cls(0x07u);
-  term_set_xy(0u, 0u);
-  printf("%s\r\n", ver);
-  term_set_xy(0u, 2u);
-  printf("Usage:\r\n");
-  term_set_xy(2u, 3u);
-  printf("atelnet host[:port]\r\n");
-  term_set_xy(2u, 5u);
-  printf("  host[:port]  telnet session (port 23)\r\n");
-  term_set_xy(2u, 6u);
-  printf("  -d          debug status (RX/TX line)\r\n");
-  term_set_xy(2u, 7u);
-  printf("  -866        CP866 wire (default CP437)\r\n");
-  term_set_xy(2u, 8u);
-  printf("  (no args)    address book\r\n");
-  term_set_xy(2u, 9u);
-  printf("  F10=exit  F2=address book (in session)\r\n");
-  term_set_xy(2u, 10u);
-  printf("  F6=ZMODEM receive (after sz on host)\r\n");
-  term_set_xy(2u, 11u);
-  printf("  ESC=send to host\r\n");
-  term_set_xy(0u, TERM_LAST_ROW);
-  printf("Press any key...");
-  do
-  {
-    YIELD();
-  } while ((OS_GETKEY() & 0xFFL) == 0L);
-}
-
-static int parse_host_port(char *arg, char *host, unsigned int host_sz, unsigned int *port)
-{
-  char *colon;
-  unsigned long p;
-
-  strncpy(host, arg, host_sz - 1u);
-  host[host_sz - 1u] = 0;
-
-  colon = strchr(host, ':');
-  if (colon != NULL)
-  {
-    *colon = 0;
-    p = strtoul(colon + 1, NULL, 10);
-    if (p == 0ul || p > 65535ul)
-    {
-      return 0;
-    }
-    *port = (unsigned int)p;
-  }
-  else
-  {
-    *port = 23u;
-  }
-
-  return host[0] != 0;
-}
+#include "atelnet_plug.h"
+#include "atelnet_cli.h"
+#include "atelnet_net.h"
 
 static int run_telnet_arg(char *arg, unsigned char debug, unsigned char cp866)
 {
   char host[128];
   unsigned int port;
 
-  if (!parse_host_port(arg, host, sizeof(host), &port))
+  if (!at_parse_host_port(arg, host, sizeof(host), &port))
   {
     return 0;
   }
@@ -138,7 +33,8 @@ C_task main(int argc, char *argv[])
   OS_HIDEFROMPARENT();
   OS_SETGFX(6u);
   term_init();
-  net_init();
+  at_init_banks();
+  at_net_init();
 
   debug = 0u;
   cp866 = 0u;
@@ -170,12 +66,12 @@ C_task main(int argc, char *argv[])
     }
     if (argv[i][0] == '-' && (argv[i][1] == 'h' || argv[i][1] == '?') && argv[i][2] == 0)
     {
-      show_usage();
+      at_show_usage();
       return 0;
     }
     if (argv[i][0] == '-' && argv[i][1] == 'f' && argv[i][2] == 0)
     {
-      show_ansiview_hint((i + 1 < argc) ? argv[i + 1] : 0);
+      at_show_ansiview_hint((i + 1 < argc) ? argv[i + 1] : 0);
       return 0;
     }
     if (argv[i][0] != '-')
@@ -186,13 +82,13 @@ C_task main(int argc, char *argv[])
 
   if (host_arg == 0)
   {
-    show_usage();
+    at_show_usage();
     return 0;
   }
 
-  if (host_looks_like_file(host_arg))
+  if (at_host_looks_like_file(host_arg))
   {
-    show_ansiview_hint(host_arg);
+    at_show_ansiview_hint(host_arg);
     return 0;
   }
 
@@ -201,14 +97,6 @@ C_task main(int argc, char *argv[])
     return 0;
   }
 
-  term_cls(0x4Fu);
-  term_set_xy(0u, 0u);
-  printf("atelnet: bad host argument\r\n");
-  term_set_xy(0u, 2u);
-  printf("Press any key...");
-  do
-  {
-    YIELD();
-  } while ((OS_GETKEY() & 0xFFL) == 0L);
+  at_show_bad_host();
   return 0;
 }
