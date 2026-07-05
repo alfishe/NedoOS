@@ -291,6 +291,7 @@ EXTERN int ZsDos
 #endif
 ;
 EXTERN unsigned long FileModTime;
+EXTERN long Txfbytes;
 EXTERN char **Pathlist;
 
 EXTERN int Chardelay
@@ -397,6 +398,7 @@ int zm_write(int fd, char *buf, int count);
 int zm_unlink(char *path);
 int zm_rename(char *oldpath, char *newpath);
 long zm_lseek(int fd, long offset, int whence);
+int zm_wseek(int fd, long offset);
 
 void zm_memfree(char *p);
 
@@ -409,17 +411,38 @@ typedef void (*zm_flush_fn)(void);
 void zm_io_begin(zm_tx_fn tx, zm_poll_fn poll, zm_flush_fn flush);
 void zm_io_end(void);
 void zm_io_drain_input(void);
+void zm_io_try_read(void);
+int zm_io_peek(void);
 unsigned char zm_io_active(void);
 void zm_io_rx(unsigned char b);
 unsigned char zm_io_nb_pending(void);
 void zm_io_nb_supply(unsigned int len);
 unsigned zm_rx_take_plain(char *dst, unsigned max, int zctlesc);
+unsigned zm_rx_take_raw(char *dst, unsigned max);
+unsigned zm_rx_read(char *dst, unsigned need);
+void zm_dp_map_ensure(void);
+void zm_dp_pull_secbuf(char *dst, unsigned int dstlen);
 int zmodem_session_receive(void);
+int ymodem_session_receive(void);
+int xmodem_session_receive(void);
 
 extern unsigned char g_zm_skip_purge;
 
 void zm_status_line(char *msg);
 void zm_status_clear(void);
+
+#ifdef ATELNET_YMODEM_TRACE
+#define ZM_TRACE_ROW   22u
+void zm_ytrace(const char *msg);
+void zm_ytrace2(const char *tag, int a, int b);
+void zm_ytrace3(const char *tag, int a, int b, int c);
+void zm_ytrace_reset(void);
+#else
+#define zm_ytrace(msg)        ((void)0)
+#define zm_ytrace2(t, a, b)   ((void)0)
+#define zm_ytrace3(t, a, b, c) ((void)0)
+#define zm_ytrace_reset()     ((void)0)
+#endif
 
 /* Debug log to telnet.log ? enable with -DATELNET_ZMODEM_LOG (Makefile). */
 #ifdef ATELNET_ZMODEM_LOG

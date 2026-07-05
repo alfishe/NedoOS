@@ -80,6 +80,8 @@ void r_show_usage(void)
   term_set_xy(2u, 10u);
   printf("  F6=ZMODEM receive (after sz on host)\r\n");
   term_set_xy(2u, 11u);
+  printf("  F7=YMODEM (sb -g file first; large files: F6+sz)\r\n");
+  term_set_xy(2u, 12u);
 #else
   term_set_xy(2u, 10u);
 #endif

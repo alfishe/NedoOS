@@ -44,6 +44,8 @@
 #define KEY_RIGHT  251u
 #define KEY_F2     178u
 #define KEY_F6     182u
+#define KEY_F7     183u
+#define KEY_F8     184u
 #define KEY_F10    176u
 #define KEY_ENTER  13u
 #define KEY_CSENTER 253u
@@ -315,7 +317,7 @@ static void telnet_zm_flush(void)
   telnet_flush_tx();
 }
 
-/* Drop host data still in the TCP buffer after Zmodem (binary frames, CAN, etc.). */
+/* Drop host data still in the TCP buffer before receive (sb-first workflow). */
 static void telnet_zm_discard_rx(unsigned int max_reads)
 {
   unsigned int i;
@@ -333,10 +335,8 @@ static void telnet_zm_discard_rx(unsigned int max_reads)
   g_rx_state = RX_DATA;
 }
 
-static void telnet_zm_after(int rc)
+static void telnet_zm_after_common(int rc, const char *ok_msg, const char *fail_msg)
 {
-  unsigned char k;
-
   zm_io_end();
   telnet_send_iac(TN_WONT, TN_BIN);
   telnet_send_iac(TN_DONT, TN_BIN);
@@ -346,33 +346,38 @@ static void telnet_zm_after(int rc)
 
   if (rc == OK)
   {
-    zm_status_line("ZMODEM OK  Enter=back to host");
+    zm_status_line((char *)ok_msg);
   }
   else
   {
-    zm_status_line("ZMODEM failed  Enter=back to host");
+    zm_status_line((char *)fail_msg);
   }
-  for (;;)
-  {
-    YIELD();
-    telnet_zm_discard_rx(8u);
-    k = (unsigned char)(OS_GETKEY() & 0xFFL);
-    if (k == KEY_ENTER || k == KEY_CSENTER || k == KEY_F10)
-    {
-      break;
-    }
-  }
+  telnet_zm_discard_rx(16u);
   zm_status_clear();
-  telnet_send_byte(13u);
-  telnet_send_byte(10u);
-  telnet_flush_tx();
-  telnet_zm_discard_rx(512u);
+  telnet_zm_discard_rx(128u);
   while ((OS_GETKEY() & 0xFFL) != 0L)
   {
     YIELD();
   }
 }
 
+static void telnet_zm_after(int rc)
+{
+  telnet_zm_after_common(rc, "ZMODEM OK", "ZMODEM failed");
+}
+
+static void telnet_zm_after_ymodem(int rc)
+{
+  telnet_zm_after_common(rc, "YMODEM OK", "YMODEM failed");
+}
+
+static void telnet_zm_after_xmodem(int rc)
+{
+  telnet_zm_after_common(rc, "XMODEM OK", "XMODEM failed");
+}
+#endif /* !ATELNET_NO_ZMODEM */
+
+#ifndef ATELNET_NO_ZMODEM
 static void telnet_start_zmodem(void)
 {
   unsigned char bank_saved;
@@ -403,6 +408,80 @@ static void telnet_start_zmodem(void)
   rc = zmodem_session_receive();
   at_zmodem_bank_leave(bank_saved);
   telnet_zm_after(rc);
+}
+
+static void telnet_start_ymodem(void)
+{
+  unsigned char bank_saved;
+  int rc;
+  unsigned int i;
+
+  bank_saved = at_zmodem_bank_enter();
+
+  zm_status_line("YMODEM: sb -g file, then F7 (large: F6+sz)");
+  ZM_LOG("F7 start ymodem receive");
+
+  telnet_send_iac(TN_WILL, TN_BIN);
+  telnet_send_iac(TN_DO, TN_BIN);
+  telnet_flush_tx();
+
+  for (i = 0u; i < 256u; i++)
+  {
+    if (telnet_poll_rx() < 0)
+    {
+      break;
+    }
+    YIELD();
+  }
+
+  /* Drop data sb may have sent before F7 (sb-first workflow). */
+  telnet_zm_discard_rx(512u);
+
+  g_rx_state = RX_DATA;
+  zm_io_begin(telnet_zm_tx, telnet_poll_rx, telnet_zm_flush);
+  rc = ymodem_session_receive();
+  at_zmodem_bank_leave(bank_saved);
+  telnet_zm_after_ymodem(rc);
+}
+
+static void telnet_start_xmodem(void)
+{
+  unsigned char bank_saved;
+  int rc;
+  unsigned int i;
+
+  bank_saved = at_zmodem_bank_enter();
+
+  if (getpathname("") == 0)
+  {
+    at_zmodem_bank_leave(bank_saved);
+    zm_status_clear();
+    return;
+  }
+
+  zm_status_line("XMODEM: sx on host, waiting...");
+  ZM_LOG("F8 start xmodem receive");
+
+  telnet_send_iac(TN_WILL, TN_BIN);
+  telnet_send_iac(TN_DO, TN_BIN);
+  telnet_flush_tx();
+
+  for (i = 0u; i < 256u; i++)
+  {
+    if (telnet_poll_rx() < 0)
+    {
+      break;
+    }
+    YIELD();
+  }
+
+  telnet_zm_discard_rx(512u);
+
+  g_rx_state = RX_DATA;
+  zm_io_begin(telnet_zm_tx, telnet_poll_rx, telnet_zm_flush);
+  rc = xmodem_session_receive();
+  at_zmodem_bank_leave(bank_saved);
+  telnet_zm_after_xmodem(rc);
 }
 #endif /* !ATELNET_NO_ZMODEM */
 
@@ -564,10 +643,12 @@ static int telnet_poll_rx(void)
   else
 #endif
   {
+    term_cursor_hold_or(TERM_CURS_HOLD_RX);
     for (i = 0u; i < (unsigned int)n; i++)
     {
       telnet_process(netbuf[i]);
     }
+    term_cursor_hold_and_not(TERM_CURS_HOLD_RX);
   }
   if (g_txlen > 0u)
   {
@@ -786,6 +867,7 @@ int telnet_session(const char *host, unsigned int port, unsigned char debug, uns
       if (poll_rc == 0)
       {
         g_idle_loops++;
+        term_cursor_show();
       }
       telnet_waiting_hint();
       telnet_status_draw();
@@ -832,6 +914,14 @@ int telnet_session(const char *host, unsigned int port, unsigned char debug, uns
         else if (key == KEY_F6)
         {
           telnet_start_zmodem();
+        }
+        else if (key == KEY_F7)
+        {
+          telnet_start_ymodem();
+        }
+        else if (key == KEY_F8)
+        {
+          telnet_start_xmodem();
         }
 #endif
         else if (key == 27)

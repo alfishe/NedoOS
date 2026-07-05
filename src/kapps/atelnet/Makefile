@@ -7,12 +7,13 @@ ANSIVIEW_BIN := ansiview.com
 
 ATELNET_C := main_telnet.c term.c cp437toatm.c net_data.c net_resident.c atelnet_net.c telnet_sess.c app_bank.c atelnet_bank.c telbook.c telbook_resident.c atelnet_log.c atelnet_log_resident.c cli_resident.c boot_resident.c atelnet_cli.c atelnet_boot.c term_doc_stub.c zmodem_recv.c zmodem_os.c
 # Optional: -DATELNET_ZMODEM_LOG (debug log to telnet.log)
+# Optional: -DATELNET_YMODEM_TRACE (on-screen YMODEM trace, row 22)
 # Optional send (sz): add zmodem_send.c when ready
 ATELNET_DEFS := -DMALLOC_BUFSIZE=0
 ANSIVIEW_C := main_ansiview.c term.c term_doc.c cp437toatm.c ansi_file.c
 SRCA := termscr.asm
 
-SRCH := atelnet.h term_doc.h netglue.h telnet_sess.h ansi_file.h telbook.h app_bank.h atelnet_plug.h atelnet_log.h atelnet_cli.h atelnet_boot.h atelnet_net.h zmodem.h
+SRCH := atelnet.h term_doc.h netglue.h telnet_sess.h ansi_file.h telbook.h app_bank.h atelnet_plug.h atelnet_log.h atelnet_cli.h atelnet_boot.h atelnet_net.h zmodem.h zmodem_datapage.h
 
 LIBDIR	:= $(dir $(abspath $(lastword $(MAKEFILE_LIST))))../iarlib/
 ROOTDIR := $(abspath $(LIBDIR)../../..)

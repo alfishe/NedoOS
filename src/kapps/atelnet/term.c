@@ -21,6 +21,7 @@ static unsigned char term_col;
 static unsigned char term_row;
 static unsigned char term_literal_next;
 static unsigned char term_wire_cp866;
+static unsigned char term_bs_echo_skip;
 
 #define ANSI_MAX_ARGS 8u
 #define ST_TEXT 0u
@@ -43,6 +44,17 @@ static unsigned char term_reply[TERM_REPLY_MAX];
 static unsigned char term_reply_len;
 static unsigned char term_hw_sync;
 static unsigned char g_ed2_needs_cr;
+
+static unsigned char g_curs_hold;
+static unsigned char g_curs_drawn;
+static unsigned char g_curs_x;
+static unsigned char g_curs_y;
+static unsigned char g_curs_saved_attr;
+
+static unsigned char term_curs_inv_attr(unsigned char attr)
+{
+  return (unsigned char)(((attr & 7u) << 3) | ((attr >> 3) & 7u) | (attr & 0xC0u));
+}
 
 static void term_reply_push(unsigned char b)
 {
@@ -141,6 +153,63 @@ static void term_pull_hw_xy(void)
   term_hw_sync = 1u;
 }
 
+static void term_curs_invalidate(void)
+{
+  term_cursor_hide();
+}
+
+void term_cursor_hide(void)
+{
+  if (g_curs_drawn == 0u)
+  {
+    return;
+  }
+  if (term_doc_active() != 0u)
+  {
+    g_curs_drawn = 0u;
+    return;
+  }
+  OS_SETXY(g_curs_x, g_curs_y);
+  OS_PRATTR(g_curs_saved_attr);
+  g_curs_drawn = 0u;
+}
+
+void term_cursor_show(void)
+{
+  unsigned char cx;
+  unsigned char cy;
+  unsigned char cell_attr;
+
+  if (g_curs_hold != 0u || term_doc_active() != 0u)
+  {
+    return;
+  }
+  if (g_curs_drawn != 0u)
+  {
+    return;
+  }
+  term_get_xy(&cx, &cy);
+  g_curs_x = cx;
+  g_curs_y = cy;
+  OS_SETXY(cx, cy);
+  cell_attr = OS_GETATTR();
+  g_curs_saved_attr = cell_attr;
+  OS_PRATTR(term_curs_inv_attr(cell_attr));
+  g_curs_drawn = 1u;
+}
+
+void term_cursor_hold_or(unsigned char mask)
+{
+  g_curs_hold = (unsigned char)(g_curs_hold | mask);
+  term_cursor_hide();
+}
+
+void term_cursor_hold_and_not(unsigned char mask)
+{
+  g_curs_hold = (unsigned char)(g_curs_hold & (unsigned char)~mask);
+  term_cursor_show();
+}
+
 static unsigned char term_safe_cls_attr(unsigned char attr)
 {
   if (attr == 0x00u)
@@ -193,9 +262,12 @@ void term_init(void)
   term_literal_next = 0u;
   term_wire_cp866 = 0u;
   term_cpr_fix_corner = 0u;
+  term_bs_echo_skip = 0u;
   term_doc_end();
   term_desync_hw();
   g_ed2_needs_cr = 0u;
+  g_curs_hold = 0u;
+  g_curs_drawn = 0u;
 }
 
 void term_set_wire_cp437(void)
@@ -219,6 +291,7 @@ static void term_emit_bdos(unsigned char bdos_ch)
 
 void term_cls(unsigned char attr)
 {
+  term_curs_invalidate();
   term_reset_cpr_fix();
   term_color = attr;
   if (term_doc_active() != 0u)
@@ -267,6 +340,10 @@ void term_set_xy(unsigned char col, unsigned char row)
   if (row > term_last_row())
   {
     row = term_last_row();
+  }
+  if (col != old_col || row != old_row)
+  {
+    term_curs_invalidate();
   }
   term_col = col;
   term_row = row;
@@ -344,6 +421,7 @@ static void term_newline(void)
     term_doc_get_vis_xy(&term_col, &term_row);
     return;
   }
+  term_curs_invalidate();
   term_emit_bdos(0x0Au);
   term_pull_hw_xy();
 }
@@ -351,6 +429,8 @@ static void term_newline(void)
 static void term_backspace(void)
 {
   unsigned char erase;
+  unsigned char col;
+  unsigned char row;
 
   if (term_doc_active() != 0u)
   {
@@ -358,12 +438,15 @@ static void term_backspace(void)
     term_doc_get_vis_xy(&term_col, &term_row);
     return;
   }
+  term_cursor_hide();
   term_pull_hw_xy();
   if (term_col == 0u)
   {
     return;
   }
   term_col--;
+  col = term_col;
+  row = term_row;
   term_sync_hw();
   erase = term_erase_attr();
   if (erase != term_color)
@@ -375,7 +458,10 @@ static void term_backspace(void)
   {
     OS_SETCOLOR(term_color);
   }
-  term_pull_hw_xy();
+  /* putchar(' ') advances BDOS cursor; stay on the erased cell. */
+  term_col = col;
+  term_row = row;
+  term_sync_hw();
 }
 
 static void term_tab(void)
@@ -392,6 +478,7 @@ static void term_tab(void)
   {
     return;
   }
+  term_curs_invalidate();
   spaces = (unsigned char)(next - term_col);
   term_fill_spaces(spaces);
 }
@@ -404,9 +491,33 @@ void term_putchar(unsigned char cp437)
   {
     return;
   }
+  if (term_bs_echo_skip != 0u)
+  {
+    if (cp437 == 0x20u && term_bs_echo_skip == 2u)
+    {
+      term_bs_echo_skip = 1u;
+      return;
+    }
+    if (cp437 == 0x08u && term_bs_echo_skip == 1u)
+    {
+      term_bs_echo_skip = 0u;
+      return;
+    }
+    if (cp437 != 0x08u && cp437 != 0x20u)
+    {
+      term_bs_echo_skip = 0u;
+    }
+  }
   if (cp437 == 0x08u)
   {
     term_backspace();
+    term_bs_echo_skip = 2u;
+    return;
+  }
+  if (cp437 == 0x7Fu)
+  {
+    term_backspace();
+    term_bs_echo_skip = 0u;
     return;
   }
   if (cp437 == 0x09u)
@@ -422,6 +533,7 @@ void term_putchar(unsigned char cp437)
       term_doc_get_vis_xy(&term_col, &term_row);
       return;
     }
+    term_curs_invalidate();
     term_emit_bdos(0x0Au);
     term_pull_hw_xy();
     return;
@@ -434,6 +546,7 @@ void term_putchar(unsigned char cp437)
       term_doc_get_vis_xy(&term_col, &term_row);
       return;
     }
+    term_curs_invalidate();
     term_emit_bdos(0x0Du);
     term_pull_hw_xy();
     return;
@@ -462,6 +575,7 @@ void term_putchar(unsigned char cp437)
       term_doc_get_vis_xy(&term_col, &term_row);
       return;
     }
+    term_curs_invalidate();
     if (term_col < TERM_LAST_COL)
     {
       term_col++;
@@ -483,6 +597,7 @@ void term_putchar(unsigned char cp437)
     return;
   }
   g_ed2_needs_cr = 0u;
+  term_cursor_hide();
   if (term_hw_sync == 0u)
   {
     term_sync_hw();
@@ -503,6 +618,7 @@ void term_scroll_up(unsigned char count)
     term_doc_get_vis_xy(&term_col, &term_row);
     return;
   }
+  term_curs_invalidate();
   term_desync_hw();
   OS_SCROLL_SCREEN_UP(count);
 }
@@ -519,6 +635,7 @@ void term_scroll_down(unsigned char count)
     term_doc_get_vis_xy(&term_col, &term_row);
     return;
   }
+  term_curs_invalidate();
   term_desync_hw();
   OS_SCROLL_SCREEN_DOWN(count);
 }
@@ -658,6 +775,7 @@ static void term_erase_line(unsigned char mode)
   }
 
   /* Match src/telnet/telnet.asm: EL uses BDOS cursor, not cached term_col. */
+  term_curs_invalidate();
   term_get_xy(&term_col, &term_row);
   col = term_col;
   row = term_row;
@@ -709,6 +827,7 @@ static void term_erase_display(unsigned char mode)
   }
 
   term_reset_cpr_fix();
+  term_curs_invalidate();
   term_get_xy(&term_col, &term_row);
   saved_row = term_row;
   saved_col = term_col;
@@ -755,6 +874,7 @@ static void term_cursor_up(unsigned char count)
     term_doc_get_vis_xy(&term_col, &term_row);
     return;
   }
+  term_curs_invalidate();
   term_pull_hw_xy();
   if (count == 0u)
   {
@@ -782,6 +902,7 @@ static void term_cursor_down(unsigned char count)
     return;
   }
 
+  term_curs_invalidate();
   term_pull_hw_xy();
   if (count == 0u)
   {
@@ -807,6 +928,7 @@ static void term_cursor_left(unsigned char count)
     term_doc_get_vis_xy(&term_col, &term_row);
     return;
   }
+  term_curs_invalidate();
   term_pull_hw_xy();
   if (count == 0u)
   {
@@ -833,6 +955,7 @@ static void term_cursor_right(unsigned char count)
     term_doc_get_vis_xy(&term_col, &term_row);
     return;
   }
+  term_curs_invalidate();
   term_pull_hw_xy();
   if (count == 0u)
   {
@@ -958,8 +1081,16 @@ static void term_dispatch_csi(unsigned char cmd)
     }
     break;
   case 'h':
+    if (ansi_private_csi != 0u && ansi_param(0) == 25u)
+    {
+      term_cursor_hold_and_not(TERM_CURS_HOLD_DEC);
+    }
+    break;
   case 'l':
-    /* DEC/private modes (?7h etc.) - ignore. */
+    if (ansi_private_csi != 0u && ansi_param(0) == 25u)
+    {
+      term_cursor_hold_or(TERM_CURS_HOLD_DEC);
+    }
     break;
   default:
     break;

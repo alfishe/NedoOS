@@ -656,6 +656,8 @@ goto good;
 if (procheader(Secbuf) == NERROR) {
 goto fubar;
 }
+zm_ytrace("pre-wcrx sync");
+purgeline();
 if (wcrx()==NERROR) {
 goto fubar;
 }
@@ -716,22 +718,28 @@ int wcrxpn(char *rpn)   /* receive a pathname */
 {
 static int c;
 
+zm_ytrace("wcrxpn");
 purgeline();
 
 et_tu:
 Firstsec=TRUE;  
 mcharout(Crcflag?WANTCRC:NAK);
+flush();
 while ((c = wcgetsec(rpn, 100)) != 0) {
 if (QuitFlag)
 return NERROR;
 if (c == WCEOT) {
+zm_ytrace("wcrxpn WCEOT");
 mcharout(ACK);
 readline(INTRATIME);
 goto et_tu;
 }
+zm_ytrace2("wcrxpn fail", c, Errors);
 return NERROR;
 }
+zm_ytrace2("wcrxpn ok", (int)(unsigned char)rpn[0], (int)Errors);
 mcharout(ACK);
+flush();
 return OK;
 }
 
@@ -751,11 +759,54 @@ extern int Firstsec;
 extern int Crcflag;
 extern char *Rxptr;
 extern int Wcsmask;
+extern unsigned Cpindex;
+extern char *Cpmbuf;
+extern char *Secbuf;
+extern long Txfbytes;
+extern int Fd;
+
+static int g_wc_last_blk;
 
 /*
-* Adapted from CMODEM13.C, written by
-* Jack M. Wierda and Roderick W. Hart
-*/
+ * Xmodem has no block-0 size; senders pad the last 128/1024 block with 0x1A.
+ * Strip only trailing 0x1A from the final sector (CP/M convention).
+ */
+static void wcrx_trim_last_1a(long *charsgot)
+{
+  unsigned trim;
+  unsigned excess;
+  unsigned char *p;
+
+  if (g_wc_last_blk <= 0)
+  {
+    return;
+  }
+  p = (unsigned char *)Secbuf;
+  trim = (unsigned)g_wc_last_blk;
+  while (trim > 0 && p[trim - 1] == 0x1A)
+  {
+    trim--;
+  }
+  excess = (unsigned)g_wc_last_blk - trim;
+  if (excess == 0u)
+  {
+    return;
+  }
+  *charsgot -= (long)excess;
+  if (Cpindex >= (unsigned)g_wc_last_blk)
+  {
+    Cpindex -= excess;
+  }
+  else if (Fd != UBIOT)
+  {
+    zm_wseek(Fd, *charsgot);
+  }
+}
+
+/*
+ * Adapted from CMODEM13.C, written by
+ * Jack M. Wierda and Roderick W. Hart
+ */
 
 int wcrx(void)
 {
@@ -763,24 +814,56 @@ static int sectnum, sectcurr;
 static char sendchar;
 static int cblklen;         /* bytes to dump this block */
 long charsgot;
+unsigned int prep;
 
 Firstsec=TRUE;
 sectnum=0; 
 charsgot = 0L;
+g_wc_last_blk = 0;
 sendchar=Crcflag?WANTCRC:NAK;
 report(BLKCHECK,Crcflag?"CRC":"Checksum");
+zm_ytrace("wcrx start");
+flush();
+for (prep = 0u; prep < 8u; prep++)
+{
+  zm_io_try_read();
+  if (minprdy() != FALSE)
+  {
+    break;
+  }
+}
 
 for (;;) {
-if (opabort()) {
+if ((sectnum & 0x0F) == 0 && opabort()) {
 return NERROR;
 }
+if (sectnum != 0 || minprdy() == FALSE
+    || (zm_io_peek() != SOH && zm_io_peek() != STX)) {
+zm_ytrace2("wcrx tx", (int)(unsigned char)sendchar, sectnum);
 mcharout(sendchar);               /* send it now, we're ready! */
+flush();
+} else {
+zm_ytrace2("wcrx buf", zm_io_peek(), sectnum);
+}
 sectcurr = wcgetsec(Rxptr,Firstsec||(sectnum&0177)?50:130);
+zm_ytrace3("wcrx sec", sectcurr, sectnum, Blklen);
 if (sectcurr==(sectnum+1 &Wcsmask)) {
-charsgot += Blklen;
-sreport(++sectnum,charsgot);
 cblklen = Blklen;
-if (putsec(cblklen,FALSE)==NERROR) {
+if (Txfbytes > 0L && charsgot + (long)cblklen > Txfbytes) {
+cblklen = (int)(Txfbytes - charsgot);
+}
+if (cblklen <= 0) {
+sendchar=ACK;
+continue;
+}
+charsgot += cblklen;
+sreport(++sectnum,charsgot);
+if (cblklen > 0 && cblklen <= KSIZE)
+{
+  memcpy(Secbuf, Rxptr, (unsigned)cblklen);
+}
+g_wc_last_blk = cblklen;
+if (putsec(cblklen, FALSE)==NERROR) {
 return NERROR;
 }
 sendchar=ACK;
@@ -788,6 +871,10 @@ sendchar=ACK;
 zperr("Duplicate Sector",TRUE);
 sendchar=ACK;
 } else if (sectcurr==WCEOT) {
+if (Txfbytes <= 0L)
+{
+  wcrx_trim_last_1a(&charsgot);
+}
 if (closeit()) {
 return NERROR;
 } else {
@@ -836,53 +923,67 @@ static unsigned oldcrc;
 static char *p;
 static int sectcurr;
 
+zm_ytrace_reset();
+zm_ytrace2("wcgetsec", maxtime, (int)Firstsec);
+zm_dp_map_ensure();
+
 for (Lastrx=Errors=0; Errors < RETRYMAX; ) {  /* errors incr by zperr */
 if (opabort()) {
 return NERROR;
 }
 if ((firstch=readline(maxtime))==STX) {
 Blklen=KSIZE; 
+zm_ytrace2("hdr STX", Blklen, Errors);
 goto get2;
 }
 if (firstch==SOH) {
 Blklen=SECSIZ;
+zm_ytrace2("hdr SOH", Blklen, Errors);
 get2:
 sectcurr=readline(INTRATIME);
-if ((sectcurr+readline(INTRATIME))==0xFF) {
+if (sectcurr < 0) {
+goto bilge;
+}
+firstch=readline(INTRATIME);
+if ((sectcurr+firstch)==0xFF) {
 oldcrc=checksum=0;
-for (p=rxbuf,wcj=Blklen; --wcj>=0; ) {
-if ((firstch=readline(INTRATIME)) < 0) {
+zm_ytrace2("blk num", sectcurr, Blklen);
+zm_dp_map_ensure();
+p=rxbuf;
+if (zm_rx_read(p, (unsigned)Blklen + (Crcflag ? 2u : 1u))
+    != (unsigned)Blklen + (Crcflag ? 2u : 1u)) {
 goto bilge;
 }
-oldcrc=updcrc(firstch, oldcrc);
-checksum += (*p++ = firstch);
-}
-if ((firstch=readline(INTRATIME)) < 0) {
-goto bilge;
+for (wcj=0; wcj<Blklen; wcj++) {
+oldcrc=updcrc((unsigned char)p[wcj], oldcrc);
+checksum += p[wcj];
 }
 if (Crcflag) {
-oldcrc=updcrc(firstch, oldcrc);
-if ((firstch=readline(INTRATIME)) < 0) {
-goto bilge;
-}
-oldcrc=updcrc(firstch, oldcrc);
+oldcrc=updcrc((unsigned char)p[Blklen], oldcrc);
+oldcrc=updcrc((unsigned char)p[Blklen + 1], oldcrc);
 if (oldcrc & 0xFFFF) {
+zm_ytrace2("CRC err", (int)oldcrc, sectcurr);
 zperr( "CRC Error",TRUE);
 } else {
 Firstsec=FALSE;
+zm_ytrace2("wcgetsec ok", sectcurr, Blklen);
 return sectcurr;
 }
-} else if (((checksum-firstch)&0xFF)==0) {
+} else if (((checksum-p[Blklen])&0xFF)==0) {
 Firstsec=FALSE;
+zm_ytrace2("wcgetsec ok", sectcurr, Blklen);
 return sectcurr;
 } else {
+zm_ytrace2("cs err", checksum, (int)(unsigned char)p[Blklen]);
 zperr("Checksum error",TRUE);
 }
 } else {
+zm_ytrace2("blk garbled", sectcurr, firstch);
 zperr("Block nr garbled",TRUE);
 }
-} else if (firstch==EOT && readline(10)==TIMEOUT) {
-/* make sure eot really is eot and not just mixmash */
+} else if (firstch==EOT) {
+/* readline() never returns TIMEOUT on telnet; confirm EOT without 2nd read. */
+zm_ytrace("wcgetsec EOT");
 return WCEOT;
 } else if (firstch==CAN) {
 if (Lastrx==CAN) {
@@ -900,14 +1001,23 @@ goto humbug;
 bilge:
 zperr( "TIMEOUT",TRUE);
 } else if (firstch==0x0D && Firstsec) {
+zm_ytrace2("skip CR", firstch, Errors);
+continue;
+} else if (Firstsec && (firstch == 0x0A || firstch == ACK || firstch == NAK || firstch == WANTCRC)) {
+zm_ytrace2("skip ctl", firstch, Errors);
+continue;
+} else if (Firstsec && firstch > 32 && firstch < 127) {
+zm_ytrace2("skip txt", firstch, Errors);
 continue;
 } else {
+zm_ytrace2("Bad hdr", firstch, Errors);
 zperr( "Bad header",TRUE);
 }
 
 humbug:
 Lastrx=0;
-while(readline(50) != TIMEOUT)
+zm_ytrace2("humbug", Errors, firstch);
+purgeline();
 if (QuitFlag) {
 return NERROR;
 }
@@ -917,9 +1027,11 @@ Crcflag = !Crcflag;
 }
 report(BLKCHECK,Crcflag?"CRC":"Checksum");
 mcharout(Crcflag?WANTCRC:NAK);
+flush();
 } else {
 maxtime=40; 
 mcharout(NAK);
+flush();
 }
 }
 /* try to stop the bubble machine. */
@@ -952,9 +1064,11 @@ static char *p, *ap, c;
 *  Process YMODEM,ZMODEM remote file management requests
 */
 
+zm_dp_map_ensure();
 clrreports();
 p = name + 1 + strlen(name);
 FileModTime = 0;
+Txfbytes = 0L;
 if (*p) {   /* file coming from Unix or DOS system */
 ap = p;
 while ((c = *p) && (c != ' ')) /* find first space or null */
@@ -962,6 +1076,7 @@ while ((c = *p) && (c != ' ')) /* find first space or null */
 if (c)
 *p = '\0';
 /* ap now points to a long integer in ascii */
+Txfbytes = atol(ap);
 report(FILESIZE,ap);
 report(SENDTIME,ttime(atol(ap)));
 while (*ap && *ap != ' ') { /* skip over filesize */
@@ -1081,7 +1196,7 @@ extern void dreport(int row, int value);
 extern void lreport(int row, long value);
 void sreport(int sct, long bytes)
 {  
-dreport(BLOCKS,sct);
+(void)sct;
 lreport(KBYTES,bytes);
 }
 
@@ -1719,6 +1834,8 @@ static int d;
 if (Rxframeind == ZBIN32)
 return zrdat32(buf, length);
 
+zm_dp_map_ensure();
+
 crc = Rxcount = 0;  
 end = buf + length;
 while (buf <= end) {
@@ -1790,6 +1907,8 @@ static char *end;
 #ifdef DEBUG
 printf("\n(32)\n");
 #endif
+
+zm_dp_map_ensure();
 
 crc = 0xFFFFFFFFL;  
 Rxcount = 0;  

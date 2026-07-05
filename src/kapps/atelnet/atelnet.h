@@ -32,4 +32,13 @@ unsigned char term_take_ed2_needs_cr(void);
 void term_palette_begin(void);
 void term_palette_restore(void);
 
+#define TERM_CURS_HOLD_RX  1u
+#define TERM_CURS_HOLD_ZM  2u
+#define TERM_CURS_HOLD_DEC 4u
+
+void term_cursor_hide(void);
+void term_cursor_show(void);
+void term_cursor_hold_or(unsigned char mask);
+void term_cursor_hold_and_not(unsigned char mask);
+
 #endif

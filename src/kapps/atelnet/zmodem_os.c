@@ -19,14 +19,19 @@
 #include "atelnet.h"
 #include "atelnet_plug.h"
 #include "netglue.h"
+#include "app_bank.h"
 #include "zmodem.h"
-
-#define ZM_CPMBUF_SIZE 4096u
+#include "zmodem_datapage.h"
 #define ZM_STATUS_W    80u
 #define ZM_STATUS_FILL 79u   /* cols 1..79; leave col 80 empty (no CR/LF) */
 #define ZM_PROG_STEP   16384L
 #define ZM_COLOR_MSG   0x45u   /* bright cyan on black */
 #define ZM_COLOR_ERR   0x42u   /* bright red on black */
+#define ZM_COLOR_TRACE 0x4Eu   /* bright yellow on black */
+
+#ifdef ATELNET_YMODEM_TRACE
+static unsigned char g_ytrace_rl;
+#endif
 
 /* Decoded ZMODEM bytes live in netbuf[0..nb_len); readline advances nb_pos. */
 static unsigned int g_zm_nb_pos;
@@ -38,9 +43,9 @@ static zm_flush_fn g_zm_flush;
 
 unsigned char g_zm_skip_purge;
 
-/* Secbuf/Txbuf scratch and Cpmbuf are both live during ZMODEM receive. */
+/* Fallback when g_dataPg is unavailable (Secbuf only; Cpmbuf has separate fallback). */
 static char g_zm_scratch[KSIZE + 1];
-static char g_zm_cpmbuf[ZM_CPMBUF_SIZE];
+static char g_zm_cpmbuf_fallback[ZM_DP_CPMBUF_SIZE];
 static unsigned char g_zm_scratch_used;
 
 static unsigned char g_zm_status_on;
@@ -53,6 +58,7 @@ static unsigned char g_zm_err_on;
 
 static char g_zm_pathbuf[128];
 static char g_zm_pathbuf2[128];
+static char *g_zm_paths[1];
 #ifdef ATELNET_ZMODEM_LOG
 static unsigned char g_zm_logpath[128];
 #endif
@@ -97,6 +103,49 @@ static void zm_rd_drop(void)
 
 static void zm_field_copy(char *dst, unsigned int dstlen, char *src);
 static void zm_status_paint(char *msg, unsigned char is_err);
+
+static char *zm_dp_cpmbuf_ptr(void)
+{
+  return (char *)(unsigned int)(BANK_WINDOW_ADDR + ZM_DP_CPMBUF_OFF);
+}
+
+static char *zm_dp_secbuf_ptr(void)
+{
+  return (char *)(unsigned int)(BANK_WINDOW_ADDR + ZM_DP_SECBUF_OFF);
+}
+
+static int zm_dp_buf_mapped(char *buf)
+{
+  unsigned int addr;
+
+  if (buf == 0)
+  {
+    return 0;
+  }
+  addr = (unsigned int)buf;
+  return addr >= BANK_WINDOW_ADDR && addr < BANK_WINDOW_ADDR + ZM_DP_USED;
+}
+
+void zm_dp_map_ensure(void)
+{
+  if (g_dataPg == 0u)
+  {
+    return;
+  }
+  if (bank_window_current() != g_dataPg)
+  {
+    bank_window_map(g_dataPg);
+  }
+}
+
+void zm_dp_pull_secbuf(char *dst, unsigned int dstlen)
+{
+  if (Secbuf != 0)
+  {
+    zm_dp_map_ensure();
+    zm_field_copy(dst, dstlen, Secbuf);
+  }
+}
 
 #ifdef ATELNET_ZMODEM_LOG
 static void zm_disk_log(const char *tag, const char *msg);
@@ -143,24 +192,39 @@ static void zm_prog_reset(void)
   g_zm_prog_last = -ZM_PROG_STEP;
 }
 
+static const char *zm_prog_tag(void)
+{
+  if (g_zm_proto[0] == 'Y')
+  {
+    return "YMODEM";
+  }
+  if (g_zm_proto[0] == 'X')
+  {
+    return "XMODEM";
+  }
+  return "ZMODEM";
+}
+
 static void zm_prog_show(long cur)
 {
   unsigned long cur_kb;
   unsigned long total_kb;
+  const char *tag;
 
   if (cur < 0L)
   {
     cur = 0L;
   }
   cur_kb = (unsigned long)(cur / 1024L);
+  tag = zm_prog_tag();
   if (g_zm_total_sz > 0L)
   {
     total_kb = (unsigned long)((g_zm_total_sz + 1023L) / 1024L);
-    sprintf(g_zm_line, "ZMODEM %lu kb of %lu kb dl", cur_kb, total_kb);
+    sprintf(g_zm_line, "%s %lu kb of %lu kb dl", tag, cur_kb, total_kb);
   }
   else
   {
-    sprintf(g_zm_line, "ZMODEM %lu kb downloaded", cur_kb);
+    sprintf(g_zm_line, "%s %lu kb downloaded", tag, cur_kb);
   }
   zm_status_paint(g_zm_line, 0u);
 }
@@ -392,6 +456,90 @@ void zm_status_clear(void)
   g_zm_line[0] = 0;
 }
 
+#ifdef ATELNET_YMODEM_TRACE
+
+static void zm_ytrace_paint(char *msg)
+{
+  unsigned int i;
+  unsigned int len;
+
+  if (msg == 0)
+  {
+    return;
+  }
+  len = 0u;
+  while (msg[len] != 0 && len < ZM_STATUS_W - 1u)
+  {
+    len++;
+  }
+  term_set_xy(0u, ZM_TRACE_ROW);
+  term_set_color(ZM_COLOR_TRACE);
+  for (i = 0u; i < len; i++)
+  {
+    term_putchar((unsigned char)msg[i]);
+  }
+  for (; i < ZM_STATUS_FILL; i++)
+  {
+    term_putchar((unsigned char)' ');
+  }
+  term_set_color(0x07u);
+}
+
+void zm_ytrace_reset(void)
+{
+  g_ytrace_rl = 0u;
+}
+
+void zm_ytrace(const char *msg)
+{
+  char line[ZM_STATUS_W + 1u];
+
+  if (Nozmodem == 0)
+  {
+    return;
+  }
+  if (msg == 0)
+  {
+    msg = "?";
+  }
+  zm_field_copy(line, (unsigned int)sizeof(line), (char *)msg);
+  zm_ytrace_paint(line);
+}
+
+void zm_ytrace2(const char *tag, int a, int b)
+{
+  char line[ZM_STATUS_W + 1u];
+
+  if (Nozmodem == 0)
+  {
+    return;
+  }
+  if (tag == 0)
+  {
+    tag = "?";
+  }
+  sprintf(line, "%s %d,%d", tag, a, b);
+  zm_ytrace_paint(line);
+}
+
+void zm_ytrace3(const char *tag, int a, int b, int c)
+{
+  char line[ZM_STATUS_W + 1u];
+
+  if (Nozmodem == 0)
+  {
+    return;
+  }
+  if (tag == 0)
+  {
+    tag = "?";
+  }
+  sprintf(line, "%s %d,%d,%d", tag, a, b, c);
+  zm_ytrace_paint(line);
+}
+
+#endif /* ATELNET_YMODEM_TRACE */
+
 static unsigned int zm_elapsed_sec(unsigned long t0, unsigned long t1)
 {
   unsigned int a;
@@ -470,6 +618,7 @@ void zm_io_drain_input(void)
   unsigned int i;
   int pr;
 
+  zm_ytrace("drain start");
   for (i = 0u; i < 512u; i++)
   {
     if (g_zm_poll == 0)
@@ -484,6 +633,24 @@ void zm_io_drain_input(void)
     }
   }
   zm_nb_clear();
+  zm_ytrace2("drain done", (int)i, (int)g_zm_nb_len);
+}
+
+void zm_io_try_read(void)
+{
+  if (g_zm_poll != 0 && g_zm_nb_pos >= g_zm_nb_len)
+  {
+    g_zm_poll();
+  }
+}
+
+int zm_io_peek(void)
+{
+  if (g_zm_nb_pos < g_zm_nb_len)
+  {
+    return (int)(unsigned char)netbuf[g_zm_nb_pos];
+  }
+  return -1;
 }
 
 /* ---- NedoOS file layer (up to 8 handles; log and data use separate fp) ---- */
@@ -592,6 +759,11 @@ int zm_write(int fd, char *buf, int count)
 {
   unsigned int n;
 
+  if (zm_dp_buf_mapped(buf))
+  {
+    zm_dp_map_ensure();
+  }
+
   if (fd == UBIOT || count <= 0 || g_zm_wr_valid == 0u || zm_os_err(g_zm_wr))
   {
     if (g_zm_wr_valid == 0u)
@@ -657,11 +829,30 @@ long zm_lseek(int fd, long offset, int whence)
   return offset;
 }
 
-/* ---- memory (static buffers for receive path) ---- */
+int zm_wseek(int fd, long offset)
+{
+  if (fd == UBIOT || g_zm_wr_valid == 0u || zm_os_err(g_zm_wr))
+  {
+    return NERROR;
+  }
+  OS_SEEKHANDLE(zm_hnd(g_zm_wr), (unsigned long)offset);
+  return OK;
+}
+
+/* ---- memory (Cpmbuf + Secbuf in g_dataPg @ C000 when bank is mapped) ---- */
 
 char *alloc(int n)
 {
-  if (n <= (int)sizeof(g_zm_scratch) && g_zm_scratch_used == 0u)
+  if (n > (int)ZM_DP_SECBUF_SIZE)
+  {
+    return 0;
+  }
+  if (g_dataPg != 0u)
+  {
+    zm_dp_map_ensure();
+    return zm_dp_secbuf_ptr();
+  }
+  if (g_zm_scratch_used == 0u)
   {
     g_zm_scratch_used = 1u;
     return g_zm_scratch;
@@ -671,8 +862,13 @@ char *alloc(int n)
 
 char *grabmem(unsigned *size)
 {
-  *size = (unsigned)sizeof(g_zm_cpmbuf);
-  return g_zm_cpmbuf;
+  *size = ZM_DP_CPMBUF_SIZE;
+  if (g_dataPg != 0u)
+  {
+    zm_dp_map_ensure();
+    return zm_dp_cpmbuf_ptr();
+  }
+  return g_zm_cpmbuf_fallback;
 }
 
 int allocerror(char *p)
@@ -682,7 +878,11 @@ int allocerror(char *p)
 
 void zm_memfree(char *p)
 {
-  if (p == g_zm_cpmbuf || p == g_zm_scratch)
+  if (p == zm_dp_cpmbuf_ptr() || p == g_zm_cpmbuf_fallback)
+  {
+    return;
+  }
+  if (p == zm_dp_secbuf_ptr() || p == g_zm_scratch)
   {
     if (p == g_zm_scratch)
     {
@@ -727,20 +927,29 @@ unsigned zm_rx_take_plain(char *dst, unsigned max, int zctlesc)
   return n;
 }
 
-#define ZM_RX_ABORT_MASK  0xFFFu  /* opabort every 4096 idle YIELDs in readline */
+unsigned zm_rx_take_raw(char *dst, unsigned max)
+{
+  unsigned n = 0;
 
-int readline(int timeout)
+  while (n < max && g_zm_nb_pos < g_zm_nb_len)
+  {
+    dst[n++] = netbuf[g_zm_nb_pos++];
+  }
+  return n;
+}
+
+#define ZM_RX_ABORT_MASK  0xFFFu  /* opabort every 4096 idle YIELDs while waiting for RX */
+
+static int zm_rx_read_byte(void)
 {
   int pr;
   static unsigned idle;
 
-  /* timeout is legacy (tenths of a second on CP/M); telnet waits for data. */
-  timeout = timeout;
   for (;;)
   {
     if (g_zm_nb_pos < g_zm_nb_len)
     {
-      return (int)netbuf[g_zm_nb_pos++];
+      return (int)(unsigned char)netbuf[g_zm_nb_pos++];
     }
     if (g_zm_flush != 0)
     {
@@ -758,7 +967,7 @@ int readline(int timeout)
         }
         if (g_zm_nb_pos < g_zm_nb_len)
         {
-          return (int)netbuf[g_zm_nb_pos++];
+          return (int)(unsigned char)netbuf[g_zm_nb_pos++];
         }
       } while (pr > 0);
     }
@@ -778,6 +987,49 @@ int readline(int timeout)
     }
     YIELD();
   }
+}
+
+unsigned zm_rx_read(char *dst, unsigned need)
+{
+  unsigned n = 0;
+  int c;
+
+  while (n < need)
+  {
+    unsigned got = zm_rx_take_raw(dst + n, need - n);
+
+    n += got;
+    if (n >= need)
+    {
+      break;
+    }
+    c = zm_rx_read_byte();
+    if (c < 0)
+    {
+      return n;
+    }
+    dst[n++] = (char)c;
+  }
+  return n;
+}
+
+int readline(int timeout)
+{
+  /* timeout is legacy (tenths of a second on CP/M); telnet waits for data. */
+  timeout = timeout;
+  if (g_zm_nb_pos < g_zm_nb_len)
+  {
+#ifdef ATELNET_YMODEM_TRACE
+    if (Nozmodem != 0 && g_ytrace_rl < 16u)
+    {
+      zm_ytrace3("rl", (int)(unsigned char)netbuf[g_zm_nb_pos],
+                 (int)g_zm_nb_pos, (int)g_zm_nb_len);
+      g_ytrace_rl++;
+    }
+#endif
+    return (int)(unsigned char)netbuf[g_zm_nb_pos++];
+  }
+  return zm_rx_read_byte();
 }
 
 int readock(int timeout, int flag)
@@ -820,6 +1072,10 @@ void mcharout(char c)
   {
     g_zm_tx((unsigned char)c);
   }
+  if (Nozmodem != 0)
+  {
+    zm_ytrace2("tx", (int)(unsigned char)c, (int)Crcflag);
+  }
 }
 
 void purgeline(void)
@@ -828,6 +1084,7 @@ void purgeline(void)
   {
     return;
   }
+  zm_ytrace2("purgeline", (int)g_zm_nb_pos, (int)g_zm_nb_len);
   zm_nb_clear();
 }
 
@@ -918,7 +1175,59 @@ int chrin(void)
 
 int getpathname(char *prompt)
 {
-  return prompt != 0 ? 0 : 0;
+  unsigned int n;
+  unsigned char key;
+
+  if (prompt == 0)
+  {
+    prompt = "";
+  }
+  Pathname[0] = 0;
+  n = 0u;
+  for (;;)
+  {
+    sprintf(g_zm_line, "Name%s: %s_", prompt, Pathname);
+    zm_status_line(g_zm_line);
+    do
+    {
+      key = (unsigned char)(OS_GETKEY() & 0xFFL);
+      if (key != 0u)
+      {
+        break;
+      }
+      YIELD();
+    } while (1);
+    if (key == 13u || key == 253u)
+    {
+      break;
+    }
+    if (key == 27u)
+    {
+      Pathname[0] = 0;
+      return 0;
+    }
+    if (key == 8u || key == 127u)
+    {
+      if (n > 0u)
+      {
+        n--;
+        Pathname[n] = 0;
+      }
+      continue;
+    }
+    if (key >= 32u && key < 127u && n < (unsigned int)sizeof(Pathname) - 1u)
+    {
+      Pathname[n++] = (char)key;
+      Pathname[n] = 0;
+    }
+  }
+  if (Pathname[0] == 0)
+  {
+    return 0;
+  }
+  g_zm_paths[0] = Pathname;
+  Pathlist = g_zm_paths;
+  return 1;
 }
 
 void freepath(int count)
@@ -1032,7 +1341,7 @@ void report(int row, char *msg)
 #endif
       zm_prog_show(0L);
     }
-    break;
+    return;
   case SENDTIME:
     zm_field_copy(g_zm_time, (unsigned int)sizeof(g_zm_time), msg);
     break;
@@ -1067,7 +1376,11 @@ void report(int row, char *msg)
   default:
     break;
   }
-  zm_status_render();
+  /* Progress line (KBYTES) and errors (MESSAGE) paint themselves. */
+  if (g_zm_total_sz == 0L && row != MESSAGE)
+  {
+    zm_status_render();
+  }
 }
 
 void box(void)
@@ -1080,10 +1393,12 @@ void savecurs(void)
 
 void hidecurs(void)
 {
+  term_cursor_hold_or(TERM_CURS_HOLD_ZM);
 }
 
 void showcurs(void)
 {
+  term_cursor_hold_and_not(TERM_CURS_HOLD_ZM);
 }
 
 void restcurs(void)
@@ -1101,4 +1416,31 @@ int zmodem_session_receive(void)
   StopFlag = FALSE;
   rc = bringin('Z');
   return rc;
+}
+
+int ymodem_session_receive(void)
+{
+  QuitFlag = FALSE;
+  StopFlag = FALSE;
+  Zmodem = FALSE;
+  Nozmodem = TRUE;
+  Xmodem = FALSE;
+  zm_ytrace("ymodem start");
+  return bringin('Y');
+}
+
+int xmodem_session_receive(void)
+{
+  extern int wcreceive(char *filename);
+
+  if (Pathlist == 0 || Pathlist[0] == 0 || Pathlist[0][0] == 0)
+  {
+    return NERROR;
+  }
+  QuitFlag = FALSE;
+  StopFlag = FALSE;
+  Zmodem = FALSE;
+  Nozmodem = FALSE;
+  Xmodem = TRUE;
+  return wcreceive(Pathlist[0]);
 }
