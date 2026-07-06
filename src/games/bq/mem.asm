@@ -4,11 +4,11 @@ pgmainc000=$+1
         SETPG32KHIGH
         ret
 
-setpg14000
+setpgscr_low_cur4000
         call getuser_scr_low_cur ;ld a,(user_scr0_high) ;ok
         SETPG4000
         ret
-setpg54000
+setpgscr_high_cur4000
         call getuser_scr_high_cur ;ld a,(user_scr0_high) ;ok
         SETPG4000
         ret
@@ -74,23 +74,19 @@ getuser_scr_high_cur_patchN=0xff&(user_scr0_high^user_scr1_high)
         ld a,(user_scr0_high) ;ok
         ret
 
-;p14=#14 ;экр0 слой0
-;p15=#15 ;экр0 слой1
-;p16=#16 ;экр1 слой0 (выводится экр0)
-;p17=#17 ;экр1 слой1
-OUTp14
+OUTscr_low_cur
         call getuser_scr_low_cur ;ld a,(user_scr0_low) ;ok
         SETPGC000
         ret
-OUTp15
+OUTscr_high_cur
         call getuser_scr_high_cur ;ld a,(user_scr0_high) ;ok
         SETPGC000
         ret
-OUTp16
+OUTscr_low
         call getuser_scr_low ;ld a,(user_scr1_low) ;ok
         SETPGC000
         ret
-OUTp17
+OUTscr_high
         call getuser_scr_high ;ld a,(user_scr1_high) ;ok
         SETPGC000
         ret

@@ -16,7 +16,7 @@ fx=1 ;где было определено?
 
 atm=1;0
 msx=0;1
-ON16C=0;#01
+;ON16C=0;#01
 re=1
 border=0
 WORLDS=8 ;потом повторяются
@@ -74,11 +74,7 @@ pgspr2=1;#10
 pgfnt=1;0;#10
 pgpic=4;#14
 pgmuz=6;#16
-;p14=#11 ;экр0 слой0
-;p15=#15 ;экр0 слой1
-;p16=#13 ;экр1 слой0 (выводится экр0)
-;p17=#17 ;экр1 слой1
-p1C=#19 ;экр0 слой0 (выводится экр1)
+;p1C=#19 ;экр0 слой0 (выводится экр1)
         MACRO xy2adr
 _a=_y*40+_x+#C004
         ENDM 
@@ -86,29 +82,7 @@ pgsp2=pgmuz
 pgIQ=pgpic;pgspr
 pgbmap=pgIQ ;ее юзает IQ.BOUNCE
 
-BMAP=#F000
-
-;с дискеты работайте так:
-;откомпилируйте один раз полностью
-;сохраните спрайты
-;исправьте макрос,чтобы не грузил
-        MACRO iNCBIN name ;добавляет в нач.спрайта его длину
-iNs=$
-        DS 2
-iNa=$
-;        ORG 0
-;        ENT 
-;iNshift=$
-;        ORG iNa+iNshift
-;        DISP iNa
-        INCBIN name
-iNe=$
-iNl=$-iNs-4
-        ORG iNs
-        DW {$+2};{$+2+iNshift}
-        DW iNl
-        ORG iNe
-        ENDM 
+BMAP=#F000 ;карта препятствий (pgbmap)
 
 
 
@@ -166,19 +140,15 @@ GO
         ld bc,sztileset
         ldir
         
-       if 1
         ld a,pgspr2
         call OUTA
         ld hl,wasspr2
         ld de,0xc000
         ld bc,spr2end-0xc000
         ldir
-       endif
 
         LD A,pgmuz
         CALL OUTA
-      ;LD HL,muzmenu
-        ;CALL muz;+3 ;shut
 
         LD de,muzbinNAME
         OS_OPENHANDLE
@@ -189,13 +159,15 @@ GO
 	pop bc
 	OS_CLOSEHANDLE
 
-;сейчас у нас включены страницы программы, как было
 	call swapimer
+
+       LD HL,AFXBANK
+       CALL AFXINIT
         
         ld a,(pgmain4000)
         ld hl,music
         OS_SETMUSIC
-        
+
         ld de,pal
         OS_SETPAL
         jp BEGIN
@@ -215,7 +187,7 @@ loadpic
         ld a,(tpgscrdata+1)
         jp loadfile_in_ac000 ;загрузили один экранный файл в одну страницу A
 
-showscrdata_a
+showscrdata
         ld a,(tpgscrdata+0)
        ld (pgscrdata0),a
         SETPGC000 ;включили страницу с данными в c000
@@ -224,7 +196,7 @@ showscrdata_a
         ld de,emptypal
         OS_SETPAL ;включаем чёрную палитру, чтобы было незаметно переброску экрана
         halt
-        call setpg14000
+        call setpgscr_low_cur4000
         ld hl,0xc000
         ld de,0x4000
         ld bc,0x4000
@@ -249,7 +221,7 @@ copypal0
         SETPGC000 ;включили страницу с данными в c000
         ;ld a,(user_scr0_high) ;ok
         ;SETPG4000 ;включили другие пол-экрана в 4000
-        call setpg54000
+        call setpgscr_high_cur4000
         ld hl,0xc000
         ld de,0x4000
         ld bc,0x4000
@@ -451,14 +423,24 @@ picfilenames
         INCLUDE "BQIQ.asm"
 
 ;------------------------------------------------
+        align 256
+mkeyqueue
+        ds 256
+
 ON_INT
-        ld a,(pgmain4000)
-        SETPG4000 ;чтобы иметь доступ к tuneON
+        ;ld a,(pgmain4000)
+        ;SETPG4000 ;чтобы иметь доступ к tuneON
 
        CALL OUTIQ
         CALL INKEY
         LD A,C
-        LD (MKEY),A
+        ;LD (MKEY),A
+mkeytail=$+1
+        ld hl,mkeyqueue
+        ld (hl),a
+        inc l
+        ld (mkeytail),hl
+        
        ld a,(showdemo)
        rla
        jr c,ON_INTnoshowdemo
@@ -664,14 +646,15 @@ AFXPRAYVOL
         JR AFXPRAU
 AFXPRAY
         PUSH BC
-        LD C,0
+        LD C,0 ;относительная громкость
 AFXPRAU PUSH DE,IX
         LD B,A
        ld a,(curpg32khigh) ;ok
-       ;LD A,(curpg)
        PUSH AF
+        push bc
         LD A,pgmuz
         CALL OUTA
+        pop bc
         PUSH HL
         LD A,B
         CALL AFXPLAY
@@ -679,8 +662,7 @@ AFXPRAU PUSH DE,IX
        pop af
        SETPGC000
         POP IX,DE,BC
-       ret ;JP OUTA
-        ;JR INCSCQ
+       ret
 
 MKEY    DB 0 ;%11LRDUBF
 thigh   DW 0
