@@ -24,11 +24,11 @@ byting=1
 wallcode=%11 ;для byting=0
 maxlives=4
 beglives=4
-       IF msx
-SCRHGT=17
-       ELSE 
-SCRHGT=20 ;24
-       ENDIF 
+;       IF msx
+;SCRHGT=17
+;       ELSE 
+;SCRHGT=20 ;24
+;       ENDIF 
 polY=#280; 368
 fallY=1024
 dieY=1280
@@ -230,12 +230,12 @@ copypal0
         OS_SETPAL ;включаем палитру
         ret
 
-       if 0
+;x/2, xright/2 невключительно, y, ybottom невключительно
+;-1 = end
 sprlist1
-        ds 3*128,200
+        ds 4*128,-1
 sprlist2
-        ds 3*128,200
-       endif
+        ds 4*128,-1
 
 pal
         ;ds 32 ;тут будет палитра картинки
