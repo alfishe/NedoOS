@@ -56,25 +56,38 @@ int main(int argc,char* argv[])
   char *strlimit;
   int skip;
   int limit;
+
+  FILE* fin;
+  int size;
+
   finname = "tokarm.bin";
   foutname = "out.bin";
   strskip = "0";
   strlimit = "65536";
 
-  if (argc<5) {
+  if (argc<4) {
     printf(
       "NedoPAD\n"
       "\tnedopad.exe file.in file.out <skip> <size>\n"
     );
+    return -1;
+  }else if (argc==4) {
+    finname = argv[1];
+    foutname = argv[2];
+    strskip = argv[3];
+    fin = fopen(finname, "rb");
+    size = fread(filebuf, 1, 65536, fin);
+    skip = atoi(strskip);
+    limit = size-skip;
   }else {
     finname = argv[1];
     foutname = argv[2];
     strskip = argv[3];
     strlimit = argv[4];
+    skip = atoi(strskip);
+    limit = atoi(strlimit);
   };
 
-  skip = atoi(strskip);
-  limit = atoi(strlimit);
   padfile(finname, foutname, skip, limit);
 
   return 0;
