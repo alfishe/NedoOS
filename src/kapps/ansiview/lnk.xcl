@@ -1,0 +1,8 @@
+-cZ80
+-Ilist
+/* Main image 0100-BFFF (same window as atelnet term stack). */
+/* CSTACK+NNN size is hex (+280 = 640 bytes). */
+-Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-BFFF
+-Z(DATA)DATA0,IDATA0,ECSTR,NO_INIT,UDATA0,CSTACK+280=0100-BFFF
+-e_medium_write=_formatted_write
+-e_medium_read=_formatted_read
