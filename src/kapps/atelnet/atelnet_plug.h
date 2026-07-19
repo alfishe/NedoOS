@@ -21,8 +21,6 @@ void at_path_to_downloads(unsigned char *saved_path);
 
 int r_telbook_run(char *host, unsigned int host_sz, unsigned int *port,
                   unsigned char *cp866, unsigned char *debug);
-void r_at_log_write(const char *logline, const char *place);
-
 void r_show_ansiview_hint(const char *path);
 int r_host_looks_like_file(const char *host);
 void r_show_usage(void);

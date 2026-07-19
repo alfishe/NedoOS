@@ -1,16 +1,9 @@
 /*
  * zmodem_recv.c - ZMODEM/XMODEM/YMODEM receive path (rz side)
  *
- * Linked into atelnet.com. Transmit path lives in zmodem_send.c and is
- * intentionally omitted from the build until send is tested.
- *
  * Derived from ZMP overlay sources (Chuck Forsberg / Hal Maney, CP/M).
  */
 
-#ifdef ATELNET_ZMODEM_RESIDENT
-#pragma language=extended
-#pragma codeseg(CODE_RESIDENT)
-#endif
 
 #define MAIN
 #define ZM
@@ -108,99 +101,6 @@ extern char *ltoa(long n, char *s);
 /* Set after rzfile ZEOF+close ok; host may drop TCP before ZFIN. */
 static int g_zm_recv_ok;
 
-#ifdef ATELNET_ZMODEM_LOG
-
-static void zm_log_pos(const char *tag, long a, long b)
-{
-char line[32];
-char sa[12];
-char sb[12];
-
-strcpy(line, tag);
-strcat(line, ltoa(a, sa));
-strcat(line, "/");
-strcat(line, ltoa(b, sb));
-zm_log(line);
-}
-
-static void zm_log_val(const char *tag, long a)
-{
-char line[24];
-char sa[12];
-
-strcpy(line, tag);
-strcat(line, ltoa(a, sa));
-zm_log(line);
-}
-
-static void zm_log_rx(int rc)
-{
-if (rc >= 0 && rc < FRTYPES)
-{
-zm_log(frametypes[rc + FTOFFSET]);
-}
-else if (rc == TIMEOUT)
-{
-zm_log("TIMEOUT");
-}
-else if (rc == RCDO)
-{
-zm_log("RCDO");
-}
-else if (rc == NERROR)
-{
-zm_log("ERROR");
-}
-else
-{
-zm_log("RX unknown");
-}
-}
-
-static void zm_log_zdata(int rc)
-{
-if (rc == GOTCRCW)
-{
-zm_log("zrdata GOTCRCW");
-}
-else if (rc == GOTCRCG)
-{
-zm_log("zrdata GOTCRCG");
-}
-else if (rc == GOTCRCQ)
-{
-zm_log("zrdata GOTCRCQ");
-}
-else if (rc == GOTCRCE)
-{
-zm_log("zrdata GOTCRCE");
-}
-else if (rc == TIMEOUT)
-{
-zm_log("zrdata TIMEOUT");
-}
-else if (rc == NERROR)
-{
-zm_log("zrdata NERROR");
-}
-else if (rc == ZCAN)
-{
-zm_log("zrdata ZCAN");
-}
-else
-{
-zm_log("zrdata other");
-}
-}
-
-#else
-
-#define zm_log_pos(tag, a, b) ((void)0)
-#define zm_log_val(tag, a) ((void)0)
-#define zm_log_rx(rc) ((void)0)
-#define zm_log_zdata(rc) ((void)0)
-
-#endif /* ATELNET_ZMODEM_LOG */
 
 int bringin(int prot)
 {
@@ -430,11 +330,7 @@ name[12] = '\0';
 report(PATHNAME,name);
 }
 
-/* output a character to the modem */
-void xmchout(char c)
-{
-mcharout(c);
-}
+/* xmchout() lives in zmodem_send.c (testrxc + mcharout). */
 
 /*      End of Transfer Overlay File #1 */
 
@@ -616,12 +512,7 @@ Rxptr = Cpmbuf;              /* ditto */
 Rxtimeout = 100;             /* 10 seconds */
 Errors = 0;
 g_zm_recv_ok = 0;
-zm_log("wcreceive start");
 
-#ifdef   DEBUG
-printf("\nbuffer size = %u\n",Cpbufsize);
-wait(5);
-#endif
 
 savecurs();
 hidecurs();
@@ -656,7 +547,6 @@ goto good;
 if (procheader(Secbuf) == NERROR) {
 goto fubar;
 }
-zm_ytrace("pre-wcrx sync");
 purgeline();
 if (wcrx()==NERROR) {
 goto fubar;
@@ -718,7 +608,6 @@ int wcrxpn(char *rpn)   /* receive a pathname */
 {
 static int c;
 
-zm_ytrace("wcrxpn");
 purgeline();
 
 et_tu:
@@ -729,15 +618,12 @@ while ((c = wcgetsec(rpn, 100)) != 0) {
 if (QuitFlag)
 return NERROR;
 if (c == WCEOT) {
-zm_ytrace("wcrxpn WCEOT");
 mcharout(ACK);
 readline(INTRATIME);
 goto et_tu;
 }
-zm_ytrace2("wcrxpn fail", c, Errors);
 return NERROR;
 }
-zm_ytrace2("wcrxpn ok", (int)(unsigned char)rpn[0], (int)Errors);
 mcharout(ACK);
 flush();
 return OK;
@@ -822,7 +708,6 @@ charsgot = 0L;
 g_wc_last_blk = 0;
 sendchar=Crcflag?WANTCRC:NAK;
 report(BLKCHECK,Crcflag?"CRC":"Checksum");
-zm_ytrace("wcrx start");
 flush();
 for (prep = 0u; prep < 8u; prep++)
 {
@@ -839,14 +724,11 @@ return NERROR;
 }
 if (sectnum != 0 || minprdy() == FALSE
     || (zm_io_peek() != SOH && zm_io_peek() != STX)) {
-zm_ytrace2("wcrx tx", (int)(unsigned char)sendchar, sectnum);
 mcharout(sendchar);               /* send it now, we're ready! */
 flush();
 } else {
-zm_ytrace2("wcrx buf", zm_io_peek(), sectnum);
 }
 sectcurr = wcgetsec(Rxptr,Firstsec||(sectnum&0177)?50:130);
-zm_ytrace3("wcrx sec", sectcurr, sectnum, Blklen);
 if (sectcurr==(sectnum+1 &Wcsmask)) {
 cblklen = Blklen;
 if (Txfbytes > 0L && charsgot + (long)cblklen > Txfbytes) {
@@ -923,8 +805,6 @@ static unsigned oldcrc;
 static char *p;
 static int sectcurr;
 
-zm_ytrace_reset();
-zm_ytrace2("wcgetsec", maxtime, (int)Firstsec);
 zm_dp_map_ensure();
 
 for (Lastrx=Errors=0; Errors < RETRYMAX; ) {  /* errors incr by zperr */
@@ -933,12 +813,10 @@ return NERROR;
 }
 if ((firstch=readline(maxtime))==STX) {
 Blklen=KSIZE; 
-zm_ytrace2("hdr STX", Blklen, Errors);
 goto get2;
 }
 if (firstch==SOH) {
 Blklen=SECSIZ;
-zm_ytrace2("hdr SOH", Blklen, Errors);
 get2:
 sectcurr=readline(INTRATIME);
 if (sectcurr < 0) {
@@ -947,7 +825,6 @@ goto bilge;
 firstch=readline(INTRATIME);
 if ((sectcurr+firstch)==0xFF) {
 oldcrc=checksum=0;
-zm_ytrace2("blk num", sectcurr, Blklen);
 zm_dp_map_ensure();
 p=rxbuf;
 if (zm_rx_read(p, (unsigned)Blklen + (Crcflag ? 2u : 1u))
@@ -962,28 +839,22 @@ if (Crcflag) {
 oldcrc=updcrc((unsigned char)p[Blklen], oldcrc);
 oldcrc=updcrc((unsigned char)p[Blklen + 1], oldcrc);
 if (oldcrc & 0xFFFF) {
-zm_ytrace2("CRC err", (int)oldcrc, sectcurr);
 zperr( "CRC Error",TRUE);
 } else {
 Firstsec=FALSE;
-zm_ytrace2("wcgetsec ok", sectcurr, Blklen);
 return sectcurr;
 }
 } else if (((checksum-p[Blklen])&0xFF)==0) {
 Firstsec=FALSE;
-zm_ytrace2("wcgetsec ok", sectcurr, Blklen);
 return sectcurr;
 } else {
-zm_ytrace2("cs err", checksum, (int)(unsigned char)p[Blklen]);
 zperr("Checksum error",TRUE);
 }
 } else {
-zm_ytrace2("blk garbled", sectcurr, firstch);
 zperr("Block nr garbled",TRUE);
 }
 } else if (firstch==EOT) {
 /* readline() never returns TIMEOUT on telnet; confirm EOT without 2nd read. */
-zm_ytrace("wcgetsec EOT");
 return WCEOT;
 } else if (firstch==CAN) {
 if (Lastrx==CAN) {
@@ -1001,22 +872,17 @@ goto humbug;
 bilge:
 zperr( "TIMEOUT",TRUE);
 } else if (firstch==0x0D && Firstsec) {
-zm_ytrace2("skip CR", firstch, Errors);
 continue;
 } else if (Firstsec && (firstch == 0x0A || firstch == ACK || firstch == NAK || firstch == WANTCRC)) {
-zm_ytrace2("skip ctl", firstch, Errors);
 continue;
 } else if (Firstsec && firstch > 32 && firstch < 127) {
-zm_ytrace2("skip txt", firstch, Errors);
 continue;
 } else {
-zm_ytrace2("Bad hdr", firstch, Errors);
 zperr( "Bad header",TRUE);
 }
 
 humbug:
 Lastrx=0;
-zm_ytrace2("humbug", Errors, firstch);
 purgeline();
 if (QuitFlag) {
 return NERROR;
@@ -1100,7 +966,6 @@ testexist(Pathname);
 Fd = zm_creat(Pathname, 0);
 if (openerror(Fd,Pathname,UBIOT))
 return NERROR;
-zm_log("procheader ok");
 return OK;
 }
 
@@ -1230,7 +1095,6 @@ Txhdr[ZF0] |= TESCCTL;
 }
 ip = (int *)&Txhdr[ZP0];
 *ip = Cpbufsize;
-zm_log("TX tryz hdr");
 zshhdr(Tryzhdrtype, Txhdr);
 if (Tryzhdrtype == ZSKIP) {  /* Don't skip too far */
 Tryzhdrtype = ZRINIT;     /* CAF 8-21-87 */
@@ -1244,15 +1108,11 @@ continue;
 case TIMEOUT:
 continue;
 case ZFILE:
-zm_log("tryz ZFILE");
 Tryzhdrtype = ZRINIT;
 c = zrdata(Secbuf, KSIZE);
-zm_log_zdata(c);
 if (c == GOTCRCW) {
-zm_log("tryz ZFILE data ok -> ZFILE");
 return ZFILE;
 }
-zm_log("TX ZNAK");
 zshhdr(ZNAK, Txhdr);
 goto again;
 case ZSINIT:
@@ -1293,7 +1153,6 @@ ackbibi();
 return ZCOMPL;
 case RCDO:
 if (g_zm_recv_ok) {
-zm_log("tryz RCDO after recv ok");
 ackbibi();
 return ZCOMPL;
 }
@@ -1328,13 +1187,10 @@ if (opabort()) {
 return NERROR;
 }
 c = rzfile();
-zm_log("rzmfile rzfile ret");
 closeit();
-zm_log("rzmfile closeit done");
 switch (c) {
 case ZEOF:
 case ZSKIP:
-zm_log("rzmfile tryz next");
 tz = tryz();
 switch (tz) {
 case ZCOMPL:
@@ -1372,11 +1228,9 @@ static unsigned bufleft;
 static long rxbytes;
 
 if (procheader(Secbuf) == NERROR) {
-zm_log("rzfile procheader fail");
 return (Tryzhdrtype = ZSKIP);
 }
 
-zm_log("rzfile data loop start");
 n = MAX_ZERRORS; 
 rxbytes = 0L;
 Firstsec = TRUE;
@@ -1386,7 +1240,6 @@ if (opabort()) {
 return NERROR;
 }
 stohdr(rxbytes);
-zm_log("TX ZRPOS");
 g_zm_skip_purge = 1u;
 zshhdr(ZRPOS, Txhdr);
 g_zm_skip_purge = 0u;
@@ -1414,24 +1267,19 @@ case ZEOF:
 long zpos;
 
 zpos = rclhdr(Rxhdr);
-zm_log_pos("ZEOF rx/hdr ", rxbytes, zpos);
 if (zpos != rxbytes) {
 /*
 * Ignore eof if it's at wrong place - force
 *  a timeout because the eof might have gone
 *  out before we sent our zrpos.
 */
-zm_log("ZEOF pos skip");
 Errors = 0;  
 goto nxthdr;
 }
-zm_log("ZEOF closeit");
 if (closeit()) {
-zm_log("ZEOF close fail");
 Tryzhdrtype = ZFERR;
 return NERROR;
 } else {
-zm_log("ZEOF close ok");
 g_zm_recv_ok = 1;
 setmodtime();
 }
@@ -1448,7 +1296,6 @@ zmputs(Attn);
 continue;
 
 case ZDATA:
-zm_log("rzfile got ZDATA");
 if (rclhdr(Rxhdr) != rxbytes) {
 if ( --n < 0) {
 return NERROR;
@@ -1462,7 +1309,6 @@ return NERROR;
 }
 bufleft = Cpbufsize - Cpindex;
 c = zrdata(Rxptr, (bufleft > KSIZE) ? KSIZE : bufleft);
-zm_log_zdata(c);
 switch (c) {
 
 case ZCAN:
@@ -1486,13 +1332,11 @@ continue;
 case GOTCRCW:
 n = MAX_ZERRORS;
 if (putsec(Rxcount,TRUE) == NERROR) {
-zm_log("putsec fail");
 return NERROR; /* Write to disk! */
 }
 rxbytes += Rxcount;
 stohdr(rxbytes);
 statrep(rxbytes);
-zm_log("TX ZACK");
 zshhdr(ZACK, Txhdr);
 mcharout(XON);
 goto nxthdr;
@@ -1520,11 +1364,9 @@ goto moredata;
 case GOTCRCE:
 n = MAX_ZERRORS;
 if (putsec(Rxcount,FALSE) == NERROR) {
-zm_log("putsec fail CRCE");
 return NERROR; /* Don't write to disk */
 }
 rxbytes += Rxcount;
-zm_log_val("CRCE rx ", rxbytes);
 goto nxthdr;
 }
 }
@@ -1686,19 +1528,15 @@ status = OK;
 if (Fd != -1) {
 if (Cpindex) {
 length = (int)Cpindex;
-zm_log_pos("close flush ", (long)Cpindex, (long)length);
 
 status = ((zm_write(Fd,Cpmbuf,length) == length) ? OK : NERROR);
 if (status == NERROR) {
-zm_log("close flush wr fail");
 } else {
-zm_log("close flush wr ok");
 }
 
 Cpindex = 0;
 Rxptr = Cpmbuf;
 } else {
-zm_log("close no pending");
 }
 if (status == NERROR) {
 zperr("Disk write error",TRUE);
@@ -1788,13 +1626,6 @@ void zshhdr(int type, char *hdr)
 {
 static int n;
 static unsigned crc;
-#ifdef DEBUG
-printf("\nSending HEX header Type %d:",type);
-for (n = 0; n < 4; n++) {
-prhex( *(hdr + n));
-}
-printf("\n");
-#endif
 
 xmchout(ZPAD); 
 xmchout(ZPAD); 
@@ -1872,9 +1703,6 @@ crc = updcrc(c, crc);
 if (crc & 0xFFFF) {
 zperr("Bad data CRC",TRUE);
 
-#ifdef   DEBUG
-printf("\nCRC = %u\n",crc);
-#endif
 
 return NERROR;
 }
@@ -1904,9 +1732,6 @@ static int c, d;
 static long crc;
 static char *end;
 
-#ifdef DEBUG
-printf("\n(32)\n");
-#endif
 
 zm_dp_map_ensure();
 
@@ -2031,7 +1856,6 @@ default:
 agn2:
 if ( --n == 0) {
 zperr("Grbg ct exceeded",TRUE);
-zm_log_rx(NERROR);
 return(NERROR);
 }
 goto startover;
@@ -2099,25 +1923,9 @@ zperr(Buf,TRUE);
 default:
 break;
 }
-zm_log_rx(c);
 return c;
 }
 
-#ifdef DEBUG
-
-/* Print a byte in hex on the console */
-
-int prhex(char byte)
-{
-static char digits[] = "0123456789abcdef";
-char hi, lo;
-
-hi = digits[(byte & 0xf0) >> 4];
-lo = digits[byte & 0x0f];
-printf(" %c%c",hi,lo);
-}
-
-#endif
 
 /***************************** End of hzm.c *********************************/
 
@@ -2177,13 +1985,6 @@ return NERROR;
 }
 Zmodem = 1;
 
-#ifdef DEBUG
-printf("\nReceived BINARY header type %d: ",Rxtype);
-for (n = -4; n < 0; n++) {
-prhex( *(hdr + n));
-}
-printf("\n");
-#endif
 
 return Rxtype;
 }
@@ -2220,12 +2021,6 @@ return NERROR;
 }
 Zmodem = 1;
 
-#ifdef DEBUG
-printf("\nReceived 32-bit FCS BINARY header type %d: ",Rxtype);
-for (n = -4; n < 0; n++)
-prhex( *(hdr + n));
-printf("\n");
-#endif
 
 return Rxtype;
 }
@@ -2268,13 +2063,6 @@ readline(INTRATIME);
 }
 Zmodem = 1; 
 
-#ifdef DEBUG
-printf("\nReceived HEX header type %d: ",Rxtype);
-for (n = -4; n < 0; n++) {
-prhex( *(hdr + n));
-}
-printf("\n");
-#endif
 
 return Rxtype;
 }
@@ -2443,9 +2231,6 @@ l = (unsigned)(hdr[ZP3] & 0377);
 l = (l << 8) | (unsigned)(hdr[ZP2] & 0377);
 l = (l << 8) | (unsigned)(hdr[ZP1] & 0377);
 l = (l << 8) | (unsigned)(hdr[ZP0] & 0377);
-#ifdef DEBUG
-lreport(FBLOCKS,l);
-#endif
 return l;
 }
 

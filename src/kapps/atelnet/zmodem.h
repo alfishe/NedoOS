@@ -386,7 +386,8 @@ extern void report(int row, char *msg);
 extern void clrline(int line);
 extern void zperr(char *string, int incrflag);
 extern int bringin(int prot);
-/* protocol() is static in zmodem_recv.c; zmodem_send.c has its own when linked */
+extern int sendout(int prot);
+extern int wcsend(int argc, char *argp[]);
 
 /* ---- NedoOS file layer (zmodem_os.c, direct OS_* calls) ---- */
 
@@ -425,32 +426,14 @@ void zm_dp_pull_secbuf(char *dst, unsigned int dstlen);
 int zmodem_session_receive(void);
 int ymodem_session_receive(void);
 int xmodem_session_receive(void);
+int zmodem_session_send(void);
+int ymodem_session_send(void);
+int xmodem_session_send(void);
 
 extern unsigned char g_zm_skip_purge;
 
 void zm_status_line(char *msg);
 void zm_status_clear(void);
 
-#ifdef ATELNET_YMODEM_TRACE
-#define ZM_TRACE_ROW   22u
-void zm_ytrace(const char *msg);
-void zm_ytrace2(const char *tag, int a, int b);
-void zm_ytrace3(const char *tag, int a, int b, int c);
-void zm_ytrace_reset(void);
-#else
-#define zm_ytrace(msg)        ((void)0)
-#define zm_ytrace2(t, a, b)   ((void)0)
-#define zm_ytrace3(t, a, b, c) ((void)0)
-#define zm_ytrace_reset()     ((void)0)
-#endif
-
-/* Debug log to telnet.log ? enable with -DATELNET_ZMODEM_LOG (Makefile). */
-#ifdef ATELNET_ZMODEM_LOG
-void zm_log(const char *line);
-#define ZM_LOG(line) zm_log(line)
-#else
-#define zm_log(line) ((void)0)
-#define ZM_LOG(line) ((void)0)
-#endif
 
 #endif /* ZMODEM_H */

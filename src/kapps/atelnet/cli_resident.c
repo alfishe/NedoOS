@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <intrz80.h>
 #include <oscalls.h>
-#include "atelnet.h"
+#include "term.h"
 
 static const char ver[] = "atelnet 1.82";
 
@@ -76,16 +76,12 @@ void r_show_usage(void)
   printf("  (no args)    address book\r\n");
   term_set_xy(2u, 9u);
   printf("  F10=exit  F2=address book (in session)\r\n");
-#ifndef ATELNET_NO_ZMODEM
   term_set_xy(2u, 10u);
-  printf("  F6=ZMODEM receive (after sz on host)\r\n");
+  printf("  F5=ZMODEM send (file in /downloads, rz on host)\r\n");
   term_set_xy(2u, 11u);
-  printf("  F7=YMODEM (sb -g file first; large files: F6+sz)\r\n");
+  printf("  F6=ZMODEM recv  F7=YMODEM  F8=XMODEM\r\n");
   term_set_xy(2u, 12u);
-#else
-  term_set_xy(2u, 10u);
-#endif
-  printf("  ESC=send to host\r\n");
+  printf("  ESC=send ESC to host\r\n");
   term_set_xy(0u, TERM_LAST_ROW);
   printf("Press any key...");
   r_wait_key();

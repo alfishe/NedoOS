@@ -7,7 +7,7 @@
 #include <intrz80.h>
 #include <oscalls.h>
 #include <osfs.h>
-#include "atelnet.h"
+#include "term.h"
 #include "atelnet_plug.h"
 
 #define TELBOOK_PATH "user.tel"

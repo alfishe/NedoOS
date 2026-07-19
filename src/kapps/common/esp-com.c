@@ -4,7 +4,7 @@ void writeLog(const char *logline, char *place)
 {
 	FILE *LogFile;
 	unsigned long fileSize;
-	unsigned char toLog[550];
+	unsigned char toLog[256];
 
 	OS_GETPATH((unsigned int)&curPath);
 	OS_SETSYSDRV();
@@ -20,7 +20,7 @@ void writeLog(const char *logline, char *place)
 	OS_SEEKHANDLE(LogFile, fileSize);
 
 	sprintf(toLog, "%7lu : %s : ", time(), place);
-	strncat(toLog, logline, 512);
+	strncat(toLog, logline, 200);
 	strcat(toLog, "\r\n");
 	OS_WRITEHANDLE(toLog, LogFile, strlen(toLog));
 	OS_CLOSEHANDLE(LogFile);
@@ -275,7 +275,7 @@ void uartFlush(unsigned int millis)
 		}
 		uart_setrts(0);
 	}
-	// writeLog("Flushed data", "uartFlush      ");
+	 writeLog("Flushed data", "uartFlush      ");
 }
 
 unsigned int uartReadBlock(void)
@@ -290,8 +290,7 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok == 0)
 			{
-				sprintf(cmd, "[NO AFC]receiving timeout.[c=%lu]", count);
-				writeLog(cmd, "uartReadBlock  ");
+				writeLog("[NO AFC]receiving timeout.", "uartReadBlock  ");
 				return 0xffff;
 			}
 			timerok = timerok - 1;
@@ -316,8 +315,7 @@ unsigned int uartReadBlock(void)
 			enable_interrupt();
 			if (timerok == 0)
 			{
-				sprintf(cmd, "[ATM2 COM]receiving timeout.[c=%lu]", count);
-				writeLog(cmd, "uartReadBlock  ");
+				writeLog("[ATM2 COM]receiving timeout.", "uartReadBlock  ");
 				return 0xffff;
 			}
 			timerok = timerok - 1;
@@ -335,8 +333,7 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok == 0)
 			{
-				sprintf(cmd, "[AFC]receiving timeout.[c=%lu]", count);
-				writeLog(cmd, "uartReadBlock  ");
+				writeLog("[AFC]receiving timeout.", "uartReadBlock  ");
 				return 0xffff;
 			}
 			timerok = timerok - 1;
@@ -348,8 +345,7 @@ unsigned int uartReadBlock(void)
 		{
 			if (timerok == 0)
 			{
-				sprintf(cmd, "[ATM2IOESP]receiving timeout.[c=%lu]", count);
-				writeLog(cmd, "uartReadBlock  ");
+				writeLog("[ATM2IOESP]receiving timeout.", "uartReadBlock  ");
 				return 0xffff;
 			}
 			timerok = timerok - 1;
@@ -371,6 +367,7 @@ unsigned int uartReadBlock(void)
 char getdataEsp(unsigned int counted)
 {
 	unsigned int counter;
+	// writeLog("Get data Packet.", "getDataEsp     ");
 	switch (comType)
 	{
 	case 0: // Kondratyev  NO AFC
@@ -382,8 +379,7 @@ char getdataEsp(unsigned int counted)
 			{
 				if (timerok == 0)
 				{
-					sprintf(cmd, "[NO AFC]Timeout.[Downloaded:%u of %u]", counter, counted);
-					writeLog(cmd, "getDataEsp     ");
+					writeLog("[NO AFC]Timeout.", "getDataEsp     ");
 					return false;
 				}
 				timerok = timerok - 1;
@@ -413,8 +409,7 @@ char getdataEsp(unsigned int counted)
 				enable_interrupt();
 				if (timerok == 0)
 				{
-					sprintf(cmd, "[ATM2 COM]Timeout.[Downloaded:%u of %u]", counter, counted);
-					writeLog(cmd, "getDataEsp     ");
+					writeLog("[ATM2 COM]Timeout.", "getDataEsp     ");
 					return false;
 				}
 				timerok = timerok - 1;
@@ -437,8 +432,7 @@ char getdataEsp(unsigned int counted)
 			{
 				if (timerok == 0)
 				{
-					sprintf(cmd, "[AFC]Timeout.[Downloaded:%u of %u]", counter, counted);
-					writeLog(cmd, "getDataEsp     ");
+					writeLog("[AFC]Timeout.", "getDataEsp     ");
 					return false;
 				}
 				timerok = timerok - 1;
@@ -454,8 +448,7 @@ char getdataEsp(unsigned int counted)
 			{
 				if (timerok == 0)
 				{
-					sprintf(cmd, "[ATM2IOESP]Timeout.[Downloaded:%u of %u]", counter, counted);
-					writeLog(cmd, "getDataEsp     ");
+					writeLog("[ATM2IOESP]Timeout.", "getDataEsp     ");
 					return false;
 				}
 
@@ -528,7 +521,7 @@ void sendcommand(const char *commandline)
 		uart_write('\n');
 	}
 	YIELD();
-	// writeLog(commandline, "sendcommand    ");
+	 // writeLog(commandline, "sendcommand    ");
 }
 
 void sendcommandNrn(const char *commandline)
@@ -559,7 +552,7 @@ void sendcommandNrn(const char *commandline)
 			uart_write(commandline[count]);
 		}
 	}
-	// writeLog(commandline, "sendcommandNrn ");
+	 // writeLog(commandline, "sendcommandNrn ");
 	YIELD();
 }
 
@@ -599,7 +592,7 @@ unsigned char getAnswer3(void)
 		return false;
 	}
 
-	// writeLog(netbuf, "getAnswer3     ");
+	 writeLog(netbuf, "getAnswer3     ");
 	YIELD();
 	return true;
 }
@@ -829,7 +822,7 @@ int recvHead(void)
 	// <actual_len>
 	// printf("recvHead(); todo = %d  ", todo);
 	// sprintf(cmd, "In header[todo=%d]", todo);
-	// writeLog(cmd, "recvHead       ");
+	// writeLog("+IPD processing.", "recvHead       ");
 	return todo;
 }
 

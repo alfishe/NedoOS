@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <intrz80.h>
 #include <oscalls.h>
-#include "atelnet.h"
+#include "term.h"
 
 extern void term_palette_begin(void);
 extern void term_palette_restore(void);

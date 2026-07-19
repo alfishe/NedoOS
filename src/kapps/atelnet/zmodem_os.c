@@ -5,10 +5,6 @@
  * Does not implement ZMODEM protocol logic (that stays in zmodem_recv.c).
  */
 
-#ifdef ATELNET_ZMODEM_RESIDENT
-#pragma language=extended
-#pragma codeseg(CODE_RESIDENT)
-#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -16,7 +12,7 @@
 #include <intrz80.h>
 #include <oscalls.h>
 #include <osfs.h>
-#include "atelnet.h"
+#include "term.h"
 #include "atelnet_plug.h"
 #include "netglue.h"
 #include "app_bank.h"
@@ -27,11 +23,7 @@
 #define ZM_PROG_STEP   16384L
 #define ZM_COLOR_MSG   0x45u   /* bright cyan on black */
 #define ZM_COLOR_ERR   0x42u   /* bright red on black */
-#define ZM_COLOR_TRACE 0x4Eu   /* bright yellow on black */
 
-#ifdef ATELNET_YMODEM_TRACE
-static unsigned char g_ytrace_rl;
-#endif
 
 /* Decoded ZMODEM bytes live in netbuf[0..nb_len); readline advances nb_pos. */
 static unsigned int g_zm_nb_pos;
@@ -43,10 +35,7 @@ static zm_flush_fn g_zm_flush;
 
 unsigned char g_zm_skip_purge;
 
-/* Fallback when g_dataPg is unavailable (Secbuf only; Cpmbuf has separate fallback). */
-static char g_zm_scratch[KSIZE + 1];
-static char g_zm_cpmbuf_fallback[ZM_DP_CPMBUF_SIZE];
-static unsigned char g_zm_scratch_used;
+/* Bulk buffers live in g_dataPg (see zmodem_datapage.h); no main-image fallback. */
 
 static unsigned char g_zm_status_on;
 static char g_zm_proto[20];
@@ -59,9 +48,6 @@ static unsigned char g_zm_err_on;
 static char g_zm_pathbuf[128];
 static char g_zm_pathbuf2[128];
 static char *g_zm_paths[1];
-#ifdef ATELNET_ZMODEM_LOG
-static unsigned char g_zm_logpath[128];
-#endif
 
 #define zm_os_err(fp)  (((int)(fp)) & 0xff)
 
@@ -147,10 +133,6 @@ void zm_dp_pull_secbuf(char *dst, unsigned int dstlen)
   }
 }
 
-#ifdef ATELNET_ZMODEM_LOG
-static void zm_disk_log(const char *tag, const char *msg);
-static void zm_disk_log_wr(unsigned int req, int got);
-#endif
 
 static void zm_path_build(char *dst, unsigned int dstlen, char *leaf)
 {
@@ -210,6 +192,7 @@ static void zm_prog_show(long cur)
   unsigned long cur_kb;
   unsigned long total_kb;
   const char *tag;
+  const char *dir;
 
   if (cur < 0L)
   {
@@ -217,95 +200,20 @@ static void zm_prog_show(long cur)
   }
   cur_kb = (unsigned long)(cur / 1024L);
   tag = zm_prog_tag();
+  dir = (Sending != 0) ? "ul" : "dl";
   if (g_zm_total_sz > 0L)
   {
     total_kb = (unsigned long)((g_zm_total_sz + 1023L) / 1024L);
-    sprintf(g_zm_line, "%s %lu kb of %lu kb dl", tag, cur_kb, total_kb);
+    sprintf(g_zm_line, "%s %lu kb of %lu kb %s", tag, cur_kb, total_kb, dir);
   }
   else
   {
-    sprintf(g_zm_line, "%s %lu kb downloaded", tag, cur_kb);
+    sprintf(g_zm_line, "%s %lu kb %s", tag, cur_kb, dir);
   }
   zm_status_paint(g_zm_line, 0u);
 }
 
-#ifdef ATELNET_ZMODEM_LOG
 
-void writeLog(const char *logline, const char *place)
-{
-  FILE *LogFile;
-  unsigned long fileSize;
-  char hdr[32];
-  unsigned int n;
-
-  OS_GETPATH((unsigned int)&g_zm_logpath);
-  OS_SETSYSDRV();
-  LogFile = OS_OPENHANDLE((unsigned char *)"../telnet.log", 0x80u);
-  if (zm_os_err(LogFile))
-  {
-    LogFile = OS_CREATEHANDLE((unsigned char *)"../telnet.log", 0x80u);
-    OS_CLOSEHANDLE(LogFile);
-    LogFile = OS_OPENHANDLE((unsigned char *)"../telnet.log", 0x80u);
-  }
-  if (zm_os_err(LogFile))
-  {
-    OS_CHDIR(g_zm_logpath);
-    return;
-  }
-
-  fileSize = OS_GETFILESIZE(LogFile);
-  OS_SEEKHANDLE(LogFile, fileSize);
-
-  sprintf(hdr, "%7lu : ", time());
-  OS_WRITEHANDLE((unsigned char *)hdr, LogFile, (unsigned int)strlen(hdr));
-  if (place != 0)
-  {
-    n = (unsigned int)strlen(place);
-    if (n > 8u)
-    {
-      n = 8u;
-    }
-    OS_WRITEHANDLE((unsigned char *)place, LogFile, n);
-    OS_WRITEHANDLE((unsigned char *)" : ", LogFile, 3u);
-  }
-  if (logline != 0)
-  {
-    n = (unsigned int)strlen(logline);
-    if (n > 160u)
-    {
-      n = 160u;
-    }
-    OS_WRITEHANDLE((unsigned char *)logline, LogFile, n);
-  }
-  OS_WRITEHANDLE((unsigned char *)"\r\n", LogFile, 2u);
-  OS_CLOSEHANDLE(LogFile);
-  OS_CHDIR(g_zm_logpath);
-}
-
-void zm_log(const char *line)
-{
-  writeLog(line, "ZM      ");
-}
-
-static void zm_disk_log(const char *tag, const char *msg)
-{
-  writeLog(msg, tag);
-}
-
-static void zm_disk_log_wr(unsigned int req, int got)
-{
-  char buf[16];
-
-  sprintf(buf, "%u/%d", req, got);
-  zm_disk_log("ZM-wr   ", buf);
-}
-
-#endif /* ATELNET_ZMODEM_LOG */
-
-#ifndef ATELNET_ZMODEM_LOG
-#define zm_disk_log(tag, msg) ((void)0)
-#define zm_disk_log_wr(req, got) ((void)0)
-#endif
 
 static void zm_field_copy(char *dst, unsigned int dstlen, char *src)
 {
@@ -456,89 +364,6 @@ void zm_status_clear(void)
   g_zm_line[0] = 0;
 }
 
-#ifdef ATELNET_YMODEM_TRACE
-
-static void zm_ytrace_paint(char *msg)
-{
-  unsigned int i;
-  unsigned int len;
-
-  if (msg == 0)
-  {
-    return;
-  }
-  len = 0u;
-  while (msg[len] != 0 && len < ZM_STATUS_W - 1u)
-  {
-    len++;
-  }
-  term_set_xy(0u, ZM_TRACE_ROW);
-  term_set_color(ZM_COLOR_TRACE);
-  for (i = 0u; i < len; i++)
-  {
-    term_putchar((unsigned char)msg[i]);
-  }
-  for (; i < ZM_STATUS_FILL; i++)
-  {
-    term_putchar((unsigned char)' ');
-  }
-  term_set_color(0x07u);
-}
-
-void zm_ytrace_reset(void)
-{
-  g_ytrace_rl = 0u;
-}
-
-void zm_ytrace(const char *msg)
-{
-  char line[ZM_STATUS_W + 1u];
-
-  if (Nozmodem == 0)
-  {
-    return;
-  }
-  if (msg == 0)
-  {
-    msg = "?";
-  }
-  zm_field_copy(line, (unsigned int)sizeof(line), (char *)msg);
-  zm_ytrace_paint(line);
-}
-
-void zm_ytrace2(const char *tag, int a, int b)
-{
-  char line[ZM_STATUS_W + 1u];
-
-  if (Nozmodem == 0)
-  {
-    return;
-  }
-  if (tag == 0)
-  {
-    tag = "?";
-  }
-  sprintf(line, "%s %d,%d", tag, a, b);
-  zm_ytrace_paint(line);
-}
-
-void zm_ytrace3(const char *tag, int a, int b, int c)
-{
-  char line[ZM_STATUS_W + 1u];
-
-  if (Nozmodem == 0)
-  {
-    return;
-  }
-  if (tag == 0)
-  {
-    tag = "?";
-  }
-  sprintf(line, "%s %d,%d,%d", tag, a, b, c);
-  zm_ytrace_paint(line);
-}
-
-#endif /* ATELNET_YMODEM_TRACE */
 
 static unsigned int zm_elapsed_sec(unsigned long t0, unsigned long t1)
 {
@@ -581,12 +406,10 @@ void zm_io_begin(zm_tx_fn tx, zm_poll_fn poll, zm_flush_fn flush)
   zm_nb_clear();
   zm_prog_reset();
   zm_fs_enter();
-  ZM_LOG("session begin");
 }
 
 void zm_io_end(void)
 {
-  ZM_LOG("session end");
   g_zm_active = 0u;
   g_zm_skip_purge = 0u;
   g_zm_tx = 0;
@@ -618,7 +441,6 @@ void zm_io_drain_input(void)
   unsigned int i;
   int pr;
 
-  zm_ytrace("drain start");
   for (i = 0u; i < 512u; i++)
   {
     if (g_zm_poll == 0)
@@ -633,7 +455,6 @@ void zm_io_drain_input(void)
     }
   }
   zm_nb_clear();
-  zm_ytrace2("drain done", (int)i, (int)g_zm_nb_len);
 }
 
 void zm_io_try_read(void)
@@ -653,7 +474,7 @@ int zm_io_peek(void)
   return -1;
 }
 
-/* ---- NedoOS file layer (up to 8 handles; log and data use separate fp) ---- */
+/* ---- NedoOS file layer ---- */
 
 int zm_creat(char *path, int mode)
 {
@@ -673,11 +494,9 @@ int zm_creat(char *path, int mode)
   {
     g_zm_wr = 0;
     g_zm_wr_valid = 0u;
-    zm_disk_log("ZM-crt  ", "FAIL");
     return UBIOT;
   }
   g_zm_wr_valid = 1u;
-  zm_disk_log("ZM-crt  ", g_zm_pathbuf);
   return 0;
 }
 
@@ -701,7 +520,6 @@ int zm_open(char *path, int mode)
     return UBIOT;
   }
   g_zm_rd_valid = 1u;
-  zm_disk_log("ZM-opn  ", g_zm_pathbuf);
   return 0;
 }
 
@@ -717,12 +535,10 @@ int zm_close(int fd)
     {
       g_zm_wr = 0;
       g_zm_wr_valid = 0u;
-      zm_disk_log("ZM-cls  ", "FAIL");
       return NERROR;
     }
     g_zm_wr = 0;
     g_zm_wr_valid = 0u;
-    zm_disk_log("ZM-cls  ", "ok");
     return OK;
   }
   if (g_zm_rd_valid != 0u && !zm_os_err(g_zm_rd))
@@ -731,15 +547,12 @@ int zm_close(int fd)
     {
       g_zm_rd = 0;
       g_zm_rd_valid = 0u;
-      zm_disk_log("ZM-cls  ", "FAIL");
       return NERROR;
     }
     g_zm_rd = 0;
     g_zm_rd_valid = 0u;
-    zm_disk_log("ZM-cls  ", "ok");
     return OK;
   }
-  zm_disk_log("ZM-cls  ", "noop");
   return OK;
 }
 
@@ -766,27 +579,9 @@ int zm_write(int fd, char *buf, int count)
 
   if (fd == UBIOT || count <= 0 || g_zm_wr_valid == 0u || zm_os_err(g_zm_wr))
   {
-    if (g_zm_wr_valid == 0u)
-    {
-      zm_disk_log("ZM-wr   ", "no hnd");
-    }
-    else if (zm_os_err(g_zm_wr))
-    {
-      zm_disk_log("ZM-wr   ", "bad hnd");
-    }
-    else
-    {
-      zm_disk_log("ZM-wr   ", "bad arg");
-    }
     return NERROR;
   }
   n = OS_WRITEHANDLE((unsigned char *)buf, zm_hnd(g_zm_wr), (unsigned int)count);
-  if (n != (unsigned int)count)
-  {
-    zm_disk_log_wr((unsigned int)count, (int)n);
-    return (int)n;
-  }
-  zm_disk_log_wr((unsigned int)count, (int)n);
   return (int)n;
 }
 
@@ -795,10 +590,8 @@ int zm_unlink(char *path)
   zm_path_build(g_zm_pathbuf, (unsigned int)sizeof(g_zm_pathbuf), path);
   if (OS_DELETE((unsigned char *)g_zm_pathbuf) != 0u)
   {
-    zm_disk_log("ZM-del  ", "FAIL");
     return NERROR;
   }
-  zm_disk_log("ZM-del  ", g_zm_pathbuf);
   return OK;
 }
 
@@ -808,10 +601,8 @@ int zm_rename(char *oldpath, char *newpath)
   zm_path_build(g_zm_pathbuf2, (unsigned int)sizeof(g_zm_pathbuf2), newpath);
   if (OS_RENAME((unsigned char *)g_zm_pathbuf, (unsigned char *)g_zm_pathbuf2) != 0u)
   {
-    zm_disk_log("ZM-ren  ", "FAIL");
     return NERROR;
   }
-  zm_disk_log("ZM-ren  ", g_zm_pathbuf);
   return OK;
 }
 
@@ -843,32 +634,23 @@ int zm_wseek(int fd, long offset)
 
 char *alloc(int n)
 {
-  if (n > (int)ZM_DP_SECBUF_SIZE)
+  if (n > (int)ZM_DP_SECBUF_SIZE || g_dataPg == 0u)
   {
     return 0;
   }
-  if (g_dataPg != 0u)
-  {
-    zm_dp_map_ensure();
-    return zm_dp_secbuf_ptr();
-  }
-  if (g_zm_scratch_used == 0u)
-  {
-    g_zm_scratch_used = 1u;
-    return g_zm_scratch;
-  }
-  return 0;
+  zm_dp_map_ensure();
+  return zm_dp_secbuf_ptr();
 }
 
 char *grabmem(unsigned *size)
 {
   *size = ZM_DP_CPMBUF_SIZE;
-  if (g_dataPg != 0u)
+  if (g_dataPg == 0u)
   {
-    zm_dp_map_ensure();
-    return zm_dp_cpmbuf_ptr();
+    return 0;
   }
-  return g_zm_cpmbuf_fallback;
+  zm_dp_map_ensure();
+  return zm_dp_cpmbuf_ptr();
 }
 
 int allocerror(char *p)
@@ -878,19 +660,7 @@ int allocerror(char *p)
 
 void zm_memfree(char *p)
 {
-  if (p == zm_dp_cpmbuf_ptr() || p == g_zm_cpmbuf_fallback)
-  {
-    return;
-  }
-  if (p == zm_dp_secbuf_ptr() || p == g_zm_scratch)
-  {
-    if (p == g_zm_scratch)
-    {
-      g_zm_scratch_used = 0u;
-    }
-    return;
-  }
-  free(p);
+  p = p;
 }
 
 /* ---- modem I/O (TCP chunk in netbuf, next read only when consumed) ---- */
@@ -962,7 +732,6 @@ static int zm_rx_read_byte(void)
         pr = g_zm_poll();
         if (pr < 0)
         {
-          zm_log("readline RCDO socket err");
           return RCDO;
         }
         if (g_zm_nb_pos < g_zm_nb_len)
@@ -973,7 +742,6 @@ static int zm_rx_read_byte(void)
     }
     if (QuitFlag != 0)
     {
-      zm_log("readline RCDO QuitFlag");
       return RCDO;
     }
     if ((idle++ & ZM_RX_ABORT_MASK) == 0u)
@@ -982,7 +750,6 @@ static int zm_rx_read_byte(void)
     }
     if (QuitFlag != 0)
     {
-      zm_log("readline RCDO ESC");
       return RCDO;
     }
     YIELD();
@@ -1019,14 +786,6 @@ int readline(int timeout)
   timeout = timeout;
   if (g_zm_nb_pos < g_zm_nb_len)
   {
-#ifdef ATELNET_YMODEM_TRACE
-    if (Nozmodem != 0 && g_ytrace_rl < 16u)
-    {
-      zm_ytrace3("rl", (int)(unsigned char)netbuf[g_zm_nb_pos],
-                 (int)g_zm_nb_pos, (int)g_zm_nb_len);
-      g_ytrace_rl++;
-    }
-#endif
     return (int)(unsigned char)netbuf[g_zm_nb_pos++];
   }
   return zm_rx_read_byte();
@@ -1074,7 +833,6 @@ void mcharout(char c)
   }
   if (Nozmodem != 0)
   {
-    zm_ytrace2("tx", (int)(unsigned char)c, (int)Crcflag);
   }
 }
 
@@ -1084,7 +842,6 @@ void purgeline(void)
   {
     return;
   }
-  zm_ytrace2("purgeline", (int)g_zm_nb_pos, (int)g_zm_nb_len);
   zm_nb_clear();
 }
 
@@ -1323,12 +1080,6 @@ void report(int row, char *msg)
     break;
   case PATHNAME:
     zm_field_copy(g_zm_name, (unsigned int)sizeof(g_zm_name), msg);
-    if (msg != 0 && msg[0] != 0)
-    {
-#ifdef ATELNET_ZMODEM_LOG
-      writeLog(msg, "ZM-name ");
-#endif
-    }
     break;
   case FILESIZE:
     zm_field_copy(g_zm_size, (unsigned int)sizeof(g_zm_size), msg);
@@ -1336,9 +1087,6 @@ void report(int row, char *msg)
     {
       g_zm_total_sz = atol(msg);
       g_zm_prog_last = -ZM_PROG_STEP;
-#ifdef ATELNET_ZMODEM_LOG
-      writeLog(msg, "ZM-size ");
-#endif
       zm_prog_show(0L);
     }
     return;
@@ -1365,12 +1113,6 @@ void report(int row, char *msg)
   case MESSAGE:
     zm_field_copy(g_zm_line, (unsigned int)sizeof(g_zm_line), msg);
     g_zm_err_on = 1u;
-    if (msg != 0 && msg[0] != 0)
-    {
-#ifdef ATELNET_ZMODEM_LOG
-      writeLog(msg, "ZM-err  ");
-#endif
-    }
     zm_status_paint(g_zm_line, 1u);
     return;
   default:
@@ -1425,7 +1167,6 @@ int ymodem_session_receive(void)
   Zmodem = FALSE;
   Nozmodem = TRUE;
   Xmodem = FALSE;
-  zm_ytrace("ymodem start");
   return bringin('Y');
 }
 
@@ -1443,4 +1184,26 @@ int xmodem_session_receive(void)
   Nozmodem = FALSE;
   Xmodem = TRUE;
   return wcreceive(Pathlist[0]);
+}
+
+int zmodem_session_send(void)
+{
+  QuitFlag = FALSE;
+  StopFlag = FALSE;
+  return sendout('Z');
+}
+
+int ymodem_session_send(void)
+{
+  QuitFlag = FALSE;
+  StopFlag = FALSE;
+  return sendout('Y');
+}
+
+int xmodem_session_send(void)
+{
+  QuitFlag = FALSE;
+  StopFlag = FALSE;
+  Blklen = 128;
+  return sendout('X');
 }

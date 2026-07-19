@@ -1,10 +1,7 @@
 /*
  * zmodem_send.c - ZMODEM/XMODEM/YMODEM transmit path (sz side)
  *
- * Not linked in atelnet.com by default (receive-only telnet client).
- * Add zmodem_send.c to ATELNET_C in Makefile when send is needed again.
- *
- * Split from zmodem.c; shares zmodem.h globals with zmodem.c.
+ * Split from zmodem.c; shares zmodem.h globals with zmodem_recv.c.
  */
 
 #include <stdio.h>
@@ -18,8 +15,44 @@
 jmp_buf jb_stop;
 long Lastsync;
 
+/* shared with zmodem_recv.c */
+extern int endstat(int result, int count);
+extern void canit(void);
+extern void clrreports(void);
+extern void dreport(int row, int value);
+extern void lreport(int row, long value);
+extern void sreport(int sct, long bytes);
+extern void crcrept(int flag);
+extern void zshhdr(int type, char *hdr);
+extern void stohdr(long pos);
+extern int zgethdr(char *hdr, int eflag);
+extern unsigned updcrc(unsigned cp, unsigned crc);
+extern long updc32(int b, long c);
+extern char *ttime(long fsize);
+
+/* send-path forwards (IAR needs prototypes before use) */
 void xmchout(char c);
 void testrxc(short timeout);
+int wcs(char *oname);
+int wctxpn(char *name);
+int getnak(void);
+int wctx(long flen);
+int wcputsec(char *buf, int sectnum, int cseclen);
+int filbuf(char *buf, int count);
+int newload(char *buf, int count);
+int getzrxinit(void);
+int sendzsinit(void);
+int zsendfile(char *buf, int blen);
+int zsndfdata(void);
+int getinsync(int flag);
+void saybibi(void);
+void tfclose(void);
+void slabel(void);
+void zsbhdr(int type, char *hdr);
+void zsbh32(char *hdr, int type);
+void zsdata(char *buf, int length, int frameend);
+int zsda32(char *buf, int length, int frameend);
+void zsendline(int c);
 
 static int protocol(int for_send)
 {
@@ -92,10 +125,6 @@ Xmodem = FALSE;
 XonXoffOk = XonXoff;   /* maybe allow xon-xoff */
 result = wcsend(count,Pathlist);
 break;
-case 'A':
-XonXoffOk = XonXoff;
-result = asciisend(Pathlist[0]);
-break;
 default:
 result = NOT_OK;
 break;
@@ -104,63 +133,7 @@ break;
 endstat(result,count);
 return result;
 }
-int asciisend(char *file)  /* send ascii file with xon/xoff protocol */
-{
-static int fd, status, bytes, c;
-static char *inbuf;
-static unsigned j, bufsize;
 
-status = NERROR;
-inbuf = grabmem(&bufsize);
-if (allocerror(inbuf)) {
-return NERROR;
-}
-
-fd = zm_open(file,0);
-if (openerror(fd,file,UBIOT,"send/open")) {
-free(inbuf);
-return NERROR;
-}
-
-#ifdef   DEBUG
-printf("\nbufsize = %d\n",bufsize);
-#endif
-
-sprintf(Buf,"Sending %s, ASCII Transfer",file);
-putlabel(Buf);
-j = 0;
-
-while ((bytes = zm_read(fd,inbuf,bufsize)) > 0) {
-c = inbuf[0];
-for (j = 0; (j < bytes) && (c != CTRLZ); c = inbuf[++j]) {
-xmchout(c);
-opabort();
-if (QuitFlag || StopFlag) { /* xmchout tests for xoff */
-goto cleanup;   /* abort */
-}
-putchar(c);
-if ((c & 0x7f) == CR) {
-if (Linedelay) {
-mswait(Linedelay);
-}
-} else {
-if (Chardelay) {
-mswait(Chardelay);
-}
-}
-if (QuitFlag == TRUE) {
-goto cleanup;
-}
-}
-}
-status = OK;
-
-cleanup:
-
-zm_close(fd);
-free(inbuf);
-return status;
-}
 int wcsend(int argc, char *argp[])                   /* list of file names */
 {
 int n, status;

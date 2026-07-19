@@ -4,7 +4,7 @@
 #include <intrz80.h>
 #include <oscalls.h>
 #include <osfs.h>
-#include "atelnet.h"
+#include "term.h"
 #include "telnet_sess.h"
 #include "telbook.h"
 #include "atelnet_plug.h"
