@@ -1,0 +1,7 @@
+-cZ80
+-Ilist
+/* Code + data in CPU windows #0000 and #4000 (0100-7F00). VRAM at #8000+#C000 at runtime. */
+-Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-7F00
+-Z(DATA)DATA0,IDATA0,UDATA0,ECSTR,NO_INIT,CSTACK+400
+-e_medium_write=_formatted_write
+-e_medium_read=_formatted_read
