@@ -1,0 +1,7 @@
+-cZ80 //процессор, под который собираем
+-Ilist
+/* Код+данные+стек в 0100-7FFF; окно deflate 32K на 8000-FFFF (2 страницы). */
+-Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-7FFF
+-Z(DATA)DATA0,IDATA0,ECSTR,NO_INIT,UDATA0,CSTACK+280=0100-7FFF
+-e_medium_write=_formatted_write //конфигурация printf/sprintf
+-e_medium_read=_formatted_read //конфигурация scanf/sscanf
