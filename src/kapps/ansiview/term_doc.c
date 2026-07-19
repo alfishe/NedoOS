@@ -9,15 +9,17 @@ extern void term_putchar_stay(unsigned char ch);
 
 #define TERM_DOC_MAX_LINES 86u
 
-static void term_doc_paint_char(unsigned char vis_y, unsigned char x, unsigned char ch)
-{
-  if (vis_y == TERM_LAST_ROW && x == TERM_LAST_COL)
-  {
-    term_putchar_stay(ch);
-    return;
-  }
-  putchar((int)ch);
-}
+#define term_doc_paint_char(vis_y, x, ch) \
+  do { \
+    if ((vis_y) == TERM_LAST_ROW && (x) == TERM_LAST_COL) \
+    { \
+      term_putchar_stay((unsigned char)(ch)); \
+    } \
+    else \
+    { \
+      putchar((int)(unsigned char)(ch)); \
+    } \
+  } while (0)
 
 static unsigned char doc_ch[TERM_DOC_MAX_LINES][TERM_COLS];
 static unsigned char doc_at[TERM_DOC_MAX_LINES][TERM_COLS];
@@ -260,9 +262,9 @@ static void term_doc_paint_row(unsigned char vis_y, unsigned int src_line)
     {
       attr = doc_at[src_line][x];
       ch = doc_ch[src_line][x];
+      /* putchar already advanced cursor ? only recolor, no SETXY per run. */
       if (attr != prev_attr)
       {
-        OS_SETXY(x, vis_y);
         OS_SETCOLOR(attr);
         prev_attr = attr;
       }
@@ -469,7 +471,7 @@ void term_doc_carriage_return(void)
 
 void term_doc_put_atm(unsigned char ch)
 {
-  term_doc_vis_to_abs();
+  /* doc_abs_line kept in sync by set_vis_xy / newline / begin ? no vis_to_abs per glyph. */
   doc_ch[doc_abs_line][doc_col] = ch;
   doc_at[doc_abs_line][doc_col] = doc_color;
   if (doc_col < TERM_LAST_COL)
@@ -504,6 +506,7 @@ void term_doc_newline(void)
     }
     term_doc_scroll_viewport_up();
     doc_vis_row = TERM_VIEW_ROWS - 1u;
+    term_doc_vis_to_abs();
     return;
   }
   doc_abs_line = doc_parse_base + (unsigned int)TERM_VIEW_ROWS;
@@ -805,5 +808,9 @@ void term_doc_scroll_down(unsigned char count)
 void term_doc_set_color(unsigned char attr)
 {
   doc_color = attr;
-  OS_SETCOLOR(attr);
+  /* During deferred parse (ansiview load) color is only stored in the buffer. */
+  if (doc_defer_paint == 0u)
+  {
+    OS_SETCOLOR(attr);
+  }
 }

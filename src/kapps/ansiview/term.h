@@ -26,6 +26,7 @@ void term_putchar(unsigned char cp437);
 void term_scroll_up(unsigned char count);
 void term_scroll_down(unsigned char count);
 int term_feed(unsigned char b); /* 0 = stop (SAUCE/0x1A marker) */
+int term_feed_buf(const unsigned char *buf, unsigned int n);
 void term_drain_replies(void (*emit)(unsigned char b));
 unsigned char term_has_replies(void);
 unsigned char term_take_ed2_needs_cr(void);

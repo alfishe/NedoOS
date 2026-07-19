@@ -7,7 +7,7 @@
 #include "term_doc.h"
 #include "ansi_file.h"
 
-#define ANSI_READ_CHUNK 512u
+#define ANSI_READ_CHUNK 1024u
 
 /* BDOS extended key codes (sysdefs.asm cs5..cs8). */
 #define TERM_KEY_UP    250u
@@ -73,7 +73,6 @@ int ansi_show_file(const char *path)
 {
   FILE *fp;
   unsigned int n;
-  unsigned int i;
   unsigned char stop;
 
   fp = OS_OPENHANDLE((unsigned char *)path, 0x80u);
@@ -87,7 +86,7 @@ int ansi_show_file(const char *path)
   term_init();
   term_palette_begin();
   term_doc_begin();
-  term_doc_set_canvas(1u);
+  /* canvas=1 keeps only 25 lines (no scrollback). Stream into doc buffer instead. */
   term_doc_set_defer_paint(1u);
   stop = 0u;
 
@@ -98,12 +97,9 @@ int ansi_show_file(const char *path)
     {
       break;
     }
-    for (i = 0u; i < n && stop == 0u; i++)
+    if (term_feed_buf(file_chunk, n) == 0)
     {
-      if (term_feed(file_chunk[i]) == 0)
-      {
-        stop = 1u;
-      }
+      stop = 1u;
     }
     if (stop != 0u)
     {
