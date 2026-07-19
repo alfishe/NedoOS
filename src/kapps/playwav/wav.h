@@ -48,7 +48,7 @@ unsigned char wav_s16_to_covox(int sample);
 #define WAV_CLAMP_COVOX(v) ((unsigned char)((v) < 1 ? 1 : ((v) > 255 ? 255 : (v))))
 #define WAV_S16_TO_COVOX(s) WAV_CLAMP_COVOX(((s) >> 8) + 128)
 
-/* Decode one IMA ADPCM block straight into 16K pages. Returns sample count. */
+/* Decode one IMA ADPCM block into 16K pages (asm). Returns sample count. */
 unsigned int wav_ima_decode_block_pages(const unsigned char *block, unsigned int block_len,
 	const wav_info_t *info, unsigned char *page_idx, unsigned int *page_off,
 	unsigned char max_pages);

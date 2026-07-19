@@ -12,7 +12,7 @@ SRCC	:= main.c wav.c
 #файлы .h
 SRCH	:= wav.h
 #файлы .asm
-SRCA	:= covoxplay.asm
+SRCA	:= covoxplay.asm ima_decode.asm
 #линковочный файл-скрипт. можно не указывать, тогда будет использоваться стандартный
 XCLFILE	:= lnk.xcl
 

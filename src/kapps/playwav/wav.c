@@ -1,52 +1,10 @@
 /*
- * WAV header parser and MS IMA ADPCM block decoder for playwav.
+ * WAV header parser for playwav.
+ * IMA ADPCM block decode is in ima_decode.asm (wav_ima_decode_block_pages).
  */
 
 #include "wav.h"
-#include <intrz80.h>
 #include <string.h>
-
-extern unsigned char sample_pages[256];
-
-#define IMA_UPDATE(nibble, pred, step_idx) \
-	do { \
-		int _step = ima_step_table[(step_idx)]; \
-		int _diff = _step >> 3; \
-		if ((nibble) & 4) \
-			_diff += _step; \
-		if ((nibble) & 2) \
-			_diff += _step >> 1; \
-		if ((nibble) & 1) \
-			_diff += _step >> 2; \
-		if ((nibble) & 8) \
-			_diff = -_diff; \
-		(pred) += _diff; \
-		if ((pred) > 32767) \
-			(pred) = 32767; \
-		else if ((pred) < -32768) \
-			(pred) = -32768; \
-		(step_idx) += (int)ima_index_table[(nibble) & 15]; \
-		if ((step_idx) < 0) \
-			(step_idx) = 0; \
-		else if ((step_idx) > 88) \
-			(step_idx) = 88; \
-	} while (0)
-
-#define WAV_PAGE_STORE(sample, pidx, poff, maxpg, full) \
-	do { \
-		if (*(pidx) >= (maxpg)) \
-			(full) = 1; \
-		else { \
-			((unsigned char *)0xC000)[*(poff)] = (sample); \
-			++(*(poff)); \
-			if (*(poff) >= WAV_PAGE_BYTES) { \
-				*(poff) = 0; \
-				++(*(pidx)); \
-				if (*(pidx) < (maxpg)) \
-					SETPG32KHIGH(sample_pages[*(pidx)]); \
-			} \
-		} \
-	} while (0)
 
 static unsigned int read_u16(const unsigned char *p)
 {
@@ -60,23 +18,6 @@ static unsigned long read_u32(const unsigned char *p)
 		+ ((unsigned long)p[2] << 16)
 		+ ((unsigned long)p[3] << 24);
 }
-
-static const short ima_step_table[89] = {
-	7, 8, 9, 10, 11, 12, 13, 14, 16, 17,
-	19, 21, 23, 25, 28, 31, 34, 37, 41, 45,
-	50, 55, 60, 66, 73, 80, 88, 97, 107, 118,
-	130, 143, 157, 173, 190, 209, 230, 253, 279, 307,
-	337, 371, 408, 449, 494, 544, 598, 658, 724, 796,
-	876, 963, 1060, 1166, 1282, 1411, 1552, 1707, 1878, 2066,
-	2272, 2499, 2749, 3024, 3327, 3660, 4026, 4428, 4871, 5358,
-	5894, 6484, 7132, 7845, 8630, 9493, 10442, 11487, 12635, 13899,
-	15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794, 32767
-};
-
-static const signed char ima_index_table[16] = {
-	-1, -1, -1, -1, 2, 4, 6, 8,
-	-1, -1, -1, -1, 2, 4, 6, 8
-};
 
 /* Map sample rate to Covox HX delay byte (0 = unsupported). */
 unsigned char wav_rate_to_delay(unsigned int rate)
@@ -125,119 +66,6 @@ const char *wav_format_name(unsigned char format_tag)
 	default:
 		return "?";
 	}
-}
-
-/*
- * Decode one IMA ADPCM block into 16K pages (mono Covox, stereo downmixed).
- * Stops early if max_pages is exhausted.
- */
-unsigned int wav_ima_decode_block_pages(const unsigned char *block, unsigned int block_len,
-	const wav_info_t *info, unsigned char *page_idx, unsigned int *page_off,
-	unsigned char max_pages)
-{
-	unsigned char channels;
-	unsigned int hdr_bytes;
-	unsigned int pos;
-	unsigned int out_count;
-	unsigned char ch;
-	unsigned char page_full;
-	int predictor[2];
-	int step_index[2];
-	unsigned char b;
-	unsigned char nib;
-	unsigned int i;
-	unsigned char left;
-	unsigned char right;
-	unsigned char covox;
-
-	channels = info->channels;
-	if (channels < 1u || channels > 2u || block_len == 0 || *page_idx >= max_pages)
-		return 0;
-
-	hdr_bytes = (unsigned int)channels * 4u;
-	if (block_len < hdr_bytes)
-		return 0;
-
-	pos = 0;
-	for (ch = 0; ch < channels; ++ch)
-	{
-		predictor[ch] = (int)(short)read_u16(block + pos);
-		pos += 2u;
-	}
-	for (ch = 0; ch < channels; ++ch)
-	{
-		step_index[ch] = (int)block[pos++];
-		if (step_index[ch] > 88)
-			step_index[ch] = 88;
-	}
-	for (ch = 0; ch < channels; ++ch)
-		++pos; /* reserved */
-
-	out_count = 0;
-	page_full = 0;
-	if (channels == 1u)
-	{
-		covox = WAV_S16_TO_COVOX(predictor[0]);
-		WAV_PAGE_STORE(covox, page_idx, page_off, max_pages, page_full);
-		if (page_full)
-			return out_count;
-		++out_count;
-
-		while (pos < block_len && !page_full)
-		{
-			b = block[pos++];
-			nib = (unsigned char)(b & 15u);
-			IMA_UPDATE(nib, predictor[0], step_index[0]);
-			covox = WAV_S16_TO_COVOX(predictor[0]);
-			WAV_PAGE_STORE(covox, page_idx, page_off, max_pages, page_full);
-			if (page_full)
-				break;
-			++out_count;
-
-			nib = (unsigned char)(b >> 4);
-			IMA_UPDATE(nib, predictor[0], step_index[0]);
-			covox = WAV_S16_TO_COVOX(predictor[0]);
-			WAV_PAGE_STORE(covox, page_idx, page_off, max_pages, page_full);
-			if (page_full)
-				break;
-			++out_count;
-		}
-	}
-	else
-	{
-		left = WAV_S16_TO_COVOX(predictor[0]);
-		right = WAV_S16_TO_COVOX(predictor[1]);
-		covox = (unsigned char)(((unsigned int)left + (unsigned int)right + 1u) >> 1);
-		WAV_PAGE_STORE(covox, page_idx, page_off, max_pages, page_full);
-		if (page_full)
-			return out_count;
-		++out_count;
-
-		ch = 0;
-		while (pos < block_len && !page_full)
-		{
-			b = block[pos++];
-			for (i = 0; i < 2u; ++i)
-			{
-				nib = (i == 0u) ? (unsigned char)(b & 15u) : (unsigned char)(b >> 4);
-				IMA_UPDATE(nib, predictor[ch], step_index[ch]);
-				ch = (unsigned char)(1u - ch);
-				if (ch == 0u)
-				{
-					left = WAV_S16_TO_COVOX(predictor[0]);
-					right = WAV_S16_TO_COVOX(predictor[1]);
-					covox = (unsigned char)(
-						((unsigned int)left + (unsigned int)right + 1u) >> 1);
-					WAV_PAGE_STORE(covox, page_idx, page_off, max_pages, page_full);
-					if (page_full)
-						break;
-					++out_count;
-				}
-			}
-		}
-	}
-
-	return out_count;
 }
 
 /* Scan RIFF chunks after the WAVE header. */
@@ -437,11 +265,17 @@ unsigned char wav_parse(FILE *fp, wav_info_t *info)
 	else
 		info->num_samples = ima_total_samples(data_size, info);
 
+	/*
+	 * fact is optional and often wrong (e.g. stereo files with fact = half
+	 * the real frame count). Prefer the data-derived length; only grow if
+	 * fact claims more samples than the data chunk can hold.
+	 */
+	if (audio_format == WAV_FMT_IMA_ADPCM)
 	{
 		unsigned long fact_samples;
 
 		fact_samples = read_fact_samples(fp, file_size);
-		if (fact_samples > 0 && audio_format == WAV_FMT_IMA_ADPCM)
+		if (fact_samples > info->num_samples)
 			info->num_samples = fact_samples;
 	}
 
