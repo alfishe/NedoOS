@@ -29,11 +29,10 @@ void sendDat(unsigned char data)
     // Послать код команды в регистр команд
     unsigned char dataread2;
     output(datareg, data);
-    dataread2 = 128;
-    while (dataread2 != 0)
+    do
     {
         dataread2 = (input(cmdreg) & 128);
-    }
+    } while (dataread2 != 0);
 }
 
 void sendDatnv(unsigned char data)
@@ -47,11 +46,10 @@ void sendCmd(unsigned char command)
     // Послать код команды в регистр команд
     unsigned char dataread2;
     output(cmdreg, command);
-    dataread2 = 1;
-    while (dataread2 == 1)
+    do
     {
         dataread2 = input(cmdreg) & 1;
-    }
+    } while (dataread2 == 1);
 }
 
 void resetGS(void)
@@ -72,17 +70,21 @@ unsigned long getMem(void)
 /* Convert an int to it's binary representation */
 char *int2bin(int num, int pad)
 {
- char *str = malloc(sizeof(char) * (pad+1));
-  if (str) {
-   str[pad]='\0';
-   while (--pad>=0) {
-    str[pad] = num & 1 ? '1' : '0';
-    num >>= 1;
-   }
-  } else {
-   return "";
-  }
- return str;
+    char *str = malloc(sizeof(char) * (pad + 1));
+    if (str)
+    {
+        str[pad] = '\0';
+        while (--pad >= 0)
+        {
+            str[pad] = num & 1 ? '1' : '0';
+            num >>= 1;
+        }
+    }
+    else
+    {
+        return "";
+    }
+    return str;
 }
 
 C_task main(void)
@@ -106,18 +108,18 @@ C_task main(void)
     switch (q)
     {
     case 0:
-        printf("  DATA bit and COMMAND bit are reset [0xxxxxx0][%u][%s]. OK.\r\n\r\n",qdec , int2bin(qdec, 8));
+        printf("  DATA bit and COMMAND bit are reset [0xxxxxx0][%u][%s]. OK.\r\n\r\n", qdec, int2bin(qdec, 8));
         break;
     case 129:
-        printf("  DATA bit and COMMAND bit are set [1xxxxxx1][%u][%s]. FAIL.\r\n\r\n",qdec , int2bin(qdec, 8));
+        printf("  DATA bit and COMMAND bit are set [1xxxxxx1][%u][%s]. FAIL.\r\n\r\n", qdec, int2bin(qdec, 8));
         break;
     case 128:
-        printf("  DATA bit are set [1xxxxxx0][%u][%s]. FAIL. \r\n\r\n",qdec , int2bin(qdec, 8));
+        printf("  DATA bit are set [1xxxxxx0][%u][%s]. FAIL. \r\n\r\n", qdec, int2bin(qdec, 8));
         break;
     case 1:
-        printf("  COMMAND bit are set [0xxxxxx1][%u][%s]. FAIL. \r\n\r\n",qdec , int2bin(qdec, 8));
+        printf("  COMMAND bit are set [0xxxxxx1][%u][%s]. FAIL. \r\n\r\n", qdec, int2bin(qdec, 8));
     default:
-        printf("  Error detecting status. [%u][%s]. FAIL.\r\n\r\n",qdec , int2bin(qdec, 8));
+        printf("  Error detecting status. [%u][%s]. FAIL.\r\n\r\n", qdec, int2bin(qdec, 8));
     }
 
     printf("Resetting GS... \r\n");
