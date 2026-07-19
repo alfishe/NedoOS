@@ -222,6 +222,7 @@ void menu_apply_choice(unsigned char choice);
 void ui_fill_chars(unsigned char x, unsigned char y, unsigned char sym, unsigned char count, unsigned char color);
 
 void panel_draw_footer(PanelState *panel, unsigned char start_x);
+/* Size formatters live in main (0100): callable while panel file page is mapped. */
 void panel_fmt_size(char *dst, unsigned long size, unsigned char is_dir);
 void panel_fmt_size_brief(char *dst, unsigned long size, unsigned char is_dir);
 

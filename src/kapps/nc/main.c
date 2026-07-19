@@ -752,8 +752,6 @@ static void panel_trim_fname(fileInfo *fi)
 static void panel_normalize_fname(fileInfo *fi)
 {
 	unsigned int i;
-	unsigned int j;
-	unsigned int name_end;
 
 	if (fi->fname[0] == '.')
 	{
@@ -786,20 +784,7 @@ static void panel_normalize_fname(fileInfo *fi)
 		return;
 	}
 
-	for (i = 0; i < 12u; i++)
-	{
-		if (fi->fname[i] == 0)
-			break;
-	}
-	name_end = i;
-
-	j = 0;
-	for (i = 0; i < name_end && j < 63u; i++)
-		fi->lfname[j++] = fi->fname[i];
-	fi->lfname[j] = 0;
-
-	if (j == 0)
-		fi->fname[0] = 0;
+	/* Leave lfname empty: panel_entry_name() already falls back to fname. */
 }
 
 static char *panel_entry_name(const fileInfo *fi)
@@ -842,18 +827,6 @@ static void panel_name_to_key4_at(const char *name, unsigned int skip, unsigned 
 		k4[i] = panel_fold_char((unsigned char)name[i]);
 }
 
-static int panel_cmp_key4_cached(const unsigned char *a, const unsigned char *b)
-{
-	unsigned int i;
-
-	for (i = 0; i < PANEL_SORT_KEY_LEN; i++)
-	{
-		if (a[i] != b[i])
-			return (int)a[i] - (int)b[i];
-	}
-	return 0;
-}
-
 static void panel_name_to_ext4(const char *name, unsigned char *e4)
 {
 	unsigned int i;
@@ -876,14 +849,28 @@ static void panel_name_to_ext4(const char *name, unsigned char *e4)
 	e4[j] = 0;
 }
 
+/* Bounded: never walk past n bytes (guards bad/unterminated bank data). */
+static int panel_cmp_str_fold_n(const char *a, const char *b, unsigned char n)
+{
+	unsigned char i;
+	unsigned char ca;
+	unsigned char cb;
+
+	for (i = 0; i < n; i++)
+	{
+		ca = panel_fold_char((unsigned char)a[i]);
+		cb = panel_fold_char((unsigned char)b[i]);
+		if (ca != cb)
+			return (int)ca - (int)cb;
+		if (a[i] == 0)
+			return 0;
+	}
+	return 0;
+}
+
 static int panel_cmp_str_fold(const char *a, const char *b)
 {
-	while (a[0] != 0 && panel_fold_char((unsigned char)a[0]) == panel_fold_char((unsigned char)b[0]))
-	{
-		a++;
-		b++;
-	}
-	return (int)panel_fold_char((unsigned char)a[0]) - (int)panel_fold_char((unsigned char)b[0]);
+	return panel_cmp_str_fold_n(a, b, 63u);
 }
 
 static void panel_page_extra_clear(PanelState *panel, unsigned char file_page)
@@ -1018,71 +1005,6 @@ static void panel_meta_set_index(PanelState *panel, unsigned int vis_idx, unsign
 		panel_file_map(panel, file_page);
 }
 
-static void panel_dotname_to_cpm11(const char *s, unsigned char out[11])
-{
-	unsigned char i;
-	unsigned char n;
-	const char *p;
-
-	for (i = 0; i < 11u; i++)
-		out[i] = ' ';
-	if (s[0] == 0)
-		return;
-	if (s[0] == '.' && (s[1] == 0 || (s[1] == '.' && s[2] == 0)))
-	{
-		for (i = 0; i < 11u && s[i] != 0; i++)
-			out[i] = (unsigned char)s[i];
-		return;
-	}
-
-	p = s;
-	n = 0;
-	while (*p != 0 && *p != '.' && n < 8u)
-		out[n++] = (unsigned char)*p++;
-	if (*p == '.')
-	{
-		p++;
-		i = 0;
-		while (*p != 0 && i < 3u)
-			out[8u + i++] = (unsigned char)*p++;
-		return;
-	}
-	while (*p != 0 && *p != '.')
-		p++;
-	if (*p == '.')
-	{
-		p++;
-		i = 0;
-		while (*p != 0 && i < 3u)
-			out[8u + i++] = (unsigned char)*p++;
-	}
-}
-
-static void panel_fi_to_cpm11(const fileInfo *fi, unsigned char out[11])
-{
-	unsigned int i;
-	const char *s;
-
-	if (fi->fname[0] == '.' && fi->fname[1] == '.')
-	{
-		panel_dotname_to_cpm11((const char *)fi->fname, out);
-		return;
-	}
-
-	s = (const char *)fi->fname;
-	for (i = 0; i < 12u && fi->fname[i] != 0; i++)
-	{
-		if (fi->fname[i] == '.')
-		{
-			panel_dotname_to_cpm11(s, out);
-			return;
-		}
-	}
-	if (fi->lfname[0] != 0)
-		s = (const char *)fi->lfname;
-	panel_dotname_to_cpm11(s, out);
-}
-
 /* LFN sort cache: lfn4/ext keys + name[4..11] in NAME4/EXT4 for tie without SETPG. */
 static void panel_cache_entry_lfn(PanelState *panel, unsigned int real_idx, unsigned int page_offset,
 								  unsigned char file_page)
@@ -1137,6 +1059,45 @@ static void panel_cache_entry_lfn(PanelState *panel, unsigned int real_idx, unsi
 	*(unsigned short *)(base + PANEL_META_OFF_TIME + real_idx * 2u) = (unsigned short)ftime;
 }
 
+/* fname[13] "NAME.EXT" -> 11-byte CPM key, folded uppercase. */
+static void panel_fname_to_cpm11_folded(const unsigned char *fname, unsigned char out[11])
+{
+	unsigned char i;
+	unsigned char n;
+	const unsigned char *p;
+
+	for (i = 0; i < 11u; i++)
+		out[i] = ' ';
+	if (fname[0] == 0)
+		return;
+	if (fname[0] == '.' && fname[1] == '.' && (fname[2] == 0 || fname[2] == ' '))
+	{
+		out[0] = '.';
+		out[1] = '.';
+		return;
+	}
+
+	p = fname;
+	n = 0;
+	while (*p != 0 && *p != '.' && n < 8u)
+	{
+		out[n] = panel_fold_char(*p);
+		n++;
+		p++;
+	}
+	if (*p == '.')
+	{
+		p++;
+		i = 0;
+		while (*p != 0 && i < 3u)
+		{
+			out[8u + i] = panel_fold_char(*p);
+			i++;
+			p++;
+		}
+	}
+}
+
 /* Short sort meta from fileInfo already in hand (no file-page SETPG). */
 static void panel_cache_entry_short_fi(PanelState *panel, unsigned int real_idx, const fileInfo *fi)
 {
@@ -1146,6 +1107,7 @@ static void panel_cache_entry_short_fi(PanelState *panel, unsigned int real_idx,
 	unsigned int fdate;
 	unsigned int ftime;
 	unsigned char *base;
+	unsigned int koff;
 
 	if (fi->fname[0] == '.' && fi->fname[1] == '.')
 		kind = PANEL_KIND_DOTDOT;
@@ -1154,7 +1116,8 @@ static void panel_cache_entry_short_fi(PanelState *panel, unsigned int real_idx,
 	else
 		kind = PANEL_KIND_FILE;
 
-	panel_fi_to_cpm11(fi, cpm11);
+	/* Short sort keys from 8.3 fname only (folded once). */
+	panel_fname_to_cpm11_folded(fi->fname, cpm11);
 	fsize = fi->fsize;
 	fdate = fi->fdate;
 	ftime = fi->ftime;
@@ -1162,12 +1125,13 @@ static void panel_cache_entry_short_fi(PanelState *panel, unsigned int real_idx,
 	base = (unsigned char *)BANK_WINDOW_ADDRESS;
 	panel_meta_idx_set(base, real_idx, real_idx);
 	base[PANEL_META_OFF_KIND + real_idx] = kind;
-	memcpy(base + PANEL_META_OFF_NAME4 + real_idx * PANEL_SORT_KEY_LEN, cpm11, PANEL_SORT_KEY_LEN);
-	base[PANEL_META_OFF_EXT4 + real_idx * PANEL_SORT_KEY_LEN + 0u] = cpm11[8];
-	base[PANEL_META_OFF_EXT4 + real_idx * PANEL_SORT_KEY_LEN + 1u] = cpm11[9];
-	base[PANEL_META_OFF_EXT4 + real_idx * PANEL_SORT_KEY_LEN + 2u] = cpm11[10];
-	base[PANEL_META_OFF_EXT4 + real_idx * PANEL_SORT_KEY_LEN + 3u] = ' ';
-	memcpy(base + PANEL_META_OFF_LFN4 + real_idx * PANEL_SORT_KEY_LEN, cpm11 + 4, PANEL_SORT_KEY_LEN);
+	koff = real_idx * PANEL_SORT_KEY_LEN;
+	memcpy(base + PANEL_META_OFF_NAME4 + koff, cpm11, PANEL_SORT_KEY_LEN);
+	base[PANEL_META_OFF_EXT4 + koff + 0u] = cpm11[8];
+	base[PANEL_META_OFF_EXT4 + koff + 1u] = cpm11[9];
+	base[PANEL_META_OFF_EXT4 + koff + 2u] = cpm11[10];
+	base[PANEL_META_OFF_EXT4 + koff + 3u] = ' ';
+	memcpy(base + PANEL_META_OFF_LFN4 + koff, cpm11 + 4, PANEL_SORT_KEY_LEN);
 	*(unsigned long *)(base + PANEL_META_OFF_SIZE + real_idx * 4u) = fsize;
 	*(unsigned short *)(base + PANEL_META_OFF_DATE + real_idx * 2u) = (unsigned short)fdate;
 	*(unsigned short *)(base + PANEL_META_OFF_TIME + real_idx * 2u) = (unsigned short)ftime;
@@ -1181,78 +1145,27 @@ static void panel_cache_entry_short(PanelState *panel, unsigned int real_idx, un
 	panel_cache_entry_short_fi(panel, real_idx, &set.bank_array[page_offset]);
 }
 
-/* Short-name compare helpers (panel_heap_sort_fn83). */
+/* Short-name compare helpers. Keys are pre-folded in cache.
+ * IAR Z80: static pointers (absolute) beat ctx-on-stack + IX frames in heap hot path. */
 #define SORTFN_KIND_DIR 1u
 #define SORTFN_KIND_DOTDOT 2u
 
-static int sortfn_cmp_byte(unsigned char a, unsigned char b)
-{
-	unsigned char ca;
-	unsigned char cb;
+static unsigned char *s_kind;
+static unsigned char *s_name4;
+static unsigned char *s_ext4;
+static unsigned char *s_cpm4;
+static unsigned char *s_lfn4;
+static unsigned char *s_lfnext4;
+static unsigned long *s_sizes;
+static unsigned short *s_dates;
+static unsigned short *s_times;
+static unsigned short *s_idx;
+static unsigned char s_mode;
+static unsigned char s_desc;
+static PanelState *s_lfn_panel;
 
-	ca = panel_fold_char(a);
-	cb = panel_fold_char(b);
-	if (ca == cb)
-		return 0;
-	return (int)ca - (int)cb;
-}
-
-static int sortfn_cmp_key4(const unsigned char *a, const unsigned char *b)
-{
-	unsigned int i;
-	int cmp;
-
-	for (i = 0; i < PANEL_SORT_KEY_LEN; i++)
-	{
-		cmp = sortfn_cmp_byte(a[i], b[i]);
-		if (cmp != 0)
-			return cmp;
-	}
-	return 0;
-}
-
-static int sortfn_cmp_kind_meta(unsigned char ka, unsigned char kb)
-{
-	if (ka == kb)
-		return 0;
-	if (ka == SORTFN_KIND_DOTDOT)
-		return -1;
-	if (kb == SORTFN_KIND_DOTDOT)
-		return 1;
-	if (ka == SORTFN_KIND_DIR)
-		return -1;
-	if (kb == SORTFN_KIND_DIR)
-		return 1;
-	return 0;
-}
-
-static int sortfn_cmp_cpm11_tail_meta(const unsigned char *cpm4_a, const unsigned char *cpm4_b,
-									  const unsigned char *ext_a, const unsigned char *ext_b)
-{
-	unsigned char i;
-	int cmp;
-
-	cmp = sortfn_cmp_key4(cpm4_a, cpm4_b);
-	if (cmp != 0)
-		return cmp;
-	for (i = 0; i < 3u; i++)
-	{
-		if (ext_a[i] != ext_b[i])
-			return (int)ext_a[i] - (int)ext_b[i];
-	}
-	return 0;
-}
-
-static int panel_cmp_lfn_name_tail_meta(const unsigned char *na, const unsigned char *nb,
-										const unsigned char *ea, const unsigned char *eb)
-{
-	int cmp;
-
-	cmp = panel_cmp_key4_cached(na, nb);
-	if (cmp != 0)
-		return cmp;
-	return panel_cmp_key4_cached(ea, eb);
-}
+static char g_lfn_tie_a[64];
+static char g_lfn_tie_b[64];
 
 static int panel_cmp_lfn_tie_bank(PanelState *panel, unsigned int pa, unsigned int pb)
 {
@@ -1260,8 +1173,6 @@ static int panel_cmp_lfn_tie_bank(PanelState *panel, unsigned int pa, unsigned i
 	unsigned char page_b;
 	unsigned int off_a;
 	unsigned int off_b;
-	const char *sa;
-	const char *sb;
 	int cmp;
 
 	page_a = (unsigned char)(pa / FILES_PER_PAGE);
@@ -1270,386 +1181,366 @@ static int panel_cmp_lfn_tie_bank(PanelState *panel, unsigned int pa, unsigned i
 	off_b = pb % FILES_PER_PAGE;
 	set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
 	panel_file_map(panel, page_a);
-	sa = panel_entry_name(&set.bank_array[off_a]);
 	if (page_a == page_b)
-		sb = panel_entry_name(&set.bank_array[off_b]);
+	{
+		cmp = panel_cmp_str_fold_n(panel_entry_name(&set.bank_array[off_a]),
+								   panel_entry_name(&set.bank_array[off_b]), 63u);
+	}
 	else
 	{
+		panel_copy_entry_name(&set.bank_array[off_a], g_lfn_tie_a, (unsigned char)sizeof(g_lfn_tie_a));
 		panel_file_map(panel, page_b);
-		sb = panel_entry_name(&set.bank_array[off_b]);
+		panel_copy_entry_name(&set.bank_array[off_b], g_lfn_tie_b, (unsigned char)sizeof(g_lfn_tie_b));
+		cmp = panel_cmp_str_fold_n(g_lfn_tie_a, g_lfn_tie_b, 63u);
 	}
-	cmp = panel_cmp_str_fold(sa, sb);
 	panel_meta_map(panel);
 	return cmp;
 }
 
-typedef struct PanelFn83Ctx
+static int s_cmp_key4_off(unsigned char *base, unsigned int off_a, unsigned int off_b)
 {
-	unsigned char *base;
-	unsigned char *kind;
-	unsigned char *name4;
-	unsigned char *ext4;
-	unsigned char *cpm4;
-	unsigned long *sizes;
-	unsigned short *dates;
-	unsigned short *times;
-	unsigned short *idx;
-	unsigned char sort_mode;
-	unsigned char sort_desc;
-} PanelFn83Ctx;
+	unsigned char *a;
+	unsigned char *b;
 
-typedef struct PanelLfnCtx
-{
-	PanelState *panel;
-	unsigned char *kind;
-	unsigned char *lfn4;
-	unsigned char *lfnext4;
-	unsigned char *nm4;
-	unsigned char *ex4;
-	unsigned long *sizes;
-	unsigned short *dates;
-	unsigned short *times;
-	unsigned short *idx;
-	unsigned char sort_mode;
-	unsigned char sort_desc;
-} PanelLfnCtx;
+	a = base + off_a;
+	b = base + off_b;
+	if (a[0] != b[0])
+		return (int)a[0] - (int)b[0];
+	if (a[1] != b[1])
+		return (int)a[1] - (int)b[1];
+	if (a[2] != b[2])
+		return (int)a[2] - (int)b[2];
+	if (a[3] != b[3])
+		return (int)a[3] - (int)b[3];
+	return 0;
+}
 
-/* >0 if phys_a sorts after phys_b (heap uses ascending: .., dirs, files). */
-static int panel_cmp_fn83_phys(const PanelFn83Ctx *ctx, unsigned int pa, unsigned int pb)
+static int s_cmp_cpm_tail_off(unsigned int off_a, unsigned int off_b)
 {
+	int cmp;
+	unsigned char *a;
+	unsigned char *b;
+
+	cmp = s_cmp_key4_off(s_cpm4, off_a, off_b);
+	if (cmp != 0)
+		return cmp;
+	a = s_ext4 + off_a;
+	b = s_ext4 + off_b;
+	if (a[0] != b[0])
+		return (int)a[0] - (int)b[0];
+	if (a[1] != b[1])
+		return (int)a[1] - (int)b[1];
+	if (a[2] != b[2])
+		return (int)a[2] - (int)b[2];
+	return 0;
+}
+
+/* >0 if vis_a sorts after vis_b (max-heap). Kind order ignores sort_desc. */
+static int s_cmp_fn83_vis(unsigned int vis_a, unsigned int vis_b)
+{
+	unsigned int pa;
+	unsigned int pb;
+	unsigned int off_a;
+	unsigned int off_b;
 	unsigned char ka;
 	unsigned char kb;
 	int cmp;
-	const unsigned char *na;
-	const unsigned char *nb;
-	const unsigned char *ea;
-	const unsigned char *eb;
-	const unsigned char *ma;
-	const unsigned char *mb;
 
-	ka = ctx->kind[pa];
-	kb = ctx->kind[pb];
+	pa = (unsigned int)s_idx[vis_a];
+	pb = (unsigned int)s_idx[vis_b];
+	ka = s_kind[pa];
+	kb = s_kind[pb];
 	if (ka != kb)
-		return sortfn_cmp_kind_meta(ka, kb);
+	{
+		if (ka == SORTFN_KIND_DOTDOT)
+			return -1;
+		if (kb == SORTFN_KIND_DOTDOT)
+			return 1;
+		if (ka == SORTFN_KIND_DIR)
+			return -1;
+		if (kb == SORTFN_KIND_DIR)
+			return 1;
+		return 0;
+	}
 
-	na = ctx->name4 + pa * PANEL_SORT_KEY_LEN;
-	nb = ctx->name4 + pb * PANEL_SORT_KEY_LEN;
-	ea = ctx->ext4 + pa * PANEL_SORT_KEY_LEN;
-	eb = ctx->ext4 + pb * PANEL_SORT_KEY_LEN;
-	ma = ctx->cpm4 + pa * PANEL_SORT_KEY_LEN;
-	mb = ctx->cpm4 + pb * PANEL_SORT_KEY_LEN;
+	off_a = pa << 2;
+	off_b = pb << 2;
 
-	switch (ctx->sort_mode)
+	switch (s_mode)
 	{
 	case NC_PANEL_SORT_EXT:
-		cmp = sortfn_cmp_key4(ea, eb);
+		cmp = s_cmp_key4_off(s_ext4, off_a, off_b);
 		if (cmp == 0)
-			cmp = sortfn_cmp_key4(na, nb);
+			cmp = s_cmp_key4_off(s_name4, off_a, off_b);
 		if (cmp == 0)
-			cmp = sortfn_cmp_cpm11_tail_meta(ma, mb, ea, eb);
+			cmp = s_cmp_cpm_tail_off(off_a, off_b);
 		break;
 
 	case NC_PANEL_SORT_SIZE:
-		if (ctx->sizes[pa] < ctx->sizes[pb])
+		if (s_sizes[pa] < s_sizes[pb])
 			cmp = -1;
-		else if (ctx->sizes[pa] > ctx->sizes[pb])
+		else if (s_sizes[pa] > s_sizes[pb])
 			cmp = 1;
 		else
 		{
-			cmp = sortfn_cmp_key4(na, nb);
+			cmp = s_cmp_key4_off(s_name4, off_a, off_b);
 			if (cmp == 0)
-				cmp = sortfn_cmp_cpm11_tail_meta(ma, mb, ea, eb);
+				cmp = s_cmp_cpm_tail_off(off_a, off_b);
 		}
 		break;
 
 	case NC_PANEL_SORT_TIME:
-		if (ctx->dates[pa] < ctx->dates[pb])
+		if (s_dates[pa] < s_dates[pb])
 			cmp = -1;
-		else if (ctx->dates[pa] > ctx->dates[pb])
+		else if (s_dates[pa] > s_dates[pb])
 			cmp = 1;
-		else if (ctx->times[pa] < ctx->times[pb])
+		else if (s_times[pa] < s_times[pb])
 			cmp = -1;
-		else if (ctx->times[pa] > ctx->times[pb])
+		else if (s_times[pa] > s_times[pb])
 			cmp = 1;
 		else
 		{
-			cmp = sortfn_cmp_key4(na, nb);
+			cmp = s_cmp_key4_off(s_name4, off_a, off_b);
 			if (cmp == 0)
-				cmp = sortfn_cmp_cpm11_tail_meta(ma, mb, ea, eb);
+				cmp = s_cmp_cpm_tail_off(off_a, off_b);
 		}
 		break;
 
 	case NC_PANEL_SORT_NAME:
 	default:
-		cmp = sortfn_cmp_key4(na, nb);
+		cmp = s_cmp_key4_off(s_name4, off_a, off_b);
 		if (cmp == 0)
-			cmp = sortfn_cmp_cpm11_tail_meta(ma, mb, ea, eb);
+			cmp = s_cmp_cpm_tail_off(off_a, off_b);
 		break;
 	}
 
-	if (ctx->sort_desc && cmp != 0)
+	if (s_desc && cmp != 0)
 		cmp = -cmp;
 	return cmp;
 }
 
-static int panel_cmp_fn83_vis(const PanelFn83Ctx *ctx, unsigned int vis_a, unsigned int vis_b)
-{
-	unsigned int pa;
-	unsigned int pb;
-
-	pa = (unsigned int)ctx->idx[vis_a];
-	pb = (unsigned int)ctx->idx[vis_b];
-	return panel_cmp_fn83_phys(ctx, pa, pb);
-}
-
-static void panel_heap_sift_fn83(PanelFn83Ctx *ctx, unsigned int heap_size, unsigned int root)
+static void s_heap_sift_fn83(unsigned int heap_size, unsigned int root)
 {
 	unsigned int largest;
 	unsigned int left;
 	unsigned int right;
-	int cmp;
+	unsigned short t;
 
 	for (;;)
 	{
 		largest = root;
 		left = root * 2u + 1u;
 		right = left + 1u;
-		if (left < heap_size)
-		{
-			cmp = panel_cmp_fn83_vis(ctx, left, largest);
-			if (cmp > 0)
-				largest = left;
-		}
-		if (right < heap_size)
-		{
-			cmp = panel_cmp_fn83_vis(ctx, right, largest);
-			if (cmp > 0)
-				largest = right;
-		}
+		if (left < heap_size && s_cmp_fn83_vis(left, largest) > 0)
+			largest = left;
+		if (right < heap_size && s_cmp_fn83_vis(right, largest) > 0)
+			largest = right;
 		if (largest == root)
 			break;
-		{
-			unsigned short t;
-
-			t = ctx->idx[root];
-			ctx->idx[root] = ctx->idx[largest];
-			ctx->idx[largest] = t;
-		}
+		t = s_idx[root];
+		s_idx[root] = s_idx[largest];
+		s_idx[largest] = t;
 		root = largest;
 	}
 }
 
 static void panel_heap_sort_fn83(PanelState *panel)
 {
-	PanelFn83Ctx ctx;
-	unsigned int n;
-	unsigned int i;
-
-	if (panel->file_count < 2u)
-		return;
-
-	panel_meta_map(panel);
-	ctx.base = (unsigned char *)BANK_WINDOW_ADDRESS;
-	ctx.kind = ctx.base + PANEL_META_OFF_KIND;
-	ctx.name4 = ctx.base + PANEL_META_OFF_NAME4;
-	ctx.ext4 = ctx.base + PANEL_META_OFF_EXT4;
-	ctx.cpm4 = ctx.base + PANEL_META_OFF_LFN4;
-	ctx.sizes = (unsigned long *)(ctx.base + PANEL_META_OFF_SIZE);
-	ctx.dates = (unsigned short *)(ctx.base + PANEL_META_OFF_DATE);
-	ctx.times = (unsigned short *)(ctx.base + PANEL_META_OFF_TIME);
-	ctx.idx = (unsigned short *)(ctx.base + PANEL_META_OFF_IDX);
-	ctx.sort_mode = panel->sort_mode;
-	ctx.sort_desc = panel->sort_desc;
-
-	n = panel->file_count;
-	for (i = n / 2u; i > 0u; i--)
-		panel_heap_sift_fn83(&ctx, n, i - 1u);
-
-	for (i = n; i > 1u; i--)
-	{
-		unsigned short t;
-
-		t = ctx.idx[0];
-		ctx.idx[0] = ctx.idx[i - 1u];
-		ctx.idx[i - 1u] = t;
-		panel_heap_sift_fn83(&ctx, i - 1u, 0u);
-	}
-
-	panel_file_map(panel, 0);
-}
-
-static int panel_cmp_lfn_phys(const PanelLfnCtx *ctx, unsigned int pa, unsigned int pb)
-{
-	unsigned char ka;
-	unsigned char kb;
-	int cmp;
-	const unsigned char *na;
-	const unsigned char *nb;
-	const unsigned char *ea;
-	const unsigned char *eb;
-
-	ka = ctx->kind[pa];
-	kb = ctx->kind[pb];
-	if (ka != kb)
-		return sortfn_cmp_kind_meta(ka, kb);
-
-	na = ctx->lfn4 + pa * PANEL_SORT_KEY_LEN;
-	nb = ctx->lfn4 + pb * PANEL_SORT_KEY_LEN;
-	ea = ctx->lfnext4 + pa * PANEL_SORT_KEY_LEN;
-	eb = ctx->lfnext4 + pb * PANEL_SORT_KEY_LEN;
-
-	switch (ctx->sort_mode)
-	{
-	case NC_PANEL_SORT_EXT:
-		cmp = panel_cmp_key4_cached(ea, eb);
-		if (cmp == 0)
-			cmp = panel_cmp_key4_cached(na, nb);
-		if (cmp == 0)
-			cmp = panel_cmp_lfn_name_tail_meta(ctx->nm4 + pa * PANEL_SORT_KEY_LEN,
-											   ctx->nm4 + pb * PANEL_SORT_KEY_LEN,
-											   ctx->ex4 + pa * PANEL_SORT_KEY_LEN,
-											   ctx->ex4 + pb * PANEL_SORT_KEY_LEN);
-		if (cmp == 0)
-			cmp = panel_cmp_lfn_tie_bank(ctx->panel, pa, pb);
-		break;
-
-	case NC_PANEL_SORT_SIZE:
-		if (ctx->sizes[pa] < ctx->sizes[pb])
-			cmp = -1;
-		else if (ctx->sizes[pa] > ctx->sizes[pb])
-			cmp = 1;
-		else
-		{
-			cmp = panel_cmp_key4_cached(na, nb);
-			if (cmp == 0)
-				cmp = panel_cmp_lfn_name_tail_meta(ctx->nm4 + pa * PANEL_SORT_KEY_LEN,
-												   ctx->nm4 + pb * PANEL_SORT_KEY_LEN,
-												   ctx->ex4 + pa * PANEL_SORT_KEY_LEN,
-												   ctx->ex4 + pb * PANEL_SORT_KEY_LEN);
-			if (cmp == 0)
-				cmp = panel_cmp_lfn_tie_bank(ctx->panel, pa, pb);
-		}
-		break;
-
-	case NC_PANEL_SORT_TIME:
-		if (ctx->dates[pa] < ctx->dates[pb])
-			cmp = -1;
-		else if (ctx->dates[pa] > ctx->dates[pb])
-			cmp = 1;
-		else if (ctx->times[pa] < ctx->times[pb])
-			cmp = -1;
-		else if (ctx->times[pa] > ctx->times[pb])
-			cmp = 1;
-		else
-		{
-			cmp = panel_cmp_key4_cached(na, nb);
-			if (cmp == 0)
-				cmp = panel_cmp_lfn_name_tail_meta(ctx->nm4 + pa * PANEL_SORT_KEY_LEN,
-												   ctx->nm4 + pb * PANEL_SORT_KEY_LEN,
-												   ctx->ex4 + pa * PANEL_SORT_KEY_LEN,
-												   ctx->ex4 + pb * PANEL_SORT_KEY_LEN);
-			if (cmp == 0)
-				cmp = panel_cmp_lfn_tie_bank(ctx->panel, pa, pb);
-		}
-		break;
-
-	case NC_PANEL_SORT_NAME:
-	default:
-		cmp = panel_cmp_key4_cached(na, nb);
-		if (cmp == 0)
-			cmp = panel_cmp_lfn_name_tail_meta(ctx->nm4 + pa * PANEL_SORT_KEY_LEN,
-											   ctx->nm4 + pb * PANEL_SORT_KEY_LEN,
-											   ctx->ex4 + pa * PANEL_SORT_KEY_LEN,
-											   ctx->ex4 + pb * PANEL_SORT_KEY_LEN);
-		if (cmp == 0)
-			cmp = panel_cmp_lfn_tie_bank(ctx->panel, pa, pb);
-		break;
-	}
-
-	if (ctx->sort_desc && cmp != 0)
-		cmp = -cmp;
-	return cmp;
-}
-
-static int panel_cmp_lfn_vis(const PanelLfnCtx *ctx, unsigned int vis_a, unsigned int vis_b)
-{
-	return panel_cmp_lfn_phys(ctx, (unsigned int)ctx->idx[vis_a], (unsigned int)ctx->idx[vis_b]);
-}
-
-static void panel_heap_sift_lfn(PanelLfnCtx *ctx, unsigned int heap_size, unsigned int root)
-{
-	unsigned int largest;
-	unsigned int left;
-	unsigned int right;
-	int cmp;
-
-	for (;;)
-	{
-		largest = root;
-		left = root * 2u + 1u;
-		right = left + 1u;
-		if (left < heap_size)
-		{
-			cmp = panel_cmp_lfn_vis(ctx, left, largest);
-			if (cmp > 0)
-				largest = left;
-		}
-		if (right < heap_size)
-		{
-			cmp = panel_cmp_lfn_vis(ctx, right, largest);
-			if (cmp > 0)
-				largest = right;
-		}
-		if (largest == root)
-			break;
-		{
-			unsigned short t;
-
-			t = ctx->idx[root];
-			ctx->idx[root] = ctx->idx[largest];
-			ctx->idx[largest] = t;
-		}
-		root = largest;
-	}
-}
-
-static void panel_heap_sort_lfn(PanelState *panel)
-{
-	PanelLfnCtx ctx;
 	unsigned char *base;
 	unsigned int n;
 	unsigned int i;
+	unsigned short t;
 
 	if (panel->file_count < 2u)
 		return;
 
 	panel_meta_map(panel);
 	base = (unsigned char *)BANK_WINDOW_ADDRESS;
-	ctx.panel = panel;
-	ctx.kind = base + PANEL_META_OFF_KIND;
-	ctx.lfn4 = base + PANEL_META_OFF_LFN4;
-	ctx.lfnext4 = base + PANEL_META_OFF_LFNEXT4;
-	ctx.nm4 = base + PANEL_META_OFF_NAME4;
-	ctx.ex4 = base + PANEL_META_OFF_EXT4;
-	ctx.sizes = (unsigned long *)(base + PANEL_META_OFF_SIZE);
-	ctx.dates = (unsigned short *)(base + PANEL_META_OFF_DATE);
-	ctx.times = (unsigned short *)(base + PANEL_META_OFF_TIME);
-	ctx.idx = (unsigned short *)(base + PANEL_META_OFF_IDX);
-	ctx.sort_mode = panel->sort_mode;
-	ctx.sort_desc = panel->sort_desc;
+	s_kind = base + PANEL_META_OFF_KIND;
+	s_name4 = base + PANEL_META_OFF_NAME4;
+	s_ext4 = base + PANEL_META_OFF_EXT4;
+	s_cpm4 = base + PANEL_META_OFF_LFN4;
+	s_sizes = (unsigned long *)(base + PANEL_META_OFF_SIZE);
+	s_dates = (unsigned short *)(base + PANEL_META_OFF_DATE);
+	s_times = (unsigned short *)(base + PANEL_META_OFF_TIME);
+	s_idx = (unsigned short *)(base + PANEL_META_OFF_IDX);
+	s_mode = panel->sort_mode;
+	s_desc = panel->sort_desc;
 
 	n = panel->file_count;
 	for (i = n / 2u; i > 0u; i--)
-		panel_heap_sift_lfn(&ctx, n, i - 1u);
+		s_heap_sift_fn83(n, i - 1u);
 
 	for (i = n; i > 1u; i--)
 	{
-		unsigned short t;
+		t = s_idx[0];
+		s_idx[0] = s_idx[i - 1u];
+		s_idx[i - 1u] = t;
+		s_heap_sift_fn83(i - 1u, 0u);
+	}
 
-		t = ctx.idx[0];
-		ctx.idx[0] = ctx.idx[i - 1u];
-		ctx.idx[i - 1u] = t;
-		panel_heap_sift_lfn(&ctx, i - 1u, 0u);
+	panel_file_map(panel, 0);
+}
+
+static int s_cmp_lfn_vis(unsigned int vis_a, unsigned int vis_b)
+{
+	unsigned int pa;
+	unsigned int pb;
+	unsigned int off_a;
+	unsigned int off_b;
+	unsigned char ka;
+	unsigned char kb;
+	int cmp;
+
+	pa = (unsigned int)s_idx[vis_a];
+	pb = (unsigned int)s_idx[vis_b];
+	ka = s_kind[pa];
+	kb = s_kind[pb];
+	if (ka != kb)
+	{
+		if (ka == SORTFN_KIND_DOTDOT)
+			return -1;
+		if (kb == SORTFN_KIND_DOTDOT)
+			return 1;
+		if (ka == SORTFN_KIND_DIR)
+			return -1;
+		if (kb == SORTFN_KIND_DIR)
+			return 1;
+		return 0;
+	}
+
+	off_a = pa << 2;
+	off_b = pb << 2;
+
+	switch (s_mode)
+	{
+	case NC_PANEL_SORT_EXT:
+		cmp = s_cmp_key4_off(s_lfnext4, off_a, off_b);
+		if (cmp == 0)
+			cmp = s_cmp_key4_off(s_lfn4, off_a, off_b);
+		if (cmp == 0)
+			cmp = s_cmp_key4_off(s_name4, off_a, off_b);
+		if (cmp == 0)
+			cmp = s_cmp_key4_off(s_ext4, off_a, off_b);
+		if (cmp == 0)
+			cmp = panel_cmp_lfn_tie_bank(s_lfn_panel, pa, pb);
+		break;
+
+	case NC_PANEL_SORT_SIZE:
+		if (s_sizes[pa] < s_sizes[pb])
+			cmp = -1;
+		else if (s_sizes[pa] > s_sizes[pb])
+			cmp = 1;
+		else
+		{
+			cmp = s_cmp_key4_off(s_lfn4, off_a, off_b);
+			if (cmp == 0)
+				cmp = s_cmp_key4_off(s_name4, off_a, off_b);
+			if (cmp == 0)
+				cmp = s_cmp_key4_off(s_ext4, off_a, off_b);
+			if (cmp == 0)
+				cmp = panel_cmp_lfn_tie_bank(s_lfn_panel, pa, pb);
+		}
+		break;
+
+	case NC_PANEL_SORT_TIME:
+		if (s_dates[pa] < s_dates[pb])
+			cmp = -1;
+		else if (s_dates[pa] > s_dates[pb])
+			cmp = 1;
+		else if (s_times[pa] < s_times[pb])
+			cmp = -1;
+		else if (s_times[pa] > s_times[pb])
+			cmp = 1;
+		else
+		{
+			cmp = s_cmp_key4_off(s_lfn4, off_a, off_b);
+			if (cmp == 0)
+				cmp = s_cmp_key4_off(s_name4, off_a, off_b);
+			if (cmp == 0)
+				cmp = s_cmp_key4_off(s_ext4, off_a, off_b);
+			if (cmp == 0)
+				cmp = panel_cmp_lfn_tie_bank(s_lfn_panel, pa, pb);
+		}
+		break;
+
+	case NC_PANEL_SORT_NAME:
+	default:
+		cmp = s_cmp_key4_off(s_lfn4, off_a, off_b);
+		if (cmp == 0)
+			cmp = s_cmp_key4_off(s_name4, off_a, off_b);
+		if (cmp == 0)
+			cmp = s_cmp_key4_off(s_ext4, off_a, off_b);
+		if (cmp == 0)
+			cmp = panel_cmp_lfn_tie_bank(s_lfn_panel, pa, pb);
+		break;
+	}
+
+	if (s_desc && cmp != 0)
+		cmp = -cmp;
+	return cmp;
+}
+
+static void s_heap_sift_lfn(unsigned int heap_size, unsigned int root)
+{
+	unsigned int largest;
+	unsigned int left;
+	unsigned int right;
+	unsigned short t;
+
+	for (;;)
+	{
+		largest = root;
+		left = root * 2u + 1u;
+		right = left + 1u;
+		if (left < heap_size && s_cmp_lfn_vis(left, largest) > 0)
+			largest = left;
+		if (right < heap_size && s_cmp_lfn_vis(right, largest) > 0)
+			largest = right;
+		if (largest == root)
+			break;
+		t = s_idx[root];
+		s_idx[root] = s_idx[largest];
+		s_idx[largest] = t;
+		root = largest;
+	}
+}
+
+static void panel_heap_sort_lfn(PanelState *panel)
+{
+	unsigned char *base;
+	unsigned int n;
+	unsigned int i;
+	unsigned short t;
+
+	if (panel->file_count < 2u)
+		return;
+
+	panel_meta_map(panel);
+	base = (unsigned char *)BANK_WINDOW_ADDRESS;
+	s_lfn_panel = panel;
+	s_kind = base + PANEL_META_OFF_KIND;
+	s_lfn4 = base + PANEL_META_OFF_LFN4;
+	s_lfnext4 = base + PANEL_META_OFF_LFNEXT4;
+	s_name4 = base + PANEL_META_OFF_NAME4;
+	s_ext4 = base + PANEL_META_OFF_EXT4;
+	s_sizes = (unsigned long *)(base + PANEL_META_OFF_SIZE);
+	s_dates = (unsigned short *)(base + PANEL_META_OFF_DATE);
+	s_times = (unsigned short *)(base + PANEL_META_OFF_TIME);
+	s_idx = (unsigned short *)(base + PANEL_META_OFF_IDX);
+	s_mode = panel->sort_mode;
+	s_desc = panel->sort_desc;
+
+	n = panel->file_count;
+	for (i = n / 2u; i > 0u; i--)
+		s_heap_sift_lfn(n, i - 1u);
+
+	for (i = n; i > 1u; i--)
+	{
+		t = s_idx[0];
+		s_idx[0] = s_idx[i - 1u];
+		s_idx[i - 1u] = t;
+		s_heap_sift_lfn(i - 1u, 0u);
 	}
 
 	panel_file_map(panel, 0);
@@ -2221,6 +2112,8 @@ static unsigned char read_panel_dir_at(PanelState *panel, const char *dir_path, 
 	panel_mark_clear_all(panel);
 	if (panel->sort_lfn)
 		panel_page_extra_clear(panel, 0);
+	else
+		panel_file_map(panel, 0);
 
 	while (idx < MAX_FILES_PER_PANEL)
 	{
@@ -2236,7 +2129,9 @@ static unsigned char read_panel_dir_at(PanelState *panel, const char *dir_path, 
 			else
 				panel_file_map(panel, current_page);
 		}
-		else
+
+		/* cache_entry_* maps meta; restore file page before next READDIR into bank. */
+		if (idx > 0u)
 			panel_file_map(panel, current_page);
 
 		panel_prep_finfo_for_readdir(&set.bank_array[page_offset]);
@@ -2308,7 +2203,6 @@ void draw_bottom_info(PanelState *active_p)
 	unsigned int phys_idx;
 	unsigned int page_offset;
 	const unsigned char *meta_base;
-	fileInfo fi_snap;
 
 	memset(&snap, 0, sizeof(snap));
 	if (g_cmd_active)
@@ -2335,11 +2229,11 @@ void draw_bottom_info(PanelState *active_p)
 	phys_idx = panel_meta_idx_get(meta_base, active_p->cursor_idx);
 	switch_file_page(active_p, phys_idx);
 	page_offset = phys_idx % FILES_PER_PAGE;
-	memcpy(&fi_snap, (const void *)(BANK_WINDOW_ADDRESS + (unsigned int)page_offset * (unsigned int)FILINFO_RECORD_SIZE),
-		   (size_t)FILINFO_RECORD_SIZE);
-	panel_copy_entry_name(&fi_snap, snap.name, sizeof(snap.name));
-	snap.f_size = fi_snap.fsize;
-	snap.is_dir = (fi_snap.fattrib & 0x10) ? 1 : 0;
+	set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
+	/* Snap fields before resident map (bank window will leave file page). */
+	panel_copy_entry_name(&set.bank_array[page_offset], snap.name, sizeof(snap.name));
+	snap.f_size = set.bank_array[page_offset].fsize;
+	snap.is_dir = (set.bank_array[page_offset].fattrib & 0x10) ? 1 : 0;
 	snap.mode = NC_BOTTOM_FILE;
 	ui_resident_map();
 	r_draw_bottom_info(&snap);
@@ -2348,17 +2242,16 @@ void draw_bottom_info(PanelState *active_p)
 #define SZ_1MB 1048576UL
 #define SZ_100MB 104857600UL
 #define PANEL_ROW_WIDTH 38u
+#define PANEL_VIEW_ROWS 18u
 
-static char g_panel_row[PANEL_ROW_WIDTH + 1u];
-static unsigned char g_panel_row_marked;
-static unsigned char g_panel_row_color;
-static unsigned char g_panel_row_marked_row[18];
-static unsigned int g_panel_row_phys[18];
+static char g_panel_row[PANEL_ROW_WIDTH];
+static char g_panel_rows[PANEL_VIEW_ROWS][PANEL_ROW_WIDTH];
+static unsigned char g_panel_row_colors[PANEL_VIEW_ROWS];
+static unsigned char g_panel_row_marked_row[PANEL_VIEW_ROWS];
+static unsigned int g_panel_row_phys[PANEL_VIEW_ROWS];
 
 static const char g_month_abbr[12][2] = {
 	{'j', 'a'}, {'f', 'b'}, {'m', 'r'}, {'a', 'p'}, {'m', 'y'}, {'j', 'n'}, {'j', 'l'}, {'a', 'g'}, {'s', 'p'}, {'o', 'c'}, {'n', 'v'}, {'d', 'c'}};
-
-static void ui_panel_fmt_size_brief(char *dst, unsigned long size, unsigned char is_dir);
 
 static unsigned char panel_name_ext_char(unsigned char c)
 {
@@ -2367,23 +2260,23 @@ static unsigned char panel_name_ext_char(unsigned char c)
 	return c;
 }
 
-/* nvfast colorfile / fileiscom: .COM and .$C use _PANELEXECOLOR. */
+/* .COM / .$C ? check 8.3 fname only (avoid scanning 60-char LFN on every row). */
 static unsigned char panel_is_exec_file(const fileInfo *fi)
 {
-	const char *name;
-	unsigned int i;
-	unsigned int dot;
+	const unsigned char *name;
+	unsigned char i;
+	unsigned char dot;
 
 	if (fi->fattrib & 0x10)
 		return 0;
-	name = panel_entry_name((fileInfo *)fi);
-	dot = 0xFFFFu;
-	for (i = 0; name[i] != 0; i++)
+	name = fi->fname;
+	dot = 255u;
+	for (i = 0; i < 12u && name[i] != 0; i++)
 	{
 		if (name[i] == '.')
 			dot = i;
 	}
-	if (dot == 0xFFFFu)
+	if (dot == 255u)
 		return 0;
 	if (panel_name_ext_char(name[dot + 1u]) == 'c' && panel_name_ext_char(name[dot + 2u]) == 'o' &&
 		panel_name_ext_char(name[dot + 3u]) == 'm' && name[dot + 4u] == 0)
@@ -2391,6 +2284,126 @@ static unsigned char panel_is_exec_file(const fileInfo *fi)
 	if (name[dot + 1u] == '$' && panel_name_ext_char(name[dot + 2u]) == 'c' && name[dot + 3u] == 0)
 		return 1;
 	return 0;
+}
+
+/* In main bank: format while panel datapage is mapped (no resident SETPG). */
+void panel_fmt_size(char *dst, unsigned long size, unsigned char is_dir)
+{
+	unsigned char out[6];
+	unsigned int total_mb;
+	unsigned int whole;
+	unsigned int frac;
+	unsigned char d[6];
+	unsigned char i;
+	unsigned char lead;
+	unsigned char n;
+
+	if (is_dir)
+	{
+		dst[0] = ' ';
+		dst[1] = ' ';
+		dst[2] = '<';
+		dst[3] = 'D';
+		dst[4] = 'I';
+		dst[5] = 'R';
+		return;
+	}
+
+	n = 0;
+	if (size >= SZ_100MB)
+	{
+		total_mb = (unsigned int)(size / SZ_1MB);
+		whole = total_mb / 1024u;
+		frac = (total_mb % 1024u) * 100u / 1024u;
+		out[n++] = (unsigned char)('0' + whole);
+		out[n++] = '.';
+		out[n++] = (unsigned char)('0' + frac / 10u);
+		out[n++] = (unsigned char)('0' + frac % 10u);
+		out[n++] = 'G';
+	}
+	else if (size >= SZ_1MB)
+	{
+		whole = (unsigned int)(size / SZ_1MB);
+		frac = (unsigned int)(((size % SZ_1MB) * 100UL) / SZ_1MB);
+		if (whole >= 10u)
+			out[n++] = (unsigned char)('0' + whole / 10u);
+		else
+			out[n++] = ' ';
+		out[n++] = (unsigned char)('0' + whole % 10u);
+		out[n++] = '.';
+		out[n++] = (unsigned char)('0' + frac / 10u);
+		out[n++] = (unsigned char)('0' + frac % 10u);
+		out[n++] = 'M';
+	}
+	else
+	{
+		d[5] = (unsigned char)(size % 10UL);
+		size /= 10UL;
+		d[4] = (unsigned char)(size % 10UL);
+		size /= 10UL;
+		d[3] = (unsigned char)(size % 10UL);
+		size /= 10UL;
+		d[2] = (unsigned char)(size % 10UL);
+		size /= 10UL;
+		d[1] = (unsigned char)(size % 10UL);
+		size /= 10UL;
+		d[0] = (unsigned char)(size % 10UL);
+		lead = 0;
+		for (i = 0; i < 5u; i++)
+		{
+			if (d[i] != 0u || lead)
+			{
+				out[n++] = (unsigned char)('0' + d[i]);
+				lead = 1;
+			}
+			else
+				out[n++] = ' ';
+		}
+		out[n++] = (unsigned char)('0' + d[5]);
+	}
+	while (n < 6u)
+		out[n++] = ' ';
+	for (i = 0; i < 6u; i++)
+		dst[i] = out[i];
+}
+
+void panel_fmt_size_brief(char *dst, unsigned long size, unsigned char is_dir)
+{
+	unsigned char digits[NC_PANEL_BRIEF_SIZE_W];
+	unsigned char n;
+	unsigned char i;
+	unsigned long val;
+
+	if (is_dir)
+	{
+		for (i = 0; i < NC_PANEL_BRIEF_SIZE_W; i++)
+			dst[i] = ' ';
+		dst[3] = '<';
+		dst[4] = 'D';
+		dst[5] = 'I';
+		dst[6] = 'R';
+		dst[7] = '>';
+		return;
+	}
+
+	val = size;
+	if (val > 99999999UL)
+		val = 99999999UL;
+	n = 0;
+	if (val == 0UL)
+		digits[n++] = '0';
+	else
+	{
+		while (val > 0UL && n < NC_PANEL_BRIEF_SIZE_W)
+		{
+			digits[n++] = (unsigned char)('0' + (val % 10UL));
+			val /= 10UL;
+		}
+	}
+	for (i = 0; i < NC_PANEL_BRIEF_SIZE_W; i++)
+		dst[i] = ' ';
+	for (i = 0; i < n; i++)
+		dst[(NC_PANEL_BRIEF_SIZE_W - 1u) - i] = digits[i];
 }
 
 static unsigned char panel_entry_file_color(const fileInfo *fi)
@@ -2403,44 +2416,47 @@ static unsigned char panel_entry_file_color(const fileInfo *fi)
 }
 
 static void draw_panel_row_empty(unsigned char start_x, unsigned char row_y);
-static void ui_panel_fmt_size(char *dst, unsigned long size, unsigned char is_dir);
-static void panel_row_format(const fileInfo *fi);
-static void panel_row_format_empty(void);
+static void panel_row_format_into(const fileInfo *fi, char *dst, unsigned char *color_out);
+static void panel_row_format_empty_into(char *dst, unsigned char *color_out);
 
-static void panel_row_out(unsigned char start_x, unsigned char row_y, unsigned int file_idx, const PanelState *panel)
+/* putchar/OS_SET*: rst/BDOS ? resident page not required. */
+static void panel_row_out_buf(unsigned char start_x, unsigned char row_y, unsigned int file_idx,
+							  const PanelState *panel, const char *row, unsigned char color,
+							  unsigned char marked)
 {
 	unsigned char i;
 
-	SETPG32KHIGH(residentPg);
 	OS_SETXY((unsigned char)(start_x + 1u), (unsigned char)(3u + row_y));
 	if (file_idx == panel->cursor_idx && panel->is_active)
 	{
-		if (g_panel_row_marked)
+		if (marked)
 			OS_SETCOLOR(COLOR_PANEL_CURSOR_MARKED);
 		else
 			OS_SETCOLOR(COLOR_PANEL_CURSOR);
 	}
-	else if (g_panel_row_marked)
+	else if (marked)
 		OS_SETCOLOR(COLOR_PANEL_MARKED);
 	else
-		OS_SETCOLOR(g_panel_row_color);
+		OS_SETCOLOR(color);
 	for (i = 0; i < PANEL_ROW_WIDTH; i++)
-		putchar((unsigned char)g_panel_row[i]);
+		putchar((unsigned char)row[i]);
 }
 
 static void panel_draw_vis_row(PanelState *panel, unsigned char start_x, unsigned char row_y, unsigned int vis_idx)
 {
 	unsigned int phys_idx;
 	const unsigned char *meta_base;
+	unsigned char color;
+	unsigned char marked;
 
 	panel_meta_map(panel);
 	meta_base = (const unsigned char *)BANK_WINDOW_ADDRESS;
 	phys_idx = panel_meta_idx_get(meta_base, vis_idx);
-	g_panel_row_marked = meta_base[PANEL_META_OFF_MARK + phys_idx];
+	marked = meta_base[PANEL_META_OFF_MARK + phys_idx];
 	switch_file_page(panel, phys_idx);
 	set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
-	panel_row_format(&set.bank_array[phys_idx % FILES_PER_PAGE]);
-	panel_row_out(start_x, row_y, vis_idx, panel);
+	panel_row_format_into(&set.bank_array[phys_idx % FILES_PER_PAGE], g_panel_row, &color);
+	panel_row_out_buf(start_x, row_y, vis_idx, panel, g_panel_row, color, marked);
 }
 
 static void panel_fmt_pad(char *dst, const char *src, unsigned char width)
@@ -2499,62 +2515,54 @@ static void panel_fmt_datetime(char *dst, unsigned int fdate, unsigned int ftime
 		dst[i++] = ' ';
 }
 
-static void panel_row_format_full(const fileInfo *fi)
+static void panel_row_format_into(const fileInfo *fi, char *dst, unsigned char *color_out)
 {
 	const char *src;
+	unsigned char is_dir;
 
+	*color_out = panel_entry_file_color(fi);
 	src = panel_entry_name((fileInfo *)fi);
-	panel_fmt_pad(g_panel_row, src, 18);
-	g_panel_row[18] = (char)179;
-	ui_panel_fmt_size(g_panel_row + 19, fi->fsize, (unsigned char)((fi->fattrib & 0x10) ? 1 : 0));
-	g_panel_row[25] = (char)179;
-	panel_fmt_datetime(g_panel_row + 26, fi->fdate, fi->ftime);
-}
-
-static void panel_row_format_brief(const fileInfo *fi)
-{
-	const char *src;
-
-	/* Copy name before resident bank switch (name ptr is on panel file page @ C000). */
-	src = panel_entry_name((fileInfo *)fi);
-	panel_fmt_pad(g_panel_row, src, (unsigned char)NC_PANEL_BRIEF_NAME_W);
-	g_panel_row[NC_PANEL_BRIEF_NAME_W] = (char)179;
-	ui_panel_fmt_size_brief(g_panel_row + NC_PANEL_BRIEF_SIZE_OFF, fi->fsize,
-							(unsigned char)((fi->fattrib & 0x10) ? 1 : 0));
-	if (NC_PANEL_BRIEF_SIZE_OFF + NC_PANEL_BRIEF_SIZE_W < PANEL_ROW_WIDTH)
-		g_panel_row[NC_PANEL_BRIEF_SIZE_OFF + NC_PANEL_BRIEF_SIZE_W] = ' ';
-}
-
-static void panel_row_format(const fileInfo *fi)
-{
-	g_panel_row_color = panel_entry_file_color(fi);
+	is_dir = (unsigned char)((fi->fattrib & 0x10) ? 1 : 0);
 	if (g_ini_panel_brief)
-		panel_row_format_brief(fi);
+	{
+		panel_fmt_pad(dst, src, (unsigned char)NC_PANEL_BRIEF_NAME_W);
+		dst[NC_PANEL_BRIEF_NAME_W] = (char)179;
+		panel_fmt_size_brief(dst + NC_PANEL_BRIEF_SIZE_OFF, fi->fsize, is_dir);
+		if (NC_PANEL_BRIEF_SIZE_OFF + NC_PANEL_BRIEF_SIZE_W < PANEL_ROW_WIDTH)
+			dst[NC_PANEL_BRIEF_SIZE_OFF + NC_PANEL_BRIEF_SIZE_W] = ' ';
+	}
 	else
-		panel_row_format_full(fi);
+	{
+		panel_fmt_pad(dst, src, 18);
+		dst[18] = (char)179;
+		panel_fmt_size(dst + 19, fi->fsize, is_dir);
+		dst[25] = (char)179;
+		panel_fmt_datetime(dst + 26, fi->fdate, fi->ftime);
+	}
 }
 
-static void panel_row_format_empty(void)
+static void panel_row_format_empty_into(char *dst, unsigned char *color_out)
 {
 	unsigned char i;
 
-	g_panel_row_color = NC_COLOR_PANEL;
+	*color_out = NC_COLOR_PANEL;
 	for (i = 0; i < PANEL_ROW_WIDTH; i++)
-		g_panel_row[i] = ' ';
+		dst[i] = ' ';
 	if (g_ini_panel_brief)
-		g_panel_row[NC_PANEL_BRIEF_NAME_W] = (char)179;
+		dst[NC_PANEL_BRIEF_NAME_W] = (char)179;
 	else
 	{
-		g_panel_row[18] = (char)179;
-		g_panel_row[25] = (char)179;
+		dst[18] = (char)179;
+		dst[25] = (char)179;
 	}
 }
 
 static void draw_panel_row_empty(unsigned char start_x, unsigned char row_y)
 {
-	g_panel_row_marked = 0;
-	panel_row_format_empty();
-	panel_row_out(start_x, row_y, 0xFFFFu, &left_panel);
+	unsigned char color;
+
+	panel_row_format_empty_into(g_panel_row, &color);
+	panel_row_out_buf(start_x, row_y, 0xFFFFu, &left_panel, g_panel_row, color, 0);
 }
 
 void draw_panel_frame(unsigned char start_x, unsigned char color)
@@ -2584,26 +2592,6 @@ void draw_panel_frame(unsigned char start_x, unsigned char color)
 	putchar(188);
 }
 
-static void ui_panel_fmt_size(char *dst, unsigned long size, unsigned char is_dir)
-{
-	unsigned char c000_saved;
-
-	c000_saved = bank_window_current();
-	SETPG32KHIGH(residentPg);
-	panel_fmt_size(dst, size, is_dir);
-	SETPG32KHIGH(c000_saved);
-}
-
-static void ui_panel_fmt_size_brief(char *dst, unsigned long size, unsigned char is_dir)
-{
-	unsigned char c000_saved;
-
-	c000_saved = bank_window_current();
-	SETPG32KHIGH(residentPg);
-	panel_fmt_size_brief(dst, size, is_dir);
-	SETPG32KHIGH(c000_saved);
-}
-
 void draw_panel_background(PanelState *panel, unsigned char start_x)
 {
 	ui_resident_map();
@@ -2616,14 +2604,26 @@ static void draw_panel(PanelState *panel, unsigned char start_x, unsigned char h
 	unsigned int vis_idx;
 	unsigned int phys_idx;
 	const unsigned char *meta_base;
+	unsigned char last_file_page;
+	unsigned char file_page;
+
+	if (height > PANEL_VIEW_ROWS)
+		height = PANEL_VIEW_ROWS;
 
 	if (panel->file_count == 0u)
 	{
 		for (i = 0; i < height; i++)
-			draw_panel_row_empty(start_x, i);
+		{
+			panel_row_format_empty_into(g_panel_rows[i], &g_panel_row_colors[i]);
+			g_panel_row_marked_row[i] = 0;
+			g_panel_row_phys[i] = 0xFFFFu;
+		}
+		for (i = 0; i < height; i++)
+			panel_row_out_buf(start_x, i, 0xFFFFu, panel, g_panel_rows[i], g_panel_row_colors[i], 0);
 		return;
 	}
 
+	/* Pass 1: meta indices/marks (meta page mapped). */
 	panel_meta_map(panel);
 	meta_base = (const unsigned char *)BANK_WINDOW_ADDRESS;
 	for (i = 0; i < height; i++)
@@ -2642,20 +2642,34 @@ static void draw_panel(PanelState *panel, unsigned char start_x, unsigned char h
 		}
 	}
 
+	/* Pass 2: format rows while file pages mapped (fmt_size is in main). */
 	set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
+	last_file_page = 0xFFu;
 	for (i = 0; i < height; i++)
 	{
 		vis_idx = panel->scroll_offset + (unsigned int)i;
 		if (vis_idx >= panel->file_count)
 		{
-			draw_panel_row_empty(start_x, i);
+			panel_row_format_empty_into(g_panel_rows[i], &g_panel_row_colors[i]);
 			continue;
 		}
 		phys_idx = g_panel_row_phys[i];
-		g_panel_row_marked = g_panel_row_marked_row[i];
-		switch_file_page(panel, phys_idx);
-		panel_row_format(&set.bank_array[phys_idx % FILES_PER_PAGE]);
-		panel_row_out(start_x, i, vis_idx, panel);
+		file_page = (unsigned char)(phys_idx / FILES_PER_PAGE);
+		if (file_page != last_file_page)
+		{
+			panel_file_map(panel, file_page);
+			last_file_page = file_page;
+		}
+		panel_row_format_into(&set.bank_array[phys_idx % FILES_PER_PAGE], g_panel_rows[i],
+							  &g_panel_row_colors[i]);
+	}
+
+	/* Pass 3: blast text (no per-row bank switch). */
+	for (i = 0; i < height; i++)
+	{
+		vis_idx = panel->scroll_offset + (unsigned int)i;
+		panel_row_out_buf(start_x, i, vis_idx, panel, g_panel_rows[i], g_panel_row_colors[i],
+						  g_panel_row_marked_row[i]);
 	}
 }
 
