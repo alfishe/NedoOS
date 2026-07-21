@@ -2197,30 +2197,42 @@ static unsigned char read_panel_dir_at(PanelState *panel, const char *dir_path, 
 	return 1;
 }
 
+/* BSS: avoid ~150B stack memset on every cursor step. */
+static NCBottomInfo g_bottom_snap;
+
+/* Caller: file page still mapped, fi points into bank window. */
+static void draw_bottom_info_fi(const fileInfo *fi)
+{
+	g_bottom_snap.mode = NC_BOTTOM_FILE;
+	panel_copy_entry_name(fi, g_bottom_snap.name, (unsigned char)sizeof(g_bottom_snap.name));
+	g_bottom_snap.f_size = fi->fsize;
+	g_bottom_snap.is_dir = (fi->fattrib & 0x10) ? 1u : 0u;
+	ui_resident_map();
+	r_draw_bottom_info(&g_bottom_snap);
+}
+
 void draw_bottom_info(PanelState *active_p)
 {
-	NCBottomInfo snap;
 	unsigned int phys_idx;
 	unsigned int page_offset;
 	const unsigned char *meta_base;
 
-	memset(&snap, 0, sizeof(snap));
 	if (g_cmd_active)
 	{
-		snap.mode = NC_BOTTOM_CMD;
-		snap.cmd_cursor = g_cmd_cursor;
-		strncpy(snap.cmd_line, g_cmd_line, sizeof(snap.cmd_line) - 1u);
-		snap.cmd_line[sizeof(snap.cmd_line) - 1u] = 0;
+		g_bottom_snap.mode = NC_BOTTOM_CMD;
+		g_bottom_snap.cmd_cursor = g_cmd_cursor;
+		strncpy(g_bottom_snap.cmd_line, g_cmd_line, sizeof(g_bottom_snap.cmd_line) - 1u);
+		g_bottom_snap.cmd_line[sizeof(g_bottom_snap.cmd_line) - 1u] = 0;
 		ui_resident_map();
-		r_draw_bottom_info(&snap);
+		r_draw_bottom_info(&g_bottom_snap);
 		return;
 	}
 
 	if (active_p->file_count == 0u)
 	{
-		snap.mode = NC_BOTTOM_EMPTY;
+		g_bottom_snap.mode = NC_BOTTOM_EMPTY;
 		ui_resident_map();
-		r_draw_bottom_info(&snap);
+		r_draw_bottom_info(&g_bottom_snap);
 		return;
 	}
 
@@ -2230,13 +2242,7 @@ void draw_bottom_info(PanelState *active_p)
 	switch_file_page(active_p, phys_idx);
 	page_offset = phys_idx % FILES_PER_PAGE;
 	set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
-	/* Snap fields before resident map (bank window will leave file page). */
-	panel_copy_entry_name(&set.bank_array[page_offset], snap.name, sizeof(snap.name));
-	snap.f_size = set.bank_array[page_offset].fsize;
-	snap.is_dir = (set.bank_array[page_offset].fattrib & 0x10) ? 1 : 0;
-	snap.mode = NC_BOTTOM_FILE;
-	ui_resident_map();
-	r_draw_bottom_info(&snap);
+	draw_bottom_info_fi(&set.bank_array[page_offset]);
 }
 
 #define SZ_1MB 1048576UL
@@ -2876,6 +2882,39 @@ void draw_file_line(PanelState *panel, unsigned char start_x, unsigned int file_
 	}
 
 	panel_draw_vis_row(panel, start_x, row_y, file_idx);
+}
+
+/* Draw one visible row; if it is the active cursor, refresh bottom from same mapped fi. */
+static void draw_file_line_bottom(PanelState *panel, unsigned char start_x, unsigned int file_idx)
+{
+	unsigned char row_y;
+	unsigned int phys_idx;
+	unsigned int off;
+	const unsigned char *meta_base;
+	unsigned char color;
+	unsigned char marked;
+
+	if (file_idx < panel->scroll_offset || file_idx >= panel->scroll_offset + 18u)
+		return;
+
+	row_y = (unsigned char)(file_idx - panel->scroll_offset);
+	if (file_idx >= panel->file_count)
+	{
+		draw_panel_row_empty(start_x, row_y);
+		return;
+	}
+
+	panel_meta_map(panel);
+	meta_base = (const unsigned char *)BANK_WINDOW_ADDRESS;
+	phys_idx = panel_meta_idx_get(meta_base, file_idx);
+	marked = meta_base[PANEL_META_OFF_MARK + phys_idx];
+	switch_file_page(panel, phys_idx);
+	off = phys_idx % FILES_PER_PAGE;
+	set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
+	panel_row_format_into(&set.bank_array[off], g_panel_row, &color);
+	panel_row_out_buf(start_x, row_y, file_idx, panel, g_panel_row, color, marked);
+	if (file_idx == panel->cursor_idx && panel->is_active)
+		draw_bottom_info_fi(&set.bank_array[off]);
 }
 
 static void panel_mark_toggle_cursor(PanelState *panel)
@@ -5638,21 +5677,21 @@ C_task main(void)
 				if (active_p->scroll_offset + 1u == old_scroll)
 				{
 					panel_files_scroll_down(start_x);
-					panel_draw_vis_row(active_p, start_x, 0, active_p->scroll_offset);
+					/* Non-cursor row first; cursor+bottom last (file page stays mapped). */
 					if (active_p->scroll_offset + 1u < active_p->file_count)
 						panel_draw_vis_row(active_p, start_x, 1, active_p->scroll_offset + 1u);
+					draw_file_line_bottom(active_p, start_x, active_p->cursor_idx);
 				}
 				else if (active_p->scroll_offset != old_scroll)
 				{
 					draw_panel(active_p, start_x, 18);
+					draw_bottom_info(active_p);
 				}
 				else
 				{
 					draw_file_line(active_p, start_x, old_idx);
-					draw_file_line(active_p, start_x, active_p->cursor_idx);
+					draw_file_line_bottom(active_p, start_x, active_p->cursor_idx);
 				}
-
-				draw_bottom_info(active_p);
 			}
 			continue;
 		}
@@ -5673,20 +5712,19 @@ C_task main(void)
 				if (active_p->scroll_offset == old_scroll + 1u)
 				{
 					panel_files_scroll_up(start_x);
-					panel_draw_vis_row(active_p, start_x, 17, active_p->scroll_offset + 17u);
 					panel_draw_vis_row(active_p, start_x, 16, active_p->scroll_offset + 16u);
+					draw_file_line_bottom(active_p, start_x, active_p->cursor_idx);
 				}
 				else if (active_p->scroll_offset != old_scroll)
 				{
 					draw_panel(active_p, start_x, 18);
+					draw_bottom_info(active_p);
 				}
 				else
 				{
 					draw_file_line(active_p, start_x, old_idx);
-					draw_file_line(active_p, start_x, active_p->cursor_idx);
+					draw_file_line_bottom(active_p, start_x, active_p->cursor_idx);
 				}
-
-				draw_bottom_info(active_p);
 			}
 			continue;
 		}
@@ -5714,14 +5752,15 @@ C_task main(void)
 					active_p->scroll_offset = active_p->cursor_idx;
 
 				if (active_p->scroll_offset != old_scroll)
+				{
 					draw_panel(active_p, start_x, 18);
+					draw_bottom_info(active_p);
+				}
 				else
 				{
 					draw_file_line(active_p, start_x, old_idx);
-					draw_file_line(active_p, start_x, active_p->cursor_idx);
+					draw_file_line_bottom(active_p, start_x, active_p->cursor_idx);
 				}
-
-				draw_bottom_info(active_p);
 			}
 			continue;
 		}
@@ -5741,14 +5780,15 @@ C_task main(void)
 					active_p->scroll_offset = active_p->cursor_idx - 18 + 1;
 
 				if (active_p->scroll_offset != old_scroll)
+				{
 					draw_panel(active_p, start_x, 18);
+					draw_bottom_info(active_p);
+				}
 				else
 				{
 					draw_file_line(active_p, start_x, old_idx);
-					draw_file_line(active_p, start_x, active_p->cursor_idx);
+					draw_file_line_bottom(active_p, start_x, active_p->cursor_idx);
 				}
-
-				draw_bottom_info(active_p);
 			}
 			continue;
 		}

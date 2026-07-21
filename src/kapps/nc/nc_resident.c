@@ -838,9 +838,8 @@ static unsigned char ui_invert_attr(unsigned char attr)
 
 void r_draw_bottom_info(const NCBottomInfo *snap)
 {
+	/* FILE/EMPTY cover all 80 cols (3+10+3+64); CMD writes '>' + 79. No full-line clear. */
 	OS_SETCOLOR(NC_COLOR_CMDLINE);
-	OS_SETXY(0, NC_STATUS_ROW);
-	ui_fast_print_str_pad("", 80);
 	OS_SETXY(0, NC_STATUS_ROW);
 
 	if (snap->mode == NC_BOTTOM_CMD)
@@ -894,7 +893,9 @@ void r_draw_bottom_info(const NCBottomInfo *snap)
 		ui_fast_print_str_pad("<DIR>", 10);
 	else
 	{
+		/* ui_res_fast_print_size writes 6 chars; pad to 10 for fixed layout. */
 		ui_res_fast_print_size(snap->f_size);
+		putchar(' ');
 		putchar(' ');
 		putchar(' ');
 		putchar(' ');
