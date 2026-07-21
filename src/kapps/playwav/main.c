@@ -189,7 +189,7 @@ static unsigned char load_adpcm_streaming(FILE *fp, const wav_info_t *info,
 														 info, &page_idx, &page_off,
 														 max_pages);
 					total += decoded;
-					if (page_idx >= max_pages)
+					if (page_idx >= max_pages && total < info->num_samples)
 						truncated = 1;
 				}
 				break;
@@ -211,12 +211,13 @@ static unsigned char load_adpcm_streaming(FILE *fp, const wav_info_t *info,
 			break;
 
 		total += decoded;
+		buf_pos += ba;
 		if (page_idx >= max_pages)
 		{
-			truncated = 1;
+			if (total < info->num_samples)
+				truncated = 1;
 			break;
 		}
-		buf_pos += ba;
 	}
 
 	if (total == 0)
@@ -225,7 +226,8 @@ static unsigned char load_adpcm_streaming(FILE *fp, const wav_info_t *info,
 	if (page_off == 0 && page_idx > 0)
 	{
 		pages_loaded = page_idx;
-		*last_page_off = WAV_PAGE_BYTES - 1u;
+		/* Byte count for paged play; terminator path may overwrite last sample. */
+		*last_page_off = WAV_PAGE_BYTES;
 	}
 	else
 	{
@@ -350,14 +352,14 @@ static unsigned char load_page_pcm(FILE *fp, const wav_info_t *info,
 				return 0;
 			for (i = 0; i < chunk_samples; ++i)
 			{
-				int left;
-				int right;
-				int mix;
+				long left;
+				long right;
+				long mix;
 
-				left = (int)(short)((unsigned int)IOBUF[i * 4u] + ((unsigned int)IOBUF[i * 4u + 1u] << 8));
-				right = (int)(short)((unsigned int)IOBUF[i * 4u + 2u] + ((unsigned int)IOBUF[i * 4u + 3u] << 8));
-				mix = (left + right) >> 1;
-				dst[i] = WAV_S16_TO_COVOX(mix);
+				left = (long)(short)((unsigned int)IOBUF[i * 4u] + ((unsigned int)IOBUF[i * 4u + 1u] << 8));
+				right = (long)(short)((unsigned int)IOBUF[i * 4u + 2u] + ((unsigned int)IOBUF[i * 4u + 3u] << 8));
+				mix = (left + right) / 2L;
+				dst[i] = WAV_S16_TO_COVOX((int)mix);
 			}
 			dst += chunk_samples;
 			remaining -= chunk_samples;
@@ -404,7 +406,15 @@ static unsigned char load_sample_data(FILE *fp, const wav_info_t *info, unsigned
 		}
 		trim_unused_pages(pages_loaded);
 		if (!play_paged_mode)
-			write_terminator((unsigned char)(pages_loaded - 1u), last_page_off);
+		{
+			/* Continuous mode needs a 0x00 stop byte; if the last page is
+			 * completely full, overwrite the final sample. */
+			if (last_page_off >= WAV_PAGE_BYTES)
+				write_terminator((unsigned char)(pages_loaded - 1u),
+								 (unsigned int)(WAV_PAGE_BYTES - 1u));
+			else
+				write_terminator((unsigned char)(pages_loaded - 1u), last_page_off);
+		}
 		return 1;
 	}
 
