@@ -31,7 +31,7 @@ unsigned int espRetry = 5;
 unsigned long factor, timerok, count = 0;
 unsigned int magic = 15;
 
-unsigned char uVer[] = "2.3";
+unsigned char uVer[] = "2.1";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -41,12 +41,6 @@ unsigned char saveFlag, saveBak;
 unsigned char crlf[2] = {13, 10};
 
 unsigned char status, curFormat;
-
-/* CLI flags (override network.ini where noted) */
-unsigned char forceEsp = 0;	 /* -e : ESP-COM mode */
-unsigned char doFullUpdate = 0; /* -f : full update */
-unsigned char useMirror = 0;	 /* -m : kulich.su instead of nedoos.ru */
-unsigned char updateHost[16];
 
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
@@ -74,159 +68,23 @@ struct configuration
 
 unsigned char netbuf[4096];
 
-unsigned char userAgent[128];
-unsigned char binLink[64];
-unsigned char pkunzipLink[96];
-unsigned char tarLink[96];
-unsigned char cmdLink[96];
-unsigned char termLink[96];
-unsigned char updLink[96];
-unsigned char newsLink[96];
-unsigned char wizNetLink[96];
-unsigned char netIniLink[96];
-unsigned char relLink[64];
+unsigned char userAgent[] = " HTTP/1.1\r\nHost: nedoos.ru\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
+unsigned char binLink[] = "http://nedoos.ru/images/sysbin.zip";
+unsigned char pkunzipLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/pkunzip.com";
+unsigned char tarLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/tar.com";
+unsigned char cmdLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/cmd.com";
+unsigned char termLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/term.com";
+unsigned char updLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/updater.com";
+unsigned char newsLink[] = "/svn/dl.php?repname=NedoOS&path=/release/doc/updater.new";
+unsigned char wizNetLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/wizcfg.com";
+unsigned char netIniLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/net.ini";
+unsigned char relLink[] = "http://nedoos.ru/images/release.zip";
 unsigned char nameBuf1[512];
 unsigned char *nameBuf = nameBuf1;
-/* const unsigned char sendOk[] = "SEND OK"; */
+// const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char cmd[512];
 unsigned char link[512];
-
-void fatalError(const unsigned char *message);
-
-/* Fill Host / zip / WebSVN URLs for nedoos.ru or kulich.su mirror. */
-void setUpdateSource(unsigned char mirror)
-{
-	useMirror = mirror;
-	if (mirror)
-	{
-		strcpy(updateHost, "kulich.su");
-		strcpy(userAgent, " HTTP/1.1\r\nHost: kulich.su\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n");
-		strcpy(binLink, "http://kulich.su/images/sysbin.zip");
-		strcpy(relLink, "http://kulich.su/images/release.zip");
-		strcpy(pkunzipLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/bin/pkunzip.com");
-		strcpy(tarLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/bin/tar.com");
-		strcpy(cmdLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/bin/cmd.com");
-		strcpy(termLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/bin/term.com");
-		strcpy(updLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/bin/updater.com");
-		strcpy(newsLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/doc/updater.new");
-		strcpy(wizNetLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/bin/wizcfg.com");
-		strcpy(netIniLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/bin/net.ini");
-	}
-	else
-	{
-		strcpy(updateHost, "nedoos.ru");
-		strcpy(userAgent, " HTTP/1.1\r\nHost: nedoos.ru\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n");
-		strcpy(binLink, "http://nedoos.ru/images/sysbin.zip");
-		strcpy(relLink, "http://nedoos.ru/images/release.zip");
-		strcpy(pkunzipLink, "/svn/dl.php?repname=NedoOS&path=/release/bin/pkunzip.com");
-		strcpy(tarLink, "/svn/dl.php?repname=NedoOS&path=/release/bin/tar.com");
-		strcpy(cmdLink, "/svn/dl.php?repname=NedoOS&path=/release/bin/cmd.com");
-		strcpy(termLink, "/svn/dl.php?repname=NedoOS&path=/release/bin/term.com");
-		strcpy(updLink, "/svn/dl.php?repname=NedoOS&path=/release/bin/updater.com");
-		strcpy(newsLink, "/svn/dl.php?repname=NedoOS&path=/release/doc/updater.new");
-		strcpy(wizNetLink, "/svn/dl.php?repname=NedoOS&path=/release/bin/wizcfg.com");
-		strcpy(netIniLink, "/svn/dl.php?repname=NedoOS&path=/release/bin/net.ini");
-	}
-}
-
-/* Parse -e/-f/-m (also -efm). Legacy: F, e, E, m without dash. */
-void parseArgs(int argc, const char *argv[])
-{
-	int i;
-	const char *a;
-	unsigned char c;
-	unsigned char bad = 0;
-
-	forceEsp = 0;
-	doFullUpdate = 0;
-	useMirror = 0;
-
-	for (i = 1; i < argc; i++)
-	{
-		a = argv[i];
-		if (a == 0 || a[0] == 0)
-		{
-			continue;
-		}
-
-		if (a[0] == '-' || a[0] == '/')
-		{
-			a++;
-			if (*a == 0)
-			{
-				bad = 1;
-				break;
-			}
-			while (*a)
-			{
-				c = (unsigned char)*a++;
-				if (c >= 'A' && c <= 'Z')
-				{
-					c = (unsigned char)(c + 32);
-				}
-				switch (c)
-				{
-				case 'e':
-					forceEsp = 1;
-					break;
-				case 'f':
-					doFullUpdate = 1;
-					break;
-				case 'm':
-					useMirror = 1;
-					break;
-				default:
-					bad = 1;
-					break;
-				}
-				if (bad)
-				{
-					break;
-				}
-			}
-		}
-		else
-		{
-			/* Legacy single-token forms */
-			if (a[0] == 'E' && a[1] == 0)
-			{
-				forceEsp = 1;
-				doFullUpdate = 1;
-			}
-			else if ((a[0] == 'F' || a[0] == 'f') && a[1] == 0)
-			{
-				doFullUpdate = 1;
-			}
-			else if (a[0] == 'e' && a[1] == 0)
-			{
-				forceEsp = 1;
-			}
-			else if ((a[0] == 'm' || a[0] == 'M') && a[1] == 0)
-			{
-				useMirror = 1;
-			}
-			else
-			{
-				bad = 1;
-			}
-		}
-		if (bad)
-		{
-			break;
-		}
-	}
-
-	if (bad)
-	{
-		AT(1, 1);
-		printf("Usage: updater.com [-e] [-f] [-m]\r\n");
-		printf("  -e  ESP-COM mode (override network.ini)\r\n");
-		printf("  -f  full update (all system files)\r\n");
-		printf("  -m  use mirror kulich.su\r\n");
-		fatalError("Bad command line");
-	}
-}
 
 void clearNetBuf(unsigned int const size)
 {
@@ -477,9 +335,9 @@ unsigned char OS_SHELL(const unsigned char *command)
 	unsigned char *targetAddr;
 	unsigned int cmdLen;
 
-	/* ???????? ???????? ????????? ???? */
+	/* Безопасное построение командной строки */
 	strcpy((char *)appCmd, "cmd.com ");
-	/* 128 ??? - 8 ("cmd.com ") - 1 (??? '\0') = 119 ?????? ????? */
+	/* 128 всего - 8 ("cmd.com ") - 1 (для '\0') = 119 символов максимум */
 	strncat((char *)appCmd, (const char *)command, 119);
 
 	main_pg.l = OS_GETMAINPAGES();
@@ -503,25 +361,25 @@ unsigned char OS_SHELL(const unsigned char *command)
 	OS_NEWAPP((unsigned int)&shell_pg);
 	shell_pg.l = OS_GETAPPMAINPAGES(shell_pg.pgs.pId);
 
-	/* ?????? ?????? ??? */
+	/* Включаем страницу шелла */
 	SETPG32KHIGH(shell_pg.pgs.window_0);
 
-	/* ?????? ASCIIZ ???? ?????? ???? ?? ?? ????? ????? */
+	/* Копируем ASCIIZ строку параметров строго по её фактической длине */
 	cmdLen = strlen((char *)appCmd) + 1;
 	memcpy((unsigned char *)(0xC080), appCmd, cmdLen);
 
-	/* ???????????? ???????? ??? ?????????????? ?????? */
+	/* СВЕРХБЫСТРАЯ ЗАГРУЗКА БЕЗ ПРОМЕЖУТОЧНОГО БУФЕРА */
 	loop = 0;
 	targetAddr = (unsigned char *)0xC100;
 
 	while (loop < shellSize)
 	{
 		unsigned int loaded;
-		/* ???? ????? ??????? ? ??? ?????, ??? ?????? ?? ???? */
+		/* Читаем порцию напрямую в ОЗУ процесса, сколько осталось до конца */
 		loaded = OS_READHANDLE(targetAddr, fp3, shellSize - loop);
 		if (loaded == 0)
 		{
-			break; /* ???? ?? ??????? ?? ???? ???/FAT */
+			break; /* Защита от зависания при ошибке диска/FAT */
 		}
 		loop += loaded;
 		targetAddr += loaded;
@@ -644,26 +502,26 @@ char testOperation3(const char *process, int socket)
 
 unsigned char delete_tree_recursive(const char *dir_name)
 {
-	/* ?????? ?????????? ?????????? (??? ????? ???? ? ???!) */
+	/* СЕКЦИЯ ОБЪЯВЛЕНИЯ ПЕРЕМЕННЫХ (Всего несколько байт в стеке!) */
 	unsigned char result;
 	char local_name[64];
 	char is_dir;
 	char found_any;
 
-	/* ?????? ???? ?????? ????? ????? */
+	/* Пытаемся зайти внутрь целевой папки */
 	if (OS_CHDIR((unsigned char *)dir_name) != 0)
 	{
 		return 255;
 	}
 
-	/* ?????? ?? ???? ??? ????? */
+	/* Главный цикл очистки текущей папки */
 	while (1)
 	{
-		/* ????? ???????? ????? ????? */
+		/* Принудительно переоткрываем текущую папку */
 		OS_OPENDIR("");
 		found_any = 0;
 
-		/* ?? ?????? ??????? ???????, ?????? ????????? ???????? */
+		/* Ищем ПЕРВЫЙ валидный элемент, используя глобальную структуру */
 		while (1)
 		{
 			result = OS_READDIR(&global_info);
@@ -671,7 +529,7 @@ unsigned char delete_tree_recursive(const char *dir_name)
 			if (result == 4 || result != 0)
 				break;
 
-			/* ??????? ???????? ???? ?? ????? ?? */
+			/* Строжайшая посимвольная проверка на служебные точки */
 			if (global_info.fname[0] == '.')
 			{
 				if (global_info.fname[1] == 0 || (global_info.fname[1] == '.' && global_info.fname[2] == 0))
@@ -680,7 +538,7 @@ unsigned char delete_tree_recursive(const char *dir_name)
 				}
 			}
 
-			/* ?????? ??? ? ??????? ???????? ???? ???? ???? */
+			/* Забираем имя в локальный безопасный буфер текущего уровня */
 			if (global_info.lfname[0] != 0)
 			{
 				strcpy(local_name, (char *)global_info.lfname);
@@ -695,24 +553,24 @@ unsigned char delete_tree_recursive(const char *dir_name)
 			break;
 		}
 
-		/* ?? ????? ???? ? ????? ?? ??? ?????? ??????? */
+		/* Если папка пуста ? выходим из цикла удаления содержимого */
 		if (!found_any)
 		{
 			break;
 		}
 
-		/* ???????? ?? */
+		/* Уничтожаем цель */
 		if (is_dir)
 		{
 
-			/* ???????? ???? ???????? (???? ?????, ?? ???? ??? ???? ????) */
+			/* Рекурсивно очищаем подпапку (чистая рекурсия, стек тратит всего пару байт) */
 			delete_tree_recursive(local_name);
 
-			/* ?????????????? ??????? ? ???? ?? */
+			/* ВОССТАНОВЛЕНИЕ ПОЗИЦИИ И КЭША ОС */
 			OS_CHDIR((unsigned char *)"..");
 			OS_CHDIR((unsigned char *)dir_name);
 
-			/* ??????? ??????????? RETURN! ???? ???????? ?? while(1) ????? */
+			/* НИКАКИХ РЕКУРСИВНЫХ RETURN! Просто продолжаем цикл while(1) дальше */
 		}
 		else
 		{
@@ -720,10 +578,10 @@ unsigned char delete_tree_recursive(const char *dir_name)
 		}
 	}
 
-	/* ????? ?? ??????? ????? ?? ????? ????? */
+	/* Выходим из вычищенной папки на уровень вверх */
 	OS_CHDIR((unsigned char *)"..");
 
-	/* ????? ?? ????? */
+	/* Удаляем саму папку */
 	OS_DELETE((unsigned char *)dir_name);
 	return 0;
 }
@@ -821,8 +679,7 @@ unsigned char getFileEsp(const unsigned char *fileLink, unsigned char *fileNameP
 
 	do
 	{
-		sprintf(cmd, "AT+CIPSTART=\"TCP\",\"%s\",80", updateHost);
-		sendcommand(cmd);
+		sendcommand("AT+CIPSTART=\"TCP\",\"nedoos.ru\",80");
 
 		if (!getAnswer3()) // "CONNECT"
 		{
@@ -950,50 +807,36 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 unsigned char getConfig(void)
 {
 	config.is_atm = (unsigned char)OS_GETCONFIG();
-	/* H=system drive, L= 1-Evo 2-ATM2 3-ATM3 6-p2.666 ;E=pgsys(system page) D= TR-DOS page */
+	// H=system drive, L= 1-Evo 2-ATM2 3-ATM3 6-p2.666 ;E=pgsys(system page) D= TR-DOS page
 	switch ((config.is_atm))
 	{
 	case 1:
 		strcpy(config.machineName, "ZX-Evolution");
 		strcpy(config.kernelName, "sd_boot.$C");
-		if (useMirror)
-			strcpy(config.kernelLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/sd_boot.%24C");
-		else
-			strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/sd_boot.%24C");
+		strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/sd_boot.%24C");
 		break;
 	case 2:
 		strcpy(config.machineName, "TURBO 2+");
 		strcpy(config.kernelName, "osatm2hd.$C");
-		if (useMirror)
-			strcpy(config.kernelLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/osatm2hd.%24C");
-		else
-			strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/osatm2hd.%24C");
+		strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/osatm2hd.%24C");
+
 		break;
 
-	case 3: /* SD HDD versions */
+	case 3: // SD HDD versions
 		strcpy(config.machineName, "TURBO 3 [SD]");
 		strcpy(config.kernelName, "osatm3hd.$C");
-		if (useMirror)
-			strcpy(config.kernelLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/osatm3hd.%24C");
-		else
-			strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/osatm3hd.%24C");
+		strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/osatm3hd.%24C");
 		break;
-	case 6: /* SD HDD versions */
+	case 6: // SD HDD versions
 		strcpy(config.machineName, "P2.666 [SD]");
 		strcpy(config.kernelName, "osp26sd.$C");
-		if (useMirror)
-			strcpy(config.kernelLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/osp26sd.%24C");
-		else
-			strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/osp26sd.%24C");
+		strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/osp26sd.%24C");
 		break;
 
 	default:
 		strcpy(config.machineName, "NOT DETECED (ZX-Evo)");
 		strcpy(config.kernelName, "sd_boot.$C");
-		if (useMirror)
-			strcpy(config.kernelLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/sd_boot.s%24C");
-		else
-			strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/sd_boot.s%24C");
+		strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/sd_boot.s%24C");
 		break;
 	}
 	return config.is_atm;
@@ -1210,7 +1053,7 @@ void binUpdate(void)
 
 	clearStatus();
 	AT(cw.x + 2, cw.y + 10);
-	printf(">To full update: updater.com -f<");
+	printf(">To full update start 'updater.com F'<");
 	YIELD();
 
 	OS_CHDIR("/");
@@ -1326,62 +1169,77 @@ C_task main(int argc, const char *argv[])
 	targetadr.b3 = 65;
 	targetadr.b4 = 35;
 
-	parseArgs(argc, argv);
-	setUpdateSource(useMirror);
-
 	netDriver = readParamFromIni();
-	if (forceEsp)
-	{
-		netDriver = 1;
-	}
 	clearStatus();
+	// puts("network.ini loaded.");
+	// YIELD();
 	OS_GETPATH((unsigned int)&curPath);
 	curLetter = curPath[0];
 
-	if (forceEsp || useMirror)
+	if (argc > 1)
 	{
-		clearStatus();
-		if (forceEsp)
+		if (argv[1][0] == 'F')
 		{
-			printf("ESP-COM");
+			netDriver = 0;
+			get_dns();
+			test = dnsResolve("nedoos.ru");
+			if (test)
+			{
+				fullUpdate();
+			}
 		}
-		if (forceEsp && useMirror)
+		else if (argv[1][0] == 'e')
 		{
-			printf(" + ");
+			netDriver = 1;
+			clearStatus();
+			printf("    ESP-COM mode enabled...");
+			loadEspConfig();
+			uart_init(divider);
+			espReBoot();
+			binUpdate();
 		}
-		if (useMirror)
+		else if (argv[1][0] == 'E')
 		{
-			printf("mirror %s", updateHost);
+			netDriver = 1;
+			clearStatus();
+			printf("    ESP-COM mode enabled...");
+			loadEspConfig();
+			uart_init(divider);
+			espReBoot();
+			fullUpdate();
 		}
-		printf("...");
-	}
-
-	if (netDriver == 0)
-	{
-		get_dns();
-		test = dnsResolve(updateHost);
-		if (!test)
+		else
 		{
-			sprintf(cmd, "Check connection to %s!", updateHost);
-			fatalError(cmd);
+			AT(1, 1);
+			// printTable();
+			//  printNews();
+			// getchar();
+			fatalError("Use 'F' key to FULL update");
 		}
 	}
 	else
 	{
-		loadEspConfig();
-		uart_init(divider);
-		espReBoot();
-	}
 
-	if (doFullUpdate)
-	{
-		fullUpdate();
+		if (netDriver == 0)
+		{
+			get_dns();
+			if (dnsResolve("nedoos.ru"))
+			{
+				binUpdate();
+			}
+			else
+			{
+				fatalError("Check connection to the nedoos.ru server!");
+			}
+		}
+		else if (netDriver == 1)
+		{
+			loadEspConfig();
+			uart_init(divider);
+			espReBoot();
+			binUpdate();
+		}
 	}
-	else
-	{
-		binUpdate();
-	}
-
 	restoreConfig(oldBinExt);
 	OS_DELETE("bin/bin.zip");
 	OS_DELETE("pkunzip.com");
@@ -1389,6 +1247,7 @@ C_task main(int argc, const char *argv[])
 	infoBox("System Updated successfully!");
 	OS_SHELL("time2 >>updlog.txt");
 	delayLongKey(5000);
-	/* OS_DELETE("release.zip"); */
+	// getchar();
+	//   OS_DELETE("release.zip");
 	quit();
 }
