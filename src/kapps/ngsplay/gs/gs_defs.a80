@@ -1,0 +1,80 @@
+; Shared defs for NeoGS player build (from NeoTracker.a80)
+; Needed by ngsbios.a80 / page2.a80 when assembled without ZX UI.
+
+        MODULE s3m
+Length          equ #010
+LengthInPg      equ #024
+LoopBeg         equ #014
+LoopBegInPg     equ #02c
+LoopEnd         equ #018
+LoopEndInPg     equ #02e
+PgLength        equ #013
+PgLoopBeg       equ #017
+PgLoopEnd       equ #01b
+Typ             equ #01D
+InsNum          equ #022
+PatNum          equ #024
+ModFlags        equ #026
+SmpFlags        equ #01F
+OrdNum          equ #020
+Int_Gp          equ #028
+MemSeg          equ #0D
+Chen_pat        equ #03C
+Row_Def         equ #03D
+inspd           equ #031
+intmp           equ #032
+GlVol           equ #030
+Vol             equ #01C
+GVl             equ #01D
+Int512          equ #02B
+memNGS          equ #01E
+C2Spd           equ #020
+FineTune        equ #050
+TabVol          equ #040
+TabPan          equ #080
+HeadSampl       equ #D800
+PaternTab       equ HeadSampl-768-512
+        ENDMODULE
+
+        MACRO SetPg_macr
+        RRCA
+        OUT (MPAG),A
+        RLCA
+        INC A
+        RRCA
+        OUT (MPAGEX),A
+        ENDM
+
+        MACRO MulCB64
+        XOR A
+        DUP 6
+        RR C
+        JR NC,$+3
+        ADD B
+        RRA
+        EDUP
+        ENDM
+
+        MACRO MulAL
+        RL L
+        RL L
+        RRA
+        RR L
+        RRA
+        RR L
+        ADD A,HIGH Tab64
+        LD H,A
+        LD A,(HL)
+        ENDM
+
+        MACRO MulAE
+        RL E
+        RL E
+        RRA
+        RR E
+        RRA
+        RR E
+        ADD A,HIGH Tab64
+        LD D,A
+        LD A,(DE)
+        ENDM

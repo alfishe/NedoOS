@@ -1,0 +1,6082 @@
+
+
+_BIOS   ; 
+        PHASE   #0000
+        module BIOS   
+        di
+        jp initngs
+NUMPG   db  0
+LoopPat db  0
+        align 32
+OfsChenal   dw  0  ; 2 ����, �� ������ ������ �����
+        nop
+        align 16
+        nop
+        align 8
+INT8    
+        exa ;push af
+        PUSH hl      
+        ld h,#60
+Faza    equ $-1    
+        ld l,a            
+        LD A,(hl) 
+        INC h
+        LD A,(hl)
+        INC h
+        LD A,(hl) 
+        INC h
+        LD A,(hl)
+        INC h
+        LD A,(hl)
+        INC h
+        LD A,(hl)
+        INC h
+        LD A,(hl)
+        INC h
+        LD A,(hl)
+        INC l
+        JR Z,INT8_
+        LD A,l
+        ;ld (AF_sv),a
+        POP hl
+        exa ;pop af
+        EI
+        RET  
+INT8_   
+        LD A,h
+        INC A
+        OR #60
+        AND #78
+
+        ld (Faza),a ;ld h,a
+        LD A,l ;ld (AF_sv),HL
+        POP hl
+        exa ;pop af
+        EI
+        RET                
+
+        align 256
+initngs 
+        LD SP,ISTACK
+        in a,(GSCFG0)
+        and #FF-M_CKSEL0-M_CKSEL1-M_PAN4CH-M_RAMRO
+        OR C_12MHZ+M_EXPAG+M_8CHANS
+        OUT (GSCFG0),a
+        OUT (CLRCBIT),A
+INIT_   XOR A
+        OUT (ZXDATWR),A
+        OUT (VOL1),A
+        OUT (VOL2),A
+        OUT (VOL3),A
+        OUT (VOL4),A
+        OUT (VOL5),A
+        OUT (VOL6),A
+        OUT (VOL7),A
+        OUT (VOL8),A
+
+        in a,(GSCFG0)
+        and #FF-M_CKSEL0-M_CKSEL1-M_PAN4CH-M_RAMRO
+        OR C_24MHZ+M_EXPAG+M_8CHANS
+        OUT (GSCFG0),a
+
+        LD HL,0X8000
+        LD A,0X7F
+        OUT (MPAG),A
+        LD (HL),0XAA
+        LD A,0X3F
+        OUT (MPAG),A
+        LD (HL),0X55
+        LD A,0X7F
+        OUT (MPAG),A
+        LD A,(HL)
+        CP 0XAA
+        LD A,0X7E                       ;���������� ������� ��� 4 ����������� NEOGS
+        ld hl,#4000
+        JR Z,CP_RAMPAGES
+        LD A,0X3E                       ;���������� ������� ��� 2 ����������� NEOGS
+        ld hl,#4000
+CP_RAMPAGES LD (NUMPG),A
+        ld (Mem.MaxAdr),hl
+        ;OUT (ZXDATWR),A
+        ld a,1
+        call SETPAGE2
+        ld hl,"TN"
+        ld (#BC00),hl
+        ld hl,#0102
+        ld (#BC02),hl
+
+        ld hl,#FF00
+        ld (KolModule),hl
+        ld hl,#0100
+        ld (LastAdr),hl
+        ld hl,#004
+        ld (LastPage),hl
+        LD a,(NUMPG)        
+        ld (AllPage),a
+;         xor a     ; �뭥ᥭ� � ���
+;         set 0,a ; �� 㬮�砭�� ०�� ��������
+;         set 2,a ; �� 㬮�砭�� ०�� ����㧪� ����� � ZX
+;         ld (FlagPlay),a
+        ld hl,#6000
+        ld de,#6001
+        ld bc,#1fff
+        ld (hl),#80
+        ldir
+
+        ld hl,SamplTabl
+        ld de,SamplTabl+1
+        ld bc,#0fff-64
+        ld (hl),0
+        ldir
+
+        ld hl,Tab64
+        ld de,Tab64+1
+        ld bc,63
+        ld (hl),0
+        ldir
+
+        ld hl,Tab64-1+65*64
+        ld bc,#4040
+
+mullop  push bc
+        dec b
+        call  MulCB    ; AC=C*�
+        rl c : rla
+        rl c : rla
+        rl c
+        adc 0
+        ld (hl),a
+        dec hl
+        pop bc
+        djnz mullop
+        ld b,#40
+        dec c
+        jr nz,mullop
+        jr COMINT ; COMHZ
+
+        MODULE Mem
+GetMem 
+;       ��ᯥ��� ����� NGS , �뤫便� ������ ��������� ࠧ��� � ������ �� 256 ����
+;       �室 hl - �ॡ㥬�� ������ ����� � ᥣ����� �� 256 ����
+;       ��室 H-ᬥ饭�� � ��砫� ��࠭��� L-����� ��࠭���
+;            de - ���� ����㭭�� ����� � ᥣ����� �� 256 ���� - ��� DMA
+        ld de,(LastAdr)
+        push de
+        add hl,de
+        ld de,(MaxAdr)
+        sub hl,de
+        jr nc,_noGSMem
+        add hl,de
+        ld (LastAdr),hl
+        ld de,(LastPage)
+        push de
+
+        ld a,l
+        and #03F
+        ld (LastSeg),a
+        ld a,h
+        sla l : rla
+        sla l : rla
+        ld (LastPage),a
+        pop hl
+        pop de
+        ret
+_noGSMem       
+        jp BIOS._ErrorMem
+
+MaxAdr    dw      #4000 ; #2000 ��� 2 �� ���ᨩ (256/4 - � ॠ� ����)
+LastPage  db      4
+LastSeg   db      0
+LastAdr   dw      #100
+        ENDMODULE
+
+
+COMHZ   xor a
+        OUT (CLRCBIT),A
+COMINT  LD SP,ISTACK
+COMINT_ IN A,(ZXSTAT)
+        RRCA
+        JR C,COMINT1
+        JP COMINT_
+
+COMINT1 IN A,(ZXCMD)
+        CP 0X20
+        JR C,COMLOW
+COMINT2 CP 0XE0
+        JR C,COMINT_
+        SUB 0XC0
+COMLOW  ADD A,A
+        LD H,HIGH COMTAB
+        or LOW COMTAB
+        LD L,A
+        LD A,(HL)
+        INC L
+        LD H,(HL)
+        LD L,A
+        JP (HL)
+
+;Jamp to Address (*)
+;��।��� �ࠢ����� �� ��������� �����.
+COM13   IN A,(ZXDATRD)
+        OUT (CLRCBIT),A
+        LD L,A
+        LD IY,COM13_1
+        JP WTDTL
+
+COM13_1 LD H,A
+        JP (HL)
+
+COMF5 ; new module
+        IN A,(ZXDATRD)
+        ld b,a
+        ld a,1
+        SetPg_macr
+        jp New.Create
+
+COMF6   ; load sample
+        IN A,(ZXDATRD)
+        OUT (CLRCBIT),A
+        dec a
+        ld (SMPin),a
+        LD IY,COMF6_1
+        JP WTDTL
+COMF6_1
+        ld (inModul),a
+
+        ld a,1
+        call SETPAGE2
+        ld a,2
+        call SETPAGE3
+
+        ld bc,#0100
+        ld de,LoadBufer
+        CALL COM14_JPLOAD
+        ld hl,(BIOS.LoadBufer)
+        ld bc,"IR"
+        sub hl,bc
+        jp nz,_noswaw
+        ld hl,(BIOS.LoadBufer+8)
+        ld bc,"AW"
+        sub hl,bc
+        jp nz,_noswaw
+
+        ld hl,(EndBIOS)
+        ld de,"wa"
+        sub hl,de 
+        call nz,OverLDwav 
+
+        CALL LoadSMP.load_header
+        JP COMINT_  
+
+OverLDwav
+        ld a,2
+        call SETPAGE3
+        ld de,EndBIOS
+        ld hl,LoadSMP.wavload
+        ld bc,LoadSMP.Endwavload-LoadSMP.wavload
+        ldir
+        ret
+
+_noswaw
+; ᫥���騩 ��� �����
+        jp NoMiModul
+
+SMPin   db 0
+inModul db 0
+        
+COME8  
+        IN A,(ZXDATRD)
+        OUT (CLRCBIT),A
+        ld (LoadModul),a
+
+        ld a,1
+        call SETPAGE2
+        ld a,2
+        call SETPAGE3
+
+        ld bc,#0100
+        ld de,LoadBufer
+        CALL COM14_JPLOAD
+
+; �஢�ઠ ⨯� �����
+        ld hl,(BIOS.LoadBufer+#2c)
+        ld bc,"CS"
+        sub hl,bc
+        jp nz,_nos3m
+        ld hl,(BIOS.LoadBufer+#2e)
+        ld bc,"MR"
+        sub hl,bc
+        jp nz,_nos3m
+        jp Load_s3m
+_nos3m  
+; ᫥���騩 ��� �����
+        jp NoMiModul
+Ret_Load
+        ld a,0
+LoadModul equ $-1
+        ld (Load.Modul),a
+
+        ld h,a
+        ld l,0
+        LD a,#80
+        add h
+        add h
+        add h
+        add h
+        add h
+        ld h,a      ; � HL ���� ��������� �����
+        ld (Load.Head),hl
+        xor a
+        ld (Load.BitSmp),a
+        ld (sign1),a
+        ld (sign2),a
+        ld (sign3),a
+
+        ld (Load.ChenSmp),a
+
+        CALL Load.load_header
+        ld bc,0
+        ld (OfsChenal),bc
+        JP COMINT_  
+Load_s3m
+        ld hl,(EndBIOS)
+        ld de,"s3"
+        sub hl,de 
+        call nz,OverLDs3m 
+        jp Ret_Load
+OverLDs3m
+        ld a,2
+        call SETPAGE3
+        ld de,EndBIOS
+        ld hl,Load.s3mload
+        ld bc,Load.Ends3mload-Load.s3mload
+        ldir
+        ret
+
+; ��������� ��� �����
+_ErrorMem ld a,123
+        jr 123F
+NoMiModul
+        ld a,255
+123
+        ld hl,0
+        ld (Load.NextLen),hl
+        ld (Load.NextOfs),hl
+        ld (Load.NextBlock),a
+        ld (Load.LastBlock),a
+        jp BIOS.COMINT
+
+COME9 
+        xor a
+        ld (Load.BitSmp),a
+        ld (Load.ChenSmp),a
+        ld (sign1),a
+        ld (sign2),a
+        ld (sign3),a
+        
+        ld a,(Load.LastBlock)
+        cp 1
+        jp z,Load.LoadHead
+        cp 2
+        jp z,Load.SmpLoadHead
+        cp 4
+        jp z,Load.SpmLoad
+        cp 6
+        jp z,Load.PatHead
+        cp 7
+        jp z,Load.PatLoad
+returnCOME9
+        ld a,(Load.NextBlock) 
+        ld (Load.LastBlock),a
+returnCOME9end
+        OUT (ZXDATWR),A
+        OUT (CLRCBIT),A
+        IN A,(ZXSTAT)
+        RLA : JR C,$-3
+        ld a,(Load.NextOfs)
+        OUT (ZXDATWR),A
+        IN A,(ZXSTAT)
+        RLA : JR C,$-3
+        ld a,(Load.NextOfs+1)
+        OUT (ZXDATWR),A
+        IN A,(ZXSTAT)
+        RLA : JR C,$-3
+        ld a,(Load.NextLen)
+        OUT (ZXDATWR),A
+        IN A,(ZXSTAT)
+        RLA : JR C,$-3
+        ld a,(Load.NextLen+1)
+        OUT (ZXDATWR),A 
+
+        JP COMINT_  
+
+COMEA   
+; 3. #EA ����㧨�� ���ॡ������ ����
+; A ᪮�쪮 ������ �� 256 ���� ��।���  (�� ����� �40 - 16�� )
+    
+        IN A,(ZXDATRD)
+        OUT (CLRCBIT),A
+        ld c,a
+        ld a,(Load.NextPage)
+        SetPg_macr
+        ld a,(Load.SkipByte)
+        or a
+        jr z,31F
+        ld b,a
+1       IN A,(ZXSTAT) ; �ய�᪠�� ���㦭� ����� � ����
+        AND #81
+        JR Z,1B
+        IN A,(ZXDATRD)
+        JP P,COMINT1 
+        djnz 1B       
+31
+        ld b,c
+        ld a,(Load.SkipByte)
+        ld (Load.LastSkipByte),a
+        ld c,a
+        xor a
+        sub c
+        ld c,a
+        jr nc,1F
+        dec b ; ����⠫� ������ �� ���⮬ �ய�饭��� ����
+1
+        ld de,(Load.NextAdr)
+        ld a,(Load.BitSmp)
+        or a
+        jr z,1F
+        CALL COM14_JP16bit
+        jr 2F
+1       CALL COM14_JPLOAD
+2       bit 6,d
+        jr z,nopcgpg
+        res 6,d
+        ld a,(Load.NextPage)
+        inc a
+        ld (Load.NextPage),a
+nopcgpg ld (Load.NextAdr),de        
+        xor a
+        ld (Load.SkipByte),a
+        JP COMINT_  
+
+COMF0   
+;   F0 ����� ��࠭���� �����
+        IN A,(ZXDATRD)
+        ld (SaveModul),a
+
+        ld h,a
+        ld L,0
+        LD a,#80
+        add a,h
+        add a,h
+        add a,h
+        add a,h
+        add a,h
+        ld h,a 
+        ld ix,hl
+        ld a,1
+        call BIOS.SETPAGE2        
+;   �஢�ઠ ⨯� �����
+        ld hl,(ix+#2c)
+        ld bc,"CS"
+        sub hl,bc
+        jp nz,_nossv
+        ld hl,(ix+#2e)
+        ld bc,"MR"
+        sub hl,bc
+        jp nz,_nossv
+
+        jp Save_s3m
+_nossv  
+        ld a,255
+        OUT (ZXDATWR),A         
+        OUT (CLRCBIT),A
+        JP COMINT_ 
+Ret_Save
+        xor a
+        OUT (ZXDATWR),A         
+        OUT (CLRCBIT),A
+        JP COMINT_  
+
+Save_s3m
+        ld hl,(EndBIOS)
+        ld de,"3S"
+        sub hl,de 
+        call nz,OverSVs3m 
+        ld a,(SaveModul)
+        call Save.Faza0
+        jp Ret_Save
+
+SaveModul db 0
+FazaSave db 0
+OverSVs3m
+        ld a,2
+        call SETPAGE3
+        ld de,EndBIOS
+        ld hl,Save.s3mSave
+        ld bc,Save.Ends3mSave-Save.s3mSave
+        ldir
+        ret
+
+COMF1   
+;   F1 ���㧨�� ���ॡ������ ����
+        ld a,(FazaSave)
+        ld (oldfz),a
+        call FazaDec ; � DE, �� �㤠 ���㦠��
+        ld a,0
+oldfz   equ $-1
+        or a
+        jr z,end_fzsv
+        OUT (ZXDATWR),A         
+        OUT (CLRCBIT),A
+        IN A,(ZXSTAT)
+        RLA : JR C,$-3
+        ld a,(Save.FatOfs)
+        OUT (ZXDATWR),A
+        IN A,(ZXSTAT)
+        RLA : JR C,$-3
+        ld a,(Save.FatOfs+1)
+        OUT (ZXDATWR),A
+        IN A,(ZXSTAT)
+        RLA : JR C,$-3
+        ld a,(Save.FatOfs+2)
+        OUT (ZXDATWR),A
+        IN A,(ZXSTAT)
+        RLA : JR C,$-3
+        ld a,(Save.FatOfs+3)
+        OUT (ZXDATWR),A
+        IN A,(ZXSTAT)
+        RLA : JR C,$-3
+
+        ld a,(Save.FatLen)
+        OUT (ZXDATWR),A
+        CPL
+        LD C,A
+        IN A,(ZXSTAT)
+        RLA : JR C,$-3
+        ld a,(Save.FatLen+1)
+        OUT (ZXDATWR),A
+        CPL
+        LD B,A
+        INC BC
+        IN A,(ZXSTAT)
+        RLA : JR C,$-3
+        JP COM15IN 
+
+end_fzsv
+        OUT (ZXDATWR),A         
+        OUT (CLRCBIT),A        
+        JP COMINT_  
+FazaDec
+        dec a
+        jp z,Save.Faza1
+        dec a
+        jp z,Save.Faza2
+        dec a
+        jp z,Save.Faza3
+        dec a
+        jp z,Save.Faza4
+        dec a
+        jp z,Save.Faza5
+        dec a
+        jp z,Save.Faza6
+        ret
+
+COMEB   ; 㤠���� ����� �� �����
+        IN A,(ZXDATRD)
+        call DeleteModul
+        ld a,(KolModule) 
+        OUT (ZXDATWR),A
+        OUT (CLRCBIT),A
+        IN A,(ZXSTAT)
+        RLA : JR C,$-3
+        ld a,(LastAdr)
+        OUT (ZXDATWR),A
+        IN A,(ZXSTAT)
+        RLA : JR C,$-3
+        ld a,(LastAdr+1)
+        OUT (ZXDATWR),A
+        IN A,(ZXSTAT)
+        RLA : JR C,$-3
+        ld a,(LastPage)
+        OUT (ZXDATWR),A
+        IN A,(ZXSTAT)
+        RLA : JR C,$-3
+        ld a,(LastPage+1)
+        OUT (ZXDATWR),A 
+        JP COMINT_ 
+
+DeleteModul
+        push af
+        ld a,1
+        call SETPAGE2
+        pop af
+        or a
+        jr z,_dellast
+        cp 255
+        jr z,_dellall
+        ret
+_dellast 
+        ld a,(KolModule)
+        or a
+        jr z,_dellall
+        dec a
+        jr z,_dellall
+        ld (KolModule),a
+        ;inc a
+
+        add a
+        add a
+        add a
+        add a
+        add #10
+        ld l,a
+        ld h,#BC
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        inc hl
+        ld (LastAdr),de
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        ld (LastPage),de
+        ret
+_dellall
+        ld hl,#FF00
+        ld (KolModule),hl
+        ld hl,#0100
+        ld (LastAdr),hl
+        ld hl,#004
+        ld (LastPage),hl
+        ret
+
+
+;Load memory block (*)
+;����㧪� ����� ����� �� 㪠������� ����� � �������� ������.
+; 70+27*WAIT PER LOOP : 171K,123K,96K PER SECOND MAX
+COM14   IN A,(ZXDATRD)
+        OUT (CLRCBIT),A
+        CPL
+        LD C,A
+        LD HL,WTDTL
+        LD IY,COM14_1
+        JP (HL)
+
+COM14_1 CPL
+        LD B,A
+        INC BC
+        LD IY,COM14_2
+        JP (HL)
+
+COM14_2 LD E,A
+        LD IY,COM14_3
+        JP (HL)
+        
+COM14_3 LD D,A
+        LD A,B
+        OR C
+        JP Z,COMINT_
+        CALL COM14_JP
+        JP COMINT_  
+COM14_JPLOAD
+        ld a,c
+        cpl
+        ld c,a
+        ld a,b
+        cpl 
+        ld b,a
+        inc bc
+
+COM14_JP        
+        LD IXL,B
+        LD B,0X81
+        BIT 0,C
+        JR NZ,COM14_7
+
+COM14_6 IN A,(ZXSTAT)
+        AND B
+        JR Z,COM14_6
+        IN A,(ZXDATRD)
+        JP P,COMINT_1
+        add 0
+sign2   equ $-1
+        LD (DE),A
+        INC DE
+        INC C
+COM14_7 IN A,(ZXSTAT)
+        AND B
+        JR Z,COM14_7
+        IN A,(ZXDATRD)
+        JP P,COMINT_1
+        add 0
+sign3   equ $-1
+        LD (DE),A
+        INC DE
+        INC C
+        JP NZ,COM14_6
+        INC IXL
+        JP NZ,COM14_6
+        RET
+COMINT_1 pop hl
+        jp COMINT1        
+
+COM14_JP16bit
+        ld a,c
+        cpl
+        ld c,a
+        ld a,b
+        cpl 
+        ld b,a
+        inc bc
+
+COM14_JP16        
+        LD IXL,B
+        LD B,0X81
+        BIT 0,C
+        JR NZ,COM14_716
+
+COM14_616 IN A,(ZXSTAT)
+        AND B
+        JR Z,COM14_616
+        IN A,(ZXDATRD)
+        JP P,COMINT_1
+        ;LD (DE),A
+        ;INC DE
+        INC C
+COM14_716 IN A,(ZXSTAT)
+        AND B
+        JR Z,COM14_716
+        IN A,(ZXDATRD)
+        JP P,COMINT_1
+        add 0
+sign1   equ $-1
+        LD (DE),A
+        INC DE
+        INC C
+        JP NZ,COM14_616
+        INC IXL
+        JP NZ,COM14_616
+        RET
+
+
+;Get memory block (*)
+;���㧪� ����� ����� �� 㪠������� ����� � �������� ������.
+COM15   IN A,(ZXDATRD)  ;�訡��-�� ���뢠���� ������ ���
+        CPL
+        LD C,A
+        LD IY,COM15_1
+        JP WTDTG
+        
+COM15_1 CPL
+        LD B,A
+        INC BC
+        LD IY,COM15_2
+        JP WTDTG
+        
+COM15_2 LD E,A
+        LD IY,COM15_3
+        JP WTDTG
+        
+COM15_3 LD D,A
+COM15IN LD A,B
+        OR C
+        JP Z,COMINT_
+        LD IXL,B
+        LD B,0X81
+        LD A,(DE)
+        INC DE
+        OUT (ZXDATWR),A
+        OUT (CLRCBIT),A
+        LD HL,COM15_4
+        INC C
+        JP NZ,COM15_4
+        INC IXL
+        JP Z,COMINT_
+COM15_4 IN A,(ZXSTAT)
+        AND B
+        JR Z,COM15_5
+        JP P,COMINT1
+        IN A,(ZXSTAT)
+        AND B
+        JR Z,COM15_5
+        JP P,COMINT1
+        IN A,(ZXSTAT)
+        AND B
+        JR Z,COM15_5
+        JP P,COMINT1
+        IN A,(ZXSTAT)
+        AND B
+        JR Z,COM15_5
+        JP P,COMINT1
+        JP (HL)
+
+COM15_5 LD A,(DE)
+        OUT (ZXDATWR),A
+        INC DE
+        INC C
+        JP NZ,COM15_4
+COM15_7 INC IXL
+        JP NZ,COM15_4
+        JP COMINT_
+
+;Poke to address (*)
+;�����뢠�� ������� ���� �� 㪠������� �����.
+COM16   IN A,(ZXDATRD)
+        OUT (CLRCBIT),A
+        LD B,A
+        LD IY,COM16_1
+        JP WTDTL
+        
+COM16_1 LD L,A
+        LD IY,COM16_2
+        JP WTDTL
+        
+COM16_2 LD H,A
+        LD (HL),B
+        JP COMINT_
+
+;Peek from long address (*)
+;���뢠�� ������� ���� �� 㪠������� �������� ����
+COMEF   ;DI
+        IN A,(ZXDATRD) 
+;        OUT (CLRCBIT),A
+        LD C,A
+        LD IY,COMEF_1
+        JP WTDTG 
+COMEF_1 LD L,A
+        LD IY,COMEF_2
+        JP WTDTG 
+COMEF_2 
+        LD H,A
+        ld a,c
+
+        sla h : rl a 
+        sla h : rl a 
+        call SETPAGE2
+
+        srl h
+        scf
+        rr h
+        LD A,(HL)
+        OUT (ZXDATWR),A
+        OUT (CLRCBIT),A
+
+        ld a,(PROCESS)
+        or a
+        JP z,COMINT_
+        ld a,255
+        ld (nxtDTZX),a
+        ;EI
+        JP Continue
+
+
+;Peek from address (*)
+;���뢠�� ������� ���� �� 㪠������� ����.
+COM17   IN A,(ZXDATRD)
+        LD L,A
+        LD IY,COM17_1
+        JP WTDTL
+        
+COM17_1 LD H,A
+        LD A,(HL)
+        OUT (ZXDATWR),A
+        OUT (CLRCBIT),A
+        JP COMINT_
+
+
+WTDTL   IN A,(ZXSTAT)
+        AND 0X81
+        JR Z,WTDTL
+        IN A,(ZXDATRD)
+        JP P,COMINT1
+        JP (IY)
+WTDTG   IN A,(ZXSTAT)
+        OR A
+        JP P,WTDTG
+        IN A,(ZXDATRD)
+        JP (IY)    
+
+;Reset flags
+;����뢠�� 䫠�� Data bit � Command bit.
+COM00   IN A,(ZXDATRD)
+        OUT (CLRCBIT),A
+        JP COMINT_
+
+;Set silence (*)
+;�뢮��� � ���� ��� ������� 0X80. �� ��� ��⠭�������� �設�.
+COM01   OUT (CLRCBIT),A
+        LD A,0X80
+        LD HL,DAC0
+        LD (HL),A
+        LD B,(HL)
+        INC H
+        LD (HL),A
+        LD B,(HL)
+        INC H
+        LD (HL),A
+        LD B,(HL)
+        INC H
+        LD (HL),A
+        LD B,(HL)
+        JP COMINT_
+
+;Set low volume (*)
+;��⠭�������� �஬����x ����� ��� ������� � ����.
+COM02   OUT (CLRCBIT),A
+        XOR A           ; LD A,0X3F �� ����⭮, ��祬� ��९�⠭� ���⠬� ������� 02 � 03
+        OUT (VOL1),A
+        OUT (VOL2),A
+        OUT (VOL3),A
+        OUT (VOL4),A
+        OUT (VOL5),A
+        OUT (VOL6),A
+        OUT (VOL7),A
+        OUT (VOL8),A
+        JP COMINT_
+;Set high volume (*)
+;��⠭�������� �஬����� ����� ��� ������� � ���ᨬ�.
+COM03   OUT (CLRCBIT),A
+        LD A,0X3F       ; XOR A  �� ����⭮, ��祬� ��९�⠭� ���⠬� ������� 02 � 03
+        OUT (VOL1),A
+        OUT (VOL2),A
+        OUT (VOL3),A
+        OUT (VOL4),A
+        OUT (VOL5),A
+        OUT (VOL6),A
+        OUT (VOL7),A
+        OUT (VOL8),A
+        JP COMINT_
+
+;Out volume port (*)
+;��⠭�������� �஬����� ������, ����� ���ண� ᮤ�ন��� � 'E', � 㪠-
+;������ ���祭��. (������� �ࠡ��뢠�� �� �᫮���,  �� 'E' ��室���� �
+;�।���� 0X00-0X08)
+COM05   IN A,(ZXDATRD)
+        OUT (CLRCBIT),A
+        LD B,A
+        LD A,E
+        CP 0X08
+        JP NC,COMINT_
+        ADD A,VOL1
+        LD C,A
+        OUT (C),B
+        JP COMINT_
+
+;��⠭�������� ��࠭��� ����� � ���� 2
+
+COME0   IN A,(ZXDATRD)
+        ld (Cur_MPAG),A
+        RRCA
+        OUT (MPAG),A
+        OUT (CLRCBIT),A
+        JP COMINT_
+
+SETPAGE2 ld (NGS_MPAG),A
+        RRCA
+        OUT (MPAG),A
+        RET
+
+;SetPage3
+;��⠭�������� ��࠭��� ����� � ���� 3
+COME1   IN A,(ZXDATRD)
+        ld (Cur_MPAGEX),A
+        RRCA
+        OUT (MPAGEX),A
+        OUT (CLRCBIT),A
+        JP COMINT_
+
+SETPAGE3 ld (NGS_MPAGEX),A
+        RRCA
+        OUT (MPAGEX),A
+        RET
+
+
+;Init sample H(255-all) in module L
+;���樠������ �����㬥�⮢.
+
+COME2   IN A,(ZXDATRD) 
+        OUT (CLRCBIT),A
+        LD H,A
+        LD IY,COME2_1
+        JP WTDTL
+COME2_1         
+        LD D,A 
+        LD a,h
+        cp 12
+        jp nc,COMINT_
+        ld a,1
+        call SETPAGE2
+        ld L,s3m.InsNum
+        LD a,#80
+        add a,h
+        add a,h
+        add a,h
+        add a,h
+        add a,h
+        ld h,a      ; � HL ���� ���������� �����+memNG
+        ld a,d
+
+        LD b,1      ; 1 �����㬥��
+        CP 255
+        jr nz,COME2_all
+        ld d,0
+        ld b,(hl)   ; ��� �� �����㬥���
+        jr 1F
+COME2_all      
+        cp (hl)     ; �ࠢ������� ����� � ������⢮� InsNum
+        jp nc,COMINT_
+1       ld L,s3m.memNGS  
+        ld a,(hl)
+        ld (saveInsPage),a
+        inc l
+        ld c,(hl)
+        SetPg_macr
+        ld a,c
+        ld h,d
+        ld l,0 
+        srl h : rr l
+        set 7,h
+        add h
+        ld h,a
+_lopinsint
+        ld ix,hl
+        push bc,hl
+
+        xor a
+        ld d,a,e,a
+        ld hl,(ix+s3m.C2Spd) ; C2Spd
+        or l : or h
+        jp z,nonolop512 ; ���⮩ �����㬥�� 
+        ld hl,(ix+s3m.Length) ; C2Spd
+        ld a,(ix+s3m.Length+1)
+        or l : or h
+        jp z,nonolop512 ; ���⮩ �����㬥�� 
+
+        xor a
+        ld d,a,e,a
+        ld a,(ix+s3m.C2Spd+2)
+        or a ; �����প� C2Spd �� 131071
+        jr z,1f
+        ld hl,(ix+s3m.C2Spd)
+        srl a : rr h : rr l
+        exx
+        ld de,(finetune)
+        srl d : rr e
+        jr 2f
+1       ld hl,(ix+s3m.C2Spd) ; C2Spd
+        exx
+        ld l,0
+        ld h,0
+        ld de,(finetune)
+2
+        call ldiv  ; hl00 / 00de
+
+        ld de,PitchTable
+        ld (pitab1+2),de
+        ld (pitab3+2),de
+        inc de : inc de
+        ld (pitab2+2),de
+        ld (pitab4+2),de        
+
+        ld (A1+1),hl
+        ld (B1+1),hl
+        exx
+        ld (A2+1),hl
+        ld (B2+1),hl
+
+        ld b,12
+_lpnote push bc
+
+pitab1  ld bc,(PitchTable)
+A1      ld de,0
+        call MulDEBC ; hlde
+        ld (sum1+1),hl
+
+pitab2  ld bc,(PitchTable+2)
+B1      ld de,0
+        call MulDEBC ; hlde
+        ld (sum2+1),de
+        ld (sum4+1),hl
+
+pitab3  ld bc,(PitchTable)
+A2      ld de,0
+        call MulDEBC ; hlde
+        ld (sum3+1),de
+        ld (sum5+1),hl
+
+pitab4  ld bc,(PitchTable+2)
+B2      ld de,0
+        call MulDEBC ; hlde
+        ld (sum6+1),de
+;       ld (sum7+1),hl
+
+sum1    ld hl,0
+
+sum2    ld bc,0
+        add hl,bc
+        ld a,0
+        adc a,0
+sum3    ld bc,0  
+        add hl,bc
+        ld (ix+s3m.FineTune),hl
+
+sum4    ld hl,0  
+sum5    ld bc,0  
+        adc hl,bc
+        ld c,a
+        ld b,0
+        add hl,bc
+sum6    ld bc,0  
+        add hl,bc
+        ld (ix+s3m.FineTune+2),l
+
+        inc ix : inc ix : inc ix :inc ix
+        ld hl,(pitab1+2)
+        inc hl : inc hl : inc hl : inc hl 
+        ld (pitab1+2),hl
+        ld (pitab3+2),hl
+        inc hl : inc hl 
+        ld (pitab2+2),hl
+        ld (pitab4+2),hl
+
+        pop bc
+        dec b
+        jp nz,_lpnote ;djnz _lpnote
+
+        pop ix
+        push ix
+        ld a,(ix+s3m.Int_Gp) ; �㫥��� ��࠭�� = ���⮩ �����㬥��
+        or a
+        jp z,nonolop512 ; ���⮩ �����㬥�� 
+      
+;         ld a,(Loop512)
+;         and a
+;         jp z, nonolop512
+
+        ; �஢���� ���� �� �� , �᫨ ��� � � ���� �ய���� 512 ���� �80
+        ; � ��襭 �� ��� � ����稨 ����� 512 ����
+        ; ᪮��஢��� 512 ���� ������� �� ���� �㯠 � �o��� ����� - ��� ��࠭����
+        ; ᪮��஢��� 512 ���� �� ��砫� �㯠 � �����, �᫨ �� ����� 512, 
+        ; � ᤥ��� ����� �� ������ �㯠 �� 512 ����
+        ; ������� � ��������� ��� � ����稨 ��� 512 ����
+        bit 1,(ix+s3m.Int512)
+        jp nz, nonolop512
+        
+        ; ��室�� ��࠭��� ���� �����㬥��
+        ld a,(ix+s3m.Int_Gp+1) ;  H ���� �����
+        and %00111111
+        add (ix+s3m.Length+1)  ; 
+        rla : rla : rla : and 7
+        ld l,a  ;��������� ��� 22 ��� ������
+        ld a,(ix+s3m.Length+2)
+        sla a : sla a
+        add l   ;
+        add (ix+s3m.Int_Gp)
+        ld (PgToSave512),a
+        ld (ix+s3m.PgLength),a
+
+        ; ��室�� ᬥ饭�� ���� � ��࠭��
+        ld a,(ix+s3m.Length)
+        ld l,a
+        ld a,(ix+s3m.Length+1)
+        add (ix+s3m.Int_Gp+1)
+        and %00111111
+        set 7,a
+        ld h,a
+        ld (AdrToEND512),hl ; ����� ����� ��� ���㫥��� � ����
+        ld (ix+s3m.LengthInPg),hl
+        inc h : inc h
+        ld (AdrToSave512),hl ; +512 ��� ����� �����
+
+        bit 0,(ix+s3m.SmpFlags)
+        jp z,_To80h_512
+
+
+        ; ��室�� ��࠭��� ���� �㯠 
+        ld a,(ix+s3m.Int_Gp+1) ;  H ���� �����
+        and %00111111
+        add (ix+s3m.LoopEnd+1)  ; 
+        rla : rla : rla : and 7
+        ld l,a  ;��������� ��� 22 ��� ������
+        ld a,(ix+s3m.LoopEnd+2)
+        sla a : sla a
+        add l   ;
+        add (ix+s3m.Int_Gp)
+        ld (PgFromSave512),a
+        ld (ix+s3m.PgLoopEnd),a
+        ; ��室�� ᬥ饭��� ���� �㯠
+        ld a,(ix+s3m.LoopEnd)
+        ld l,a
+        ld a,(ix+s3m.LoopEnd+1)
+        add (ix+s3m.Int_Gp+1)
+        and %00111111
+        set 7,a
+        ld h,a
+        ld (AdrFromSave512),hl ; ����� �㯠
+        ld (ix+s3m.LoopEndInPg),hl
+
+        ; ��室�� ��࠭��� ��砫� �㯠 
+        ld a,(ix+s3m.Int_Gp+1) ;  H ���� �����
+        and %00111111
+        add (ix+s3m.LoopBeg+1)  ; 
+        rla : rla : rla : and 7
+        ld l,a  ;��������� ��� 22 ��� ������
+        ld a,(ix+s3m.LoopBeg+2)
+        sla a : sla a
+        add l   ;
+        add (ix+s3m.Int_Gp)
+        ld (PgFromEnd512),a
+        ld (ix+s3m.PgLoopBeg),a
+        ; ��室�� ᬥ饭��� ��章� �㯠
+        ld a,(ix+s3m.LoopBeg)
+        ld l,a
+        ld a,(ix+s3m.LoopBeg+1)
+        add (ix+s3m.Int_Gp+1)
+        and %00111111
+        set 7,a
+        ld h,a
+        ld (AdrFromEnd512),hl ; ����� �㯠
+        ld (ix+s3m.LoopBegInPg),hl
+
+        ; ������ 横��
+        ld l,(ix+s3m.LoopEnd)
+        ld h,(ix+s3m.LoopEnd+1)
+        ld c,(ix+s3m.LoopBeg)
+        ld b,(ix+s3m.LoopBeg+1)
+        sub hl,bc
+        ld a,(ix+s3m.LoopEnd+2)
+        sbc (ix+s3m.LoopEnd+2)
+        and a 
+        jr z,1F
+        ld hl,65535
+1       ld (dlina),hl
+
+        ld a,(Loop512)
+        and a
+        jp z, nonolop512
+        ld (l512_1),a
+        ld (l512_2),a
+        ld (l512_3),a
+        ld (l512_4),a
+        ld (l512_5),a
+
+; ��࠭�� � ���� ��᫥ �㯠 - ��࠭���  � १�ࢭ�� � � �� ����� 512
+        ld a,0
+PgFromSave512 EQU $-1
+        call SETPAGE2
+        rlca 
+        inc a
+        call SETPAGE3
+        ld hl,0
+AdrFromSave512 equ $-2       
+        ld de,SamplTabl     ; ���樠������ ⮫쪮 �� ��⠭�������� ����ᨧ������� - ���� �� �㦥�
+        ld bc, 512 
+        ldir
+
+; ��࠭�� � ���� - �㤠 ��࠭��� १�ࢭ�� ����� 
+        ld a,0
+PgToSave512 EQU $-1
+        call SETPAGE2
+        rlca 
+        inc a
+        call SETPAGE3
+        ld de,0
+AdrToSave512 equ $-2    
+        ld hl,SamplTabl     ; ���樠������ ⮫쪮 �� ��⠭�������� ����ᨧ������� - ���� �� �㦥�
+        ld bc, 512 
+        ;ldir    ; ���� �⪫ ��࠭���� १�ࢭ� ����� 512 ����
+                 ; �.� �� �⫠���� ���祭� ��࠭��� � ����� ������ ᫥���騩 ᬯ�
+
+; ��࠭�� � ���� - �� ����஢��� � ������� 512 ���� �㯠   
+        ld a,0
+PgFromEnd512 EQU $-1
+        call SETPAGE2
+        rlca 
+        inc a
+        call SETPAGE3
+        ld hl,0
+AdrFromEnd512 equ $-2       
+        ld de,SamplTabl     ; ���樠������ ⮫쪮 �� ��⠭�������� ����ᨧ������� - ���� �� �㦥�
+        ld bc,0
+dlina   equ $-2
+        ld a,b
+        cp 2
+l512_1  equ $-1
+        jr nc,bolshe512
+        ldir
+        ld hl,512
+l512_2  equ $-1
+        ld (jscnntatk),hl
+lop512
+        ld hl,512
+jscnntatk equ $-2
+        ld bc,(dlina)
+        sub hl,bc
+        jr z,_endlop512
+        jr c,_pocslbuf
+        ld (jscnntatk),hl
+ ;       ld bc,hl
+        ld hl,(AdrFromEnd512)
+        ldir
+        jr lop512
+_pocslbuf 
+        ld bc,(jscnntatk)
+        ld hl,(AdrFromEnd512)
+        ldir
+        jp _endlop512
+
+bolshe512     
+        ld bc, 512 
+l512_3  equ $-1
+        ldir
+_endlop512
+
+; ��࠭�� � ���� ��᫥ �㯠 - ��࠭��� � १�ࢭ�� � � �� ����� 512
+        ld a,(PgFromSave512)
+        call SETPAGE2
+        rlca 
+        inc a
+        call SETPAGE3
+        ld hl,SamplTabl     ; ���樠������ ⮫쪮 �� ��⠭�������� ����ᨧ������� - ���� �� �㦥�
+        ld de,(AdrFromSave512)      
+
+        ld bc,512 
+l512_4  equ $-1
+        ldir  
+        jp _endsave512
+
+_To80h_512
+;  ��� ��������� 0 �� �몫 ���� , ��࠭�� - � �� � PgToSave512
+; ��࠭�� � ���� - �㤠 ��࠭��� १�ࢭ�� ����� 
+        ld a,(Loop512)
+        and a
+        jp z, nonolop512
+
+        ld a,(PgToSave512)
+        call SETPAGE2
+        rlca 
+        inc a
+        call SETPAGE3 
+        ld hl,0 
+AdrToEND512 equ $-2
+        ld de,hl
+        inc de
+        ld bc,512
+l512_5  equ $-1
+        dec bc
+        ld (hl),#80
+        ldir
+        ld a,(saveInsPage)
+
+        SetPg_macr
+
+        jr nonolop512
+_endsave512
+
+        ld a,0
+saveInsPage EQU $-1
+
+        SetPg_macr
+
+        ld (ix+s3m.Int512),2
+
+nonolop512
+        pop hl
+        ld bc,128
+        add hl,bc
+        pop bc
+
+        dec b
+        jp nz,_lopinsint    ;  djnz _lopinsint
+
+        ld hl,SamplTabl
+        ld de,SamplTabl+1
+        ld (hl),0
+        ld bc,#1ff
+        ldir
+        JP COMINT_
+
+PROCESS         DB 0    ; �� 0 - ���� ���ந��������
+MODULE          DB 0    ; � ⥪�饣� �����
+HEADADR         DW 0    ; ���� ��������� ����� � ����� 8000h , ��࠭�� � ᯨ᪮� - 1
+SAMPLADR        dw 0    ; ���� ��࠭��� � ᬥ饭�� � ����������� ������
+ORDER           DW 0    ; ⥪�騩 �थ� � ���� � ���������
+PATERN          DB 0    ; � ⥪�騩 ����
+PATERNADR       DW 0    ; ���� ��砫� ⥪�饣� ���ୠ ��࠭��, ᬥ饭��
+; ROWSINPAT - � ⥫�      DB 63   ; ��ப � ⥪�饬 ���୥
+ROWSCUR         DB 0    ; � ⥪��� ��ப�
+LENROWS         DW 160  ; ������ ��ப� ����
+CHNPAT          DB 0    ; ������� � ���୥
+ROWSADR         DW 8000 ; ���� ⥪�饩 ��ப� � ����
+SPED            DB 6    ; ⥪��� ᪮����
+SPEDTIC         DB 6    ; ���稪 ᪮���
+TEMP            DB 125  ; ⥪�騩 ⥬�
+BPMBYTE         DW 750  ; ���� � ���� ����� ᪮��� ᮮ⢥�⢥��� ⥬��  5/(BPM*2)
+BPMCUR          DW 750  ; ���稪     
+;BMPOST-� ⥫�       DW 0    ; ���⮪ � ��諮�� ࠧ�, �㦭� ������� �� 楫��� ����
+MsVol           DB 0    ; �஬����� �� 㬮�砭�� 63-0
+GlVol           DB 0    ; ⥪��� ������쭠� �஬������ 128-0 - ��� IT, � s3m ����� �� 2
+MODES3IT        DB 0    ; #10 - ०�� ᮢ���⨬��� � s3m 0 - ���७�� ०�� ������
+
+
+KolModule       equ #BC04 ; ������⢮ ���㫥�
+CurModul        equ #BC05 ; ⥪�騩 ����騩 �����
+LastAdr         equ #BC06 ; ���� ᢮����� ���� � �����
+LastPage        equ #BC08 ; ���� ᢮����� ᥣ���� ����� , ��࠭��, ᬥ饭��
+AllPage         equ #BC0A ; �ᥣ� ����㯭� ��࠭�� �����
+FlagPlay        equ #BC0B ; 䫠�� �ந��뢠⥫� 
+                          ;bit 0 - ����� �� ��।� �� ���㫨-PlayList
+                          ;bit 1 - �� ��������, ��⠭������ �� �����襭��.
+                         
+LoadBufer       equ #C000 
+DepakBufer      equ #8000
+
+COMF7   
+        ; delete sampl,pattern,module
+        ; � -1 ���� 2 - ���� 4 �����
+        ; H - ����� �����  L - ����, ����        
+        IN A,(ZXDATRD)
+        OUT (CLRCBIT),A
+        ld (DelMode),a
+
+        LD IY,COMF7_1
+        JP WTDTL 
+COMF7_1         
+        LD H,A ; �����
+        ld (DelInModul),a
+        LD IY,COMF7_2
+        JP WTDTL 
+COMF7_2
+        LD E,A ; ����� ����� ��� ���ୠ
+        LD A,H
+        cp 12
+        jp nc,Erpat_
+; ������ ��࠭�� ��������� �����
+        ld a,1
+        call SETPAGE2
+; ���᫨�� ���� ���������        
+        ld a,(KolModule)
+        ld L,a
+        ld a,h
+        cp L
+        jp nc,Erpat_
+        ld L,0
+        LD a,#80
+        add a,h
+        add a,h
+        add a,h
+        add a,h
+        add a,h
+        ld h,a      ; � HL ���� ��������� ����� 
+        LD IX,HL
+        ld (DelHead),hl
+
+        ld a,0
+DelMode equ $-1
+        dec a
+        jp z,DeleteSMPjp
+
+        JP COMINT_ 
+
+DeleteSMPjp call DeleteSMP
+        JP COMINT_ 
+DeleteSMP
+; ������ ��࠭��� ���������� ������
+        ld hl,(ix+s3m.memNGS)
+        ld a,l
+        SetPg_macr
+; ���� ���� ��������� 㤠�塞��� �����
+        ld a,e
+        ;dec a
+        ld d,a
+        ld a,h
+        ld l,0
+        ld h,d  ; ����� �����
+        srl h : rr l
+        set 7,h 
+        add h
+        ld h,a ; ���� ��������� �����
+        ld ix,hl
+; ���� ���� 㤠�塞��� �����,���������
+        ld hl,(ix+s3m.MemSeg+1)
+        ld (DelAdr),hl
+        ld de,hl 
+; ���᫨�� ������ 㤠�塞��� ����,���������
+        ld a,(ix+s3m.Length)
+        ld hl,(ix+s3m.Length+1)
+        and a
+        jr z,1F
+        inc hl  
+1       or l : or h
+        jp z,0F
+        ld a,(BIOS.Loop512)  ; १�ࢨࢠ�� +512 ���� ��� �ணࠬ��� ����� ?
+        add l
+        ld l,a
+        jr nc,0F
+        inc h
+0       ld (DelLen),hl
+; ���᫨�� ���� ���� ᬯ��,���������
+        add hl,de
+        ld (DelEnd),hl
+; ������ ���������
+        ld de,ix
+        ld hl,de
+        inc de
+        ld (hl),0
+        ld bc,#50-1
+        ldir
+; ������� ������⢮ ��⠢���� �����㬥�⮢
+        ld a,1
+        call SETPAGE2
+        ld ix,(DelHead)
+        ld hl,(ix+s3m.memNGS)
+        ld a,l
+        SetPg_macr
+        set 7,h
+        
+        ld l,0
+        ld de,128*127
+        add hl,de
+        ld de,128
+        ld b,128
+        xor a
+1       cp (hl)
+        jr nz,2F
+        sub hl,de
+        djnz 1B
+        inc b
+2       
+        ld c,b,b,0
+        ld a,1
+        call SETPAGE2
+        ld (ix+s3m.InsNum),bc
+        
+; ���᫨�� ������ ��६�頥���� ��ꥬ� ����� 
+;  - ����� �ᥩ ����� ����� ����� �����
+; �᫨ 0 � �� ��६���� ����� � 123
+        ld de,(DelLen)
+        ld a,d
+        or e
+        jp z,exdelmob
+
+        ld de,(DelEnd)
+        ld a,d
+        or e
+        jp z,123F
+
+        ld hl,(LastAdr)
+        sub hl,de
+        jp z,123F
+        jp c,123F
+; ��६����� ������
+        ld (MovLen),hl
+        call MoveMemDn
+; ���� � ������ ���㫥 � ��᫥�����, �� �ࠣ����� �����, ��� ��砫�
+;  � ������ �� ���ᮢ ������ 㤠�塞��� �����
+        call ReOfsetMod
+
+123
+; �������� ����� �ᥩ ����� - ������ ������ 㤠�塞��� �����
+        ld a,1
+        call SETPAGE2
+        ld hl,(LastAdr)
+        ld de,(DelLen)
+        sub hl,de
+
+        ld a,(DelInModul)
+        add a
+        add a
+        add a
+        add a
+        add #10+4
+        ld e,a
+        ld d,#BC
+
+        ld (LastAdr),hl
+        ex hl,de
+        ld (hl),e
+        inc hl
+        ld (hl),d
+        inc hl
+        ex hl,de
+        ld a,l
+        and 63
+        sla l : rl h 
+        sla l : rl h 
+        ld l,h
+        ld h,a
+        ld (LastPage),hl
+        ex hl,de
+        ld (hl),e
+        inc hl
+        ld (hl),d
+        inc hl
+        
+exdelmob 
+        ret
+DelInModul db 0
+DelHead dw 0 
+DelAdr  dw 0
+DelLen  dw 0
+DelEnd  dw 0
+MovLen  dw 0
+
+
+MoveMemDn
+        ld bc,(MovLen)
+        ld a,b
+        or c
+        ret z
+
+        ld  hl,(DelAdr)
+        ld a,l
+        and 63
+        sla l : rl h 
+        sla l : rl h 
+        ld l,h
+        ld h,a
+        ; ��࠭�� �㤠 ��୮���
+        ld a,l
+        call SETPAGE2
+        ld l,0
+        set 7,h
+        ex hl,de 
+
+        ld  hl,(DelEnd)
+        ld a,l
+        and 63
+        sla l : rl h 
+        sla l : rl h 
+        ld l,h
+        ld h,a
+        ; ��࠭�� ��㤠 ��୮���
+        ld a,l
+        call SETPAGE3
+        ld l,0
+        set 6,h
+        set 7,h
+
+        inc b
+1       push bc
+        ld bc,256
+        ldir
+        bit 6,d
+        call nz,depg
+        bit 7,h
+        call z,hlpg
+        pop bc
+        dec c
+        jr nz,1B
+        djnz 1B
+
+        ret
+depg
+        res 6,d
+        ld a,(NGS_MPAG)
+        inc a
+        jp SETPAGE2
+hlpg
+        set 6,h
+        set 7,h
+        ld a,(NGS_MPAGEX)
+        inc a
+        jp SETPAGE3  
+
+ReOfsetMod 
+        ld a,1
+        call SETPAGE2
+
+        ld a,(DelInModul)
+        ld h,a
+        ld a,(KolModule)
+        ld L,a
+1       ld a,h
+        cp L  
+        ret nc
+        push hl
+        call movemodul
+        pop hl
+        inc h
+        jr 1B
+
+movemodul
+        ld a,1
+        call SETPAGE2
+        ld L,0
+        LD a,#80
+        add a,h
+        add a,h
+        add a,h
+        add a,h
+        add a,h
+        ld h,a      ; � HL ���� ��������� ����� 
+        LD IX,HL
+
+        ld b,253
+        inc h
+        inc h
+
+1       ld d,(hl)
+        inc h
+        ld e,(hl)
+        inc h
+        ld a,(hl)
+        or a
+        jr z,0F
+        push hl ; ��ॢ���� ��࠭��� � ����
+        ex hl,de
+
+
+        sla l : sla l
+        srl h : rr l
+        srl h : rr l
+
+        ld de,(DelEnd)
+        sub hl,de
+        jr c,02F
+        add hl,de
+        
+        ld de,(DelLen)
+        sub hl,de
+        sla l : rl h
+        sla l : rl h
+        srl l : srl l
+        set 7,l
+
+        ex hl,de
+        pop hl
+        dec h
+        ld (hl),e
+        dec h
+        ld (hl),d
+        inc l
+        djnz 1B
+        jr smpofs
+02      pop hl
+0       dec h
+        dec h
+        inc l
+        djnz 1B
+smpofs
+        ld hl,(ix+s3m.memNGS)
+        ld b,128
+        ld a,l
+        SetPg_macr
+        set 7,h
+        ld l,0
+        ld ix,hl
+
+1       push bc
+        ld a,(ix)
+        cp 1
+        jr nz,NoSampl
+        ld hl,(ix+s3m.MemSeg+1)
+        ld de,(DelEnd)
+        sub hl,de
+        jr c,NoSampl
+        add hl,de
+        ld de,(DelLen)
+        sub hl,de
+        ld (ix+s3m.MemSeg+1),hl
+
+        ld h,(ix+s3m.Int_Gp)
+        ld l,(ix+s3m.Int_Gp+1)
+        call dec_len
+        ld (ix+s3m.Int_Gp),h
+        ld (ix+s3m.Int_Gp+1),l
+
+        ld h,(ix+s3m.PgLength)
+        ld l,(ix+s3m.LengthInPg+1)
+        call dec_len
+        ld (ix+s3m.PgLength),h
+        ld (ix+s3m.LengthInPg+1),l
+
+        ld h,(ix+s3m.PgLoopBeg )
+        ld l,(ix+s3m.LoopBegInPg +1)
+        call dec_len
+        ld (ix+s3m.PgLoopBeg ),h
+        ld (ix+s3m.LoopBegInPg +1),l
+
+        ld h,(ix+s3m.PgLoopEnd )
+        ld l,(ix+s3m.LoopEndInPg +1)
+        call dec_len
+        ld (ix+s3m.PgLoopEnd ),h
+        ld (ix+s3m.LoopEndInPg +1),l
+
+NoSampl ld bc,#80
+        add ix,bc
+        pop bc
+        djnz 1B
+
+        ret
+
+dec_len
+        sla l : sla l
+        srl h : rr l
+        srl h : rr l
+        sub hl,de
+        sla l : rl h
+        sla l : rl h
+        srl l : srl l
+        set 7,l
+        ret
+
+
+COMF4   ; insert new pattern
+        IN A,(ZXDATRD)
+        OUT (CLRCBIT),A
+        ld (svrosNm),a ; ᪮�쪮 ��ப
+        LD IY,COMF4_1
+        JP WTDTL 
+COMF4_1         
+        LD H,A ; �����
+        ld (ModInsPat),a
+        LD IY,COMF4_2
+        JP WTDTL 
+COMF4_2
+        LD E,A ; ����� ���ୠ
+        LD A,H
+        cp 12
+        jp nc,Erpat_
+        ld a,1
+        call SETPAGE2
+        ld a,(KolModule)
+        ld L,a
+        ld a,h
+        cp L
+        jp nc,Erpat_
+        ld L,0
+        LD a,#80
+        add a,h
+        add a,h
+        add a,h
+        add a,h
+        add a,h
+        ld h,a      ; � HL ���� ��������� ����� 
+        LD IX,HL
+
+        ld a,0
+ModInsPat equ $-1
+        add a
+        add a
+        add a
+        add a
+        add #14
+        ld l,a
+        ld h,#BC
+        ld (NewAdrEnd),hl
+        inc l : inc l
+        ld (NewPagEnd),hl
+
+        ld a,e ; ����� ���ୠ
+        cp 254
+        jr c,1F
+        ld a,(ix+s3m.PatNum)
+1       inc (ix+s3m.PatNum)
+        ld e,a
+
+        ld l,(ix+s3m.Chen_pat)
+        ld a,l
+        ld h,0
+        ld bc,hl
+        add hl,hl
+        add hl,hl
+        add hl,bc       ; 㬭������ �� 5
+        ld c,l        ; bc' - ������ ��ப� ���ୠ
+        ld a,(svrosNm)      ; �� ᪮�쪮 ��ப ᮧ������ �����
+        ld b,a
+        inc b
+        jr nz,255F
+        ld h,l,l,0
+        jr 256F
+255     call  BIOS.MulCB    ; AC=C*� 
+        ld h,a,l,c
+256
+        ld a,l   ; �஢�ਬ 
+        and a    ; ���� �� ��⭮ 256 ����稫���
+        jr z,64F ; ���� �।�⠢��� �� �� �������� ⮫쪮 �� ���⠭���⭮� ������ ���ୠ <>64
+        inc h
+64      ld l,h
+        ld h,0
+        ld c,e ; ��࠭�� ����� ���ୠ
+        push hl
+        ld hl,(BIOS.LastPage)
+        ld (Mem.LastPage),hl
+        ld hl,(BIOS.LastAdr)
+        ld (Mem.LastAdr),hl
+        pop hl
+        call Mem.GetMem  ; H - ᬥ饭�� L - ��࠭��  bc �� �����
+        ;jr c,Erpat_ ; ��।����� GetMem �� 䫠� CF
+        push hl
+        push de
+        push bc
+        ld bc,hl 
+        ld hl,(Mem.LastPage)
+        ld (BIOS.LastPage),hl
+        ld (0),hl
+NewPagEnd equ $-2
+        ld hl,(Mem.LastAdr)
+        ld (BIOS.LastAdr),hl
+        ld (0),hl 
+NewAdrEnd equ $-2
+        ld hl,bc
+        ld a,(svrosNm)
+        inc a
+        ld b,a
+        ld a,(ix+s3m.Chen_pat)
+        ld c,a
+        ld a,l,l,0
+        call SETPAGE3
+        set 7,h : set 6,h
+        
+2       push bc
+1       ld (hl),255
+        inc l : call z,NxPgGS
+        ld (hl),0
+        inc l : call z,NxPgGS
+        ld (hl),255
+        inc l : call z,NxPgGS
+        ld (hl),0
+        inc l : call z,NxPgGS
+        ld (hl),0
+        inc l : call z,NxPgGS
+        dec c : jr nz,1B
+        pop bc
+        djnz 2B
+        pop bc
+        pop de
+        pop hl
+        ld a,1
+        ld d,ixh
+        ex hl,de
+        set 7,d
+        ld l,c ; ��࠭���� ����� ���ୠ
+        inc h
+        inc h
+        ld (hl),e
+        inc h 
+        ld (hl),d
+        inc h
+        ld a,63
+svrosNm equ $-1
+        ld (hl),a
+        ld a,l
+        OUT (ZXDATWR),A
+        IN A,(ZXSTAT)
+        RLA : JR C,$-3
+        ld a,e
+        OUT (ZXDATWR),a
+        IN A,(ZXSTAT)
+        RLA : JR C,$-3
+        ld a,d
+        OUT (ZXDATWR),a 
+        JP COMINT_ 
+NxPgGS
+        inc h
+        ret nz
+        ld a,(NGS_MPAGEX)
+        inc a
+        call SETPAGE3
+        ld h,#c0
+        ret
+
+Erpat_  ld a,0
+        OUT (ZXDATWR),A
+        IN A,(ZXSTAT)
+        RLA : JR C,$-3
+        ld a,0
+        OUT (ZXDATWR),A
+        IN A,(ZXSTAT)
+        RLA : JR C,$-3
+        ld a,0
+        OUT (ZXDATWR),A 
+        JP COMINT_ 
+
+rec_chen    db 0
+rec_note    db 0
+rec_smp     db 0
+rec_vol     db 0   
+COMF2   ; record note
+        IN A,(ZXDATRD)
+        OUT (CLRCBIT),A
+        ld (rec_chen),a
+        LD IY,COMF2_1
+        JP WTDTL
+COMF2_1
+        ld (rec_note),a
+        LD IY,COMF2_2
+        JP WTDTL
+COMF2_2 ld (rec_smp),a
+        LD IY,COMF2_3
+        JP WTDTL
+COMF2_3 ld (rec_vol),a
+        LD IY,COMF2_3
+        
+        ld a,(PROCESS)
+        or a
+        and a
+        JP z,COMINT_
+        ld a,(last_PATERNADR)
+        SetPg_macr
+
+        ld a,(rec_chen)
+        ld e,a
+        ld d,0
+        add a,a
+        add a,a
+        add a,e
+        ld e,a
+        ld hl,(last_ROWSADR)
+        add hl,de
+        ld de,rec_note
+        ex hl,de
+        ldi : ldi : ldi 
+
+        ld a,(MODULE)
+        OUT (ZXDATWR),A
+        IN A,(ZXSTAT)
+        RLA : JR C,$-3
+        ld a,(Last_Pat)
+        OUT (ZXDATWR),A
+        IN A,(ZXSTAT)
+        RLA : JR C,$-3
+        ld a,(Last_Row)
+        OUT (ZXDATWR),A 
+
+
+        ld a,(rec_chen)
+        ld b,a
+        ld a,(rec_note)
+        cp 253
+        jr c,1F
+        ld hl,254        
+        jr 2F
+1       ld l,a
+        ld a,(rec_smp)
+        ld h,a
+2       call PlayNote
+        JP Continue
+
+COMF3   ; play pattern
+        ld hl,calk_row
+        ld (To_cl_row),hl
+        ld hl,calk_tikeff 
+        ld (To_tikeff),hl
+
+        IN A,(ZXDATRD)
+        OUT (CLRCBIT),A
+        ld (PlayRow),a  ; ��ப�     
+        LD IY,COMF3_1
+        JP WTDTL
+COMF3_1 LD H,A  ; �����
+        LD IY,COMF3_2
+        ld a,(LoopPat) ;  INC L
+        ld (looppat),a    
+        JP WTDTL
+        
+COMF3_2 LD D,A  ; ����
+        jp startmodul
+PlayRow db 0
+
+;Start orders position H in module L
+;�����.
+COME3   
+        ld a,0
+        ld (PlayRow),a
+        ld hl,calk_row
+        ld (To_cl_row),hl
+        ld hl,calk_tikeff 
+        ld (To_tikeff),hl
+Start_INTPRC
+        IN A,(ZXDATRD)
+        OUT (CLRCBIT),A
+        LD H,A
+        LD IY,COME3_1
+        ld a,#2C ;  INC L
+        ld (looppat),a
+        JP WTDTL
+startmodul 
+COME3_1         
+        LD D,A
+        LD A,H
+        cp 12
+        jp nc,COMINT_
+        ld (MODULE),a
+        ld a,1
+        call SETPAGE2
+        ld a,(KolModule)
+        ld L,a
+        ld a,(MODULE)
+        cp L
+        jp nc,COMINT_
+        ld l,a
+        inc a
+        ld (PROCESS),a
+        ld a,(CurModul)
+        cp l
+        jr z,1F        
+        ld a,l
+        ld (CurModul),a
+
+1       ld L,0
+        LD a,#80
+        add a,h
+        add a,h
+        add a,h
+        add a,h
+        add a,h
+        ld h,a      ; � HL ���� ���������� ����� 
+        ld (HEADADR),HL
+        LD IX,HL
+        
+        push hl
+
+        ld hl,(IX+s3m.memNGS)
+
+        ld (SAMPLADR),hl
+        ; ���樠������ �஬����
+        ld a,(IX+s3m.GlVol)
+        rlca
+        ld (GlVol),a
+;         ld a,63 ; (IX+s3m.MsVol)
+;         ld (MsVol),a ; ���⮢� �஬���� - � 㬭������ �� �ᯮ������
+        
+        ld a,(IX+s3m.Typ)   ; ०�� ᮢ���⨬��� � S3M
+        ld (MODES3IT),a
+        AND A
+        jr nz,40F
+        ld hl,ITTab ; ���७�� �ଠ� IT
+        jr _vish
+40      ld hl,EffTab ; ���⮩ �ଠ� S3M
+        ld a,255    ; S3M Slides
+_vish   ld (TabEff),hl
+        ld (LinerSlides),a
+        pop hl
+
+        ; ��⠭���� ᪮���
+        ld a,(IX+s3m.inspd)
+        ;inc a
+        ld (SPED),a
+        ld (SPEDTIC),a
+        ld e,h
+        ; ��⠭���� ⥬��
+        ld a,(IX+s3m.intmp)
+        ld (TEMP),a       
+        ld h,HIGH BPMTAB
+        sla a
+        ld l,a
+        ld a,0
+        adc h
+        ld h,a
+        ld a,(hl)
+        inc l
+        ld h,(hl)
+        ld l,a
+        ld (BPMBYTE),hl
+        ld (BPMCUR),hl
+
+        ; ���᫥��� ������ ��ப� ���ୠ �� �������� �������
+        ld l,(ix+s3m.Chen_pat)
+        ld a,l
+        ld (CHNPAT),a
+        ld h,0
+        ld bc,hl
+        add hl,hl
+        add hl,hl
+        add hl,bc       ; 㬭������ �� 5
+        ld bc,hl        ; bc' - ������ ��ப� ���ୠ
+        ld (LENROWS),bc
+        ld h,e
+
+        ;��⠭���� Order
+        LD A,D
+1       LD L,A
+        inc h  ; 㪠��⥫� �� ᯨ᮪ Orders
+        ld b,2 ; ᪮�쪮 ࠧ �᪠�� �� ����
+lpord   ld a,(hl)
+4       cp 255
+        jr nz,2F
+        ld l,0
+        ld a,(hl)
+        djnz lp255
+        jr stpat1
+lp255        
+2       cp 254
+        jr nz,3f
+        inc l
+        ld a,(hl)
+        jr 4B
+3       ld (ORDER),HL
+
+        ; ��⠭���� ���ୠ
+        ld (PATERN),A
+        ld (Last_Pat),A
+        LD L,A
+        INC H   ; ⠡��� ����⥫�� ���୮�
+        LD e,(hl) 
+        inc h
+        ld d,(hl)
+        inc h
+        ld a,(hl)
+        or a
+        jr nz,1F
+        ld hl,(ORDER)
+        inc l
+        jr lpord  
+stpat1              
+1       ld (ROWSINPAT),A
+        ld a,(PlayRow)
+        ld (ROWSCUR),a
+        ld (Last_Row),a
+        ld (PATERNADR),DE
+        ld e,0
+        or a
+        jr z,63F 
+        push de
+        ld bc,(LENROWS)
+        ld e,a
+        ld d,0
+        call MulDEBC
+        xor a
+        ld (PlayRow),a
+        pop hl
+        add hl,de
+        ; ��� ��� �஢���� ���᪮� ��࠭� � �������� ����� ���ୠ
+        bit 6,h
+        jr z,1F
+        res 6,h
+        ld a,(PATERNADR)
+        inc a
+        ld (PATERNADR),a
+1 
+        ex hl,de
+
+63      ld (ROWSADR),DE
+
+        LD A,0;0X3F       ; XOR A  �� ����⭮, ��祬� ��९�⠭� ���⠬� ������� 02 � 03
+        OUT (VOL1),A
+        OUT (VOL2),A
+        OUT (VOL3),A
+        OUT (VOL4),A
+        OUT (VOL5),A
+        OUT (VOL6),A
+        OUT (VOL7),A
+        OUT (VOL8),A
+
+        ld a,63 ;(MsVol)
+        ld ix,SamplTabl
+        ld bc,smp.lenHead
+
+        ; ������塞 ���⮢� �஬���� � ������� ������� (��।����� ��� Pan �� s3m ��� it)      
+        ld e,32 ; 63 - 64 ����� 0 ��� ⠡���� 㬭������
+        ld iy,(HEADADR)
+        ld a,s3m.TabVol
+        add iyl
+        ld iyl,a
+12      ld a,(iy)
+        ld (ix+smp.GlChVol),a 
+1       ld (ix+smp.ChnVol),a
+
+        ld a,(iy+#040)
+        ld (ix+smp.ChnPan),a
+
+        ld (ix+smp.LastSmp),0
+        ld (ix+smp.CurPage),0
+        add ix,bc
+        inc iy
+        dec e
+        jr nz,12B
+        xor a
+        exa 
+
+        ld hl,(EndBIOS)
+        ld de,"sf"
+        sub hl,de 
+        call nz,SamlOverl 
+
+        ld a,#60
+        ld (Faza),a
+        add #08
+        ld (Sample.LastFaza),a
+        ld hl,0
+        ld (Sample.BMPOST),hl
+        
+        IM 1
+        EI
+        ld a,255
+        ld (nxtDTZX),a
+        jp PlayCykl
+
+SamlOverl 
+        ld a,2
+        call SETPAGE3
+        ld de,EndBIOS
+        ld hl,Sample.SoftSmpl
+        ld bc,Sample.EndSoftSmpl-Sample.SoftSmpl
+        ldir
+        ret        
+
+COMEC   ; �ந���� ���� � ������ 
+        IN A,(ZXDATRD)
+        OUT (CLRCBIT),A
+        LD B,A
+        LD IY,COMEC_1
+        JP WTDTL
+COMEC_1 LD L,A
+        LD IY,COMEC_2
+        JP WTDTL
+COMEC_2 
+        LD H,A
+
+OfNtCOM 
+        call PlayNote
+        JP COMINT_   
+rowPl   db 255,0,255,0,0
+PlayNote
+        ld d,0,e,b
+        push hl
+        ld ix,SamplTabl
+        ld bc,(OfsChenal)
+        add ix,bc
+        ld bc,smp.lenHead
+        ld a,s3m.TabVol
+        call MulDEBC ;�LD�=D�*�C
+        add ix,de
+        pop hl
+
+        ld a,#C9
+        ld (ret1ch),a
+        ld (rowPl),hl
+        ld hl,rowPl
+        ld b,1
+        call _lopChrInRow
+        xor a
+        ld (ret1ch),a
+        ret
+
+COMED   ; ��⠭����� ����
+        IN A,(ZXDATRD)
+        OUT (CLRCBIT),A
+        LD B,A
+        ld hl,254        
+        JP OfNtCOM
+
+COMEE   ; �������� ����� �� �� ����� ����� 
+        ld hl,_RET
+        ld (To_cl_row),hl
+        ld (To_tikeff),hl
+        ld a,0
+        ld (PlayRow),a        
+        JP Start_INTPRC
+
+COME4  ; �ਮ�⠭����� ���ந�������� - ��㧠
+        ld a,(PROCESS)
+        OUT (CLRCBIT),A
+        or a
+        jr nz,1F
+        ld a,1
+        call SETPAGE2
+        ld a,255
+        ld (CurModul),a
+        jp COMINT ;COMHZ ; ��� �⥪� � ��砫� � 横� �������� ������
+1       DI
+        xor a
+        ld (PROCESS),a
+        JP COMINT_
+
+COME5  ; �த������ ���ந��������
+        ld a,1 
+        OUT (CLRCBIT),A
+        call SETPAGE2
+        ld a,(CurModul)
+        cp 255
+        JP z,COMINT ;COMHZ ;COMINT_
+        inc a
+        ld (PROCESS),a
+        xor a 
+        ei
+        ld a,255
+        ld (nxtDTZX),a
+        JP Continue
+
+COME6  ; ������� ����� ���ந��������
+        ld a,255
+        ld (nxtDTZX),a
+
+        ld a,(PROCESS)
+        OUT (ZXDATWR),A
+        OUT (CLRCBIT),A
+        and a
+        JP z,COMINT_
+        JP Continue
+
+COME7   ; ��२��樠����஢��� �஬����� ������/������� � BPM
+        IN A,(ZXDATRD)
+        OUT (CLRCBIT),A
+        cp 64
+        jp z,InitBMP
+        cp 255
+        jr nz,109F
+        ld a,(CHNPAT)
+        ld e,a ; 32 
+        ld ix,SamplTabl
+        ld iy,(HEADADR)
+        ld a,(iy+s3m.GlVol)
+        rlca
+        ld (GlVol),a
+        ld a,s3m.TabVol
+        ld iyl,a
+        jr 127F
+109       
+        ld ix,SamplTabl
+        ld bc,smp.lenHead
+        ld d,0,e,a
+        ld a,s3m.TabVol
+        add e
+        ld iy,(HEADADR)
+        ld iyl,a
+        
+        call MulDEBC ;�LD�=D�*�C
+        add ix,de
+
+        ld e,1
+127     push de
+
+        ld a,(iy)
+        ld (ix+smp.GlChVol),a
+        ;ld (ix+smp.ChnVol),a
+        ld a,(iy+#040)
+        ld (ix+smp.ChnPan),a
+
+        ld a,(GlVol) ; 0-128 => 0-64
+        srl a
+        ld l,(ix+smp.ChnVol)
+        MulAL ; A 0-64 E 0-63
+        ld l,a
+        ld a,(ix+smp.SmplVol)
+        MulAL ; A 0-64 E 0-63
+        ld l,a
+        ld a,(ix+smp.GlChVol)
+        MulAL ; A 0-64 E 0-63
+        
+        ld (ix+smp.Vol_L),A
+        ld (ix+smp.Vol_R),A
+        pop de
+        ld bc,smp.lenHead
+        add ix,bc
+        inc iy
+        dec e
+        jr nz,127B
+        JP COMINT_
+
+InitBMP
+        ld a,(TEMP)
+        ld h,HIGH BPMTAB
+        sla a
+        ld l,a
+        ld a,0
+        adc h
+        ld h,a
+        ld a,(hl)
+        inc l
+        ld h,(hl)
+        ld l,a
+        ld (BPMBYTE),hl
+        JP COMINT_
+
+
+PlayCykl 
+        ld a,(SPED)
+        ld (SPEDTIC),a
+        call calk_row   ; ������� ����� ��ப� ���ୠ
+To_cl_row equ $-2        
+_looprows
+        IN A,(ZXSTAT)
+        RRCA
+        JR NC,1F
+        IN A,(ZXCMD)
+        CP #0E4
+        JP z,COME4
+        CP #0E6
+        JP z,COME6
+        CP #0EF
+        JP z,COMEF
+        CP #0F2
+        JP z,COMF2
+1
+Continue
+        call Sample.sample     ; ������� � ���� ⠬ �� 横� ᨭ�஭���樨 � ��������
+;        call SetVol        
+        ld a,(SPEDTIC)
+        dec a
+        jr z,PlayCykl
+        ld (SPEDTIC),a
+        call calk_tikeff ; ������� ��䥪�� ������ ��ப�
+To_tikeff equ $-2        
+        jp _looprows
+
+;       ������ ��ப� ���ୠ,
+;       ���������� ⠡���� �����஢����
+;
+
+last_PATERNADR db 0
+last_ROWSADR   dw 0
+Last_Pat       db 0
+Last_Row       db 0 
+calk_row  
+;        ld hl,(PATERNADR)
+        ld a,(PATERN)
+        ld (Last_Pat),A
+
+        ld a,(ROWSCUR)
+        ld (Last_Row),A
+ 
+        ld a,(PATERNADR)    ;l
+        ld (last_PATERNADR),a
+        
+        SetPg_macr
+        ld hl,(ROWSADR)
+        ld (last_ROWSADR),hl
+
+        ld ix,SamplTabl
+        ld a,(CHNPAT)
+        ld b,a
+_lopChrInRow 
+        push bc
+
+        bit 7,(ix+smp.GlChVol)
+        jp nz,_chnoff
+        ld b,(hl)   ; ���
+        inc hl
+        ld a,(hl)   ; �����㬥��
+        inc hl
+        PUSH HL
+
+        or a    ;cp 255
+        jr nz,2F
+        ld a,(ix+smp.LastSmp)
+        or a
+        jr z,no_sample
+        jr 3F
+
+2       ld (ix+smp.LastSmp),a
+3       dec a   ; ����� �࠭���� �� 1, � 0 � 255 - �।��騩 �����㬥��
+no_sample
+        ld d,a 
+        ld hl,(SAMPLADR)
+        ld a,l ;(SAMPLADR) ; ������砥� ��࠭��� � ����������� ������
+        SetPg_macr
+        ld a,h
+        ld l,0
+        ld h,d  ; ����� �����
+        srl h : rr l
+        set 7,h 
+        add h
+        ld h,a
+        ld a,b
+        cp 255 ;and a
+        jp z,no_note
+        cp 254 ;and a
+        jp nz,No_off_note
+NulSmp  xor a
+        ld (ix+smp.CurPage),a    ; ⥪ ��࠭��  - 0 ��⠭���� ������
+        ld (NewCurAdr),a
+        jp no_note       
+No_off_note
+        ld (ix+smp.Nota),a
+        res 0,(ix+smp.FlgEFF)        
+;   ���樠������ �����
+        and #0F ; ����砥� ����
+        add a,a : add a,a
+        add a,#050 ; ���� ��ਮ��� ��� � � ��������� �����
+        or l 
+        ld e,(hl)   ; ������ ���ન �� � �����ᢨ� ����
+        dec e       ;
+        jr nz,NulSmp ;
+        push hl     ; �������� ��砫�� ���� #00 ��������� �����
+        ld l,a
+
+        ld e,(hl)   ; ����砥� ��ਮ� ��� ���� �।��� ��⠢�
+        inc l
+        ld d,(hl)
+        inc l
+        ld l,(hl)
+
+        ld a,#6F;#9F    ; �� ���⠭�� �� ���� �������� ����� ��⠢� � ���襬 ���㡠��
+        sub b
+        jr c,_rolUp
+        rrca : rrca : rrca :rrca ; ����� ��⠢� � ���襬 ���㡠��
+        and #0F
+        jr z,_rolDn
+        ld b,a
+32      srl l : rr d : rr e  ; ����� ����� �� ����� ��⠢�
+        djnz 32B
+        jr _rolDn
+_rolUp  neg
+        rrca : rrca : rrca :rrca ; ����� ��⠢� � ���襬 ���㡠��
+        and #03
+        inc a
+        ld b,a
+32      sla e : rl d : rl l  ; 㬭����� ����� �� ����� ��⠢�
+        djnz 32B
+_rolDn
+        ;ld (ix+smp.PerFrac),de       ; 24 ���� ��ਮ�
+        ld (NewFrac),de ; �।���⥫쭮 ��࠭塞 ���� ��ਮ� �
+        ;ld (ix+smp.PerFrac+2),l
+        ld h,0
+        ld (NewInt),hl
+
+        pop iy ; ��������� �����
+
+;         ld a,(iy+#4F)
+;         cp "S"
+;         jr nz,NulSmp
+
+        ld hl,(iy+s3m.Int_Gp)
+        ld (NewCurAdr),hl   ; �।���⥫쭮 ��࠭塞 ���� ���� �����,
+                            ; ⠪ ��� ��� ����� ���� ������� ᯥ���䥪⠬�
+;
+        ; ������塞 ������ � ����
+        bit 0,(iy+s3m.SmpFlags)
+        jr z,_no_loop
+        ; ���� 横�. �����뢠�� ��砫� 横��
+        ; ����� 横�� �����뢠�� � ������
+        ld hl,(iy+s3m.LoopEndInPg)
+        ld (NewLength),hl
+        ;ld (ix+smp.Length),hl
+
+        ld a,(iy+s3m.PgLoopEnd)
+        ld (NewPgLeng),a
+        ;ld (ix+smp.PgLeng),a    ; ��࠭�� ������
+
+        ld hl,(iy+s3m.LoopBegInPg)
+        ld (NewLoopSt),hl
+        ;ld (ix+smp.LoopSt),hl
+
+        ld a,(iy+s3m.PgLoopBeg)
+        ld (NewPgLoop),a
+        ;ld (ix+smp.PgLoop),a    ; ��࠭�� ��砫� �㯠
+        jr _y_loop
+_no_loop ; ��� 横��
+        ld hl,(iy+s3m.LengthInPg)
+        ld (NewLength),hl
+        ;ld (ix+smp.Length),hl
+
+        ld a,(iy+s3m.PgLength)
+        ld (NewPgLeng),a
+        ;ld (ix+smp.PgLeng),a    ; ��࠭�� ������
+        xor a
+        ld (NewPgLoop),a
+        ;ld (ix+smp.PgLoop),0    ; noloop
+
+_y_loop
+        ; ���쬥� �஬���� �����㬥�� � ����� � ����襬 � �����, ��⮬ ���६ �᫨ ����
+        ld a,(iy+s3m.Vol)
+        or a
+        jr z,64F
+        dec a
+64      ld (ix+smp.ChnVol),a
+        ld a,(iy+s3m.GVl)
+        ;dec a
+        ld (ix+smp.SmplVol),a
+
+no_note
+        ; �����頥� ����
+;        ld hl,(PATERNADR)
+        ld a,(PATERNADR) ;l
+
+        SetPg_macr
+
+        POP HL
+        ld a,(hl)  ; 64-0  �஬����� ��� ��������� + 128 255 - ����
+        inc hl
+        cp 255
+        jr z,_mulVol
+        BIT 7,a
+        jr z,_VolSet
+        ; ��� ����� ����� �㤥� ���������
+
+        jr _InPanSet
+_VolSet or a
+        jr z,64F
+        dec a
+64      ld (ix+smp.ChnVol),a
+        jr _ChngVol
+_InPanSet
+
+_mulVol ld a,(NewInt+1)
+        inc a
+        jr z,_nochngvol
+_ChngVol 
+        ld a,(GlVol) ; 0-128 => 0-64
+        srl a
+        ld e,(ix+smp.ChnVol)
+        MulAE ; A 0-64 E 0-63
+        ld e,a
+        ld a,(ix+smp.SmplVol)
+        MulAE ; A 0-64 E 0-63
+        ld e,a
+        ld a,(ix+smp.GlChVol)
+        MulAE ; A 0-64 E 0-63
+
+        ;ld a,63; ��� �⫠��� ���� �஬�����
+        ld (ix+smp.Vol_L),a
+        ld (ix+smp.Vol_R),a ; ���� ��� �������樨 � ������ 䨪�஢��� - ��襬 �஬����� � ���
+        ld (ix+smp.SaveVL),a
+        ld (ix+smp.SaveVL+1),a
+
+_nochngvol
+        ; ���� ᯥ���䥪⮢
+        ld a,(hl)
+        inc hl
+        and a
+        ex de,hl
+        jr z,NoEff
+        dec a ; ⠡ �� 0
+
+        ld hl,0
+TabEff  equ $-2
+        and 31
+        rlca
+        add l
+        ld l,a
+        ld a,(hl)
+        inc l
+        ld h,(hl)
+        ld l,a
+        ld a,(de)
+        jp (hl)
+NoEff   ld hl,_RowNoEff
+YepEff  res 2,(ix+smp.FlgEFF)
+YepEffQ ld (ix+smp.EffJmp),hl
+        bit 0,(ix+smp.FlgEFF)
+        jr z,1F
+        res 0,(ix+smp.FlgEFF)
+        ld hl,(ix+smp.SaveFrc)
+        ld (ix+smp.PerFrac),hl
+        ld a,(ix+smp.SaveFrc+2)
+        ld (ix+smp.PerInt),a
+1
+        call RefNewSmp  ; ������� ���� ����� ����� � ⥪�騩 �����
+
+        bit 1,(ix+smp.FlgEFF)
+        jr z,2F
+        ld hl,(ix+smp.SaveVL)
+        ld (ix+smp.Vol_L),hl ; �ࠧ� ��� ������ � ���
+        res 1,(ix+smp.FlgEFF)   ; �� ����⠭��������
+2
+        ex de,hl        
+        inc hl
+
+_nextLopChn
+        ld bc,smp.lenHead
+        add ix,bc
+        pop bc
+        dec b
+        jp nz,_lopChrInRow
+ret1ch  nop
+        ld a,(ROWSCUR)
+        cp 63
+ROWSINPAT equ $-1        
+        jr nc,_endpat
+        inc a
+        ld (ROWSCUR),a
+
+        ld bc,(LENROWS)
+        ld hl,(ROWSADR)
+        add hl,bc
+        ; ��� ��� �஢���� ���᪮� ��࠭���� � �������� ����� ���ୠ
+        bit 6,h
+        jr z,1F
+        res 6,h
+        ld a,(PATERNADR)
+        inc a
+        ld (PATERNADR),a
+1        
+        ld (ROWSADR),hl
+        ret
+RefNewSmp        
+        ld hl,0
+NewInt  equ $-2
+        inc h   ; 255 - ���� ����
+        ret z
+        ld (ix+smp.PerInt),l
+        ld a,255        ;ld h,255
+        ld (NewInt+1),a ;ld (NewInt),hl
+
+        ld hl,0
+NewFrac equ $-2
+        ld (ix+smp.PerFrac),hl
+
+        ld hl,0
+NewCurAdr equ $-2
+        ; ld (ix+smp.SamplAdr),hl ; ����������� ��� DMA
+        ld (ix+smp.CurPage),l
+        ld (ix+smp.CurAdr),0    ;ld l,0
+        ld (ix+smp.CurAdr+1),h  ;ld (ix+smp.CurAdr),hl
+
+        ld hl,0
+NewLength equ $-2
+        ld (ix+smp.Length),hl
+        ;ld a,0
+        ld (ix+smp.PgLeng),#FF ;a    ; ��࠭�� ������
+NewPgLeng equ $-1
+        ld hl,0
+NewLoopSt equ $-2
+        ld (ix+smp.LoopSt),hl
+        ;ld a,0
+        ld (ix+smp.PgLoop),#FF ;a    ; ��࠭�� ��砫� �㯠
+NewPgLoop equ $-1
+
+        ;ld hl,0
+        ;ld (ix+smp.CurFrac),hl
+        ld (ix+smp.CurFrac),0
+        ld (ix+smp.CurFrac+1),0
+;        ld (ix+smp.CurAdr),hl
+_oldsmp ret
+
+
+_chnoff ld (ix+smp.CurPage),0
+        inc hl : inc hl : inc hl : inc hl : inc hl
+        jp _nextLopChn
+
+_endpat
+
+        ld a,(PATERN)
+        ld a,1
+        call SETPAGE2
+        ld b,3 ; ᪮�� ࠧ �� ���� �窠�� ����
+        ; ᫥���騩 �थ�
+_lpord  ld hl,(ORDER)
+looppat inc l
+        ld a,(hl)
+4       cp 255
+        jr nz,2555F
+        ld de,calcrov_z
+        ld (To_cl_row),de
+        ld l,0
+        ld a,(hl)
+        djnz 2555F
+        jr 1F
+;   �����稫�� ����� - ���� � - 0 ����� - �� ��२��樠���������� 
+;   ��砫�뭥 ᪮����, �ମ����� � �
+calcrov_z ; �����誠 ����⠢����� ����� calk_row � ���� �����
+        ld hl,calk_row
+        ld (To_cl_row),hl
+
+        ld a,1
+        call SETPAGE2
+        ld a,(FlagPlay)
+        bit 1,a ; No repeat
+        jr z,58F
+        di
+        xor a
+        ld (PROCESS),a
+         jp COME4
+58      bit 0,a
+        ld a,(CurModul)
+        ;jr z,56F
+        jp z,calk_row
+        inc a
+        ld hl,KolModule
+        cp (hl)
+        jr c,56F
+        xor a
+56      di  
+        ld sp,ISTACK
+        ld h,a
+        xor a
+        jp startmodul ; � H ����� ����� � A ����� ����樨
+
+2555    cp 254
+        jr nz,3f
+        inc l
+        ld a,(hl)
+        jr 4B
+3       ld (ORDER),HL
+
+        ld (PATERN),A
+        LD L,A
+        INC H   ; ⠡��� ����⥫�� ���୮�
+        LD e,(hl)
+        inc h
+        ld d,(hl)
+        inc h
+        ld a,(hl)
+        ld (ROWSINPAT),A
+        or a
+        jp z,_lpord        
+1
+        ld l,0
+EfaRowN equ $-1
+        dec a
+        cp l ; �஢��塞 �� ����� �� ������ �⨬ ��룭���
+        ld a,l
+        jr nc,_OkRow
+        xor a ; ������, ������ �� 0 ��ப�
+        ld (EfaRow),a
+        ld (EfaRow+1),a
+_OkRow  ld (ROWSCUR),a
+        ;ld (Last_Row),a
+        ld (PATERNADR),DE
+        ld e,0
+        ld hl,00
+EfaRow  equ $-2      
+        add hl,de   ; ���᪮� �� ��ப�
+        ; ��� ��� �஢���� ���᪮� ��࠭� � �������� ����� ���ୠ
+        bit 6,h
+        jr z,1F
+        res 6,h
+        ld a,(PATERNADR)
+        inc a
+        ld (PATERNADR),a
+1 
+        ld (ROWSADR),hl
+        xor a
+        ld l,a,h,a
+        ld (EfaRow),hl
+        ld (EfaRowN),a
+        ld a,255
+        ld (nxtDTZX),a        
+        ret
+
+
+
+calk_tikeff
+        ld ix,SamplTabl
+        ld a,(CHNPAT)
+        ld b,a
+EffLop  push bc
+        bit 7,(ix+smp.GlChVol)
+        jp nz,_RowNoEff
+        ld hl,(ix+smp.EffJmp)
+        ;ld h,(ix+smp.EffJmp+1)
+        jp (hl)
+_RowNoEff
+        ld bc,smp.lenHead
+        add ix,bc
+        pop bc
+        djnz EffLop
+_RET    ret
+
+;***********************************************************************
+;
+;   ��ࠡ��稪� ᯥ� ��䥪⮢. �� 2 ��� s3m � IT ०���, �� ����� ᮢ������
+;   
+;
+;
+;***********************************************************************
+
+lastFrac dw 0,0     ; ������������ ��᫥���� ��ਮ� ��� ���⠬��� 
+
+EffAxx  ; ��⠭����� ᪮���� XX  - 100% ��� S3M �� 1 �� 31, � ⥬� �� 32 �� 255
+        CP #20
+        jp nc,ITTxA
+        ld (SPED),a
+        ld (SPEDTIC),a
+        jp NoEff
+
+ITAxx  ; ��⠭����� ᪮���� XX  - 100% ��� IT 0-255
+        ld (SPED),a
+        ld (SPEDTIC),a
+        jp NoEff
+
+ITTxx   ; Txx   ������ ⥬� xx (Set tempo to xx)
+        or a
+        jr nz,1F
+        ld a,(ix+smp.LastEfT)
+        jr 2F
+1       ld (ix+smp.LastEfT),a
+2    
+        CP #20
+        jr c,TSlid
+ITTxA   ld (TEMP),a
+        ld h,HIGH BPMTAB
+        sla a
+        ld l,a
+        ld a,0
+        adc h
+        ld h,a
+        ld a,(hl)
+        inc l
+        ld h,(hl)
+        ld l,a
+        ld (BPMBYTE),hl
+        ld (BPMCUR),hl
+        jp NoEff
+
+TSlid   bit 4,a
+        jr nz,TSlid_Up
+        ld (ix+smp.Argum1),a
+        ld hl,ITT0x
+        jp YepEff
+
+TSlid_Up and #0F
+        ld (ix+smp.Argum1),a
+        ld hl,ITT1x
+        jp YepEff
+
+ITT0x   ;T0x   ������� 㬥��襭�� ⥬�� (Tempo slide down) 
+        ld a,(TEMP)
+        sub (ix+smp.Argum1)
+        CP #20   
+        jr nc,_T20
+        ld a,#20
+_T20    ld (TEMP),a
+        ld h,HIGH BPMTAB
+        sla a
+        ld l,a
+        ld a,0
+        adc h
+        ld h,a
+        ld a,(hl)
+        inc l
+        ld h,(hl)
+        ld l,a
+        ld (BPMBYTE),hl
+        ld (BPMCUR),hl
+        jp _RowNoEff
+
+ITT1x   ;T1x   ������� 㢥��祭�� ⥬�� (Tempo slide up)
+        ld a,(TEMP)
+        add (ix+smp.Argum1)
+        jr nc,_TFF
+        ld a,#FF
+_TFF 
+        jp _T20
+
+ITBxx  ; ��ࢠ�� ����, ��३� �� Order XX  - 100%
+EffBxx ; �  ���������������� �।�⠢����� 0-ff
+        ld h,a ;exa
+        ld a,1
+        call SETPAGE2
+        ld a,(FlagPlay)
+        and 3 
+        jr z,3F
+        ld a,(PATERNADR)
+        call SETPAGE2
+        jp NoEff
+
+3       ld a,h ;exa
+        dec A
+        ld (ORDER),a
+        ld a,(ROWSCUR) 
+        ld (ROWSINPAT),a
+        ld a,(PATERNADR)    ;l
+        SetPg_macr
+        jp NoEff
+
+EffCxx  ; ��ࢠ�� ��⥭�, � ᫥��饬 ��३� �� ��ப� XX  - 100%
+        ; � �����筮� �।�⠢����� 0-99, �� �� FF ����� ���� �� 166-��
+        and a
+        jr nz,EffC01
+        ld a,(ROWSCUR) 
+        ld (ROWSINPAT),a
+        jp NoEff
+EffC01  push de
+        ld c,a
+        and #F0
+        ld e,a  ; �ਤ���� ��ॢ����� #99 � #FF ��� S3M  ��� ����ॢ����� ��� IT
+        ld a,c
+        and #0F
+        srl e 
+        add e 
+        srl e 
+        srl e 
+        add e
+        ld (EfaRowN),a
+        ld e,a
+        ld a,(ROWSCUR) 
+        ld (ROWSINPAT),a
+        ld bc,(LENROWS)
+        ld d,0
+        call MulDEBC
+        ld (EfaRow),de
+        pop de
+        jp NoEff
+
+ITCxx   ; ��ࢠ�� ��⥭�, � ᫥��饬 ��३� �� ��ப� XX  - 100%
+        ; �  ���������������� �।�⠢����� 
+        and a
+        jr nz,ITC01
+        ld a,(ROWSCUR) 
+        ld (ROWSINPAT),a
+        jp NoEff
+ITC01   push de
+        ld (EfaRowN),a
+        ld e,a
+        ld a,(ROWSCUR) 
+        ld (ROWSINPAT),a
+        ld bc,(LENROWS)
+        ld d,0
+        call MulDEBC
+        ld (EfaRow),de
+        pop de
+        jp NoEff
+
+
+EffDxx  ; �嬥����� �஬���� ����� � ������  D0x , Dx0 , DxF , DFx
+        call EffDxx_sp
+        jp YepEff
+
+EffDxx_sp
+        or a
+        jr nz,1F
+        ld a,(ix+smp.LastEfD)
+        jr 2F
+1       ld (ix+smp.LastEfD),a
+2       ld l,a
+        and #F0
+        jp z,_dounVol
+        cp #F0
+        jr z,EffDFx
+        ld a,l
+        and #0F
+        jp z,_upVol
+        cp #0F
+        jr z,EffDxF
+        ld hl,_RowNoEff
+        ret        
+
+EffDxF  ld a,l
+        and #F0
+        rrca : rrca : rrca : rrca
+        add (ix+smp.ChnVol)
+        cp 64
+        jp c,1F
+        ld a,63
+        jp 1F
+
+EffDFx  ld a,l
+        and #0F
+        ld l,a
+        ld a,(ix+smp.ChnVol)
+        sub l
+        jr nc,1F
+        xor a
+1       ld (ix+smp.ChnVol),a 
+        ld l,a
+        ld a,(GlVol) ; 0-128 => 0-64
+        srl a
+        ;ld l,(ix+smp.ChnVol)
+        MulAL ; A 0-64 E 0-63
+        ld l,a
+        ld a,(ix+smp.SmplVol)
+        MulAL ; A 0-64 E 0-63
+        ld l,a
+        ld a,(ix+smp.GlChVol)
+        MulAL ; A 0-64 E 0-63
+
+; 3        ; ��� ���� 㬭����� �� ����ࠬ�
+        ld (ix+smp.Vol_L),A
+        ld (ix+smp.Vol_R),A 
+        ld hl,_RowNoEff
+        ret
+
+_dounVol
+        ld a,l
+        and #0F
+        ld (ix+smp.Argum4),a
+        ld hl,EffD0x
+        ret
+_upVol
+        ld a,l
+        and #F0
+        rrca : rrca : rrca : rrca
+        ld (ix+smp.Argum4),a
+        ld hl,EffDx0
+        ret
+
+EffDx0  call EffDx0_
+        jp _RowNoEff
+
+EffDx0_ ld a,(ix+smp.ChnVol)
+        add (ix+smp.Argum4)
+        cp 64
+        jp c,1F
+        ld a,63
+        jp 1F
+
+EffD0x  call EffD0x_
+        jp _RowNoEff
+
+EffD0x_ ld a,(ix+smp.ChnVol)
+        sub (ix+smp.Argum4)
+        jr nc,1F
+        xor a
+1       ld (ix+smp.ChnVol),a        
+        ld e,a
+
+        ld a,(GlVol) ; 0-128 => 0-64
+        srl a
+        ;ld e,(ix+smp.ChnVol)
+        MulAE ; A 0-64 E 0-63
+        ld e,a
+        ld a,(ix+smp.SmplVol)
+        MulAE ; A 0-64 E 0-63
+        ld e,a
+        ld a,(ix+smp.GlChVol)
+        MulAE ; A 0-64 E 0-63
+        
+; 3        ; ��� ���� 㬭����� �� ����ࠬ�
+        ld (ix+smp.Vol_L),A
+        ld (ix+smp.Vol_R),A 
+        ret
+
+
+
+ITExx   ; LinerSlides Doun - ��� � IT �嬥����� ����� ����� � ������  Exx , EEx , EFx 
+        ; ��� ॠ�������� ���� 祬 S3M
+        push af
+        call RefNewSmp
+        pop af
+        or a
+        jr nz,1F
+        ld a,(ix+smp.LastEfE)
+        jr 2F
+1       ld (ix+smp.LastEfE),a
+2       CP #E0
+        jp nc,ITEEx ; - �� ������ ᫠��
+        ld (ix+smp.Argum1),a
+        ld hl,ITExx_
+        jp YepEff
+
+ITExx_  ld a,(ix+smp.Argum1)
+        ld hl,(ix+smp.PerFrac)
+        ld b,(ix+smp.PerInt)
+        call SampSlideDoun
+        ld (ix+smp.PerInt),b
+        ld (ix+smp.PerFrac),hl
+        jp _RowNoEff
+
+ITEEx   CP #F0
+        jp nc,ITEFx
+        AND #0F
+        ld hl,(ix+smp.PerFrac)
+        ld b,(ix+smp.PerInt)
+        push de
+        call SampSlideDoun4x
+        pop de
+        ld (ix+smp.PerInt),b
+        ld (ix+smp.PerFrac),hl
+        jp NoEff
+  
+ITEFx   AND #0F
+        ld hl,(ix+smp.PerFrac)
+        ld b,(ix+smp.PerInt)
+        push de
+        call SampSlideDoun
+        pop de
+        ld (ix+smp.PerInt),b
+        ld (ix+smp.PerFrac),hl
+        jp NoEff
+
+ITFxx   ; LinerSlides Doun - ��� � IT �嬥����� ����� ����� � ������  Exx , EEx , EFx 
+        ; ��� ॠ�������� ���� 祬 S3M
+        push af
+        call RefNewSmp
+        pop af
+        or a
+        jr nz,1F
+        ld a,(ix+smp.LastEfE)
+        jr 2F
+1       ld (ix+smp.LastEfE),a
+2       CP #E0
+        jp nc,ITFEx ; - �� ������ ᫠��
+        ld (ix+smp.Argum1),a
+        ld hl,ITFxx_
+        jp YepEff
+
+ITFxx_  ld a,(ix+smp.Argum1)
+        ld hl,(ix+smp.PerFrac)
+        ld b,(ix+smp.PerInt)
+        call SampSlideUp
+        ld (ix+smp.PerInt),b
+        ld (ix+smp.PerFrac),hl
+        jp _RowNoEff
+
+ITFEx
+        CP #F0
+        jp nc,ITFFx
+        AND #0F
+        ld hl,(ix+smp.PerFrac)
+        ld b,(ix+smp.PerInt)
+        push de
+        call SampSlideUp4x
+        pop de
+        ld (ix+smp.PerInt),b
+        ld (ix+smp.PerFrac),hl        
+        jp NoEff
+ITFFx    
+        AND #0F
+        ld hl,(ix+smp.PerFrac)
+        ld b,(ix+smp.PerInt)
+        push de
+        call SampSlideUp
+        pop de
+        ld (ix+smp.PerInt),b
+        ld (ix+smp.PerFrac),hl
+        jp NoEff
+
+EffGxx   ; ���⠬���.
+         ;    jp NoEff
+
+        ld (ix+smp.Argum4+1),0 ; ��� Dxx
+EffL_in
+        or a
+        jr nz,1F
+        ld a,(ix+smp.LastEfE)
+        jr 2F
+1       ld (ix+smp.LastEfE),a
+2       ld (ix+smp.Argum1),a
+
+        ld hl,(NewInt)
+        inc h   ; 255 - ���� ����
+        jr z,_starnota
+        ld (ix+smp.CelevFrc+2),l
+        ld h,255
+        ld (NewInt),hl
+
+        ld hl,(NewFrac)
+        ld (ix+smp.CelevFrc),hl
+
+        ; �᫨ ���� ���� � ������塞, �᫨ ���� � ���.
+        ; ���� ��� ᢥન 
+
+_starnota
+        ld a,(ix+smp.CelevFrc+2)
+        ld l,(ix+smp.PerInt)
+
+        cp l    ; �ࠢ������ 楫� ��� ��ਮ��. � � 楫����, L - ����
+        jr c,_PortDoun ; � ���� �����
+        jr nz,_PortUp  ; � ���� �����
+        ld hl,(ix+smp.CelevFrc)
+        ld bc,(ix+smp.PerFrac)
+        sbc hl,bc      ; ࠢ��, �ࠢ������ �஡�� ��� Hl - 楫���� BC - ����
+        jr c,_PortDoun ; � ���� �����
+        jr nz,_PortUp  ; � ���� �����
+;        jp NoEff
+
+_PortDoun ld hl,EffGxD_
+        jp YepEff
+_PortUp   ld hl,EffGxU_
+        jp YepEff
+
+EffGxD_ ; ���⠬��� Doun
+        bit 1,(ix+smp.Argum4+1)
+        call nz,EffD0x_
+        bit 2,(ix+smp.Argum4+1)
+        call nz,EffDx0_
+
+        ld a,(ix+smp.Argum1)
+        ld hl,(ix+smp.PerFrac)
+        ld b,(ix+smp.PerInt)
+        call SampSlideDoun
+        ld (ix+smp.PerInt),b
+        ld (ix+smp.PerFrac),hl
+
+        ld a,(ix+smp.PerFrac+2)  ; ⥪騩 ��ਮ�
+        cp (ix+smp.CelevFrc+2) ; 楫���� ��த
+        jr c,_EndPart ; ⥪�騩 ����� - �ॢ�ᨫ�
+        jp nz,_RowNoEff 
+        ld hl,(ix+smp.PerFrac)
+        ld bc,(ix+smp.CelevFrc)
+        sbc hl,bc      ; �ࠢ������ �஡�� ��� BC - 楫���� HL - ⥪�騩
+        jr c,_EndPart ; ⥪騩 ����� - �ॢ�ᨫ�
+        jp _RowNoEff
+
+EffGxU_ ; ���⠬�⭮ Up
+        bit 1,(ix+smp.Argum4+1)
+        call nz,EffD0x_
+        bit 2,(ix+smp.Argum4+1)
+        call nz,EffDx0_
+
+        ld a,(ix+smp.Argum1)
+        ld hl,(ix+smp.PerFrac)
+        ld b,(ix+smp.PerInt)
+        call SampSlideUp
+        ld (ix+smp.PerInt),b
+        ld (ix+smp.PerFrac),hl
+
+        ld a,(ix+smp.CelevFrc+2) ; 楫���� ��த
+        cp (ix+smp.PerFrac+2)  ; ⥪騩 ��ਮ�
+        jr c,_EndPart ; ⥪騩 ����� - �ॢ�ᨫ�
+        jp nz,_RowNoEff 
+        ld hl,(ix+smp.CelevFrc)
+        ld bc,(ix+smp.PerFrac)
+        sbc hl,bc      ; �ࠢ������ �஡�� ��� Hl - 楫���� BC - ⥪�騩
+        jr c,_EndPart ; ⥪騩 ����� - �ॢ�ᨫ�
+        jp _RowNoEff
+
+_EndPart
+        ld hl,(ix+smp.CelevFrc)
+        ld (ix+smp.PerFrac),hl
+        ld a,(ix+smp.CelevFrc+2)
+        ld (ix+smp.PerFrac+2),a 
+;         ld hl,_RowNoEff
+;         ld (ix+smp.EffJmp),hl
+        jp _RowNoEff
+
+EffUxx  ; ������� �� ��㡨�� ����� �����.
+        set 3,(ix+smp.FlgEFF)
+        jp EffHUin
+EffHxx   ; ����� �����. 
+        res 3,(ix+smp.FlgEFF)
+EffHUin  ld (ix+smp.Argum4+1),0
+EffK_in
+        ld c,a
+        and #0F
+        jr nz,1F
+        ld a,(ix+smp.LastEfH)
+        and #0f
+1       ld b,a
+        ld a,c
+        and #F0
+        jr nz,2F
+        ld a,(ix+smp.LastEfH)
+        and #F0
+2       ld c,a
+        or b
+        ld (ix+smp.LastEfH),a
+        rlc c : rlc c :rlc c :rlc c
+        sla b
+;        sla b
+        ld (ix+smp.Argum1),bc ; � ᪮���� �����, � ��㡨��
+
+        call RefNewSmp 
+        bit 0,(ix+smp.FlgEFF)
+        jr nz,_Prodol
+        ld hl,(ix+smp.PerFrac)
+        ld (ix+smp.SaveFrc),hl
+        ld b,(ix+smp.PerInt)
+        ld (ix+smp.SaveFrc+2),b
+
+        push de
+        ld a,(ix+smp.Argum1+1)
+        bit 3,(ix+smp.FlgEFF)
+        jr nz,22F
+        call SampSlideUp
+        jr 23F
+22      call SampSlideUp4x
+23      
+        ld (ix+smp.Argum3),hl
+        ld (ix+smp.Argum6),b
+
+        ld a,(ix+smp.Argum1+1)
+        ld hl,codop             ; �� �� �� ����� ��ன ࠧ 
+        set 3,(hl)              ; 㬭������ ����⠭�� �� ��ਮ�
+        ld hl,(ix+smp.PerFrac)  ; set 3  - ���塞 ADC / SBC
+        ld b,(ix+smp.PerInt)    ;    �
+        call SaveSpd219         ; �室�� �ࠧ� ������� ��楤��� ��᫥ 㬭������
+        ld (ix+smp.Argum5),hl
+        ld (ix+smp.Argum6+1),b
+        pop de
+
+_Prodol
+        res 0,(ix+smp.FlgEFF)
+        ld hl,EffHxx_
+        jp YepEff
+
+EffHxx_ 
+        set 0,(ix+smp.FlgEFF)
+        bit 1,(ix+smp.Argum4+1)
+        call nz,EffD0x_
+        bit 2,(ix+smp.Argum4+1)
+        call nz,EffDx0_
+
+        ld a,(ix+smp.Argum2) ; ���ࠢ�����
+        cp 1
+        jp z,_HUp
+_HDn    
+        ld a,(ix+smp.Argum1)
+        ld hl,(ix+smp.PerFrac)
+        ld b,(ix+smp.PerInt)
+        bit 3,(ix+smp.FlgEFF)
+        jr z,22F
+        call SampSlideDoun4x
+        jr 23F
+22      call SampSlideDoun4x ;2x
+23           
+;        call SampSlideDoun2x
+        ld a,b
+        cp (ix+smp.Argum6+1)
+        jr c,_EndHDoun ; �筮 ����
+        jr nz,1F
+        ld de,(ix+smp.Argum5)
+        sub hl,de ; �᫨ ࠭�� � �஡�� �ࠢ������
+        jr c,_EndHDoun ; �筮 ��᮪稫�
+        add hl,de
+1       ld (ix+smp.PerFrac),hl
+        ld (ix+smp.PerInt),b
+        jp _RowNoEff
+
+_EndHDoun
+        ld hl,(ix+smp.Argum5)
+        ld (ix+smp.PerFrac),hl
+        ld a,(ix+smp.Argum6+1)
+        ld (ix+smp.PerInt),a       
+        ld a,1
+        ld (ix+smp.Argum2),a
+        jp _RowNoEff
+
+_HUp
+        ld a,(ix+smp.Argum1)
+        ld hl,(ix+smp.PerFrac)
+        ld b,(ix+smp.PerInt)
+        bit 3,(ix+smp.FlgEFF)
+        jr z,22F
+        call SampSlideUp4x
+        jr 23F
+22      call SampSlideUp4x ;2x
+23      
+;        call SampSlideUp2x
+        ld a,(ix+smp.Argum6)
+        cp b
+        jr c,_EndHUp ; �筮 ��᮪稫�
+        jr nz,1F
+        ld de,hl
+        ld hl,(ix+smp.Argum3)
+        sub hl,de ; �᫨ ࠭�� � �஡�� �ࠢ������
+        jr c,_EndHUp ; �筮 ��᮪稫�
+        ld hl,de
+1       ld (ix+smp.PerFrac),hl
+        ld (ix+smp.PerInt),b
+        jp _RowNoEff
+
+_EndHUp
+        ld hl,(ix+smp.Argum3)
+        ld (ix+smp.PerFrac),hl
+        ld a,(ix+smp.Argum6)
+        ld (ix+smp.PerInt),a       
+        ld a,0
+        ld (ix+smp.Argum2),a
+        jp _RowNoEff
+
+
+EffIxx  ; �६���
+
+        ld c,a
+        and #0F
+        jr nz,1F
+        ld a,(ix+smp.LastEfI)
+        and #0F
+1       ld b,a
+        ld a,c
+        and #F0
+        jr nz,2F
+        ld a,(ix+smp.LastEfI)
+        and #F0
+2       ld c,a
+        or b
+        ld (ix+smp.LastEfI),a
+        rlc c : rlc c :rlc c :rlc c
+        ;ld (ix+smp.Argum1),bc ; � �設� , � ���
+        ld (ix+smp.Argum1),b
+        ld (ix+smp.Argum1+1),c
+        ; �஡㥬 �������
+        bit 1,(ix+smp.FlgEFF) ; - ����⠭����� ��� - ����� 㦥 ���� ��䥪�
+        jr nz,_ProdI
+        ld (ix+smp.Argum2),0
+        ld (ix+smp.Argum2+1),0
+;        ld hl,(ix+smp.Vol_L) ; �ࠧ� ��� ������ � ���
+;        ld (ix+smp.SaveVL),hl
+_ProdI
+;         ld hl,(ix+smp.Vol_L) ; �ࠧ� ��� ������ � ���
+;         ld (ix+smp.SaveVL),hl
+        call EffIxx_1
+        res 1,(ix+smp.FlgEFF)   ; �� ����⠭��������
+        ld hl,EffIxx_
+        jp YepEff
+
+EffIxx_
+        call EffIxx_1
+        set 1,(ix+smp.FlgEFF)   ; ����⠭����� �᫨ �� �㤥� ���������� ��䥪�
+        jp _RowNoEff
+
+EffIxx_1 
+        ld a,(ix+smp.Argum1+1)
+        cp (ix+smp.Argum2+1)
+        jr c,_tishina
+_lopIxx inc (ix+smp.Argum2+1)
+        ld hl,(ix+smp.SaveVL)
+        ld (ix+smp.Vol_L),hl
+        ret
+
+_tishina
+        ld a,(ix+smp.Argum1)
+        cp (ix+smp.Argum2)
+        jr c,_Perzap
+        inc (ix+smp.Argum2)
+        ld hl,0
+        ld (ix+smp.Vol_L),hl
+        ret
+_Perzap 
+        ld (ix+smp.Argum2),0
+        ld (ix+smp.Argum2+1),0
+        jr _lopIxx
+
+
+EffJxx  ; �௥���
+        or a
+        jr nz,1F
+        ld a,(ix+smp.LastEfJ)
+        jr 2F
+1       ld (ix+smp.LastEfJ),a
+2       ld (ix+smp.Argum1),1
+        push af 
+        call RefNewSmp
+        pop af
+        ld b,a
+        and #0F
+        ld c,a ; ��ࢠ� ���
+        ld a,b
+        and #F0
+        rrca : rrca : rrca : rrca 
+        ld b,a ; ���� ���
+
+        res 0,(ix+smp.FlgEFF)
+        ld hl,(ix+smp.PerFrac)
+        ld (ix+smp.SaveFrc),hl
+        ld a,(ix+smp.PerInt)
+        ld (ix+smp.SaveFrc+2),a
+
+        ld a,(ix+smp.Nota)
+        ld h,a
+        and #0f
+        ld l,a ; � L ���
+        ld a,h
+        and #f0 ; � H ��⠢�
+        ld h,a
+
+        ld a,c
+        add l
+        cp 12
+        jr c,1F
+        sub 12
+        add #10
+1       add h
+        ld c,a    
+
+        ld a,b
+        add l
+        cp 12
+        jr c,1F
+        sub 12
+        add #10
+1       add h
+        ld b,a     
+
+        ld hl,(SAMPLADR)
+        ld a,l ;(SAMPLADR) ;l  ; ������砥� ��࠭��� � ����������� ������
+        SetPg_macr
+        ld a,(ix+smp.LastSmp)
+        dec a   ; ����� �࠭���� �� 1, � 0 � 255 - �।��騩 �����㬥��
+        ;jp z,Jp_NoEff
+        ld l,0
+        srl a : rr l
+        add h
+        ld h,a  ; ����� �����
+        set 7,h          
+
+        push de
+        push hl     ; �������� ��砫�� ���� #00 ��������� �����
+
+        ld a,b
+        and #0F ; ����砥� ����
+        add a,a : add a,a
+        add a,#050 ; ���� ��ਮ��� ��� � � ��������� �����
+        or l 
+        ld l,a
+
+        ld e,(hl)   ; ����砥� ��ਮ� ��� ���� 9 ��⠢�
+        inc l
+        ld d,(hl)
+        inc l
+        ld l,(hl)
+
+        ld a,#6F;#9F    ; �� ���⠭�� �� ���� �������� ����� ��⠢� � ���襬 ���㡠��
+        sub b
+        jr c,30F
+        rrca : rrca : rrca :rrca ; ����� ��⠢� � ���襬 ���㡠��
+        and #0F
+        jr z,40F
+        ld b,a
+32      srl l : rr d : rr e  ; ����� ����� �� ����� ��⠢�
+        djnz 32B
+        jr 40F
+30      neg
+        rrca : rrca : rrca :rrca ; ����� ��⠢� � ���襬 ���㡠��
+        and #03
+        inc a
+        ld b,a
+32      sla e : rl d : rl l  ; ����� ����� �� ����� ��⠢�
+        djnz 32B
+40
+        ld (ix+smp.Argum2),de
+        ld (ix+smp.Argum3),l
+
+        pop hl
+
+        ld a,c
+        and #0F ; ����砥� ����
+        add a,a : add a,a
+        add a,#050 ; ���� ��ਮ��� ��� � � ��������� �����
+        or l 
+        ld l,a
+
+        ld e,(hl)   ; ����砥� ��ਮ� ��� ���� 9 ��⠢�
+        inc l
+        ld d,(hl)
+        inc l
+        ld l,(hl)
+
+        ld a,#6F;#9F    ; �� ���⠭�� �� ���� �������� ����� ��⠢� � ���襬 ���㡠��
+        sub c
+        jr c,30F
+        rrca : rrca : rrca :rrca ; ����� ��⠢� � ���襬 ���㡠��
+        and #0F
+        jr z,40F
+        ld b,a
+32      srl l : rr d : rr e  ; ����� ����� �� ����� ��⠢�
+        djnz 32B
+        jr 40F
+30      neg
+        rrca : rrca : rrca :rrca ; ����� ��⠢� � ���襬 ���㡠��
+        and #03
+        inc a
+        ld b,a
+32      sla e : rl d : rl l  ; ����� ����� �� ����� ��⠢�
+        djnz 32B
+40
+        ld (ix+smp.Argum4),de
+        ld (ix+smp.Argum3+1),l
+
+        pop de
+
+        ld a,(PATERNADR)    ;l
+        SetPg_macr
+        ld hl,EffJxx_
+        jp YepEff
+Jp_NoEff
+        ld a,(PATERNADR)    ;l
+        SetPg_macr
+        jp NoEff
+
+EffJxx_
+        set 0,(ix+smp.FlgEFF)
+        ld a,(ix+smp.Argum1)
+        inc a
+        and 3
+        jr nz,1F
+        inc a
+1       ld (ix+smp.Argum1),a 
+        cp 1
+        jr z,1F
+        cp 2
+        jr z,2F
+        cp 3
+        jr z,3F
+        jp _RowNoEff
+1       
+        ld hl,(ix+smp.SaveFrc)
+        ld (ix+smp.PerFrac),hl
+        ld a,(ix+smp.SaveFrc+2)
+        ld (ix+smp.PerInt),a
+        jp _RowNoEff
+2
+        ld hl,(ix+smp.Argum2)
+        ld (ix+smp.PerFrac),hl
+        ld a,(ix+smp.Argum3)
+        ld (ix+smp.PerInt),a
+        jp _RowNoEff
+3
+        ld hl,(ix+smp.Argum4)
+        ld (ix+smp.PerFrac),hl
+        ld a,(ix+smp.Argum3+1)
+        ld (ix+smp.PerInt),a
+        jp _RowNoEff
+
+EffKxx  ;            jp NoEff
+
+        call EffDxx_sp
+        ld a,LOW EffD0x
+        CP l
+        jr z,1F
+        ld a,LOW EffDx0
+        CP l
+        jr z,2F
+        jp EffHxx
+
+1       ld (ix+smp.Argum4+1),2
+        xor a
+        jp EffK_in
+
+2       ld (ix+smp.Argum4+1),4
+        xor a
+        jp EffK_in
+
+EffLxx  
+        call EffDxx_sp
+        ld a,LOW EffD0x
+        CP l
+        jr z,1F
+        ld a,LOW EffDx0
+        CP l
+        jr z,2F
+        jp EffGxx
+
+1       ld (ix+smp.Argum4+1),2
+        xor a
+        jp EffL_in
+
+2       ld (ix+smp.Argum4+1),4
+        xor a
+        jp EffL_in
+
+ITMxx   
+        cp 65
+        jr nc,1F
+        ld (ix+smp.GlChVol),a
+        ld a,(GlVol) ; 0-128 => 0-64
+        srl a
+        ld l,(ix+smp.ChnVol)
+        MulAL ; A 0-64 E 0-63
+        ld l,a
+        ld a,(ix+smp.SmplVol)
+        MulAL ; A 0-64 E 0-63
+        ld l,a
+        ld a,(ix+smp.GlChVol)
+        MulAL ; A 0-64 E 0-63
+1       jp NoEff
+
+
+ITNxx  ; �嬥����� �஬���� ����� � ������  N0x , Nx0 , NxF , NFx
+        call ITNxx_sp
+        jp YepEff
+
+ITNxx_sp
+        or a
+        jr nz,1F
+        ld a,(ix+smp.LastEfN)
+        jr 2F
+1       ld (ix+smp.LastEfN),a
+2       ld l,a
+        and #F0
+        jp z,_dounVolN
+        cp #F0
+        jr z,ITNFx
+        ld a,l
+        and #0F
+        jp z,_upVolN
+        cp #0F
+        jr z,ITNxF
+        ld hl,_RowNoEff
+        ret        
+
+ITNxF   ld a,l
+        and #F0
+        rrca : rrca : rrca : rrca
+        add (ix+smp.GlChVol)
+        cp 64
+        jp c,1F
+        ld a,63
+        jp 1F
+
+ITNFx  ld a,l
+        and #0F
+        ld l,a
+        ld a,(ix+smp.GlChVol)
+        sub l
+        jr nc,1F
+        xor a
+1       ld (ix+smp.GlChVol),a 
+        
+        ld a,(GlVol) ; 0-128 => 0-64
+        srl a
+        ld l,(ix+smp.ChnVol)
+        MulAL ; A 0-64 E 0-63
+        ld l,a
+        ld a,(ix+smp.SmplVol)
+        MulAL ; A 0-64 E 0-63
+        ld l,a
+        ld a,(ix+smp.GlChVol)
+        MulAL ; A 0-64 E 0-63
+
+        ld (ix+smp.Vol_L),A
+        ld (ix+smp.Vol_R),A 
+        ld hl,_RowNoEff
+        ret
+
+_dounVolN
+        ld a,l
+        and #0F
+        ld (ix+smp.Argum4),a
+        ld hl,ITN0x
+        ret
+_upVolN
+        ld a,l
+        and #F0
+        rrca : rrca : rrca : rrca
+        ld (ix+smp.Argum4),a
+        ld hl,ITNx0
+        ret
+
+ITNx0   call ITNx0_
+        jp _RowNoEff
+
+ITNx0_  ld a,(ix+smp.GlChVol)
+        add (ix+smp.Argum4)
+        cp 64
+        jp c,1F
+        ld a,63
+        jp 1F
+
+ITN0x   call ITN0x_
+        jp _RowNoEff
+
+ITN0x_  ld a,(ix+smp.GlChVol)
+        sub (ix+smp.Argum4)
+        jr nc,1F
+        xor a
+1       ld (ix+smp.GlChVol),a        
+
+        ld a,(GlVol) ; 0-128 => 0-64
+        srl a
+        ld e,(ix+smp.ChnVol)
+        MulAE ; A 0-64 E 0-63
+        ld e,a
+        ld a,(ix+smp.SmplVol)
+        MulAE ; A 0-64 E 0-63
+        ld e,a
+        ld a,(ix+smp.GlChVol)
+        MulAE ; A 0-64 E 0-63
+        
+        ld (ix+smp.Vol_L),A
+        ld (ix+smp.Vol_R),A 
+        ret
+
+
+EffOxx  ; ������ ᬥ饭�� ��� ����� (Set sample offset)
+        or a
+        jr nz,1F
+        ld a,(ix+smp.LastEfO)
+        jr 2F
+1       ld (ix+smp.LastEfO),a   
+2       ld h,a ; exa
+        ld a,(NewInt+1)
+        inc a
+        jp z,NoEff ; ᬥ饭�� ����� ���� ⮫쪮 � ����� ����
+        ld a,h ;exa ;  H ���� �����
+
+        ld hl,(NewCurAdr)  ; ���� ������ ��� �� ����饭���� �����
+        ld b,l
+        add h  ; ����� ᬥ饭�� � ��࠭�� + ��࠭���
+        ld h,a
+        ld a,0
+        rla : rla
+        add L ; �᫨ ��९�������, � �ਡ���塞 � ������ ��࠭��� 2
+        ld l,a
+        ld a,h
+
+        bit 6,a
+        jr z,1F
+        inc L
+1       and %00111111
+        set 7,a
+        ld h,a ; ����� ᬥ饭�� � ��࠭�� � L ����� ��࠭��
+        ;ld a,(ix+smp.PgLeng)
+        ld a,(NewPgLeng)
+        cp l
+        jp c,O_farptr ; ������ �⨬ ��룭���
+        jr nz,34F
+        ;ld a,(ix+smp.Length+1)
+        ld a,(NewLength+1)
+        cp h
+        jp c,O_farptr ; ������ �⨬ ��룭���
+34      ld (NewCurAdr),hl
+        jp NoEff
+
+O_farptr
+        ld a,(NewPgLoop)
+        ;ld a,(ix+smp.PgLoop)
+        and a
+        jp z,NoEff
+        ld l,a
+        ld a,(NewLoopSt+1)
+        ld h,a
+        ;ld h,(ix+smp.LoopSt+1)
+        ld (NewCurAdr),hl
+        jp NoEff
+
+
+ITPxx  ; P0x, Px0, PFx, PxF ������ ������� P0x - ������ ��ࠢ�, Px0 - ������ �����
+        jp NoEff
+        call ITPxx_sp
+        jp YepEff
+
+ITPxx_sp
+        or a
+        jr nz,1F
+        ld a,(ix+smp.LastEfP)
+        jr 2F
+1       ld (ix+smp.LastEfP),a
+2       ld l,a
+        and #F0
+        jp z,_dounPan
+        cp #F0
+        jr z,ITPFx
+        ld a,l
+        and #0F
+        jp z,_upPan
+        cp #0F
+        jr z,ITPxF
+        ld hl,_RowNoEff
+        ret        
+
+ITPxF   ld a,l
+        and #F0
+        rrca : rrca : rrca : rrca
+        add (ix+smp.ChnPan)
+        jp nc,1F
+        ld a,255
+        jp 1F
+
+ITPFx   ld a,l
+        and #0F
+        ld l,a
+        ld a,(ix+smp.ChnPan)
+        sub l
+        jr nc,1F
+        xor a
+1       ld (ix+smp.ChnPan),a 
+        
+        ld a,(GlVol) ; 0-128 => 0-64
+        srl a
+        ld l,(ix+smp.ChnVol)
+        MulAL ; A 0-64 E 0-63
+        ld l,a
+        ld a,(ix+smp.SmplVol)
+        MulAL ; A 0-64 E 0-63
+        ld l,a
+        ld a,(ix+smp.GlChVol)
+        MulAL ; A 0-64 E 0-63
+
+        ld (ix+smp.Vol_L),A
+        ld (ix+smp.Vol_R),A 
+        ld hl,_RowNoEff
+        ret
+
+_dounPan
+        ld a,l
+        and #0F
+        ld (ix+smp.Argum4),a
+        ld hl,ITP0x
+        ret
+_upPan
+        ld a,l
+        and #F0
+        rrca : rrca : rrca : rrca
+        ld (ix+smp.Argum4),a
+        ld hl,ITPx0
+        ret
+
+ITPx0   call ITPx0_
+        jp _RowNoEff
+
+ITPx0_  ld a,(ix+smp.ChnPan)
+        add (ix+smp.Argum4)
+        jp nc,1F
+        ld a,255
+        jp 1F
+
+ITP0x   call ITP0x_
+        jp _RowNoEff
+
+ITP0x_  ld a,(ix+smp.ChnPan)
+        sub (ix+smp.Argum4)
+        jr nc,1F
+        xor a
+1       ld (ix+smp.ChnPan),a        
+
+        ld a,(GlVol) ; 0-128 => 0-64
+        srl a
+        ld e,(ix+smp.ChnVol)
+        MulAE ; A 0-64 E 0-63
+        ld e,a
+        ld a,(ix+smp.SmplVol)
+        MulAE ; A 0-64 E 0-63
+        ld e,a
+        ld a,(ix+smp.GlChVol)
+        MulAE ; A 0-64 E 0-63
+        
+        ld (ix+smp.Vol_L),A
+        ld (ix+smp.Vol_R),A 
+        ret
+
+
+EffQxy  ; ����� ���� ��᫥ y �३��� � ���������� �஬���� x
+        or a
+        jr nz,1F
+        ld a,(ix+smp.LastEfQ)
+        jr 2F
+1       ld (ix+smp.LastEfQ),a
+2       ld l,a
+        and #0F
+        ld h,a
+        ld a,l
+        and #F0
+        rlc a : rlc a : rlc a : rlc a
+        ld l,a
+        ld (ix+smp.Argum4),hl 
+        bit 2,(ix+smp.FlgEFF)
+        jr nz,34F
+        xor a
+        ld (ix+smp.Argum1),a
+34      
+        set 2,(ix+smp.FlgEFF)
+        ld hl,EffQxy_
+        jp YepEffQ
+
+EffQxy_ 
+        ld a,(ix+smp.Argum1)
+        inc a
+        cp (ix+smp.Argum4+1)
+        jr nc,1F
+        ld (ix+smp.Argum1),a
+        jp _RowNoEff
+1       xor a
+        ld (ix+smp.Argum1),a
+
+        ld hl,(SAMPLADR)
+        ld a,l ;(SAMPLADR)        
+        SetPg_macr
+        ld l,0
+        ld a,h
+        ld h,(ix+smp.LastSmp)
+        dec h
+        srl h : rr l
+        set 7,h 
+        add h
+        ld h,a
+        ld iy,hl
+
+        ld hl,(iy+s3m.Int_Gp)   
+        ld (ix+smp.SamplAdr),hl
+        ld (ix+smp.CurPage),l
+        ld l,0
+        ld (ix+smp.CurAdr),hl
+        ld h,l ; 0
+        ld (ix+smp.CurFrac),hl
+
+        bit 0,(iy+s3m.SmpFlags)
+        jr z,33F ; _no_loop
+        ld a,(iy+s3m.PgLoopEnd)
+        ld (ix+smp.PgLeng),a    ; ��࠭�� ��砫� �㯠
+        jr 34F
+33      ld a,(iy+s3m.PgLength)
+        ld (ix+smp.PgLeng),a      
+
+34      ; ��������� �஬����
+        ld a,(ix+smp.Argum4)
+        bit 3,a
+        jr z,QvolDn
+        and 7
+        jp z,_RowNoEff
+        cp 6
+        jr nc,QUpMul
+        dec a        ; �����⮢�� ������� SET A 
+        rlca : rlca : rlca
+        or %11000111
+        ld (QstUp),a
+        xor a
+        set 0,a
+QstUp   equ $-1         
+
+q_add   add (ix+smp.ChnVol)
+q_cp64  cp 64
+        jp c,1F
+        ld a,63
+        jp 1F
+
+QUpMul  jr z,6F
+        ld a,(ix+smp.ChnVol)
+        sla a
+        jr q_cp64
+6       ld a,(ix+smp.ChnVol)
+        srl a
+        srl a     
+        jp q_add
+QvolDn        
+        and a
+        jp z,_RowNoEff
+        cp 6
+        jr nc,QDnMul ; ���� �� 㬭������
+        dec a        ; �����⮢�� ������� SET A 
+        rlca : rlca : rlca
+        or %11000111  ; �����⮢�� ������� SET A
+        ld (QstDn),a
+        xor a
+        set 0,a
+QstDn   equ $-1         
+        ld b,a
+        ld a,(ix+smp.ChnVol)
+q_sub   sub b
+        jr nc,1F
+        xor a
+1       ld (ix+smp.ChnVol),a        
+        ld e,a
+
+        ld a,(GlVol) ; 0-128 => 0-64
+        srl a
+        ;ld e,(ix+smp.ChnVol)
+        MulAE ; A 0-64 E 0-63
+        ld e,a
+        ld a,(ix+smp.SmplVol)
+        MulAE ; A 0-64 E 0-63
+        ld e,a
+        ld a,(ix+smp.GlChVol)
+        MulAE ; A 0-64 E 0-63
+        
+        ld (ix+smp.Vol_L),A
+        ld (ix+smp.Vol_R),A 
+        jp _RowNoEff
+
+QDnMul  jr z,6F
+        ld a,(ix+smp.ChnVol)
+        srl a
+        jr 1B
+6       ld a,(ix+smp.ChnVol)
+        srl a
+        srl a     
+        jp q_sub
+
+EfS8x
+        ld b,a
+        rlca : rlca : rlca : rlca 
+        or b
+        ld (ix+smp.ChnPan),a
+        ld a,(GlVol) ; 0-128 => 0-64
+        srl a
+        ld l,(ix+smp.ChnVol)
+        MulAL ; A 0-64 E 0-63
+        ld l,a
+        ld a,(ix+smp.SmplVol)
+        MulAL ; A 0-64 E 0-63
+        ld l,a
+        ld a,(ix+smp.GlChVol)
+        MulAL ; A 0-64 E 0-63        
+        jp NoEff
+
+
+EffSxx  ld b,a
+        and #F0
+        rra : rra : rra
+        ld hl,TabSXX
+        add a,l
+        ld l,a
+        ld a,(hl)
+        inc l
+        ld h,(hl)
+        ld l,a
+        ld a,b
+        and #0F
+        jp (hl)
+
+EfSBx   ; �ந����� 横� x ࠧ (�� ���孥� �窨 �� �⮩ �������)
+        and a
+        jr z,LoopB0
+        inc (ix+smp.LopCikl)
+        cp (ix+smp.LopCikl)
+        jp c,12F
+        ld a,(ORDER)
+        dec a
+        ld (ORDER),a
+        ld a,(ix+smp.LopPat+1)
+        jp ITC01
+12      ld (ix+smp.LopPat),#FF
+        jp NoEff
+LoopB0  ld a,(ORDER)
+        ld l,a
+        cp (ix+smp.LopPat) ; �஥�塞 � �⮬ �� �� �� ���୥ ?
+        jr nz,1F
+        ld a,(ROWSCUR)
+        cp (ix+smp.LopPat+1) ;�᫨ �� � �஢��� � ⮩ �� �� �� ��ப� ?
+        jp z,NoEff ; �᫨ �� � ��������� ��祣� �� ����
+1       ld a,(ROWSCUR) 
+        ld h,a
+        ld (ix+smp.LopPat),hl
+        xor a
+        ld (ix+smp.LopCikl),a
+        jp NoEff
+        
+EfSCx   ; ��१��� ���� ��᫥ x �३��� (Note cut after x frames)
+        or a
+        jr z,1F
+        ld (ix+smp.Argum1),a
+        ld hl,EfSCx_
+        jp YepEff
+1       call RefNewSmp
+        ld (ix+smp.CurPage),0
+        jp NoEff
+EfSCx_  dec (ix+smp.Argum1)
+        jp nz,_RowNoEff
+        ld (ix+smp.CurPage),0
+        jp _RowNoEff
+
+EfSDx   ; ����ঠ�� ���� �� x �३��� (Note delay for x frames).
+        ; �� ��������� ᮢ���⨬� - ���� �ࠧ� ����뢠�� �� �� ��ࠥ�
+        ; �।����� ���������. � IT ���� �த������ ������
+        or a 
+        jp z,NoEff
+        ld (ix+smp.Argum1),a
+        ld hl,#FF00
+        ld (NewInt),hl ; ���� ���
+
+        ld hl,(NewFrac)
+        ld (ix+smp.Argum2),hl
+        ;ld (ix+smp.PerFrac),hl
+        ld hl,(NewCurAdr)
+        ld (ix+smp.Argum3),hl
+        ;ld (ix+smp.SamplAdr),hl
+        ;ld (ix+smp.CurPage),l
+        ;ld l,0
+        ;ld (ix+smp.CurAdr),hl
+        ld hl,(NewLength)
+        ld (ix+smp.Argum4),hl
+        ;ld (ix+smp.Length),hl
+        ld a,(NewPgLeng)
+        ld (ix+smp.Argum5),a
+        ;ld (ix+smp.PgLeng),a    ; ��࠭�� ������
+        ld hl,(NewLoopSt)
+        ld (ix+smp.Argum6),hl
+        ;ld (ix+smp.LoopSt),hl
+        ld a,(NewPgLoop)
+        ld (ix+smp.Argum5+1),a
+        ;ld (ix+smp.PgLoop),a    ; ��࠭�� ��砫� �㯠
+        ;ld hl,0
+        ;ld (ix+smp.CurFrac),hl
+        ld hl,EfSDx_
+        jp YepEff
+
+EfSDx_  dec (ix+smp.Argum1)
+        jp nz,_RowNoEff
+        ;ld hl,(NewFrac)
+        ld hl,(ix+smp.Argum2)
+        ld (ix+smp.PerFrac),hl
+        ;ld hl,(NewCurAdr)
+        ld hl,(ix+smp.Argum3)
+        ld (ix+smp.SamplAdr),hl
+        ld (ix+smp.CurPage),l
+        ld l,0
+        ld (ix+smp.CurAdr),hl
+        ;ld hl,(NewLength)
+        ld hl,(ix+smp.Argum4)
+        ld (ix+smp.Length),hl
+        ;ld a,(NewPgLeng)
+        ld a,(ix+smp.Argum5)
+        ld (ix+smp.PgLeng),a    ; ��࠭�� ������
+        ;ld hl,(NewLoopSt)
+        ld hl,(ix+smp.Argum6)
+        ld (ix+smp.LoopSt),hl
+        ;ld a,(NewPgLoop)
+        ld a,(ix+smp.Argum5+1)
+        ld (ix+smp.PgLoop),a    ; ��࠭�� ��砫� �㯠
+        ld hl,0
+        ld (ix+smp.CurFrac),hl
+        jp _RowNoEff
+
+EfSEx   ; ����ঠ�� ���� �� x ��ப (Pattern delay for x rows)
+        ; ��� ᪮��� �� 16 - x �� ��࠭�祭�, 
+        ; ��� ����� ��������� - �� ����� 256 ⨪��  20 * 12=256 
+        or a
+        jp z,NoEff
+        inc a
+        ld b,a
+        ld a,(SPED)
+        ld c,a
+        call MulCB ; AC=C*�
+        ld a,c
+        ld (SPEDTIC),a
+        jp NoEff
+
+EffVxx  ; ������� ��������� �஬����� (Global volume) 0-64
+        cp #40
+        jr c,2F
+        ld a,#40
+2       sla a
+        jp 1F
+
+ITVxx   ; ������� ��������� �஬����� (Global volume) 0-128
+        cp #80
+        jr c,1F
+        ld a,#80
+1       ld (GlVol),a 
+
+        call setglvol
+        jp NoEff
+
+setglvol        
+        push ix
+        ld ix,SamplTabl
+        ld a,(CHNPAT)
+        ld b,a
+lp_glvol
+        push bc
+        ld a,(GlVol) ; 0-128 => 0-64
+        srl a
+        ld l,(ix+smp.ChnVol)
+        MulAL ; A 0-64 E 0-63
+        ld l,a
+        ld a,(ix+smp.SmplVol)
+        MulAL ; A 0-64 E 0-63
+        ld l,a
+        ld a,(ix+smp.GlChVol)
+        MulAL ; A 0-64 E 0-63
+        
+        ld (ix+smp.Vol_L),A
+        ld (ix+smp.Vol_R),A
+
+        ld bc,smp.lenHead
+        add ix,bc
+        pop bc
+        djnz lp_glvol
+        pop ix
+        ret
+
+ITWxx ; �嬥����� ������쭮� �஬���� ����� � ������  W0x , Wx0 , WxF , WFx
+        call EffWxx_sp
+        jp YepEff
+
+EffWxx_sp
+        or a
+        jr nz,1F
+        ld a,(ix+smp.LastEfW)
+        jr 2F
+1       ld (ix+smp.LastEfW),a
+2       ld l,a
+        and #F0
+        jp z,_dounW
+        cp #F0
+        jr z,EffWFx
+        ld a,l
+        and #0F
+        jp z,_upW
+        cp #0F
+        jr z,EffWxF
+        ld hl,_RowNoEff
+        ret        
+
+EffWxF  ld a,l
+        and #F0
+        rrca : rrca : rrca ;: rrca
+        ld l,a
+        ld a,(GlVol)
+        add l
+        cp 129
+        jp c,1F
+        ld a,128
+        jp 1F
+
+EffWFx  ld a,l
+        and #0F
+        rlca
+        ld l,a
+        ld a,(GlVol)
+        sub l
+        jr nc,1F
+        xor a
+1       ld (GlVol),a 
+        ;ld l,a
+        call setglvol
+        ld hl,_RowNoEff
+        ret
+
+_dounW
+        ld a,l
+        and #0F
+        rlca
+        ld (ix+smp.Argum4),a
+        ld hl,EffW0x
+        ret
+_upW
+        ld a,l
+        and #F0
+        rrca : rrca : rrca ;: rrca
+        ld (ix+smp.Argum4),a
+        ld hl,EffWx0
+        ret
+
+EffWx0  call EffWx0_
+        jp _RowNoEff
+
+EffWx0_ ld a,(GlVol)
+        add (ix+smp.Argum4)
+        cp 129
+        jp c,1F
+        ld a,128
+        jp 1F
+
+EffW0x  call EffW0x_
+        jp _RowNoEff
+
+EffW0x_ ld a,(GlVol)
+        sub (ix+smp.Argum4)
+        jr nc,1F
+        xor a
+1       ld (GlVol),a        
+        ;ld e,a
+        call setglvol
+        ret
+ITXxx
+        ld (ix+smp.ChnPan),a
+        ld a,(GlVol) ; 0-128 => 0-64
+        srl a
+        ld l,(ix+smp.ChnVol)
+        MulAL ; A 0-64 E 0-63
+        ld l,a
+        ld a,(ix+smp.SmplVol)
+        MulAL ; A 0-64 E 0-63
+        ld l,a
+        ld a,(ix+smp.GlChVol)
+        MulAL ; A 0-64 E 0-63        
+        jp NoEff
+
+ITYxx   ; Yxy   ����५�� � ᪮����� x � ��㡨��� y (Panbrello).
+        ;�������+������+������. ��  �����,  ��  ������  ���������
+        ; ����� �஬����, ��
+        ; �������  �  �������  �����  ��⠭���������  ���祭��
+        jp NoEff
+
+
+        align 32
+TabSXX  dw NoEff , NoEff , NoEff , NoEff , NoEff , NoEff , NoEff , NoEff 
+        dw EfS8x , NoEff , NoEff , EfSBx , EfSCx , EfSDx , EfSEx , NoEff
+
+;***********************************************************************
+;  ���� ������ ��ਮ�� ��� ��䥪⮢
+;
+;***********************************************************************
+ConstSpg1    equ #0001 ;#0001;#0005
+ConstSpg2    equ #5E77 ;#5E77;#79DE ; 21,90420561 * 65536 / 4
+ConstSpg     equ 6109 ;(8363*16/21,90420561) - �0�� ���� 10,0000
+
+_ClcSldUp
+_ClcSldDoun
+
+_calc1116IT
+        ld a,0
+LinerSlides equ $-1
+        and a
+        jp nz,S3MSlides
+;        ret z
+        ld c,0
+        ld b,(ix+smp.PerFrac+0)
+        ld hl,(ix+smp.PerFrac+1)
+        ;ld h,(ix+smp.PerFrac+2)
+
+        srl h : rr l : rr b 
+
+        ld a,(ix+smp.PerFrac+0)
+        add b
+        ld b,a
+
+        ld a,(ix+smp.PerFrac+1)
+        adc l
+        ld l,a
+
+        ld a,(ix+smp.PerFrac+2)
+        adc h
+        ld h,a
+
+        srl h : rr l : rr b 
+
+        ld a,(ix+smp.PerFrac+0)
+        add b
+        ld b,a
+
+        ld a,(ix+smp.PerFrac+1)
+        adc l
+        ld l,a
+
+        ld a,(ix+smp.PerFrac+2)
+        adc h
+        ld h,a
+
+        srl h : rr l : rr b 
+        srl h : rr l : rr b 
+
+        ret
+
+S3MSlides
+;         ld c,(ix+smp.Argum1)
+;         ld b,(ix+smp.CSpdKns+1)
+;         ld a,(ix+smp.CSpdKns)
+
+;         call  MulCB    ; AC=C*� 
+;         ld b,0
+;         ld h,a
+;         ld l,c
+; ;       srl b : rr h : rr l 
+; ;       srl b : rr h : rr l 
+;        sla l : rl h : rl b
+;        sla l : rl h : rl b
+;       sla l : rl h : rl b
+;       sla l : rl h : rl b
+;   DUP 7  sla l : rl h : rl b  EDUP
+
+        ret
+
+_ClcSldUp4
+_ClcSldDoun4
+_calc118IT
+;         ld c,(ix+smp.Argum1)
+;         ld b,(ix+smp.CSpdKns+1)
+;         ld a,(ix+smp.CSpdKns)
+
+;         call  MulCB    ; AC=C*� 
+;         ld b,0
+;         ld h,a
+;         ld l,c
+;       srl b : rr h : rr l 
+
+        ret
+
+SampSlideDoun4x   
+        ld c,a ; exa
+        xor a
+        ld (Jr_sld4),a      
+        ld a,c ; exa
+        jp SampSlideDoun_in
+
+SampSlideDoun2x   
+        ld c,a ;exa
+        ld a,Jr_to2-Jr_sld4-1
+        ld (Jr_sld4),a      
+        ld a,c ;exa
+        jp SampSlideDoun_in
+
+SampSlideUp4x      
+        ld c,a ;exa
+        xor a
+        ld (Jr_sld4),a      
+        ld a,c ;exa
+        jp SampSlideUp_in
+
+SampSlideUp2x      
+        ld c,a ;exa
+        ld a,Jr_to2-Jr_sld4-1
+        ld (Jr_sld4),a      
+        ld a,c ;exa
+        jp SampSlideUp_in
+
+SampSlideUp
+;************************************
+;   a - �� ᪮�쪮� ��ਮ��� b,hl - ⥪�騩 ��ਮ�
+;   b,hl - ���� ��ਮ�
+;************************************
+        ld c,a ;exa
+        ld a,Jr_to4-Jr_sld4-1
+        ld (Jr_sld4),a 
+        ld a,c ;exa
+SampSlideUp_in
+        ex de,hl
+        ld hl,codop
+        res 3,(hl)
+        ex de,hl
+        jr SampDoun_up
+SampSlideDoun
+;************************************
+;   a - �� ᪮�쪮� ��ਮ��� b,hl - ⥪�騩 ��ਮ�
+;   b,hl - ���� ��ਮ�
+;************************************
+        ld c,a ;exa
+        ld a,Jr_to4-Jr_sld4-1
+        ld (Jr_sld4),a 
+        ld a,c ;exa 
+SampSlideDoun_in
+        ex de,hl
+        ld hl,codop
+        set 3,(hl)
+        ex de,hl
+SampDoun_up        
+        push bc,hl  ; �������� b,hl
+        ; 37500 / 1712 (Ami C-4) = 21,90420561
+        ; 8363*16/21,90420561=6108,781226
+        ; * 6109 = % 1011111011101
+
+        ld e,b
+        ld d,0
+
+        push de
+        ld de,hl
+        exx 
+        pop hl
+        ld de,hl
+
+;**************************************************
+;   ���� ��ਠ�� 㬭������ �� ᤢ����   ��� ᤢ��� - 16 ⠪⮢
+;**************************************************
+;         exx : sla e : rl d
+;         exx : rl e : rl d
+
+;         DUP 3
+;         exx : sla e : rl d
+;         exx : rl e : rl d
+;         exx : add hl,de
+;         exx : adc hl,de
+;         EDUP
+;         exx : sla e : rl d
+;         exx : rl e : rl d
+;         DUP 5
+;         exx : sla e : rl d
+;         exx : rl e : rl d
+;         exx : add hl,de
+;         exx : adc hl,de
+;         EDUP
+;         exx : sla e : rl d
+;         exx : rl e : rl d
+;         DUP 1
+;         exx : sla e : rl d
+;         exx : rl e : rl d
+;         exx : add hl,de
+;         exx : adc hl,de
+;         EDUP
+
+
+        ;1011111011101  - 6109
+        ;hl=de=Period
+;**************************************************
+;   ��ன ��ਠ�� 㬭������ �� ᫮������  1 ᫮����� - 11 ⠪⮢
+;   �� ��饥 ������� ����権 �� ��⠫, ������� �� �� �����
+;**************************************************
+        exx : add hl,hl ;= 1+1 = 2
+        exx : adc hl,hl ;= 1+1 = 2
+        exx : add hl,hl ;= 2+2 = 4
+        exx : adc hl,hl ;= 2+2 = 4
+
+        exx : ex hl,de
+        add hl,de   ;= 4+1 = 5
+        ex hl,de
+        exx : ex hl,de
+        adc hl,de   ;= 4+1 = 5
+        ex hl,de
+
+        exx : add hl,hl ;= 4+4 = 8
+        exx : adc hl,hl ;= 4+4 = 8
+
+        exx : ex hl,de
+        add hl,de   ;= 8+5 = 13
+        ex hl,de
+        exx : ex hl,de
+        adc hl,de   ;= 8+5 = 13
+        ex hl,de
+
+        exx : add hl,hl ;= 8+8
+        exx : adc hl,hl ;= 8+8
+
+        exx : ex hl,de
+        add hl,de   ;= 16+13 = 29
+        ex hl,de
+        exx : ex hl,de
+        adc hl,de   ;= 16+13 = 29
+        ex hl,de
+
+        exx : add hl,hl ;= 16+16
+        exx : adc hl,hl ;= 16+16
+        exx : add hl,hl ;= 32+32 = 64
+        exx : adc hl,hl ;= 32+32 = 64
+
+        exx : ex hl,de
+        add hl,de   ;= 64+29 = 93
+        ex hl,de
+        exx : ex hl,de
+        adc hl,de   ;= 64+29 = 93
+        ex hl,de
+
+        exx : add hl,hl ;= 64+64 = 128
+        exx : adc hl,hl ;= 64+64 = 128
+
+        exx : ex hl,de
+        add hl,de   ;= 128+93 = 221
+        ex hl,de
+        exx : ex hl,de
+        adc hl,de   ;= 128+93 = 221
+        ex hl,de
+
+        exx : add hl,hl ;= 128+128 = 256
+        exx : adc hl,hl ;= 128+128 = 256
+
+        exx : ex hl,de
+        add hl,de   ;= 256+221 = 477
+        ex hl,de
+        exx : ex hl,de
+        adc hl,de   ;= 256+221 = 477
+        ex hl,de
+
+        exx : add hl,hl ;= 256+256 = 512
+        exx : adc hl,hl ;= 256+256 = 512
+
+        exx : ex hl,de
+        add hl,de   ;= 512+477 = 989
+        ex hl,de
+        exx : ex hl,de
+        adc hl,de   ;= 512+477 = 989
+        ex hl,de
+
+        exx : add hl,hl ;= 512+512 = 1024 
+        exx : adc hl,hl ;= 512+512 = 1024
+     
+        exx : ex hl,de
+        add hl,de   ;= 1024+989 = 2013
+        ex hl,de
+        exx : ex hl,de
+        adc hl,de   ;= 1024+989 = 2013
+        ex hl,de
+
+        exx : add hl,hl ;= 1024+1024
+        exx : adc hl,hl ;= 1024+1024
+        exx : add hl,hl ;= 2048+2048 
+        exx : adc hl,hl ;= 2048+2048 
+        exx : add hl,de ;= 4096+2013 = 6109
+        exx : adc hl,de ;= 4096+2013 = 6109
+;**************************************************
+       
+        ld (PerSpd1),hl
+        exx
+        ld (PerSpd2),hl
+
+        pop hl,bc
+
+SaveSpd219
+        ld d,b,e,h,c,l
+        srl d : rr e : rr c
+        srl d : rr e : rr c
+
+        jr Jr_to4 ; ������� ��� �� 4 �� EEx FEx
+Jr_sld4 equ $-1
+        srl d : rr e : rr c
+Jr_to2  srl d : rr e : rr c
+Jr_to4
+        ld h,0 : ld l,h
+        DUP 7
+        rr a
+        jr nc,1F
+        add hl,de
+1       sla c : rl e : rl d  ; Period * A
+        EDUP
+        rr a
+        jr nc,1F
+        add hl,de
+1
+        ld bc,hl
+        ld hl,ConstSpg  ;(ix+smp.CSpdKns)
+        sub hl,bc   ; Cspd219+Peiod*x
+codop   equ $-1     ; ADC - set 3 , SBC res 3
+        jr nc,1F
+        ld hl,13 ; 26 ; ��������� ����� ��ਮ� - �।����⮫筮
+1       push hl
+        ld hl,0
+PerSpd1 equ $-2
+        ld de,0
+        exx
+        ld hl,0
+PerSpd2 equ $-2
+        pop de
+
+        call ldiv ;hl'hl = hl'hl / de'de
+        exx
+        push hl
+        exx
+        pop bc
+        ld b,c
+
+;******************************************
+;   ��� 16 ����� ������� �祭� �� �筮 �� �� 
+;   ���� �஡�� ��� ����⥫�. 
+;   �ਤ���� �ᯮ�짮���� 32 ��⭮� ������� 
+;******************************************
+;         ld a,h
+;         ld (celDiv),a
+;         ld de,0
+; PerSpd1  equ $-2    ; Cspd219*4*Peiod �� �筮� 8*8
+;         ld bc,hl
+;         CALL DIVU222 ;D�=D�/�C �L=���
+;         push de
+;         ex hl,de
+;         ld bc,00
+; celDiv  equ $-2
+;         CALL DIVU222
+;         ld a,d
+;         ld l,h
+;         ld h,e
+;         pop bc
+;         add a,c
+;         ld b,a
+
+        ret 
+
+
+Tab64     equ #3E00      ; ⠡��� 㬭������ 64*64
+SamplTabl equ #4F00      ; ⠡��� ������� ���ந��������
+
+        MODULE  smp
+Vol_L   equ 0
+Vol_R   equ 1 
+SamplAdr equ 2  ; �� �ᯮ��㥬� - ��������� ��� ���
+CurPage equ 4
+Nota    equ 5   ; ⥪��� (��᫥���� ���)
+CurFrac equ 6
+CurAdr  equ 8
+PerFrac equ 10
+PerInt  equ 12
+PgLoop  equ 14
+SmplVol equ 15  ; ���� �஬����� �����
+LoopSt  equ 16
+PgLeng  equ 18
+LastSmp equ 19
+Length  equ 20
+ChnVol  equ 22  ; �ணࠬ��� �஬����� (� ������ ��� �� 㬮�砭�� �� �����)
+ChnPan  equ 23  ; ��� ������  0-255 �� �⠭����� IT
+EffJmp  equ 24    
+LastEfD equ 26 ; (D/K/L) ������騥 ������� "�����������" �� ��� �।���� ���祭��
+LastEfE equ 27 ; (E/F/G)
+LastEfH equ 28 ; (H/U)    
+LastEfI equ 29 ; I    
+LastEfJ equ 30 ; J
+LastEfN equ 31 ; N
+LastEfO equ 32 ; O 
+LastEfS equ 33 ; S
+LastEfT equ 34 ; T
+LastEfW equ 35 ; W    
+Argum1  equ 36  ; ��㬥��� ��� ���� ��䥪� � ������
+Argum2  equ 38  ;
+Argum3  equ 40  ;
+Argum4  equ 42  ; 
+SaveFrc equ 44  ; 3 ���� - ��᫥ ��䥪� ����⠭���� �����
+SaveVL  equ 47  ; ����⠭���� �஬����� ������
+SaveVR  equ 48  ; ����⠭���� �஬����� ������
+FlgEFF  equ 49  ; 0-����� �����  1-����� �஬����� 2-�த������ Qxy 3-������� U-�����
+LastEfP equ 50  ; P 
+LastEfQ equ 51  ; Q
+CelevFrc equ 52 ; 3 ����
+GlChVol equ 55  ; ���� �஬����� ������    
+Argum5  equ 56  ; 
+Argum6  equ 58  ;
+LopPat  equ 60  ;  ����� ����ୠ � ����� ��ப� ��砫� ��� ���ୠ
+LopCikl equ 62  ;  1 ���� ���稪 横�� ���ୠ
+lenHead equ 64      
+        ENDMODULE
+
+;         DUP 32*60
+;         db 0
+;         db 0    ; �஬����� L ������ , ���⠭��� � ��⮬ �����㬥�⮢ �� �஬���� � �䥪⮢
+;         db 0    ; �஬����� R ������ , ���⠭��� � ��⮬ �����㬥�⮢ �� �஬���� � �䥪⮢
+;         dw 0    ; ��砫쭠� ��࠭�� � ���� sampl
+;         dw 0    ; ��࠭�� ��ࢮ�� ���� ��� ⥪�饩 ����樨 0 - ����� ��⠭����� 
+;         dw 0    ; �஡��� ���� ⥪�饩 ����樨
+;         dw 0    ; 楫�� ���� ⥪�饩 ����樨
+;         dw 0    ; �஡��� ���� ��ਮ�� ���饭��
+;         dw 0    ; 楫�� ���� ��ਮ�� ���饭��
+;         dw 0    ; ��࠭�� ��ࢮ�� ����  ��砫� ��o��  0 - ���� ��⠭�����
+;         dw 0    ; 楫�� ���� ��砫� �����
+;         dw 0    ; ��࠭�� ��ࢮ�� ���� ������       
+;         dw 0  a  ; 楫�� ���� - ������ � ����� ����
+;         db 0    ; ChnVol - �஬����� ������
+;         db 0    ; ChnPan - ������ ������    ��� 7 - �몫�祭
+;         dw 0    ; ��ࠡ��稪 ��䥪⮢ ��� ������� ⨪�
+        ;EDUP
+
+COMZ    OUT (CLRCBIT),A
+        JP COMINT_
+
+; AC=C*�    call  MulCB    ; AC=C*�                       
+MulCB   XOR A                           
+        DUP 8                           
+        RR C                            
+        JR NC,$+3                       
+        ADD B                         
+        RRA                             
+        EDUP                             
+        RR C 
+        ret
+     
+
+;�LD�=D�*�C call  MulDEBC ;�LD�=D�*�C
+MulDEBC
+        LD HL,0                         
+        DUP 16                          
+        RR D,E                          
+        JR NC,$+3                       
+        ADD HL,BC                      
+        RR H,L                          
+        EDUP                            
+        RR D,E   
+        ret
+
+;D�=D�/�C, �L=���⮪ CALL DIVU222 ;D�=D�/�C
+DIVU222 LD HL,0                         
+        DUP 16                          
+        RL E,D                          
+        ADC HL,HL                       
+        SBC HL,BC                       
+        JR NC,$+3                       
+        ADD HL,BC                       
+        EDUP                             
+        LD A,E                          
+        RLA                             
+        CPL                             
+        LD E,A                          
+        LD A,D                          
+        RLA                             
+        CPL                             
+        LD D,A  
+        ret
+
+; ����� �� 2006-12-18T15:11:28+0300
+; ����������� 32-ࠧ�來�� �������
+; �㭪�� ��⮨� �� ���� ��⥩:
+; 1. 32-ࠧ�來�� ������� � 16-ࠧ�來�
+; ����⥫�.
+; 2. 32-ࠧ�來�� ������� � 32-ࠧ�來�
+; ����⥫�.
+; hl'hl = hl'hl / de'de
+; de'de = hl'hl % de'de
+ldiv    ; call ldiv ;hl'hl = hl'hl / de'de
+        push hl 
+        xor a 
+        ld l, a
+        ld h, a 
+        sub e 
+        ld e, a
+        ld a, h
+        sbc a, d
+        ld d, a
+        exx 
+        pop bc 
+        ld a, 0
+        sbc a, e
+        ld e, a
+        sbc a, d ; de'de=0-divisor
+        sub e
+        ld d, a 
+        and e
+        inc a ; Z=short divisor
+        push hl 
+        ld hl, 0 ; hl'hl=reminder
+        exx 
+        pop bc 
+        ld a, b ; a,c,bc'=divident
+
+        jp nz, ldiv_long
+
+        ; divisor = -00de
+;        ld b, 8
+        rla 
+
+;ldivs0
+        DUP 8
+        rl l 
+        add hl, de 
+        jr c, 1F ; ldivs1
+        sbc hl, de 
+;ldivs1  
+1       rla 
+;        djnz ldivs0
+        EDUP
+
+        ld b, c
+        ld c, a
+        ld a, b 
+;        ld b, 8
+        rla
+;ldivs2
+        DUP 8
+        adc hl, hl
+        add hl, de
+        jr c, 1F ;ldivs3
+        sbc hl, de
+;ldivs3  
+1        rla
+        ;djnz ldivs2
+        EDUP
+        jr ldiv_long1
+
+        ; divisor=-de'de
+ldiv_long
+        call ldiv_8
+        ld b, c
+        ld c, a
+        ld a, b
+        call ldiv_8
+ldiv_long1
+        exx 
+
+;         exa 
+;         ld a, b
+;         exa
+;         ld b, a
+;         exa
+        ld iyl,b
+        ld b,a
+        ld a,iyl
+
+        exx 
+        call ldiv_8
+        exx
+;         exa
+;         ld a, c
+;         exa
+;         ld c, a
+;         exa
+        ld iyl,c
+        ld c,a
+        ld a,iyl
+
+        exx 
+        call ldiv_8
+
+        ; result=c,bc',a -> hl'hl 
+        ; reminder=hl'hl -> de'de 
+
+        ex de, hl 
+        ld l, a 
+        ld a, c 
+        exx
+        ex de, hl 
+        ld h, a
+        ld l, b
+        ld a, c 
+        exx 
+        ld h, a
+        ret 
+
+        ; hl'hl=reminder
+        ; de'de=divisor
+        ; a=divident
+ldiv_8
+;        ld b, 8
+        rla 
+        DUP 8
+;ldiv_8_0
+        adc hl, hl
+        exx
+        adc hl, hl 
+        exx
+        add hl, de 
+        exx 
+        adc hl, de 
+        exx 
+        jr c, 1F ;ldiv_8_1
+        sbc hl, de 
+        exx
+        sbc hl, de
+        exx 
+;ldiv_8_1
+1        rla 
+        ;djnz ldiv_8_0
+        EDUP
+        ret 
+
+
+Cur_MPAG        db      0        
+Cur_MPAGEX      db      0
+NGS_MPAG        db      0
+NGS_MPAGEX      db      0
+finetune        dw      37500
+Loop512         db      8 ;4 ; १�ࢨ஢��� 512 ���� ��� �ணࠬ��� ����� 
+
+
+;*******************************************
+;����� ����� ����� ��� ������ � SD ������
+    include "sdcomand.a80"
+GSDDRV      DI
+        IN A,(ZXDATRD)      ;����� ������� ��������
+        OUT (CLRCBIT),A     ;����� COMANDBIT
+        LD HL,COMINT_
+        PUSH HL
+        PUSH IY
+        LD IYH,0X77
+        ADD A,A
+        LD E,A
+        LD D,0
+        LD HL,TABLSDG
+        ADD HL,DE
+        LD E,(HL)
+        INC HL
+        LD D,(HL)
+        EX DE,HL
+        CALL WDY
+        IN A,(ZXDATRD)      ;����� ����� 31-24 ���������
+        LD B,A
+        CALL WDY
+        IN A,(ZXDATRD)      ;����� ����� 23-16 ���������
+        LD C,A
+        CALL WDY
+        IN A,(ZXDATRD)      ;����� ����� 15-8 ���������
+        LD D,A
+        CALL WDY
+        IN A,(ZXDATRD)      ;����� ����� 7-0 ���������
+        LD E,A
+        CALL WDY
+        IN A,(ZXDATRD)      ;����� ���-�� ��������
+        JP (HL)
+
+TABLSDG DW SDINITG      ;0 ���������� �� �������, �� ������ A
+                    ;������ ���� ������ 2 ��������
+        DW SDCMPG       ;1 �������� ������� SD �����
+        DW RDMULG       ;2 ������ "A" ��������
+        DW WRMULG       ;3 ������ "A" ��������
+
+SDCMPG  LD A,CMD_58
+        LD BC,SD_RSTR
+        CALL OUT_COG
+        CALL INOOUTG
+        IN A,(C)
+        NOP
+        IN H,(C)
+        NOP
+        IN H,(C)
+        NOP
+        IN H,(C)
+        INC A
+        JP NZ,OK_WORK
+        LD IYH,0X88         ;����� �� ������ �������� �� �������
+        JP OK_WORK
+
+ZAW003G     LD IYH,0XEE         ;����� ������������
+        JP OK_WORK
+
+SDINITG     CALL CSHIGHG
+        LD BC,SD_SEND
+        LD DE,0X20FF
+        OUT (C),E
+        DEC D
+        JR NZ,$-3
+        LD BC,SD_RSTR
+        XOR A
+        EX AF,AF'
+ZAW001G     LD HL,CMD00G
+        CALL OUTCOMG
+        CALL INOOUTG
+        EX AF,AF'
+        DEC A
+        JR Z,ZAW003G
+        EX AF,AF'
+        DEC A
+        JR NZ,ZAW001G
+        LD HL,CMD08G
+        CALL OUTCOMG
+        CALL INOOUTG
+        IN H,(C)
+        NOP
+        IN H,(C)
+        NOP
+        IN H,(C)
+        NOP
+        IN H,(C)
+        LD HL,0
+        BIT 2,A
+        JR NZ,ZAW006G
+        LD H,0X40
+ZAW006G     LD A,CMD_55
+        CALL OUT_COG
+        CALL INOOUTG
+        LD BC,SD_SEND
+        LD A,ACMD_41
+        OUT (C),A
+        NOP
+        OUT (C),H
+        NOP
+        OUT (C),L
+        NOP
+        OUT (C),L
+        NOP
+        OUT (C),L
+        LD A,0XFF
+        OUT (C),A
+        CALL INOOUTG
+        AND A
+        JR NZ,ZAW006G
+ZAW004G     LD A,CMD_59
+        CALL OUT_COG
+        CALL INOOUTG
+        AND A
+        JR NZ,ZAW004G
+ZAW005G     LD HL,CMD16G
+        CALL OUTCOMG
+        CALL INOOUTG
+        AND A
+        JR NZ,ZAW005G
+        JP OK_WORK
+
+CSHIGHG     PUSH AF
+        LD A,0X81 ; M_SDNCS+M_SNCLR    ;0X81
+        OUT (SCTRL),A
+        POP AF
+        RET
+
+CSLOWG      PUSH AF
+        LD A,M_SDNCS        ;1
+        OUT (SCTRL),A
+        POP AF
+        RET
+
+OUTCOMG     CALL CSLOWG
+        PUSH BC
+        LD BC,0X0600+SD_SEND
+        OTIR
+        POP BC
+        RET
+
+OUT_COG     PUSH BC
+        CALL CSLOWG
+        LD BC,SD_SEND
+        OUT (C),A
+        XOR A
+        OUT (C),A
+        NOP
+        OUT (C),A
+        NOP
+        OUT (C),A
+        NOP
+        OUT (C),A
+        DEC A
+        OUT (C),A
+        POP BC
+        RET
+
+SECM20G     PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        PUSH BC
+        LD A,CMD_58
+        LD BC,SD_RSTR
+        CALL OUT_COG
+        CALL INOOUTG
+        IN A,(C)
+        NOP
+        IN H,(C)
+        NOP
+        IN H,(C)
+        NOP
+        IN H,(C)
+        INC A
+        JR NZ,SECN20G1
+        LD IYH,0X99         ;����� ����������
+SECN20G1    DEC A
+        BIT 6,A
+        POP HL
+        JR NZ,SECN20G
+        EX DE,HL
+        ADD HL,HL
+        EX DE,HL
+        ADC HL,HL
+        LD H,L
+        LD L,D
+        LD D,E
+        LD E,0
+SECN20G     POP AF
+        LD BC,SD_SEND
+        OUT (C),A
+        NOP
+        OUT (C),H
+        NOP
+        OUT (C),L
+        NOP
+        OUT (C),D
+        NOP
+        OUT (C),E
+        LD A,0XFF
+        OUT (C),A
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+INOOUTG     PUSH DE
+        LD DE,0X80FF
+INWAITG     IN A,(SD_RSTR)
+        CP E
+        JR NZ,INEXITG
+        DEC D
+        JR NZ,INWAITG
+INEXITG     POP DE
+        RET
+
+CMD00G      DB 0X40,0X00,0X00,0X00,0X00,0X95    ;GO_IDLE_STATE
+CMD08G      DB 0X48,0X00,0X00,0X01,0XAA,0X87    ;SEND_IF_COND
+CMD16G      DB 0X50,0X00,0X00,0X02,0X00,0XFF    ;SET_BLOCKEN
+
+;�������� ������ ������� � SD �����
+WRSECTG     LD BC,SD_SEND
+        OUT (SD_SEND),A
+        IN A,(ZXSTAT)
+        RRA
+        JR NC,$-3
+        OUT (CLRCBIT),A
+        LD HL,0X0200
+WRSECTG1    CALL WDY
+        IN A,(ZXDATRD)
+        DEC HL
+        OUT (C),A
+        LD A,H
+        OR L
+        JR NZ,WRSECTG1
+        LD A,0XFF
+        OUT (C),A
+        NOP
+        OUT (C),A
+        RET
+
+;�������� ������ ������� �� ����
+RDSECTG     IN A,(ZXSTAT)
+        RRA
+        JR NC,$-3
+        OUT (CLRCBIT),A
+        LD BC,SD_RSTR
+        LD HL,0X0200
+RDSECTG1    IN A,(C)
+        DEC HL
+        OUT (ZXDATWR),A
+        CALL WDN
+        LD A,H
+        OR L
+        JR NZ,RDSECTG1
+        IN A,(C)
+        NOP
+        IN A,(C)
+        RET
+
+;������ "A" ��������
+WRMULG      EX AF,AF'
+        LD A,CMD_25
+        CALL SECM20G
+        LD A,IYH
+        CP 0X99
+        JR Z,ERR_WR_LOST
+WRMULG3     CALL INOOUTG
+        INC A
+        JR NZ,WRMULG3
+        EX AF,AF'
+WRMULG1     EX AF,AF'
+        LD A,0XFC
+        CALL WRSECTG
+WRMULG2     CALL INOOUTG
+        INC A
+        JR NZ,WRMULG2
+        EX AF,AF'
+        DEC A
+        JR NZ,WRMULG1
+        LD C,SD_SEND
+        LD A,0XFD
+        OUT (C),A
+        CALL INOOUTG
+        INC A
+        JR NZ,$-4
+        JR OK_WORK
+
+ERR_WR_LOST LD BC,SD_SEND
+        OUT (SD_SEND),A
+        IN A,(ZXSTAT)
+        RRA
+        JR NC,$-3
+        OUT (CLRCBIT),A
+        LD HL,0X0200
+ERRWRLOST1  CALL WDY
+        IN A,(ZXDATRD)
+        DEC HL
+        LD A,H
+        OR L
+        JR NZ,ERRWRLOST1
+        JP OK_WORK
+
+ERR_RD_LOST IN A,(ZXSTAT)
+        RRA
+        JR NC,$-3
+        OUT (CLRCBIT),A
+        LD BC,SD_RSTR
+        LD HL,0X0200
+ERRRDLOST1  XOR A
+        OUT (ZXDATWR),A
+        CALL WDN
+        DEC HL
+        LD A,H
+        OR L
+        JR NZ,ERRRDLOST1
+        JP OK_WORK
+
+;�������� "A" ��������
+RDMULG      EX AF,AF'
+        LD A,CMD_18
+        CALL SECM20G
+        LD A,IYH
+        CP 0X99
+        JR Z,ERR_RD_LOST
+        EX AF,AF'
+RDMULG1     EX AF,AF'
+        CALL INOOUTG
+        CP 0XFE
+        JR NZ,$-5
+RDMULG5     CALL RDSECTG
+        EX AF,AF'
+        DEC A
+        JR NZ,RDMULG1
+        LD A,CMD_12
+        CALL OUT_COG
+RDMULG3     CALL INOOUTG
+        INC A
+        JR NZ,RDMULG3
+
+OK_WORK     CALL CSHIGHG
+        LD A,IYH
+        POP IY
+
+OUTSTAT     OUT (ZXDATWR),A
+
+;�������� ����� ���� ������� ���� ������
+WDN     IN A,(ZXSTAT)
+        RLA
+        JR C,$-3
+        RET
+
+;�������� ����� ���� ���� ���� ������
+WDY     IN A,(ZXSTAT)
+        RLA
+        JR NC,$-3
+        RET
+GSDDRVE
+
+;*******************************************
+
+
+    align 256
+BPMTAB          ; ⠡��� ����⮢ � ᮮ⢥��⢨� � �����
+        dw 0X0B72,0X0B72,0X0B72,0X0B72,0X0B72,0X0B72,0X0B72,0X0B72
+        dw 0X0B72,0X0B72,0X0B72,0X0B72,0X0B72,0X0B72,0X0B72,0X0B72
+        dw 0X0B72,0X0B72,0X0B72,0X0B72,0X0B72,0X0B72,0X0B72,0X0B72
+        dw 0X0B72,0X0B72,0X0B72,0X0B72,0X0B72,0X0B72,0X0B72,0X0B72
+        dw 0X0B72,0X0B19,0X0AC5,0X0A77,0X0A2C,0X09E6,0X09A3,0X0964
+        dw 0X0928,0X08EF,0X08B8,0X0884,0X0853,0X0823,0X07F6,0X07CB
+        dw 0X07A1,0X0779,0X0753,0X072E,0X070B,0X06E9,0X06C8,0X06A9
+        dw 0X068A,0X066D,0X0650,0X0635,0X061B,0X0601,0X05E8,0X05D0
+        dw 0X05B9,0X05A2,0X058C,0X0577,0X0563,0X054F,0X053B,0X0528
+        dw 0X0516,0X0504,0X04F3,0X04E2,0X04D2,0X04C2,0X04B2,0X04A3
+        dw 0X0494,0X0485,0X0477,0X046A,0X045C,0X044F,0X0442,0X0436
+        dw 0X0429,0X041D,0X0412,0X0406,0X03FB,0X03F0,0X03E5,0X03DB
+        dw 0X03D1,0X03C6,0X03BD,0X03B3,0X03AA,0X03A0,0X0397,0X038E
+        dw 0X0385,0X037D,0X0374,0X036C,0X0364,0X035C,0X0354,0X034D
+        dw 0X0345,0X033E,0X0336,0X032F,0X0328,0X0321,0X031A,0X0314
+        dw 0X030D,0X0307,0X0300,0X02FA,0X02F4,0X02EE,0X02E8,0X02E2
+        dw 0X02DC,0X02D7,0X02D1,0X02CC,0X02C6,0X02C1,0X02BC,0X02B6
+        dw 0X02B1,0X02AC,0X02A7,0X02A2,0X029E,0X0299,0X0294,0X0290
+        dw 0X028B,0X0287,0X0282,0X027E,0X0279,0X0275,0X0271,0X026D
+        dw 0X0269,0X0265,0X0261,0X025D,0X0259,0X0255,0X0251,0X024E
+        dw 0X024A,0X0246,0X0243,0X023F,0X023C,0X0238,0X0235,0X0231
+        dw 0X022E,0X022B,0X0227,0X0224,0X0221,0X021E,0X021B,0X0218
+        dw 0X0215,0X0212,0X020F,0X020C,0X0209,0X0206,0X0203,0X0200
+        dw 0X01FE,0X01FB,0X01F8,0X01F5,0X01F3,0X01F0,0X01ED,0X01EB
+        dw 0X01E8,0X01E6,0X01E3,0X01E1,0X01DE,0X01DC,0X01D9,0X01D7
+        dw 0X01D5,0X01D2,0X01D0,0X01CE,0X01CC,0X01C9,0X01C7,0X01C5
+        dw 0X01C3,0X01C1,0X01BE,0X01BC,0X01BA,0X01B8,0X01B6,0X01B4
+        dw 0X01B2,0X01B0,0X01AE,0X01AC,0X01AA,0X01A8,0X01A6,0X01A4
+        dw 0X01A3,0X01A1,0X019F,0X019D,0X019B,0X0199,0X0198,0X0196
+        dw 0X0194,0X0192,0X0191,0X018F,0X018D,0X018C,0X018A,0X0188
+        dw 0X0187,0X0185,0X0183,0X0182,0X0180,0X017F,0X017D,0X017C
+        dw 0X017A,0X0179,0X0177,0X0176,0X0174,0X0173,0X0171,0X0170
+
+        ; ⠡��� ���室�� �� ��ࠡ�⪨ ��䥪⮢ � ०��� S3M  
+EffTab  ;     A        B       C       D       E       F       G       H   
+        dw  EffAxx, EffBxx, EffCxx, EffDxx,  ITExx,  ITFxx, EffGxx, EffHxx
+        ;     I        J       K       L       M       N       O       P
+        dw  EffIxx, EffJxx, EffKxx, EffLxx,  ITMxx,  ITNxx, EffOxx,  ITPxx
+        ;     Q        R       S       T       U       V       W       X
+        dw  EffQxy,  NoEff, EffSxx,  ITTxx, EffUxx, EffVxx,  ITWxx,  ITXxx
+        ;     Y        Z
+        dw   ITYxx,  NoEff,  NoEff,  NoEff,  NoEff,  NoEff,  NoEff,  NoEff
+
+        ; ⠡��� ���室�� � ���७��� ०��� IT     
+ITTab   ;     A        B       C       D       E       F       G       H   
+        dw   ITAxx,  ITBxx,  ITCxx, EffDxx,  ITExx,  ITFxx, EffGxx, EffHxx
+        ;     I        J       K       L       M       N       O       P
+        dw  EffIxx, EffJxx, EffKxx, EffLxx,  ITMxx,  ITNxx, EffOxx,  ITPxx
+        ;     Q        R       S       T       U       V       W       X
+        dw  EffQxy,  NoEff, EffSxx,  ITTxx, EffUxx,  ITVxx,  ITWxx,  ITXxx
+        ;     Y        Z
+        dw   ITYxx,  NoEff,  NoEff,  NoEff,  NoEff,  NoEff,  NoEff,  NoEff
+
+
+
+
+DAC0            EQU #6000
+ISTACK          EQU #5ffe
+COM04           EQU COMZ
+
+COM06           EQU COMZ
+COM07           EQU COMZ
+COM08           EQU COMZ
+COM09           EQU COMZ
+COM0A           EQU COMZ
+COM0B           EQU COMZ
+COM0C           EQU COMZ
+COM0D           EQU COMZ
+COM0E           EQU COMZ
+COM0F           EQU COMZ
+COM10           EQU COMZ
+COM11           EQU COMZ
+COM12           EQU COMZ
+
+COM18           EQU COMZ
+COM19           EQU COMZ
+COM1A           EQU COMZ
+COM1B           EQU COMZ
+COM1C           EQU COMZ
+COM1D           EQU COMZ
+
+COM1E           EQU COMZ
+COM1F           EQU COMZ
+
+;COMF0           EQU COMZ
+;COMF1           EQU COMZ
+;COMF2           EQU COMZ
+;COMF3           EQU COMZ
+;COMF4           EQU COMZ
+;COMF5           EQU COMZ
+;COMF6           EQU COMZ
+;COMF7           EQU COMZ
+
+COMF8           EQU COMZ
+COMF9           EQU COMZ
+
+COMFA           EQU COMZ
+COMFB           EQU COMZ
+COMFC           EQU COMZ
+COMFD           EQU COMZ
+COMFE           EQU COMZ
+COMFF           EQU COMZ
+;   
+COMTAB
+        DEFW COM00,COM01,COM02,COM03,COM04,COM05,COM06,COM07    ;0365,036C,0381,0390,039E,03A8,03B8,03D0
+        DEFW COM08,COM09,COM0A,COM0B,COM0C,COM0D,COM0E,COM0F    ;0360,03F3,0407,041F,0444,046E,0497,04AE
+        DEFW COM10,COM11,COM12,COM13,COM14,COM15,COM16,COM17    ;0511,0522,052E,0537,0545,0594,05FE,0617
+        DEFW COM18,COM19,COM1A,COM1B,COM1C,COM1D,GSDDRV,COM1F    ;062A,063A,0642,064A,0650,0662,0360,0360
+        DEFW COME0,COME1,COME2,COME3,COME4,COME5,COME6,COME7    ;066F,0360,0360,0679,067E,0683,069B,06B0
+        DEFW COME8,COME9,COMEA,COMEB,COMEC,COMED,COMEE,COMEF    ;066F,0360,0360,0679,067E,0683,069B,06B0
+        DEFW COMF0,COMF1,COMF2,COMF3,COMF4,COMF5,COMF6,COMF7    ;066F,0360,0360,0679,067E,0683,069B,06B0
+        DEFW COMF8,COMF9,COMFA,COMFB,COMFC,COMFD,COMFE,COMFF    ;0360,0360,06B9,0360,0360,0360,0360,0360
+
+; NGSSDT  DW GSDINIT  ;���� SD �����
+;         DW GSDCMP   ;�������� ������� SD �����
+;         DW SDRDMUL  ;������ "A" ��������
+;         DW SDWRMUL  ;������ "A" ��������
+
+
+PitchTable    
+        DW      0, 2,      7794, 2,   16051, 2,  24800, 2,  34068, 2,  43888, 2
+        DW      54292, 2,  65314, 2,  11456, 3,  23828, 3,  36936, 3,  50823, 3
+;       DW      0, 16,     62352, 16, 62875, 17, 1790,  19, 10403, 20, 23425, 21
+;       DW      41118, 22, 63761, 23, 26111, 25, 59552, 26, 33342, 28, 13368, 30
+
+;Tab64 equ #4000 ;DUP 64
+;         db  0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31
+;         db 32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63
+;       EDUP
+
+
+; ;***********************************************************************
+; ;  sample ���������� �㤨� ����, �ணࠬ��� �� 8 �������.
+; ;
+; ;***********************************************************************
+; SetVol  ld hl,SamplTabl+smp.Vol_L
+;         ld bc,(OfsChenal)
+;         add hl,bc
+;         ld bc,smp.lenHead
+;         ld a,(hl)
+;         OUT (VOL1),A
+;         add hl,bc
+;         ld a,(hl)
+;         OUT (VOL2),A
+;         add hl,bc
+;         ld a,(hl)
+;         OUT (VOL3),A
+;         add hl,bc
+;         ld a,(hl)
+;         OUT (VOL4),A
+;         add hl,bc
+;         ld a,(hl)
+;         OUT (VOL5),A
+;         add hl,bc
+;         ld a,(hl)
+;         OUT (VOL6),A
+;         add hl,bc
+;         ld a,(hl)
+;         OUT (VOL7),A
+;         add hl,bc
+;         ld a,(hl)
+;         OUT (VOL8),A
+;         ret
+; sample  
+; ; ���⮪ � ��諮�� ࠧ�
+;         ld a,(BMPOST)
+;         and a
+;         jr z,noost_C
+
+;         ld (nach_bf),a
+;         ld hl,(BPMCUR)
+
+;         ld e,a
+;         xor a
+;         ld d,a
+; ;        ld a,0
+; ;        ld de,(BMPOST)
+;         sub e
+;         ld e,a
+; ;        ld d,0 ; 0
+;         sub hl,de
+;         ; jr c �訡��
+;         ld (BPMCUR),hl
+
+;         ld de,BMPOST
+; BMPOST  equ $-2        
+;         ld a,e ; � A - ᪮�쪮 ���� ��⠫��� ��ॡ����
+;         call _Chn8BFOst
+;         ld hl,SAMPLBUFF
+;         ld (adr_Bg),hl
+;         xor a
+;         ld (nach_bf),a
+;         ld h,a,l,a
+;         ld (BMPOST),hl
+;         ld bc,(BPMCUR)
+
+;         ld a,(nombuf)
+;         bit 2,a
+;         jr nz,prodDE
+
+; noost_C        
+
+;         ld bc,(BPMCUR)
+
+; sample_lop      
+
+;         ; ᨭ�஭�����  - ������� �ந��뢠��� �������� ���� 
+;         ld a,#60
+; LastFaza equ $-1
+;         add #08
+;         and #78
+;         or #60
+;         ld (LastFaza),a 
+;         ld d,a
+; wait1   ld a,(Faza)
+;         cp d
+;         jr z,wait1
+
+;         xor a
+;         or b
+;         jr z,n0_ostsmp
+;         ; ������塞 2 ���� �� 512 � �஢�મ� �� ����� 横�� BPMBYTE
+;         push bc
+;         call _Chn8BF
+;         pop bc
+;         dec b
+; prodDE  ld a,(LastFaza)
+;         add #08
+;         and #78
+;         or #60
+;         ld (LastFaza),a 
+;         ld d,a
+; wait2   ld a,(Faza)
+;         cp d
+;         jr z,wait2
+
+;         xor a
+;         or b
+;         jr z,n4_ostsmp
+
+;         push bc
+;         call _Chn8BF
+;         pop bc
+;         dec b
+;         jp sample_lop
+
+; n0_ostsmp
+;         ld e,c
+;         ld (BMPOST),de ; �� �㤠 ����㥬 � ᫥���騩 ࠧ
+;         xor a
+;         sub c ; ��룠�� � ��楤���e ����� � ����
+;         call _Chn8BFOst
+;         ld hl,SAMPLBUFF
+;         ld (adr_Bg),hl
+;         ld bc,(BPMBYTE)
+;         ld (BPMCUR),bc
+;         ld a,60
+;         ld (nombuf),a
+;         ret  
+; n4_ostsmp
+;         ld e,c
+;         ld (BMPOST),de ; �� �㤠 ����㥬 � ᫥���騩 ࠧ
+;         xor a
+;         sub c ; ��룠�� � ��楤���e ����� � ����
+;         call _Chn8BFOst
+;         ld hl,SAMPLBUFF
+;         ld (adr_Bg),hl
+;         ld bc,(BPMBYTE)
+;         ld (BPMCUR),bc
+;         ld a,64
+;         ld (nombuf),a
+;         ret  
+; nombuf  db 0
+
+; _Chn8BFOst
+;         ld l,a
+;         ld h,0 
+;         add hl,hl
+;         add hl,hl
+;         add hl,hl
+;         ld bc,SAMPLBUFF
+;         add hl,bc
+;         ld (adr_Bg),hl
+; _Chn8BF 
+;         ld bc,(OfsChenal)
+;         ld ix,SamplTabl+smp.lenHead*0 ; ᬥ饭��, �� ������ ������ �����
+;         add ix,bc
+;         ld a,(CHNPAT)
+;         cp 9
+;         jr c,1F
+;         ld a,8
+; 1       ld b,a    ; ��� ��� ०��� ⮫쪮 8 ������� ��ࠡ��뢠��
+; lp_Chn8BF
+;         ld e,0
+; nach_bf equ $-1         
+;         push bc
+;         call DataToZX
+;         LD a,(ix+smp.CurPage) ; 0 - ����� ��⠭�����
+;         and a
+;         jp z,_nxtchn
+
+;         SetPg_macr
+;         ld c,(ix+smp.PerInt)
+;         ld b,0 ;(ix+smp.PerInt+1)
+;         ld hl,(ix+smp.CurAdr)
+;         exx
+;         ld bc,(ix+smp.PerFrac)
+;         ld hl,(ix+smp.CurFrac)
+
+
+;         CALL SAMPLBUFF
+; adr_Bg  equ $-2
+;         ld (ix+smp.CurFrac),hl
+;         exx
+;         ; �஢��塞 ����� �����
+;         ld a,(ix+smp.CurPage)
+;         cp (ix+smp.PgLeng)
+;         jp nc,_820F
+; 822
+;         bit 6,h     ; ���ᥪ�� ��࠭���
+;         jp z,816F 
+;         res 6,h
+;         ld a,(ix+smp.CurPage)
+;         inc a
+;         ld (ix+smp.CurPage),a
+; 816     
+;         ; � �����頥��� � ��᫥ �஢�ન � ���������
+; 820     ld (ix+smp.CurAdr),hl
+
+; in_nxtchn 
+;         LD bc,smp.lenHead
+;         add ix,bc
+;         inc d
+;         pop bc
+;         djnz lp_Chn8BF 
+;         ret
+
+; _nxtchn
+;         ld a,128
+;         CALL RESBUF
+; adr_Rs  equ $-2
+;         jr in_nxtchn
+        
+;         ; ��ࠡ�⪠ ���� ����� ��� �㯠 �뭥ᥭ� ����� 横��
+; _820F   ld bc,(ix+smp.Length)
+;         sub hl,bc
+;         jp c,810F
+;         ld a,(ix+smp.PgLoop)
+;         and a
+;         jr z,netloop
+;         ld bc,(ix+smp.LoopSt)
+;         add hl,bc        
+;         cp (ix+smp.PgLeng)
+;         jr nz,_NaRazn ; ��砫� � ����� �� ࠧ��� ��࠭���, ⠪ �� ���᮪��� ���
+;         jr inkrug
+; krug    ld bc,(ix+smp.LoopSt)
+;         add hl,bc ;  � ��砫� �㯠 �ਡ���塞 �� ᪮�쪮 ���� �� ��� ���᪮�稫�
+; inkrug  ld bc,(ix+smp.Length)
+;         sub hl,bc
+;         jr nc,krug
+;         add hl,bc
+; _NaRazn ld (ix+smp.CurPage),a
+;         jp 820B
+; netloop ld (ix+smp.CurPage),a
+; 810     add hl,bc
+;         jp 820B
+
+DataToZX
+        IN A,(ZXSTAT)
+        ;RLA
+        ;RET C   ; ���� ����� ��� �� ��⠫�
+        AND 0X81
+        RET NZ ; ���� ����� ��� �� ��⠫�
+        ld a,255   ; 0 - 255 ᨭ�஭����� 1-nummod 2-numord 3-numrow
+nxtDTZX equ $-1
+        inc a
+        and 3
+        ld (nxtDTZX),a
+        jr nz,1F
+        ld a,255
+        OUT (ZXDATWR),A
+        ret
+1       dec a
+        jr nz,2F
+        ld a,(MODULE)
+        OUT (ZXDATWR),A
+        ret
+2       dec a
+        jr nz,3F
+        ld a,(ORDER)
+        OUT (ZXDATWR),A
+        ret
+3       dec a
+        jr nz,4F
+        ld a,(ROWSCUR)
+        OUT (ZXDATWR),A
+        ret
+4       ret
+
+; SAMPLBUFF
+;         DUP 256
+;         add hl,bc
+;         exx
+;         adc hl,bc
+;         ld a,(hl)
+;         ld (de),a
+;         inc e
+;         exx
+;         EDUP
+;         ret
+; RESBUF  
+;         DUP 256
+;         ld (de),a
+;         inc e
+;         EDUP
+;         RET
+
+
+        align 256
+EndBIOS equ $
+        ;display EndBIOS
+        db " end NeoPlayer "
+        ENDMODULE 
+        UNPHASE
+_endBIOS  equ $
+
+
+;**********************************************
+;   ����㧨� ���� � NGS 
+;**********************************************
+_loader equ $
+        PHASE   #5100
+        module LOADER      
+COMHZ   di
+
+        in a,(GSCFG0)
+        and #FF-M_CKSEL0-M_CKSEL1-M_PAN4CH-M_RAMRO
+        OR C_24MHZ+M_EXPAG+M_8CHANS
+;        OR C_20MHZ+M_EXPAG+M_8CHANS
+        OUT (GSCFG0),a
+
+        xor a
+        OUT (CLRCBIT),A
+COMINT         
+COMINT_ IN A,(ZXSTAT)
+        RRCA
+        JR C,COMINT1
+        JP COMINT_
+
+COMINT1 IN A,(ZXCMD)
+        CP 0X13
+        JR z,COM13
+COMINT2 CP 0X14
+        JR z,COM14
+        JP COMINT_
+
+;Jump to Address (*)
+;��।��� �ࠢ����� �� ��������� �����.
+COM13   IN A,(ZXDATRD)
+        OUT (CLRCBIT),A
+        LD L,A
+        LD IY,COM13_1
+        JP WTDTL
+
+COM13_1 LD H,A
+        JP (HL)
+;Load memory block (*)
+;����㧪� ����� ����� �� 㪠������� ����� � �������� ������.
+; 70+27*WAIT PER LOOP : 171K,123K,96K PER SECOND MAX
+COM14   IN A,(ZXDATRD)
+        OUT (CLRCBIT),A
+        CPL
+        LD C,A
+        LD HL,WTDTL
+        LD IY,COM14_1
+        JP (HL)
+COM14_1 CPL
+        LD B,A
+        INC BC
+        LD IY,COM14_2
+        JP (HL)
+
+COM14_2 LD E,A
+        LD IY,COM14_3
+        JP (HL)
+        
+COM14_3 LD D,A
+        LD A,B
+        OR C
+        JP Z,COMINT_
+        LD IXL,B
+        LD B,0X81
+        BIT 0,C
+        JR NZ,COM14_7
+COM14_6 IN A,(ZXSTAT)
+        AND B
+        JR Z,COM14_6
+        IN A,(ZXDATRD)
+        JP P,COMINT1
+        LD (DE),A
+        INC DE
+        INC C
+COM14_7 IN A,(ZXSTAT)
+        AND B
+        JR Z,COM14_7
+        IN A,(ZXDATRD)
+        JP P,COMINT1
+        LD (DE),A
+        INC DE
+        INC C
+        JP NZ,COM14_6
+        INC IXL
+        JP NZ,COM14_6
+        JP COMINT_                
+WTDTL   IN A,(ZXSTAT)
+        AND 0X81
+        JR Z,WTDTL
+        IN A,(ZXDATRD)
+        JP P,COMINT1
+        JP (IY)
+        nop
+        ret
+        ret
+        ret                  
+        ENDMODULE 
+        UNPHASE
+
+_endloader equ $

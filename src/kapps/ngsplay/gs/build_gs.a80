@@ -1,0 +1,19 @@
+; Build NeoGS play-only blobs for ngsplay (NedoOS)
+; Output: ngsdrv.bin (GS #0000), ngsldr.bin (GS #5100), neopg2.bin (GS #D000)
+
+        device zxspectrum128
+        include "ports.inc"
+        include "gs_defs.a80"
+
+        ORG #C000
+        include "ngsbios.a80"
+        savebin "ngsdrv.bin", _BIOS, _endBIOS - _BIOS
+        savebin "ngsldr.bin", _loader, _endloader - _loader
+        display "ngsdrv size ", _endBIOS - _BIOS
+        display "ngsldr size ", _endloader - _loader
+        display "EndBIOS=", BIOS.EndBIOS
+
+        ORG #D000
+        include "page2.a80"
+        savebin "neopg2.bin", _BIOS2, _endBIOS2 - _BIOS2
+        display "neopg2 size ", _endBIOS2 - _BIOS2

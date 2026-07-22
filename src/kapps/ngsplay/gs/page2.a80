@@ -1,0 +1,2451 @@
+;*************************************************************
+;
+;   Если в Sublime Text при открытии не правильно 
+;   определяется кодировка : 
+;   Select File / Reopen with Encoding / Cyrillic (Windows 866) 
+;   before making changes or compiling) "
+;
+;*************************************************************
+
+_BIOS2
+        MODULE Sample
+SoftSmpl
+        PHASE BIOS.EndBIOS  ; in page0 after  s3m header & Catalog
+        dw "sf"
+;***********************************************************************
+;  sample Заполнение аудио буфера, програмнно на 8 каналов.
+;
+;***********************************************************************
+SetVol  ld hl,BIOS.SamplTabl+smp.Vol_L
+        ld bc,(BIOS.OfsChenal)
+        add hl,bc
+        ld bc,smp.lenHead
+        ld a,(hl)
+        OUT (VOL1),A
+        add hl,bc
+        ld a,(hl)
+        OUT (VOL2),A
+        add hl,bc
+        ld a,(hl)
+        OUT (VOL3),A
+        add hl,bc
+        ld a,(hl)
+        OUT (VOL4),A
+        add hl,bc
+        ld a,(hl)
+        OUT (VOL5),A
+        add hl,bc
+        ld a,(hl)
+        OUT (VOL6),A
+        add hl,bc
+        ld a,(hl)
+        OUT (VOL7),A
+        add hl,bc
+        ld a,(hl)
+        OUT (VOL8),A
+        ret
+sample  
+; остаток с прошлого раза
+        ld a,(BMPOST)
+        and a
+        jr z,noost_C
+
+        ld (nach_bf),a
+        ld hl,(BIOS.BPMCUR)
+
+        ld e,a
+        xor a
+        ld d,a
+;        ld a,0
+;        ld de,(BMPOST)
+        sub e
+        ld e,a
+;        ld d,0 ; 0
+        sub hl,de
+        ; jr c ошибка
+        ld (BIOS.BPMCUR),hl
+
+        ld de,BMPOST
+BMPOST  equ $-2        
+        ld a,e ; в A - сколько байт осталось перебросить
+        call _Chn8BFOst
+        ld hl,SAMPLBUFF
+        ld (adr_Bg),hl
+        xor a
+        ld (nach_bf),a
+        ld h,a,l,a
+        ld (BMPOST),hl
+        ld bc,(BIOS.BPMCUR)
+
+        ld a,(nombuf)
+        bit 2,a
+        jr nz,prodDE
+
+noost_C        
+
+        ld bc,(BIOS.BPMCUR)
+
+sample_lop      
+
+        ; синхронизация  - ожидаем проигрывания половины буфера 
+        ld a,#60
+LastFaza equ $-1
+        add #08
+        and #78
+        or #60
+        ld (LastFaza),a 
+        ld d,a
+wait1   ld a,(BIOS.Faza)
+        cp d
+        jr z,wait1
+
+        xor a
+        or b
+        jr z,n0_ostsmp
+        ; заполняем 2 буфера по 512 с проверкой на конец цикла BPMBYTE
+        push bc
+        call _Chn8BF
+        pop bc
+        dec b
+prodDE  ld a,(LastFaza)
+        add #08
+        and #78
+        or #60
+        ld (LastFaza),a 
+        ld d,a
+wait2   ld a,(BIOS.Faza)
+        cp d
+        jr z,wait2
+
+        xor a
+        or b
+        jr z,n4_ostsmp
+
+        push bc
+        call _Chn8BF
+        pop bc
+        dec b
+        jp sample_lop
+
+n0_ostsmp
+        ld e,c
+        ld (BMPOST),de ; от куда стратуем в следующий раз
+        xor a
+        sub c ; прыгаем в процедуруe отсчет с конца
+        call _Chn8BFOst
+        ld hl,SAMPLBUFF
+        ld (adr_Bg),hl
+        ld bc,(BIOS.BPMBYTE)
+        ld (BIOS.BPMCUR),bc
+        ld a,60
+        ld (nombuf),a
+        jp SetVol        
+        ret  
+n4_ostsmp
+        ld e,c
+        ld (BMPOST),de ; от куда стратуем в следующий раз
+        xor a
+        sub c ; прыгаем в процедуруe отсчет с конца
+        call _Chn8BFOst
+        ld hl,SAMPLBUFF
+        ld (adr_Bg),hl
+        ld bc,(BIOS.BPMBYTE)
+        ld (BIOS.BPMCUR),bc
+        ld a,64
+        ld (nombuf),a
+        jp SetVol        
+        ret  
+nombuf  db 0
+
+_Chn8BFOst
+        ld l,a
+        ld h,0 
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        ld bc,SAMPLBUFF
+        add hl,bc
+        ld (adr_Bg),hl
+_Chn8BF 
+        ld bc,(BIOS.OfsChenal)
+        ld ix,BIOS.SamplTabl+smp.lenHead*0 ; смещение, от каокго канада играть
+        add ix,bc
+        ld a,(BIOS.CHNPAT)
+        cp 9
+        jr c,1F
+        ld a,8
+1       ld b,a    ; для софт режима только 8 каналов обрабатываем
+lp_Chn8BF
+        ld e,0
+nach_bf equ $-1         
+        push bc
+        call BIOS.DataToZX
+        LD a,(ix+smp.CurPage) ; 0 - канал остановлен
+        and a
+        jp z,_nxtchn
+
+        SetPg_macr
+        ld c,(ix+smp.PerInt)
+        ld b,0 ;(ix+smp.PerInt+1)
+        ld hl,(ix+smp.CurAdr)
+        exx
+        ld bc,(ix+smp.PerFrac)
+        ld hl,(ix+smp.CurFrac)
+
+        CALL SAMPLBUFF
+adr_Bg  equ $-2
+        ld (ix+smp.CurFrac),hl
+        exx
+        ; проверяем конец сэмпла
+        ld a,(ix+smp.CurPage)
+        cp (ix+smp.PgLeng)
+        jp nc,_820F
+
+        bit 6,h     ; пересекли страницу
+        jp z,820F 
+        res 6,h
+        ;ld a,(ix+smp.CurPage)
+        inc a
+_NaRazn        
+        ld (ix+smp.CurPage),a  
+        ; и возвращаемся сюда после проверки и изменений
+820     ld (ix+smp.CurAdr),hl
+
+in_nxtchn 
+        LD bc,smp.lenHead
+        add ix,bc
+        inc d
+        pop bc
+        djnz lp_Chn8BF 
+        ret
+
+_nxtchn
+        ld a,128
+        CALL RESBUF
+adr_Rs  equ $-2
+        jr in_nxtchn
+        
+        ; обработка конца сэмпла или лупа вынесена наружу цикла
+_820F   ld bc,(ix+smp.Length)
+        sub hl,bc
+        jp c,810F
+        ld a,(ix+smp.PgLoop)
+        and a ; нет цикла
+        jp z,_NaRazn ;netloop - тот же эффект. тк осатнвока канала то hl не важен
+        ld bc,(ix+smp.LoopSt)
+        add hl,bc        
+        cp (ix+smp.PgLeng)
+        jp nz,_NaRazn ; начало и конец на разных страницах, так что персокока нет
+        ld bc,(ix+smp.Length)
+        sub hl,bc  
+        jp c,netloop      
+krug    ld bc,(ix+smp.LoopSt)
+        add hl,bc ;  к началу лупа прибавляем на сколько байт мы его перескоичили
+inkrug  ld bc,(ix+smp.Length)
+        sub hl,bc
+        jp nc,krug
+
+netloop ld (ix+smp.CurPage),a
+810     add hl,bc
+        jp 820B
+
+SAMPLBUFF
+        DUP 256
+        add hl,bc
+        exx
+        adc hl,bc
+        ld a,(hl)
+        ld (de),a
+        inc e
+        exx
+        EDUP
+        ret
+RESBUF  
+        DUP 256
+        ld (de),a
+        inc e
+        EDUP
+        RET
+
+        UNPHASE
+EndSoftSmpl
+        ENDMODULE
+
+        MODULE Load
+s3mload
+        PHASE BIOS.EndBIOS  ; in page0 after  s3m header & Catalog
+        dw "s3"
+load_header jp load_headerjp
+LoadHead    jp LoadHeadjp  
+SmpLoadHead jp SmpLoadHeadjp
+SpmLoad     jp SpmLoadjp  
+PatHead     jp PatHeadjp
+PatLoad     jp PatLoadjp
+
+NextBlock db 0 ; тип следующего блока  
+LastBlock db 0 ; предыдущий загруженный блок - для обработки
+NextOfs   dw 0 ; смещение сектора в файле в блоках по 256
+NextLen   dw 0 ; длинна в блоках по 256 в файле
+NextAdr   dw 0 ; адрес загрузки блока
+NextPage  db 0 ; страница загрузки блока    
+SkipByte  dw 0 ; сколько байт пропустить после начала загрузки
+LastSkipByte db 0
+BitSmp    db 0 
+ChenSmp   db 0
+Modul     db 0 ; № загружаемого модуля
+Head      dw 0 ; адрес заголовка загружаемого модуля
+typ_mod   db 0
+
+adrGS_Modul dw 0
+len_head  dw 0
+Orders    dw 0
+ins_ofset dw 0
+InsNum    db 0
+Pat_ofset dw 0
+PatNum    db 0    
+Pan_ofset dw 0
+AdrSmpHead dw 0
+NumSmpHead db 0
+PtrSmpHead dw 0
+SmpPage    dw 0
+Str_Len   dw 0 ; длинна строки паттерна - для распаковки
+depac_rosw db 0 ; счетчик распаковки
+PacLen    dw 0
+DepacAdr dw 0    
+BufPage equ 255;2
+temprows equ #4F00  ;BIOS.SamplTabl
+
+NGS_NacAdr  dw 0
+NGS_NacPage dw 0
+NGS_KonAdr  dw 0    
+NGS_KonPage dw 0 
+
+ 
+load_headerjp
+        ; обновим данные о памяти в дисптечере
+        ld a,1
+        call BIOS.SETPAGE2 
+        ld hl,(BIOS.LastPage)
+        ld (Mem.LastPage),hl
+        ld hl,(BIOS.LastAdr)
+        ld (Mem.LastAdr),hl
+
+        ld a,1
+        ld (typ_mod),a
+        ld (NextBlock),a
+        xor a
+        ld (LastBlock),a
+        ;вычислим длинну заголовка
+        ld hl,BIOS.LoadBufer+#060
+        ld (Load.Orders),hl
+        ld hl,#0060
+        ld bc,(BIOS.LoadBufer+#020) ; OrdNum│
+        add hl,bc
+        ld (Load.ins_ofset),hl
+        ld bc,(BIOS.LoadBufer+#022) ; InsNum│
+        add hl,bc
+        add hl,bc
+        ld (Load.Pat_ofset),hl
+        ld bc,(BIOS.LoadBufer+#024) ; PatNum│
+        add hl,bc
+        add hl,bc
+        ld (Load.Pan_ofset),hl
+        ld bc,32 ; Pans chenal
+        add hl,bc
+        ld (Load.len_head),hl
+        dec hl ; из адреса вычитаем 1 что бы не грузить пустой сектор при младшем 0 байт
+        ld l,h,h,0
+        ld a,l
+        or h
+        jr nz,LoadHeadPr ; уже весь заголовок в памяти
+        ld a,1
+        ld (LastBlock),a
+        RET
+LoadHeadPr        
+        ld (NextLen),hl
+        ld hl,01 
+        ld (NextOfs),hl
+        ld hl,BIOS.LoadBufer+#100
+        ld (NextAdr),hl
+        xor a
+        ld (Load.SkipByte),a
+        ld a,1 ;BufPage
+        ld (NextPage),a
+
+        ld hl,(BIOS.LastAdr)
+        ld (Mem.LastAdr),hl
+        ld hl,(BIOS.LastPage)
+        ld (Mem.LastPage),hl
+        RET
+
+LoadHeadjp
+        ld hl,64
+        call Mem.GetMem 
+        ld (Load.adrGS_Modul),hl
+        ld (Load.NGS_NacPage),hl
+        ld (Load.NGS_NacAdr),de
+        ld (BIOS.LoadBufer+s3m.memNGS),hl  ; memNGS - страница с таблицей сэмплов
+        ld a,(BIOS.LoadBufer+#028)   ; Cwt/v 
+        cp #020
+        jr c,_nopan   ; если версия от 20 и выше - то не может быть PanPosition
+        ld a,(BIOS.LoadBufer+#035)   ; d.p
+        cp 252
+        jr z,_Yespan   ; d.p=252 - значит есть блок PanPosition
+_nopan  
+        ld bc,30      ; иначе заполним правый | левый
+        ld de,BIOS.LoadBufer
+        ld hl,(Load.Pan_ofset)
+        add hl,de
+        ld a,#24
+        ld (hl),a
+        inc hl
+        ld a,#2C
+        ld (hl),a
+        ld de,hl
+        dec hl
+        inc de
+        ldir
+_Yespan
+
+        ; посчитаем количестов используемых каналов
+        ld b,32 ; для s3m формата максимум 32 канала, для IT - 64 
+        ld a,255
+        ld hl,BIOS.LoadBufer+#05F     ; конец таблицы каналов
+3       cp (hl)
+        dec hl
+        jr nz,4F
+        djnz 3B
+4       ld a,b
+8       ld (BIOS.LoadBufer+s3m.Chen_pat),a
+        ld a,63 ; количество строк в патерне по умолчанию
+        ld (BIOS.LoadBufer+s3m.Row_Def),a
+
+        ; заполним гл.громоксть каналов 64 - для стандарта IT 
+        ld hl,BIOS.LoadBufer+#40
+        ld b,32
+2       ld a,(hl)
+        cp 255 
+        jr z,1F
+        and 128     ; бит муте канала
+        or 64
+        ld (hl),a
+1       inc hl
+        djnz 2B
+        ; переведем панпозиции в формат 0-255 - для стандарта IT 
+        ld hl,(Load.Pan_ofset)
+        ld de,BIOS.LoadBufer
+        add hl,de
+        ld b,32
+2       ld a,(hl)
+        and #1F 
+        cp 9
+        rla : xor 1 : sla a : sla a : sla a        
+        ld (hl),a
+        inc hl
+        djnz 2B
+
+; основной заголовок с 32 каналами
+        ld hl,BIOS.LoadBufer
+        ld de,(Load.Head)
+        ld bc,#060
+        ldir
+; заполняем до 64 каналов 255 - не используемый
+        ld a,255
+        ld b,32
+255     ld (de),a
+        inc de
+        djnz 255B
+; копируем PanPosition для 32 каналов        
+        ld hl,(Pan_ofset)
+        ld bc,BIOS.LoadBufer
+        add hl,bc
+        ld bc,32
+        ldir
+; заполняем до 64 каналов - 
+        ld a,#80
+        ld b,32
+255     ld (de),a
+        inc de
+        djnz 255B
+; заполняем до 64 пустых неиспользуемых байта - 
+        ld a,0
+        ld b,64
+255     ld (de),a
+        inc de
+        djnz 255B
+; Копируем Orders        
+        ld hl,(Load.Orders)
+        ld bc,(BIOS.LoadBufer+#020) ; OrdNum
+        ldir
+
+        ld hl,#100
+        ld bc,(BIOS.LoadBufer+#020) ; OrdNum
+        sub hl,bc
+        jr z,256F
+        ld b,l
+        ld a,255
+255     ld (de),a
+        inc de
+        djnz 255B
+256    
+        inc d : inc d
+        ld hl,de
+        inc de
+        ld (hl),0
+        ld bc,255
+        ldir 
+
+        ; перенесем таблицу смещений инструментов
+        ; во временную область для загрузки
+        ld hl,(Load.ins_ofset)
+        ld de,BIOS.LoadBufer
+        add hl,de
+        ld de,#BD00
+        ld a,(BIOS.LoadBufer+#022)
+        ld (Load.InsNum),a
+        ld c,a
+        sla c : ld b,0 ;(не более 128)
+        ldir
+        ; перенесем таблицу смещений паттернов
+        ; во временную область для загрузки
+        ld hl,(Load.Pat_ofset)
+        ld de,BIOS.LoadBufer
+        add hl,de
+        ld de,#BE00
+        ld a,(BIOS.LoadBufer+#024)
+        ld (Load.PatNum),a
+        ld c,a
+        ld b,0
+        sla c : rl b ;(не более 255)
+        ldir
+
+        ld a,(Load.adrGS_Modul+1)
+        set 7,a
+        ld h,a,l,00 ; начало таблицы сэмплов
+        ld (Load.AdrSmpHead),hl
+        xor a
+        ld (Load.NumSmpHead),a
+        ld hl,#BD00
+        ld (Load.PtrSmpHead),hl
+        ;обнулим сэмплы
+        ld hl,(Load.adrGS_Modul)
+        ld a,l
+        SetPg_macr
+        set 7,h
+        ld l,0
+        ld b,128
+        ld de,128-#50
+        xor a
+1       
+        ld c,#50
+2       ld (hl),a
+        inc l
+        dec c
+        jr nz,2B
+
+        add hl,de
+        djnz 1B
+        jr SmpLoadHead2
+
+SmpLoadHeadjp
+        call MovAdrHead
+SmpLoadHead2
+        ld a,(Load.InsNum)
+        or a
+        jp z,EndHeadSmp
+        call SmpAdrHead
+        JP BIOS.returnCOME9  
+
+SmpAdrHead
+        ld a,1
+        call BIOS.SETPAGE2
+        ld hl,#c000
+        ld (Load.NextAdr),hl
+        ld a,1
+        ld (Load.NextPage),a
+
+        ld hl,(Load.PtrSmpHead)
+        ld de,(hl)
+
+        ld a,e
+        or d
+        jp nz,1F
+            ld a,(Load.InsNum)
+            dec a
+            ld (Load.InsNum),a
+            pop af
+            ld hl,#C000
+            ld de,#C001
+            ld (hl),0
+            ld bc,#4F
+            ldir
+            jr SmpLoadHeadjp
+1       ld a,e
+        srl d : rr e
+        srl d : rr e
+        srl d : rr e
+        srl d : rr e
+        ld (Load.NextOfs),de
+
+        sla a
+        sla a
+        sla a
+        sla a
+        ld (Load.SkipByte),a
+        add #100-#50
+        ld a,1
+        adc 0
+        ld (Load.NextLen),a
+
+        inc hl : inc hl
+        ld (Load.PtrSmpHead),hl
+        ld a,2
+        ld (NextBlock),a
+        ret
+
+MovAdrHead
+        ld a,(Load.adrGS_Modul)
+        ld hl,#C000
+        ld de,(Load.AdrSmpHead)
+        bit 6,d
+        jr z,Page2
+        res 6,d
+        inc a
+Page2   
+        call BIOS.SETPAGE2
+        xor a
+        cp (hl)
+        jr nz,1F
+        ld (hl),8 ; что то не являющееся сэмплом и адлид но с текстовой информацией
+1       ld bc,#50
+        ldir
+        ld hl,(Load.AdrSmpHead)
+        ld bc,128
+        add hl,bc
+        ld (Load.AdrSmpHead),hl
+
+        ld a,(Load.InsNum)
+        dec a
+        ld (Load.InsNum),a
+        RET
+
+EndHeadSmp
+        ld a,4
+        ld (NextBlock),a
+        
+        ld a,1
+        call BIOS.SETPAGE2
+
+        ld de,(Load.Head)
+        ld hl,s3m.InsNum
+        add hl,de
+        ld a,(hl)
+        ld (Load.InsNum),a ; счетчик сэмплов
+
+        ld hl,s3m.memNGS ; страница, сегмент сэмплов
+        add hl,de
+        ld a,(hl)
+        ld (Load.SmpPage),a ; страница
+        inc hl
+        ld h,(hl)
+        set 7,h ; адрес сэмплов
+
+        xor a
+        ld l,a
+        ld (Load.NumSmpHead),a
+        ld (Load.AdrSmpHead),hl
+
+SpmLoadjp        
+        ld a,(Load.InsNum)
+        or a
+        jp z,endLdSmp
+
+        ld a,(Load.SmpPage)
+        SetPg_macr
+        ld ix,(Load.AdrSmpHead)
+        ld hl,(ix+s3m.MemSeg+1)
+        ld a,(ix+s3m.MemSeg) ; читаем сегмент смещенеий в файле
+        srl a : rr h : rr l
+        srl a : rr h : rr l
+        srl a : rr h : rr l
+        srl a : rr h : rr l
+        ld (Load.NextOfs),hl ; указатель в файле по 256 байт
+        ld a,(ix+s3m.MemSeg+1)
+        sla a : sla a : sla a : sla a
+        ld (Load.SkipByte),a ; смещение в секторе, пропускаем при загрузке
+
+        ld a,(ix+s3m.Length)
+        ld hl,(ix+s3m.Length+1)
+        or l : or h
+        jp z,_len0      ; пропускаем инструмент без сэмпла с нулевой длинной
+        ld a,(ix+s3m.Length)
+        or a
+        jr z,1F
+        inc hl 
+1       ld a,(Load.SkipByte)
+        or a
+        jr z,1F
+        inc hl  ; целых секторов + 1 (без проверки младшего байта на 0 - лучше сделать)
+1
+        ld (Load.NextLen),hl 
+        ld a,(BIOS.Loop512)  ; резервирвать +512 байт под программные лоопы ?
+        add l
+        ld l,a
+        jr nc,1F
+        inc h
+1       call Mem.GetMem 
+        ld (ix+s3m.MemSeg),0
+        ld (ix+s3m.MemSeg+1),de ; запишем в заголовок физические адрес сэмпла для DMA
+        set 7,h
+        ld (ix+s3m.Int_Gp),hl
+        ld a,l
+        ld (Load.NextPage),a
+        ld l,0
+        ld (Load.NextAdr),hl
+        ld (ix+s3m.GVl),64   ; и громкость сэмла для s3m, 64
+        ld (ix+s3m.Int512),0 ; обнулим флаг Int512
+        ld a,(ix+s3m.SmpFlags)
+        and 4 ;bit 2,a
+        ld (Load.BitSmp),a  ; 16 битные сэмплы делим на 2
+        jr z,8F
+        ld hl,(Load.NextLen)
+        add hl, hl
+        ld (Load.NextLen),hl
+8
+_len0iv ld bc,128
+        add ix,bc
+        ld (Load.AdrSmpHead),ix
+        ld a,(Load.InsNum)
+        dec a
+        ld (Load.InsNum),a
+        JP BIOS.returnCOME9  
+
+_len0   ld bc,128
+        add ix,bc
+        ld (Load.AdrSmpHead),ix
+        ld a,(Load.InsNum)
+        dec a
+        ld (Load.InsNum),a
+        jp SpmLoad
+
+endLdSmp 
+        xor a
+        ld (Load.NumSmpHead),a ; номер патена
+        ld hl,#BE00 ; временная таблица размещения паттернов
+        ld (Load.PtrSmpHead),hl
+
+        ld a,1  ; в странице 1 загрузчик хранит заголовок s3m модуля 
+        call BIOS.SETPAGE2
+
+        ld ix,(Load.Head)
+        ld c,(ix+s3m.Chen_pat) ; количество каналов в файле 
+        ld b,0
+        ld hl,bc
+        add hl,hl
+        add hl,hl
+        add hl,bc       ; умножение на 5
+        ld (Load.Str_Len),hl ;длинна строки патерна
+        jp next_Patadr  
+
+
+PatHeadjp 
+;         ld a,1  ; в странице 1 загрузчик хранит заголовок s3m модуля 
+;         call BIOS.SETPAGE2
+        ld a,(Load.NextPage)
+        SetPg_macr
+        ld hl,BIOS.DepakBufer
+        ld c,(hl)      ; длинна запакованного патерна
+        inc hl
+        ld b,(hl)
+        ld (Load.PacLen),bc 
+        ld a,(Load.LastSkipByte)
+        add c ; проверяем - пересек ли конец патерна границу сектора
+        ld l,b 
+        ld h,0
+        jr nc,ost0 ; не пересек
+        inc l
+ost0    ld a,l 
+        or h
+        jr z,PatLoadjp ; вообще весь паетрн в первом секторе поместился
+        ld (Load.NextLen),hl
+        ld hl,(Load.NextOfs)
+        inc hl
+        ld (Load.NextOfs),hl
+        ld a,7 ; следующй читаемый блок - тело патерна
+        ld (Load.NextBlock),a
+        JP BIOS.returnCOME9 
+
+PatLoadjp
+        call DepacPat
+
+next_Patadr 
+        ld a,(Load.PatNum)
+        or a
+        jp z,endLdPat
+
+        ld a,1  ; в странице 1 загрузчик хранит заголовок s3m модуля 
+        call BIOS.SETPAGE2
+
+        ld hl,(Load.PtrSmpHead) ; смещение в файле
+        ld de,(hl)
+        inc hl: inc hl
+        ld (Load.PtrSmpHead),hl ; следующий
+        ld a,e
+        or d 
+        jp nz,1F 
+;             ld hl,(Load.Head)
+;             inc h: inc h
+            ld a,(Load.NumSmpHead)
+;             ld l,a
+            inc a
+            ld (Load.NumSmpHead),a
+            ld a,(Load.PatNum)
+            dec a
+            ld (Load.PatNum),a
+;             ld (hl),0 : inc h
+;             ld (hl),0 : inc h
+;             ld (hl),0
+            jr next_Patadr
+1       ld a,e
+        srl d : rr e
+        srl d : rr e
+        srl d : rr e
+        srl d : rr e
+        ld (Load.NextOfs),de
+
+        sla a
+        sla a
+        sla a
+        sla a
+        ld (Load.SkipByte),a
+        ld a,1
+        ld (Load.NextLen),a ; грузим один сектор  
+
+        ld hl,(Load.Str_Len) 
+        ; для s3m пока просто * на 64, для IT - * на кол строк в патерне
+        ld b,l
+        ld ix,(Load.Head)        
+        ld c,63 ;(ix+s3m.Row_Def)
+        inc c
+        jr nz,255F
+        ld h,l,l,0
+        jr 256F
+255     call  BIOS.MulCB    ; AC=C*В 
+        ld h,a,l,c
+256
+        ld a,l   ; проверим 
+        and a    ; вдруг не кратно 256 получилось
+        jr z,64F ; могу представить что это возможно только при нестандартной длинне патерна <>64
+        inc h
+64      ld l,h
+        ld h,0
+        call Mem.GetMem  ; H - смещение L - страница  bc не портит
+        ex hl,de
+        ld hl,(Load.Head)
+        inc h: inc h
+        ld a,(Load.NumSmpHead)
+        ld l,a
+
+        ld a,e
+        inc a : inc a ; в качесвте буфера распаковки - страница+2
+        ld (Load.NextPage),a
+
+        ld (hl),e   ; страница патерна
+        inc h
+        set 7,d
+        ld (hl),d   ; смещение патерна во второй странице
+        ld (DepacAdr),de ; нач адр для последующей распаковки
+        inc h 
+        ld a,63;(ix+s3m.Row_Def)
+        ld (hl),a  ; длинна патерна
+        inc a
+        ld (Load.depac_rosw),a ; счетчик распаковки
+        ld hl,BIOS.DepakBufer
+        ld (Load.NextAdr),hl
+
+        ld a,6 ; следующй читаемый блок - заголовок патерна
+        ld (NextBlock),a
+ 
+        ld a,(Load.NumSmpHead)
+        inc a
+        ld (Load.NumSmpHead),a
+        ld a,(Load.PatNum)
+        dec a
+        ld (Load.PatNum),a
+
+        JP BIOS.returnCOME9  
+
+DepacPat 
+        ld a,(DepacAdr)
+        inc a : inc a
+        SetPg_macr
+
+        ld bc,(Load.Str_Len)
+        dec bc : dec bc : dec bc : dec bc : dec bc
+        ld hl,Load.temprows
+        push hl
+        ld de,Load.temprows+5
+        ld (hl),255
+        inc hl
+        ld (hl),0
+        inc hl
+        ld (hl),255
+        inc hl
+        ld (hl),0
+        inc hl
+        ld (hl),0
+        pop hl
+        ldir
+
+        ld hl,temprows
+        ld bc,(Load.Str_Len)
+        ld de,(DepacAdr)
+        ld e,0
+        exx
+        ld hl,BIOS.DepakBufer ;pop hl          ; распаковываемый адрес
+        ld bc,(hl)            ;pop bc          ; длинна запакованного патерна
+        inc hl
+        inc hl
+; начало распаковки патерна
+
+;        inc hl          ; Не верный расчет длинны. 
+;         dec bc         ; если бы 2 байт длинны входили в общую длинну путерна
+;         jp po,_endpat  ; но эксперемент показал что нет
+;        inc hl
+;         dec bc         ; у пустого патерна длина #40 (64), а с длинной было бы #42 (66)
+;         jp po,_endpat  ; inc hl перенесены
+
+deplop  ld a,(hl)
+        inc hl
+        ex af,af'
+        dec bc
+        ld a,b
+        or c
+        jp z,_endpat
+        ex af,af'
+        and a
+        call z,_endrows
+
+        push bc
+        ex de,hl
+        ld hl,temprows
+        ld ixh,a
+        and 31
+        ld c,a
+        ld b,0
+        add hl,bc
+        add hl,bc
+        add hl,bc
+        add hl,bc
+        add hl,bc ; к адресу временной строки прибавлен номер канала умноженный на 5 
+        ex hl,de
+        pop bc
+        ld a,ixh
+
+        bit 5,a
+        jr z,12F
+        ex af,af'
+        ld a,(hl)    ; сразу переводим октавы s3m в IT
+        add a,#10
+        jr c,66F    ; 254 - выкл ноту 255 - нет ноты
+        ld (hl),a
+66      ex af,af'
+        ldi             ; BYTE:note, BYTE:instrument
+        jp po,_endpat 
+        ldi
+        jp po,_endpat
+        jr 14F 
+12      inc de
+        inc de
+14      bit 6,a
+        jr z,15F
+        ldi             ; BYTE:volume
+        jp po,_endpat 
+        jr 16F
+15      inc de
+16      bit 7,a
+        jr z,17F
+        ldi             ; BYTE:command, BYTE:info
+        jp po,_endpat 
+        ldi
+        jp po,_endpat 
+        jr 18F
+17      inc de
+        inc de
+18
+        jr deplop
+
+;_endpat ; длина закончилась
+;depac_rosw db 0
+_endrows
+        ; закончили строку - перебрасываем в страницу с патероном
+         ex af,af'
+         exx
+         push hl
+         push bc
+;         call save_NGS
+        ld a,(DepacAdr)
+        SetPg_macr
+        ldir
+        ld a,(DepacAdr)
+        inc a : inc a
+        SetPg_macr
+
+         pop bc
+         pop hl
+
+        ; обнуляем строку буфера
+        push hl,bc,de
+        dec bc : dec bc : dec bc : dec bc : dec bc
+        ld hl,temprows
+        push hl
+        ld de,temprows+5
+        ld (hl),255
+        inc hl
+        ld (hl),0
+        inc hl
+        ld (hl),255
+        inc hl
+        ld (hl),0
+        inc hl
+        ld (hl),0
+        pop hl
+        ldir
+        pop de,bc,hl
+        exx
+        ld a,(depac_rosw)
+        dec a
+        ld (depac_rosw),a
+        jr z,_ender1
+        ex af,af'
+        ret
+_ender1 pop af
+        ex af,af'        
+        jr _enderr
+
+_endpat ; длина патерна закончилась
+        call _endrows
+_enderr
+        ret
+
+endLdPat
+        xor a
+        ld (NextBlock),a
+        ld a,1
+        call BIOS.SETPAGE2
+        ld a,(Load.Modul)
+        ld b,a
+        ld a,(BIOS.KolModule)
+        cp b
+        jr nz,1F
+        inc a
+1       ld h,#FF,l,a
+        ld (BIOS.KolModule),hl
+        ld hl,(Mem.LastPage)
+        ld (BIOS.LastPage),hl
+        ld (Load.NGS_KonPage),hl
+        ld hl,(Mem.LastAdr)
+        ld (BIOS.LastAdr),hl
+        ld (Load.NGS_KonAdr),hl
+
+        ld a,(Load.Modul)
+        add a
+        add a
+        add a
+        add a
+        add #10
+        ld e,a
+        ld d,#BC
+        ld hl,NGS_NacAdr
+        ld bc,8
+        ldir
+
+        JP BIOS.returnCOME9  
+
+        UNPHASE
+Ends3mload
+        ENDMODULE
+
+        MODULE Save
+s3mSave
+        PHASE BIOS.EndBIOS  ; in page0 after  s3m header & Catalog
+        dw "3S"   
+FatOfs  dw 0,0
+FatLen  dw 0
+ADRSvMOD dw 0    
+Faza0   jp Faza0_
+Faza1   jp Faza1_
+Faza2   jp Faza2_
+Faza3   jp Faza3_
+Faza4   jp Faza4_
+Faza5   jp Faza5_ ; запись заголовков сэмплов
+Faza6   jp Faza6_ ; предварительная запись заголовка - офсеты 0
+
+Ins_ofset dw 0
+Pat_ofset dw 0
+Pan_ofset dw 0
+Len_Head  dw 0
+Len_Head16 dw 0,0
+NumSmpHead dw 0
+Str_Len   dw 0 ; длинна строки паттерна - для заспаковки
+Chen_pat db 0
+CurPat  db 0
+PgPat   db 0
+LenPat  dw 0
+LastAdrPat dw 0    
+AdrSmpHead dw 0
+PgHdSmp db 0
+PgSmp   db 0
+SaveLength db 0,0,0
+AdrSmp  dw 0
+
+Faza0_  ; иициализация сохранения 
+        ld h,a
+        ld L,0
+        LD a,#80
+        add a,h
+        add a,h
+        add a,h
+        add a,h
+        add a,h
+        ld h,a 
+        ld (ADRSvMOD),hl 
+        ld a,6
+        ld (BIOS.FazaSave),a
+        ld hl,0
+        ld (FatOfs),hl
+        ld (FatOfs+2),hl
+        ld (FatLen),hl
+        ret
+Faza1_  
+        ; В конце сохраниить посчитанные смещения заголовков сэмплов и патернов
+        ld a,2
+        call BIOS.SETPAGE3
+        
+        ld hl,#0060
+        ld (FatOfs),hl
+        ld hl,0
+        ld (FatOfs+2),hl
+
+        ld de,#0060
+        ld hl,(Len_Head)
+        sub hl,de
+        ld bc,hl
+        ld (FatLen),hl
+
+        ld de,#C060
+        ld a,(BIOS.FazaSave)
+        xor a
+        ld (BIOS.FazaSave),a    
+        ret
+
+Faza2_  ; в заголовки сэмплоав прописываем адреса сэмплов
+        ld a,2
+        call BIOS.SETPAGE3
+
+        ld hl,0
+CurInsHead equ $-2
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        inc hl
+        ld (CurInsHead),hl
+
+        ld c,0
+        sla e : rl d : rl c
+        sla e : rl d : rl c
+        sla e : rl d : rl c 
+        sla e : rl d : rl c
+        ld a,s3m.MemSeg
+        add e 
+        ld e,a
+        ld b,0
+        ld (FatOfs),de
+        ld (FatOfs+2),bc
+        ld hl,3
+        ld (FatLen),hl
+
+        ld de,TabOfsSmp
+TabOfsSmp equ $-2
+        ld hl,de
+        inc hl : inc hl : inc hl
+        ld (TabOfsSmp),hl
+
+        ld a,0
+CurSmpOf  equ $-1
+        inc a
+        ld (CurSmpOf),a
+        cp 0
+NumSmpOf  equ $-1
+        jr nc,endsmpOf
+        ret
+
+endsmpOf
+        ld a,(BIOS.FazaSave)
+        dec a
+        ld (BIOS.FazaSave),a 
+        ret
+
+
+Faza3_  ; сохраняем сами сэмплы
+
+        ld a,(Save.PgSmp)
+        and a
+        jp nz,constvsmp
+
+        ld a,(PgHdSmp) ; страница с заголовками сэмплов
+        SetPg_macr
+        ld ix,(AdrSmpHead) ; адрес заголовка текущего сэмпла
+        ld hl,(ix+s3m.Int_Gp)
+        ld bc,(ix+s3m.Length)
+        ld (Save.SaveLength),bc
+        ld a,(ix+s3m.Length+2)
+        ld (Save.SaveLength+2),a
+
+        ld a,l
+        ld (Save.PgSmp),a
+        ld l,0
+        set 7,h        
+        ld (Save.AdrSmp),hl
+
+        ; запишем во временную таблицу 
+        ; смещения сэмплов в файле 
+        ld hl,0
+OfsSmp  equ $-2
+        ld a,(Save.SaveLength+2)
+        ld de,(Save.SaveLength)
+        or e : or d
+        jr nz,nolnsmp      
+        ld (hl),a
+        inc hl
+        ld (hl),e
+        inc hl
+        ld (hl),d
+        inc hl
+        ld (OfsSmp),hl
+        jr cnt0len
+nolnsmp 
+
+        ld a,(Save.Len_Head16+2)
+        ld de,(Save.Len_Head16)
+        ld (hl),a
+        inc hl
+        ld (hl),e
+        inc hl
+        ld (hl),d
+        inc hl
+        ld (OfsSmp),hl
+        ld a,(Save.SaveLength+2)
+        ld hl,(Save.SaveLength)
+        ld bc,15    ; для окургления до 16
+        add hl,bc
+        adc 0
+        srl a : rr h : rr l  ; делим на 16     
+        srl a : rr h : rr l        
+        srl a : rr h : rr l        
+        srl a : rr h : rr l        
+        add hl,de   ; адрес будущего сэмпла
+        ld (Save.Len_Head16),hl 
+        ld a,(Save.Len_Head16+2)
+        adc 0        
+        ld (Save.Len_Head16+2),a
+cnt0len ld a,(Save.PgSmp)
+
+constvsmp
+        SetPg_macr
+
+        ld de,(Save.AdrSmp)
+        ld a,(Save.SaveLength+2)
+        ld hl,(Save.SaveLength)
+        ld bc,16384
+        sub hl,bc
+        sbc 0
+        jr c,endlensmp
+        ld (Save.SaveLength+2),a
+        ld (Save.SaveLength),hl
+        ld (FatLen),bc
+
+        ld a,(Save.PgSmp)
+        inc a
+        ld (Save.PgSmp),a
+              
+        ret
+
+endlensmp ; остаток меньше 16384
+        add hl,bc
+        ld bc,15
+        add hl,bc
+        ld a,l
+        and #F0
+        ld l,a
+        ld (FatLen),hl
+        ld hl,0
+        ld (FatOfs),hl
+        ld (FatOfs+2),hl        
+        xor a
+        ld (Save.PgSmp),a
+
+        ld hl,(AdrSmpHead)
+        ld bc,128
+        add hl,bc
+        ld (AdrSmpHead),hl
+        
+        ld a,0
+CurSmp  equ $-1
+        inc a
+        ld (CurSmp),a
+        cp 0
+NumSmp  equ $-1
+        jr nc,endsmp
+        ret
+
+endsmp  ld a,(BIOS.FazaSave) 
+        dec a
+        ld (BIOS.FazaSave),a
+        ld hl,Load.temprows
+        ld (TabOfsSmp),hl
+        ret  
+
+Faza4_  
+        ld a,(PgPat) ; если патерн на несоклих страницах то не 0 а страница
+        or a
+        jp nz,ContPacPat ; продолжаем запаковку патерна
+        ; начало упаковки патерна
+        ld a,1
+        call BIOS.SETPAGE2
+        ld hl,(ADRSvMOD)
+        ld a,(CurPat)
+        ld l,a
+        inc h ; ord
+        inc h ; pgPat
+        inc h ; hofsPat
+        inc h ; lenpat        
+        ld a,(hl)
+        or a
+        jp z,NulPat
+        inc a
+        ld b,a ; количесвто строк в патерне 0=256
+        dec h
+        ld d,(hl)
+        ld e,0
+        dec h
+        ld a,(hl)
+        ld (PgPat),a
+        ex de,hl
+
+        exx 
+        ld de,#c002
+        exx
+pakpatlp 
+        push bc
+        ld a,(PgPat)
+        SetPg_macr
+
+        ld de,Load.temprows
+        ; de временная строка запаковки
+        ; hl - строка патенра
+        ld a,(Save.Chen_pat)
+        ld b,a
+        ld c,0
+lprowpac
+        ld (svderow),de
+        inc de ; первый байт флаги
+        ld a,(hl)
+        inc a
+        jr nz,ypnote
+        inc l
+        call z,nxpage
+        ld a,(hl)
+        or a
+        jr z,nonote
+        ; есть только сэмпл
+        ld a,255
+        ld (de),a
+        inc de
+        jr ypsampl
+
+ypnote  ; есть и нота и сэмпл
+        dec a
+        cp  254; это 254 ?
+        jr z,1F
+        cp  253; это 253 ?
+        jr z,1F
+
+        sub #10
+        jr nc,1F
+        add #10
+1       ld (de),a
+        inc de
+        inc l
+        call z,nxpage
+ypsampl
+        ld a,(hl)
+        ld (de),a
+        inc de
+        set 5,c
+nonote  
+        inc l
+        call z,nxpage
+
+        ld a,(hl)
+        inc a
+        jr z,novolum
+        dec a
+        ld (de),a
+        inc de
+        set 6,c
+novolum
+        inc l
+        call z,nxpage
+        ld a,(hl)
+        and a
+        jr nz,ypsfx
+        inc l
+        call z,nxpage
+        ld a,(hl)
+        or a
+        jr z,nosfx
+        ; есть только параметр sfx
+        ld a,255
+        ld (de),a
+        inc de
+        jr ypvlsfx
+
+ypsfx  ; есть и sfx и volsfx
+        ld (de),a
+        inc de
+        inc l
+        call z,nxpage
+ypvlsfx
+        ld a,(hl)
+        ld (de),a
+        inc de
+        set 7,c
+nosfx  
+        inc l
+        call z,nxpage
+
+        ld a,c
+        dec de
+        and 128+64+32
+        jr z,nodatach
+        ld a,c
+        ld (Load.temprows),a
+svderow equ $-2
+        inc de
+nodatach ld a,c   
+        and 31
+        inc a
+        ld c,a
+        dec b
+        jp nz,lprowpac
+        ld a,0
+        ld (de),a ; строка птерна закончена
+        inc de
+        push de
+
+        exx
+
+        pop hl
+        ld a,Load.BufPage
+        call BIOS.SETPAGE3
+
+        ld bc,Load.temprows
+        sub hl,bc ; длинна упакованно строки
+        ld bc, hl
+        ld hl,(Save.LenPat)
+        add hl,bc
+        ld (Save.LenPat),hl
+
+        ld hl,Load.temprows
+        ; hl временная строка запаковки
+        ; de - весь упакованный патерн
+        inc b
+mo_pkpt ld a,(hl)
+        ld (de),a
+        inc hl
+        inc e
+        call z,nxPacPat
+        dec c
+        jr nz,mo_pkpt
+        djnz mo_pkpt
+
+        exx
+        pop bc
+        dec b
+        jp nz,pakpatlp
+
+        exx
+        ld a,#80
+        ld b,15
+80      ld (de),a
+        inc e
+        jr z,81F
+        djnz 80B
+81      exx 
+
+        ld hl,(Save.LenPat)
+        
+        ld (#C000),hl
+        ; запишем в таблицу смещений патернов новый патерн
+        ; в H: длинна запакованного паетрна
+        ;ld hl,(#C000)
+        ld bc,15
+        add hl,bc
+        push hl
+        ld a,2
+        call BIOS.SETPAGE3
+        srl h : rr l
+        srl h : rr l
+        srl h : rr l
+        srl h : rr l
+        ld bc,(Len_Head16)
+        add hl,bc
+
+retnlpat
+        ld a,(NumPat)
+        ld c,a
+        ld a,(CurPat)
+        inc a
+        cp c
+        jr c,1F ; для последнего патерна не сохраняем следующий адрес
+        ld (Save.Len_Head16),hl
+        ld hl,0  ; но записываем его как садерс первого сэмпла
+        ld (Save.Len_Head16+2),hl
+        jr 2F
+1       ld (0),hl
+AdrPatTab equ $-2
+        ld (Len_Head16),hl
+        ld hl,(AdrPatTab)
+        inc hl : inc hl
+        ld (AdrPatTab),hl
+2       pop hl
+        ld a,l
+        and #f0
+        ld l,a
+
+exContPat
+        ld (FatLen),hl
+        ld hl,0
+        ld (LastAdrPat),hl
+        ld hl,2
+        ld (Save.LenPat),hl
+        xor a
+        ld (PgPat),a ; если не 0 значит продолжаем запаковку патерна 
+        ld de,#c000
+        ld a,Load.BufPage
+        call BIOS.SETPAGE3
+        ld a,(CurPat)
+        inc a    
+        ld (CurPat),a
+        cp 0
+NumPat  equ $-1
+        ret c    
+        ld hl,Load.temprows
+        ld (Save.OfsSmp),hl         
+        xor a
+        ld (CurSmp),a
+        ld (CurSmpOf),a
+        ld (PgSmp),a
+        ld a,(NumSmpHead)
+        ld (NumSmp),a
+        ld (NumSmpOf),a
+        and a
+        ld a,1  ; если 0 сэмпалов то сразу на последнюю стадию
+        jr z,1F
+        ld a,(BIOS.FazaSave)
+        dec a
+1       ld (BIOS.FazaSave),a  
+        ret
+
+ContPacPat
+        jp exContPat
+
+nxpage  inc h
+        ret nz
+        ld h,#80
+        ld a,(PgPat)
+        inc a
+        inc a
+        ld (PgPat),a
+        SetPg_macr
+        ret
+
+nxPacPat
+        inc d
+        ret nz
+        ; закончилась страница упаковки
+        ; перекидываем патерн в ZX
+        ; пока длинные патерны не умеем паковать - сделаем зависание
+        di 
+        halt
+        ret
+
+NulPat  
+        ld a,2
+        call BIOS.SETPAGE3
+
+        ld hl,(AdrPatTab)
+        dec hl
+        dec hl
+        ld bc,(hl)
+        ld de,0
+        ld (hl),de
+        ld hl,0
+        push hl
+        ld hl,bc
+        jp retnlpat
+
+Faza6_  ; сохраняем Начальный заголовок
+        ld a,1
+        SetPg_macr
+
+        ; перекидываем основной заголовок
+        ld hl,(ADRSvMOD)
+        ld ix,hl
+        ld de,BIOS.LoadBufer
+        ld bc,#60
+        ldir
+        ld hl,0
+        ld (BIOS.LoadBufer+s3m.memNGS),hl
+        ld c,(ix+s3m.Chen_pat) ; количество каналов в файле 
+        ld a,c
+        ld (Save.Chen_pat),a
+        ld b,0
+        ld hl,bc
+        add hl,hl
+        add hl,hl
+        add hl,bc       ; умножение на 5
+        ld (Save.Str_Len),hl ;длинна строки патерна
+        ld hl,BIOS.LoadBufer+#40
+
+        ; если стандарт s3m 3.20
+        ld b,32
+        ; то удаляем громкости каналов и переводим их в правый левый для s3m 
+32      ld a,(hl)
+        cp 255
+        jr z,1f
+        ld c,b
+        ld a,32
+        sub b
+        and 15
+        srl a
+        jr nc,1F
+        or 8
+1       ld (hl),a
+        inc l
+        djnz 32B 
+        ld hl,0x1320
+        ld (BIOS.LoadBufer+#028),hl ; Cwt/v
+        ld a,252
+        ld (BIOS.LoadBufer+#035),a ; d.p 
+;         ld a,63
+;         ld (BIOS.LoadBufer+s3m.MsVol),a
+        xor a
+        ld (BIOS.LoadBufer+s3m.Chen_pat),a
+
+
+        ; посчитаем количество OrdNum
+        ld hl,(ADRSvMOD)
+        inc h
+        ld l,255
+        ld a,l
+        ld b,0;256
+2       cp (hl)
+        jr nz,3F
+        dec l
+        djnz 2B
+3       
+        ld c,b
+        ld b,0
+        inc bc
+        ; перебрасываем Ордерс
+        ld (BIOS.LoadBufer+s3m.OrdNum),bc
+        ld (ix+s3m.OrdNum),bc
+        ld hl,(ADRSvMOD) : inc h
+        ldir
+        ld (Ins_ofset),de
+        ld (AdrInsHead),de
+        ld (CurInsHead),de
+
+        push de
+        ; посчитаем количество инструментов
+        ld hl,(ix+s3m.memNGS)
+        ld a,l
+        ld (Save.PgHdSmp),a
+        SetPg_macr
+        set 7,h
+
+        ld l,0
+        ld (Save.AdrSmpHead),hl
+        ld de,128*127
+        add hl,de
+        ld de,128
+        ld b,128
+        xor a
+1       cp (hl)
+        jr nz,2F
+        sub hl,de
+        djnz 1B
+        inc b
+2       
+        ld c,b,b,0
+
+        ld a,1
+        SetPg_macr
+        ld (BIOS.LoadBufer+s3m.InsNum),bc
+        ld (ix+s3m.InsNum),bc
+        ld (NumSmpHead),bc
+
+        ; заполним смещения заголовков 0
+        pop de
+        xor a
+        ld b,c
+1       ld (de),a
+        inc de
+        ld (de),a
+        inc de
+        djnz 1B
+        ld (Pat_ofset),de
+        ld (AdrPatTab),de
+
+        ; посчитаем количество патернов
+        ld hl,(ADRSvMOD)
+        inc h ; ord
+        inc h ; pgPat
+        inc h ; hofsPat
+        inc h ; lenpat
+        ld l,253
+        xor a
+        ld b,254
+1       cp (hl)
+        jr nz,2F
+        dec l
+        djnz 1B
+        inc b
+2  
+        ld c,b,b,0
+        ld (BIOS.LoadBufer+s3m.PatNum),bc
+        ld (ix+s3m.PatNum),bc
+        ld a,c
+        ld (NumPat),a
+        ld b,c
+        ; заполним смещения патернов 0
+        xor a
+1       ld (de),a
+        inc de
+        ld (de),a
+        inc de
+        djnz 1B
+        ld (Pan_ofset),de
+
+        ld b,32
+        ld hl,(ADRSvMOD)
+        ld l,#80
+        ; ПанПоиции переводим в стандарт s3m
+3       ld a,(hl)
+        srl a : srl a : srl a : srl a
+        or #20
+        ld (de),a
+        inc hl
+        inc de
+        djnz 3B
+        ex hl,de
+        ld de,BIOS.LoadBufer
+        sub hl,de
+        ld bc,15
+        add hl,bc
+        ld a,l
+        and #F0
+        ld l,a
+        ld (FatLen),hl
+        ld (Len_Head),hl
+        ld a,h
+        and #3f
+        ld h,a
+        srl h : rr l
+        srl h : rr l
+        srl h : rr l
+        srl h : rr l
+        ld (Len_Head16),hl
+
+        ld a,(BIOS.FazaSave)
+        dec a
+        ld (BIOS.FazaSave),a
+        ret
+
+Faza5_  
+        ; сохраняем заголовки сэмплов
+        ld a,(NumSmpHead)
+        ld hl,0
+        or a
+        jp z,Ins0
+        ld b,a
+
+        ld a,1
+        call BIOS.SETPAGE2
+
+        ld ix,(ADRSvMOD)
+        ld hl,(ix+s3m.memNGS)
+        ld a,l
+        ld l,0
+        ld (PgHdSmp),a
+        call BIOS.SETPAGE2
+        set 7,h
+
+
+        ld de,#C000
+SvSmpHd push bc
+        push hl
+        ld a,Load.BufPage
+        call BIOS.SETPAGE3
+        ld bc,#50
+        ld iy,de
+        ldir
+        xor a
+        ld (iy+s3m.Int_Gp),a
+        ld (iy+s3m.Int_Gp+1),a
+        ld (iy+s3m.MemSeg),a
+        ld (iy+s3m.MemSeg+1),a
+        ld (iy+s3m.MemSeg+2),a
+        ld (iy+s3m.PgLength),a
+        ld (iy+s3m.PgLoopBeg),a
+        ld (iy+s3m.PgLoopEnd),a
+
+        ld (iy+s3m.LengthInPg),a
+        ld (iy+s3m.LengthInPg+1),a
+        ld (iy+s3m.LoopBegInPg),a
+        ld (iy+s3m.LoopBegInPg+1),a
+        ld (iy+s3m.LoopEndInPg),a
+        ld (iy+s3m.LoopEndInPg+1),a
+        ld (iy+s3m.Int512),a
+        ld (iy+s3m.Int512-1),a
+        res 1,(iy+s3m.SmpFlags) ; no stereo
+        res 2,(iy+s3m.SmpFlags) ; no 16bit
+
+        ld hl,iy
+        ld a,h
+        and #3f
+        ld h,a
+
+        ld a,2
+        call BIOS.SETPAGE3
+        srl h : rr l
+        srl h : rr l
+        srl h : rr l
+        srl h : rr l
+        ld bc,(Len_Head16)
+        add hl,bc
+        ld (0),hl
+AdrInsHead equ $-2
+        ld hl,(AdrInsHead)
+        inc hl : inc hl
+        ld (AdrInsHead),hl
+        pop hl 
+        ld bc,128
+        add hl,bc
+        bit 6,h
+        jr z,1F
+        res 6,h
+        ld a,(PgHdSmp)
+        inc a
+        call BIOS.SETPAGE2
+1        
+        pop bc
+        dec b
+        jp nz,SvSmpHd
+        ld hl,(AdrInsHead)
+        dec hl : dec hl
+        ld bc,(hl)
+        ld hl,#05
+        ADD HL,BC
+        ld (Len_Head16),hl ; дальше пойдут патерны
+        ld bc,hl
+        ld hl,(AdrPatTab)
+        ld (hl),bc
+        inc hl : inc hl
+        ld (AdrPatTab),hl
+
+        ld a,Load.BufPage
+        call BIOS.SETPAGE3
+
+        ex hl,de
+        ld de,#c000
+        sub hl,de
+Ins0
+        ld (FatLen),hl
+
+        ld hl,0
+        ld (CurPat),hl
+        ld (LastAdrPat),hl
+        ld l,2
+        ld (LenPat),hl
+
+        ld a,(BIOS.FazaSave)
+        dec a
+        ld (BIOS.FazaSave),a
+        ret
+
+        UNPHASE
+Ends3mSave
+        ENDMODULE
+
+        MODULE LoadSMP
+wavload
+        PHASE BIOS.EndBIOS  ; in page0 after  s3m header & Catalog
+        dw "wa"
+load_header jp Wav_header
+LoadHead    jp 0
+SmpLoadHead jp 0
+SpmLoad     jp SmpLoadHeadjp  
+PatHead     jp EndSmpHead
+PatLoad     jp EndLoadSmp
+
+NextBlock db 0 ; тип следующего блока  
+LastBlock db 0 ; предыдущий загруженный блок - для обработки
+NextOfs   dw 0 ; смещение сектора в файле в блоках по 256
+NextLen   dw 0 ; длинна в блоках по 256 в файле
+NextAdr   dw 0 ; адрес загрузки блока
+NextPage  db 0 ; страница загрузки блока    
+SkipByte  dw 0 ; сколько байт пропустить после начала загрузки
+LastSkipByte db 0
+BitSmp    db 0 
+ChenSmp   db 0
+Modul     db 0 ; № загружаемого модуля
+Head      dw 0 ; адрес заголовка загружаемого модуля
+typ_mod   db 0
+
+NGS_NacAdr  dw 0
+NGS_NacPage dw 0
+NGS_KonAdr  dw 0    
+NGS_KonPage dw 0 
+BitSmpsv    db 0
+ChenSmpsv   db 0
+
+EndOfs      dw 0,0
+EndLen      dw 0,0
+HeadSmp     dw 0
+LoadBufer equ BIOS.LoadBufer
+Wav_header
+        ld a,(LoadBufer+20)
+        cp 1 
+        jp nz,No_PCM
+
+        ;call DeleteSMP
+
+        ld a,1
+        call BIOS.SETPAGE2 
+
+        ld hl,(BIOS.LastPage)
+        ld (Mem.LastPage),hl
+        ld hl,(BIOS.LastAdr)
+        ld (Mem.LastAdr),hl
+
+        ld a,(BIOS.inModul)
+        ld h,a
+        ld l,0
+        LD a,#80
+        add h
+        add h
+        add h
+        add h
+        add h
+        ld h,a      ; в HL адрес заголовка модуля
+        ld (Head),hl
+
+        ld ix,hl
+
+        ld a,(LoadBufer+34) ; Количество бит в сэмпле.
+        cp 8
+        jr z,8F
+        cp 16
+        jr z,16F
+16      ld a,4
+        jr exbitio
+8       xor a
+exbitio ld (BitSmpsv),a  ; 
+        ld a,(LoadBufer+22) ;Количество каналов. Моно = 1, Стерео = 2 и тд
+        ld (ChenSmpsv),a
+        ld hl,(ix+s3m.memNGS)
+
+        ld e,l ; страница
+        ld a,(BIOS.SMPin)
+        ld d,a
+        ld a,h
+        ld l,0
+        ld h,d  ; номер сэмпла
+        srl h : rr l
+        set 7,h 
+        add h
+        ld h,a
+        bit 6,h
+        jr z,lwpghds
+        inc e
+        res 6,h
+lwpghds ld a,e
+        call BIOS.SETPAGE2 
+        ld (HeadSmp),hl
+        ld ix,hl
+
+        ld a,(ix)
+        cp 1
+        jr nz,nodel_load
+
+        exx
+        ld a,(BIOS.NGS_MPAG)
+        ld l,a
+        ld a,(BIOS.NGS_MPAGEX)
+        ld h,a
+        push hl
+        ld hl,(Head)
+        ld (BIOS.DelHead),hl
+        ld ix,hl
+        ld a,(BIOS.inModul)
+        ld (BIOS.DelInModul),a
+
+        ld a,1
+        call BIOS.SETPAGE2 
+        ld a,(BIOS.SMPin)
+        ld e,a
+        call BIOS.DeleteSMP
+
+        ld a,1
+        call BIOS.SETPAGE2 
+
+        ld hl,(BIOS.LastPage)
+        ld (Mem.LastPage),hl
+        ld hl,(BIOS.LastAdr)
+        ld (Mem.LastAdr),hl
+
+        pop hl
+        ld a,l
+        call BIOS.SETPAGE2 
+        ld a,h
+        call BIOS.SETPAGE3
+        exx
+        ld ix,hl     
+
+nodel_load
+        ld de,hl
+        inc e
+        ld (hl),1
+        inc l : inc e
+        ld (hl)," "
+        ld bc,11
+        ldir
+        inc l : inc e
+        ld (hl),0
+        ld bc,34
+        ldir
+        inc l : inc e
+        ld (hl)," "
+        ld bc,27
+        ldir
+        inc l : inc e
+        ld (hl),"S"
+        inc l : inc e
+        ld (hl),"C"
+        inc l : inc e
+        ld (hl),"R"
+        inc l : inc e
+        ld (hl),"S"
+        inc l : inc e
+        ld (hl),0
+        ld bc,47
+        ldir
+
+        ld hl,(LoadBufer+24)
+        ld (ix+s3m.C2Spd),hl
+        ld a,(LoadBufer+26)
+        ld (ix+s3m.C2Spd+2),a
+        ld a,(BitSmpsv)
+        ld (ix+s3m.SmpFlags),a
+
+        ld hl,(LoadBufer+4) 
+        ld (EndLen),hl
+        ld hl,(LoadBufer+6) 
+        ld (EndLen+2),hl
+
+        ld hl,(LoadBufer+40) 
+        ld (EndOfs),hl
+        ld de,(LoadBufer+42)
+        ld (EndOfs+2),de
+        ld a,d
+        and a
+        jr z,65535F
+        ld d,0,e,255 ; ограничение сэмпла до 1024кб
+        ld hl,65535-256
+65535
+        push hl
+        ld a,l
+        and a
+        ld l,h,h,e
+        jr z,0F
+        inc hl
+0       inc hl
+        ld (Load.NextLen),hl 
+        pop hl
+
+        ld a,(BitSmpsv)
+        and a
+        jr z,8F
+        srl d : rr e : rr h : rr l
+8       ld a,(ChenSmpsv)
+16      dec a
+        jr z,8F
+        srl d : rr e : rr h : rr l
+        jr 16B
+8
+        ld (ix+s3m.Length),hl
+        ld (ix+s3m.Length+2),e
+        ld a,l
+        ld l,h
+        ld h,e
+        or a
+        jr z,255F
+        inc hl
+255     
+        ld a,(BIOS.Loop512)  ; резервирвать +512 байт под программные лоопы ?
+        add l
+        ld l,a
+        jr nc,1F
+        inc h
+1       call Mem.GetMem 
+        ld (ix+s3m.MemSeg),0
+        ld (ix+s3m.MemSeg+1),de ; запишем в заголовок физические адрес сэмпла для DMA
+        set 7,h
+        ld (ix+s3m.Int_Gp),hl
+        ld a,l
+        ld (Load.NextPage),a
+        ld l,0
+        ld (Load.NextAdr),hl
+        ld (ix+s3m.GVl),64   ; и громкость сэмла для s3m, 64
+        ld (ix+s3m.Vol),64   ; и громкость сэмла для s3m, 64
+        ld (ix+s3m.Int512),0 ; обнулим флаг Int512
+
+        ld hl,0
+        ld (Load.NextOfs),hl
+        ld a,44
+        ld (Load.SkipByte),a
+
+        ld a,4
+        ld (LastBlock),a
+        ld (NextBlock),a
+
+        ld a,1
+        call BIOS.SETPAGE2 
+        ld hl,(Mem.LastPage)
+        ld (BIOS.LastPage),hl
+        ld (LoadSMP.NGS_KonPage),hl
+        ld hl,(Mem.LastAdr)
+        ld (BIOS.LastAdr),hl
+        ld (LoadSMP.NGS_KonAdr),hl
+
+        ld a,(BIOS.inModul)
+        add a
+        add a
+        add a
+        add a
+        add #10+4
+        ld e,a
+        ld d,#BC
+        ld hl,NGS_KonAdr
+        ld bc,4
+        ldir
+
+        ; посчитаем количество инструментов
+        ld ix,(Head)
+        ld hl,(ix+s3m.memNGS)
+        ld a,l
+        SetPg_macr
+        set 7,h
+
+        ld l,0
+        ld de,128*127
+        add hl,de
+        ld de,128
+        ld b,128
+        xor a
+1       cp (hl)
+        jr nz,2F
+        sub hl,de
+        djnz 1B
+        inc b
+2       
+        ld c,b,b,0
+
+        ld a,1
+        SetPg_macr
+        ld (ix+s3m.InsNum),bc
+
+        ret
+
+No_PCM  ld a,255
+        ld (LastBlock),a
+        ld (NextBlock),a
+        ret
+
+SmpLoadHeadjp
+        LD A,(BitSmpsv)
+        and a
+        JR Z,1F
+        ld a,#80
+1       ld (BIOS.sign1),a
+        ld (BIOS.sign2),a
+        ld (BIOS.sign3),a
+
+        ld a,(BitSmpsv)
+        ld (BitSmp),a
+        ld a,(ChenSmpsv)
+        ld (ChenSmp),a
+        ld a,6 ;xor a
+        ld (NextBlock),a 
+        ld (LastBlock),a
+        ld a,4
+        jp BIOS.returnCOME9end
+
+EndSmpHead
+        ld hl,(EndOfs)
+        ld de,(EndOfs+2)
+        ld bc,44
+        add hl,bc
+        jr nc,1F
+        inc de
+1        
+        ld a,l
+        ld (Load.SkipByte),a
+        ld l,h,h,e
+        ld (Load.NextOfs),hl
+        ld hl,2
+        ld (Load.NextLen),hl
+        ld a,2
+        ld hl,LoadBufer
+        ld (Load.NextAdr),hl
+        ld a,1
+        ld (Load.NextPage),a
+
+        ld a,7
+        ld (NextBlock),a 
+        jp BIOS.returnCOME9
+
+EndLoadSmp
+        ld hl,(LoadBufer)
+        ld bc,"ms"
+        sub hl,bc
+        jr nz,noinf
+        ld hl,(LoadBufer+2)
+        ld bc,"lp"
+        sub hl,bc
+        jr nz,noinf
+
+        ld ix,(Head)
+        ld hl,(ix+s3m.memNGS)
+        ld a,l
+        bit 6,h
+        jr z,80F
+        inc a
+        res 6,h
+80      call BIOS.SETPAGE2
+
+        set 7,h
+        ld ix,(HeadSmp)
+        ld a,(LoadBufer+36)
+        cp 1
+        jr nz,2F
+
+        ld hl,(LoadBufer+52)
+        ld (ix+s3m.LoopBeg),hl
+        ld hl,(LoadBufer+54)
+        ld (ix+s3m.LoopBeg+2),hl
+
+        ld hl,(LoadBufer+56)
+        ld (ix+s3m.LoopEnd),hl
+        ld hl,(LoadBufer+58)
+        ld (ix+s3m.LoopEnd+2),hl
+        set 0,(ix+s3m.SmpFlags)
+        ld hl,LoadBufer+56+32
+        ld de,#30
+        add ix,de
+        ld de,ix
+        ld b,12
+12      ld a,(hl)
+        and a
+        jr z,noinf
+        ld (de),a
+        inc hl : inc de
+        djnz 12B
+        jr noinf
+2       cp 2
+        jr nz,0F
+
+0
+
+noinf   xor a
+        ld (NextBlock),a 
+        ld (LastBlock),a
+        jp BIOS.returnCOME9
+
+        UNPHASE
+Endwavload
+        ENDMODULE
+
+
+        MODULE New
+Create  
+        ld a,(BIOS.KolModule)
+        cp 12
+        jp nc,nomem13        
+        ld (BIOS.CurModul),a
+        ld h,a
+        inc a
+        ld (BIOS.KolModule),a
+        ld L,0
+        LD a,#80
+        add a,h
+        add a,h
+        add a,h
+        add a,h
+        add a,h
+        ld h,a        
+        ld de,Header
+        ex hl,de
+        ld ix,de
+
+        ld a,b ; сохранено количество каналов
+        ld bc,#40
+        ldir ; основной заголовок
+        push de
+        ld hl,FF16
+        ld bc,16
+        ldir
+        ld hl,FF16
+        ld bc,16
+        ldir
+
+        ld (ix+s3m.Chen_pat),a
+        ld b,a
+        pop hl
+1       ld (hl),64
+        inc l
+        djnz 1B
+
+        ld hl,FF16
+        ld bc,16
+        ldir
+        ld hl,FF16
+        ld bc,16
+        ldir
+
+        ld hl,Defpan
+        ld bc,16
+        ldir
+        ld hl,Defpan
+        ld bc,16
+        ldir
+        ld hl,FF80
+        ld bc,16
+        ldir
+        ld hl,FF80
+        ld bc,16
+        ldir
+        inc d
+        ld e,0
+
+        ld bc,256
+        ld hl,de
+        inc de
+        ld (hl),255
+        ldir
+
+        ld (hl),0 
+        ld bc,767
+        ldir
+
+        ld a,(BIOS.CurModul)
+        add a
+        add a
+        add a
+        add a
+        add #10
+        ld e,a
+        ld d,#BC
+        ld (NewAdrBeg),de
+        inc de : inc de
+        ld (NewPagBeg),de
+        inc de : inc de
+        ld (NewAdrEnd),de
+        inc de : inc de
+        ld (NewPagEnd),de
+        inc de : inc de
+        ld hl,DosName
+        ld bc,8
+        ldir
+
+        ld hl,(BIOS.LastPage)
+        ld (Mem.LastPage),hl
+        ld hl,(BIOS.LastAdr)
+        ld (Mem.LastAdr),hl
+        ld hl,64
+        call Mem.GetMem  ; H - смещение L - страница  bc не портит
+        ld (ix+s3m.memNGS),hl
+        ld (0),hl
+NewPagBeg equ $-2
+        ld (0),de
+NewAdrBeg equ $-2
+        ld hl,(Mem.LastPage)
+        ld (BIOS.LastPage),hl
+        ld (0),hl
+NewPagEnd equ $-2
+        ld hl,(Mem.LastAdr)
+        ld (BIOS.LastAdr),hl
+        ld (0),hl 
+NewAdrEnd equ $-2
+
+        ld a,(ix+s3m.memNGS)
+        ld h,(ix+s3m.memNGS+1)
+        set 7,h ; адрес сэмплов
+        ld l,0
+        ld b,128
+        call BIOS.SETPAGE2
+        
+128     push bc
+        ld bc,127
+        ld (hl),0
+        ld de,hl
+        inc e
+        ldir
+        inc hl
+        bit 6,h
+        jr z,conpg
+        ld a,(BIOS.NGS_MPAG)
+        inc a
+        call BIOS.SETPAGE2
+        res 6,h
+conpg   pop bc
+        djnz 128B
+        ld a,1
+        call BIOS.SETPAGE2
+
+        ld a,(BIOS.CurModul)
+1       OUT (ZXDATWR),A
+        OUT (CLRCBIT),A
+        JP BIOS.COMINT_  
+nomem13 ld a,255
+        jr 1B
+
+
+Header  db "New NeoModule 00"
+        db "            ",#1A,#10,0,0
+        db 1,0,0,0,0,0,0,0,#20,#13,2,0,"SCRM"
+        db 64,6,125,64,0,#FC,0,0,0,0,0,0,8,63,0,0
+FF16    db 255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255
+
+Defpan  db 192,64,192,64,192,64,192,64,192,64,192,64,192,64,192,64
+FF80    db 128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128
+DosName db "Module1 "
+
+        ENDMODULE
+
+
+
+_endBIOS2
