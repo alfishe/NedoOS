@@ -23,6 +23,19 @@
 static unsigned char buf_page;
 static unsigned char saved_c000;
 static unsigned char ngs_ready;
+static unsigned char ngs_quiet;
+static ngs_load_progress_fn ngs_progress;
+unsigned long ngs_load_total;
+
+void ngs_set_quiet(unsigned char quiet)
+{
+	ngs_quiet = quiet;
+}
+
+void ngs_set_load_progress(ngs_load_progress_fn fn)
+{
+	ngs_progress = fn;
+}
 
 /*
  * NeoTracker-style waits: busy-poll, no YIELD during transfer.
@@ -148,8 +161,6 @@ static void gs_drain(void)
  */
 unsigned char ngs_upload(const unsigned char *src, unsigned int len, unsigned int gs_addr)
 {
-	unsigned int i;
-
 	if (len == 0)
 		return 1;
 
@@ -170,13 +181,7 @@ unsigned char ngs_upload(const unsigned char *src, unsigned int len, unsigned in
 	if (!wait_dat_clear_busy())
 		return 0;
 
-	for (i = 0; i < len; i++)
-	{
-		output(GSDAT, src[i]);
-		if (!wait_dat_clear_busy())
-			return 0;
-	}
-	return 1;
+	return gs_send_bytes(src, len);
 }
 
 /*
@@ -203,7 +208,6 @@ unsigned char ngs_jump(unsigned int gs_addr)
  */
 static unsigned char ngs_download(unsigned char *dst, unsigned int len, unsigned int gs_addr)
 {
-	unsigned int i;
 	unsigned int n;
 
 	if (len == 0)
@@ -232,13 +236,7 @@ static unsigned char ngs_download(unsigned char *dst, unsigned int len, unsigned
 			break;
 	}
 
-	for (i = 0; i < len; i++)
-	{
-		if (!wait_dat_set_busy())
-			return 0;
-		dst[i] = get_dat();
-	}
-	return 1;
+	return gs_recv_bytes(dst, len);
 }
 
 unsigned char ngs_set_page2(unsigned char page)
@@ -303,44 +301,55 @@ unsigned char ngs_bootstrap(void)
 {
 	ngs_ready = 0;
 
-	printf("NeoGS: reset...\r\n");
+	if (!ngs_quiet)
+		printf("NeoGS: reset...\r\n");
 	if (!ngs_reset_fw())
 	{
-		printf("NeoGS: reset failed\r\n");
+		if (!ngs_quiet)
+			printf("NeoGS: reset failed\r\n");
 		return 0;
 	}
 
-	printf("NeoGS: uploading loader...\r\n");
+	if (!ngs_quiet)
+		printf("NeoGS: uploading loader...\r\n");
 	if (!ngs_upload(ngsldr_bin, ngsldr_bin_len, 0x5100u))
 	{
-		printf("upload loader failed\r\n");
+		if (!ngs_quiet)
+			printf("upload loader failed\r\n");
 		return 0;
 	}
-	printf("NeoGS: jump loader...\r\n");
+	if (!ngs_quiet)
+		printf("NeoGS: jump loader...\r\n");
 	if (!ngs_jump(0x5100u))
 	{
-		printf("jump loader failed\r\n");
+		if (!ngs_quiet)
+			printf("jump loader failed\r\n");
 		return 0;
 	}
 	/* Loader stub only handles #13/#14 ? do NOT send #00 here (C-bit sticks). */
 
-	printf("NeoGS: uploading ngsdrv (%u)...\r\n", ngsdrv_bin_len);
+	if (!ngs_quiet)
+		printf("NeoGS: uploading ngsdrv (%u)...\r\n", ngsdrv_bin_len);
 	if (!ngs_upload(ngsdrv_bin, ngsdrv_bin_len, 0x0000u))
 	{
-		printf("upload ngsdrv failed\r\n");
+		if (!ngs_quiet)
+			printf("upload ngsdrv failed\r\n");
 		return 0;
 	}
-	printf("NeoGS: jump ngsdrv...\r\n");
+	if (!ngs_quiet)
+		printf("NeoGS: jump ngsdrv...\r\n");
 	if (!ngs_jump(0x0000u))
 	{
-		printf("jump ngsdrv failed\r\n");
+		if (!ngs_quiet)
+			printf("jump ngsdrv failed\r\n");
 		return 0;
 	}
 	/*
 	 * initngs runs after JP #0000. Give it time, then sync with #00
 	 * (full BIOS handles COM00 and clears C).
 	 */
-	printf("NeoGS: wait initngs...\r\n");
+	if (!ngs_quiet)
+		printf("NeoGS: wait initngs...\r\n");
 	{
 		unsigned char i;
 		for (i = 0; i < 30u; i++)
@@ -349,37 +358,41 @@ unsigned char ngs_bootstrap(void)
 	output(GSCOM, 0x00);
 	if (!wait_cmd(GS_TICKS_LOAD))
 	{
-		printf("initngs sync failed\r\n");
+		if (!ngs_quiet)
+			printf("initngs sync failed\r\n");
 		return 0;
 	}
 
-	printf("NeoGS: uploading neopg2...\r\n");
+	if (!ngs_quiet)
+		printf("NeoGS: uploading neopg2...\r\n");
 	if (!ngs_set_page3(2))
 	{
-		printf("set page3 failed\r\n");
+		if (!ngs_quiet)
+			printf("set page3 failed\r\n");
 		return 0;
 	}
 	if (!ngs_upload(neopg2_bin, neopg2_bin_len, 0xD000u))
 	{
-		printf("upload neopg2 failed\r\n");
+		if (!ngs_quiet)
+			printf("upload neopg2 failed\r\n");
 		return 0;
 	}
 
 	if (!ngs_peek_nt())
 	{
-		printf("NeoTracker ID not found @BC00\r\n");
+		if (!ngs_quiet)
+			printf("NeoTracker ID not found @BC00\r\n");
 		return 0;
 	}
 
 	ngs_ready = 1;
-	printf("NeoGS: player ready\r\n");
+	if (!ngs_quiet)
+		printf("NeoGS: player ready\r\n");
 	return 1;
 }
 
 unsigned char ngs_start_load(unsigned char slot, const unsigned char *header256)
 {
-	unsigned int i;
-
 	if (slot >= 12u)
 		return 0;
 	poke_dat(slot);
@@ -389,12 +402,8 @@ unsigned char ngs_start_load(unsigned char slot, const unsigned char *header256)
 	/* After E8 GS consumes slot (D clears); then accept 256-byte header */
 	if (!wait_dat_clear_busy())
 		return 0;
-	for (i = 0; i < 256u; i++)
-	{
-		output(GSDAT, header256[i]);
-		if (!wait_dat_clear_busy())
-			return 0;
-	}
+	if (!gs_send_bytes(header256, 256u))
+		return 0;
 	/*
 	 * After the 256th byte GS still runs Load_s3m (C-bit already clear!).
 	 * Sync with #00: C stays set until Load finishes and COMINT handles it.
@@ -434,7 +443,6 @@ unsigned char ngs_get_next_block(unsigned char *type, unsigned int *ofs256, unsi
 unsigned char ngs_save_block(const unsigned char *data, unsigned char pages256)
 {
 	unsigned int n;
-	unsigned int i;
 
 	if (pages256 == 0)
 		return 1;
@@ -446,13 +454,7 @@ unsigned char ngs_save_block(const unsigned char *data, unsigned char pages256)
 		return 0;
 	if (!wait_dat_clear_busy())
 		return 0;
-	for (i = 0; i < n; i++)
-	{
-		output(GSDAT, data[i]);
-		if (!wait_dat_clear_busy())
-			return 0;
-	}
-	return 1;
+	return gs_send_bytes(data, n);
 }
 
 unsigned char ngs_init_sample(unsigned char module, unsigned char smp)
@@ -519,7 +521,7 @@ static void free_iobuf(void)
 	}
 }
 
-unsigned char ngs_load_s3m(unsigned char *path, unsigned char *title_out)
+unsigned char ngs_load_s3m(unsigned char *path, ngs_mod_info *info)
 {
 	FILE *fp;
 	unsigned char typ;
@@ -530,14 +532,28 @@ unsigned char ngs_load_s3m(unsigned char *path, unsigned char *title_out)
 	unsigned int chunk;
 	unsigned int left;
 	unsigned char *p;
+	unsigned long done_bytes;
+	unsigned long total_bytes;
+	unsigned int ch;
+	unsigned int nch;
 
-	title_out[0] = 0;
+	done_bytes = 0;
+	total_bytes = 0;
+	ngs_load_total = 0;
+	if (info != 0)
+	{
+		info->title[0] = 0;
+		total_bytes = info->filesize;
+		ngs_load_total = total_bytes;
+	}
+
 	if (!ngs_ready && !ngs_bootstrap())
 		return 1;
 
 	if (!alloc_iobuf())
 	{
-		printf("No free RAM page for buffer\r\n");
+		if (!ngs_quiet)
+			printf("No free RAM page for buffer\r\n");
 		return 2;
 	}
 
@@ -545,15 +561,26 @@ unsigned char ngs_load_s3m(unsigned char *path, unsigned char *title_out)
 	/* NedoOS: HL = handle<<8 | errno; success when low byte is 0 (handle may be 0). */
 	if (((int)fp) & 0xff)
 	{
-		printf("Cannot open %s (err %u)\r\n", path, (unsigned int)(((int)fp) & 0xff));
+		if (!ngs_quiet)
+			printf("Cannot open %s (err %u)\r\n", path, (unsigned int)(((int)fp) & 0xff));
 		free_iobuf();
 		return 3;
+	}
+
+	/* CLI autostart has no dir entry size ? ask BDOS after open. */
+	if (total_bytes == 0)
+	{
+		total_bytes = OS_GETFILESIZE(fp);
+		if (info != 0)
+			info->filesize = total_bytes;
+		ngs_load_total = total_bytes;
 	}
 
 	got = OS_READHANDLE(IOBUF, fp, 256);
 	if (got < 256u)
 	{
-		printf("Short file\r\n");
+		if (!ngs_quiet)
+			printf("Short file\r\n");
 		OS_CLOSEHANDLE(fp);
 		free_iobuf();
 		return 4;
@@ -563,74 +590,77 @@ unsigned char ngs_load_s3m(unsigned char *path, unsigned char *title_out)
 	if (IOBUF[0x2C] != 'S' || IOBUF[0x2D] != 'C' ||
 	    IOBUF[0x2E] != 'R' || IOBUF[0x2F] != 'M')
 	{
-		printf("Not an S3M file (no SCRM)\r\n");
+		if (!ngs_quiet)
+			printf("Not an S3M file (no SCRM)\r\n");
 		OS_CLOSEHANDLE(fp);
 		free_iobuf();
 		return 5;
 	}
 
-	memcpy(title_out, IOBUF, 28);
-	title_out[28] = 0;
-	/* Make title safe for printf / BDOS */
+	nch = 0;
+	for (ch = 0; ch < 32u; ch++)
+	{
+		if (IOBUF[0x40u + ch] != 255u)
+			nch++;
+	}
+
+	if (info != 0)
 	{
 		unsigned char i;
 		unsigned char c;
 
+		memcpy(info->title, IOBUF, 28);
+		info->title[28] = 0;
 		for (i = 0; i < 28u; i++)
 		{
-			c = title_out[i];
+			c = info->title[i];
 			if (c == 0)
 				break;
 			if (c < 32u || c > 126u || c == (unsigned char)'%')
-				title_out[i] = '.';
+				info->title[i] = '.';
 		}
+		info->orders = (unsigned int)IOBUF[0x20] | ((unsigned int)IOBUF[0x21] << 8);
+		info->instruments = (unsigned int)IOBUF[0x22] | ((unsigned int)IOBUF[0x23] << 8);
+		info->patterns = (unsigned int)IOBUF[0x24] | ((unsigned int)IOBUF[0x25] << 8);
+		info->channels = (unsigned char)nch;
+		info->speed = IOBUF[0x31];
+		info->tempo = IOBUF[0x32];
+		if (info->filesize == 0)
+			info->filesize = total_bytes;
 	}
 
-	printf("Loading: %s\r\n", title_out);
+	if (!ngs_quiet)
+		printf("Loading: %s\r\n", info != 0 ? (char *)info->title : path);
 
-	/* Count enabled channels in S3M map (0x40..0x7F); warn if >8 */
-	{
-		unsigned int ch;
-		unsigned int nch;
-
-		nch = 0;
-		for (ch = 0; ch < 32u; ch++)
-		{
-			if (IOBUF[0x40u + ch] != 255u)
-				nch++;
-		}
-		printf("Channels: %u\r\n", nch);
-		if (nch > 8u)
-			printf("Warning: mixer uses 8\r\n");
-	}
-
-	printf("S3M Start_Load...\r\n");
 	if (!ngs_start_load(0, IOBUF))
 	{
-		printf("Start_Load failed\r\n");
+		if (!ngs_quiet)
+			printf("Start_Load failed\r\n");
 		OS_CLOSEHANDLE(fp);
 		free_iobuf();
 		return 6;
 	}
 
-	printf("S3M blocks...\r\n");
+	done_bytes = 256;
+	if (ngs_progress != 0)
+		ngs_progress(done_bytes);
+
 	for (;;)
 	{
 		if (!ngs_get_next_block(&typ, &ofs256, &len256))
 		{
-			printf("GetNextBlock failed\r\n");
+			if (!ngs_quiet)
+				printf("GetNextBlock failed\r\n");
 			OS_CLOSEHANDLE(fp);
 			free_iobuf();
 			return 7;
 		}
 		if (typ == 0)
-		{
-			printf("Blocks done\r\n");
 			break;
-		}
 		if (typ == 255u || typ == 123u)
 		{
-			printf("Load error type %u\r\n", (unsigned int)typ);
+			if (!ngs_quiet)
+				printf("Load error type %u\r\n", (unsigned int)typ);
 			OS_CLOSEHANDLE(fp);
 			free_iobuf();
 			return 8;
@@ -648,7 +678,6 @@ unsigned char ngs_load_s3m(unsigned char *path, unsigned char *title_out)
 			got = OS_READHANDLE(IOBUF, fp, (unsigned int)chunk << 8);
 			if (got < ((unsigned int)chunk << 8))
 			{
-				/* pad remainder with zeros if short read at EOF */
 				p = IOBUF + got;
 				while (got < ((unsigned int)chunk << 8))
 				{
@@ -658,25 +687,31 @@ unsigned char ngs_load_s3m(unsigned char *path, unsigned char *title_out)
 			}
 			if (!ngs_save_block(IOBUF, (unsigned char)chunk))
 			{
-				printf("Save_Block failed\r\n");
+				if (!ngs_quiet)
+					printf("Save_Block failed\r\n");
 				OS_CLOSEHANDLE(fp);
 				free_iobuf();
 				return 9;
 			}
+			done_bytes += (unsigned long)chunk << 8;
+			if (ngs_progress != 0)
+				ngs_progress(done_bytes);
 			left = (unsigned int)(left - chunk);
 		}
 	}
 
 	OS_CLOSEHANDLE(fp);
 
-	printf("InitSample...\r\n");
 	if (!ngs_init_sample(0, 255))
 	{
-		printf("InitSample failed\r\n");
+		if (!ngs_quiet)
+			printf("InitSample failed\r\n");
 		free_iobuf();
 		return 10;
 	}
 
 	free_iobuf();
+	if (ngs_progress != 0 && ngs_load_total != 0)
+		ngs_progress(ngs_load_total);
 	return 0;
 }

@@ -9,6 +9,28 @@ extern const unsigned int ngsldr_bin_len;
 extern const unsigned char neopg2_bin[];
 extern const unsigned int neopg2_bin_len;
 
+/* Tight NeoGS byte pump (gs_io.asm), NeoTracker-style WD/WN */
+unsigned char gs_send_bytes(const unsigned char *src, unsigned int len);
+unsigned char gs_recv_bytes(unsigned char *dst, unsigned int len);
+
+typedef struct
+{
+	unsigned char title[29];
+	unsigned int orders;
+	unsigned int instruments;
+	unsigned int patterns;
+	unsigned char channels;
+	unsigned char speed;
+	unsigned char tempo;
+	unsigned long filesize; /* in: hint for progress; out: same */
+} ngs_mod_info;
+
+/* done in bytes; total is ngs_load_total (set by host before/during load) */
+typedef void (*ngs_load_progress_fn)(unsigned long done);
+void ngs_set_load_progress(ngs_load_progress_fn fn);
+void ngs_set_quiet(unsigned char quiet);
+extern unsigned long ngs_load_total;
+
 /* Return 0 on success, non-zero on error/timeout */
 unsigned char ngs_detect(void);
 unsigned char ngs_bootstrap(void);
@@ -26,7 +48,7 @@ unsigned char ngs_stop_play(void);
 unsigned char ngs_cont_play(void);
 unsigned char ngs_status_play(void);
 
-/* Load S3M from NedoOS file into NeoGS slot 0. Returns 0 ok. */
-unsigned char ngs_load_s3m(unsigned char *path, unsigned char *title_out);
+/* Load S3M into NeoGS slot 0. info may be NULL. Returns 0 ok. */
+unsigned char ngs_load_s3m(unsigned char *path, ngs_mod_info *info);
 
 #endif
