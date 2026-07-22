@@ -37,6 +37,17 @@ void ngs_set_load_progress(ngs_load_progress_fn fn)
 	ngs_progress = fn;
 }
 
+void ngs_invalidate(void)
+{
+	ngs_ready = 0;
+}
+
+void ngs_call_progress(unsigned long done)
+{
+	if (ngs_progress != 0)
+		ngs_progress(done);
+}
+
 /*
  * NeoTracker-style waits: busy-poll, no YIELD during transfer.
  * Bound the spin so a stuck C/D bit fails in ~1-2s, not minutes.
@@ -469,29 +480,34 @@ unsigned char ngs_init_sample(unsigned char module, unsigned char smp)
 
 unsigned char ngs_start_play(unsigned char module, unsigned char order)
 {
+	/* NeoTracker: SD H / SC #E3 / WD / SD L / WD (not WC after E3). */
 	poke_dat(module);
-	if (!send_cmd(0xE3, GS_TICKS_CMD))
+	output(GSCOM, 0xE3);
+	if (!wait_dat_clear_busy())
 		return 0;
-	if (!wait_dat_clear(GS_TICKS_CMD))
-		return 0;
-	return send_dat(order, GS_TICKS_BYTE);
+	poke_dat(order);
+	return wait_dat_clear_busy();
 }
 
 unsigned char ngs_stop_play(void)
 {
-	return send_cmd(0xE4, GS_TICKS_CMD);
+	/* Must use busy wait: during PlayCykl only #E4/#E6 are accepted. */
+	output(GSCOM, 0xE4);
+	return wait_cmd_busy();
 }
 
 unsigned char ngs_cont_play(void)
 {
-	return send_cmd(0xE5, GS_TICKS_CMD);
+	output(GSCOM, 0xE5);
+	return wait_cmd_busy();
 }
 
 unsigned char ngs_status_play(void)
 {
-	if (!send_cmd(0xE6, GS_TICKS_CMD))
+	output(GSCOM, 0xE6);
+	if (!wait_cmd_busy())
 		return 0;
-	if (!wait_dat(GS_TICKS_CMD))
+	if (!wait_dat_set_busy())
 		return 0;
 	return get_dat();
 }

@@ -8,6 +8,8 @@ extern const unsigned char ngsldr_bin[];
 extern const unsigned int ngsldr_bin_len;
 extern const unsigned char neopg2_bin[];
 extern const unsigned int neopg2_bin_len;
+extern const unsigned char gscode_bin[];
+extern const unsigned int gscode_bin_len;
 
 /* Tight NeoGS byte pump (gs_io.asm), NeoTracker-style WD/WN */
 unsigned char gs_send_bytes(const unsigned char *src, unsigned int len);
@@ -30,6 +32,8 @@ typedef void (*ngs_load_progress_fn)(unsigned long done);
 void ngs_set_load_progress(ngs_load_progress_fn fn);
 void ngs_set_quiet(unsigned char quiet);
 extern unsigned long ngs_load_total;
+void ngs_invalidate(void); /* SoftSmpl no longer valid (after MP3/gscode) */
+void ngs_call_progress(unsigned long done);
 
 /* Return 0 on success, non-zero on error/timeout */
 unsigned char ngs_detect(void);
@@ -50,5 +54,20 @@ unsigned char ngs_status_play(void);
 
 /* Load S3M into NeoGS slot 0. info may be NULL. Returns 0 ok. */
 unsigned char ngs_load_s3m(unsigned char *path, ngs_mod_info *info);
+
+/* MP3/OGG/AAC via VS10xx gscode (destroys SoftSmpl; clear gs_ok after). */
+unsigned char ngs_mp3_start(unsigned char *path, unsigned long filesize);
+unsigned char ngs_mp3_pump(void); /* 1=playing, 0=done */
+void ngs_mp3_stop(void);
+unsigned char ngs_mp3_is_active(void);
+unsigned char ngs_mp3_vs_version(void);
+extern unsigned long ngs_mp3_total;
+extern unsigned long ngs_mp3_done;
+
+/* Stock GS MOD (destroys SoftSmpl/gscode; clear gs_ok after). */
+unsigned char ngs_mod_start(unsigned char *path, unsigned long filesize, ngs_mod_info *info);
+unsigned char ngs_mod_pump(void); /* 1=playing, 0=done */
+void ngs_mod_stop(void);
+unsigned char ngs_mod_is_active(void);
 
 #endif
