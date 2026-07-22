@@ -32,6 +32,22 @@ static unsigned char wait_cmd_busy(void)
 	return 0;
 }
 
+/* Play Module (#31) can hold C while GS inits patterns ? seconds on big MODs. */
+static unsigned char wait_cmd_busy_long(void)
+{
+	unsigned int outer;
+	unsigned int n;
+
+	for (outer = 0; outer < 500u; outer++)
+	{
+		for (n = 0; n < 2000u; n++)
+			if ((input(GSCOM) & 1) == 0)
+				return 1;
+		YIELD();
+	}
+	return 0;
+}
+
 static unsigned char wait_dat_clear_busy(void)
 {
 	unsigned int n;
@@ -54,6 +70,12 @@ static unsigned char mod_cmd(unsigned char cmd)
 {
 	output(GSCOM, cmd);
 	return wait_cmd_busy();
+}
+
+static unsigned char mod_cmd_long(unsigned char cmd)
+{
+	output(GSCOM, cmd);
+	return wait_cmd_busy_long();
 }
 
 static void mod_hw_reset(void)
@@ -217,12 +239,23 @@ unsigned char ngs_mod_start(unsigned char *path, unsigned long filesize, ngs_mod
 		return 6;
 	}
 
-	/* SD 1 / SC #31 Play Module */
+	/* SD 1 / SC #31 Play Module.
+	 * GS often starts audio before clearing C; short WC falsely returns 7
+	 * while the module is already playing. */
+	(void)wait_dat_clear_busy();
 	output(GSDAT, 1);
-	if (!mod_cmd(0x31))
+	(void)wait_dat_clear_busy();
+	if (!mod_cmd_long(0x31))
 	{
-		free_iobuf();
-		return 7;
+		/* Still treat as playing if position (#60) answers. */
+		output(GSCOM, 0x60);
+		if (!wait_cmd_busy_long() || !wait_dat_set_busy())
+		{
+			free_iobuf();
+			(void)mod_cmd(0xF3);
+			return 7;
+		}
+		mod_pos = input(GSDAT);
 	}
 
 	free_iobuf();
