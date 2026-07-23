@@ -823,6 +823,18 @@ OS_CLS:
 
 	MODULE OS_GETKEY
 	PUBLIC OS_GETKEY
+	PUBLIC mouse_yx
+	PUBLIC mouse_x
+	PUBLIC mouse_y
+	PUBLIC mouse_btns
+	RSEG NO_INIT
+mouse_yx:
+mouse_x:
+	defs 1
+mouse_y:
+	defs 1
+mouse_btns:
+	defs 1
 	RSEG CODE
 OS_GETKEY:
 	push ix
@@ -830,6 +842,12 @@ OS_GETKEY:
     rst 0x08	;out: a=key (NOKEY=no key), de=mouse position (y,x), l=mouse buttons (bits 0,1,2: 0=pressed)+mouse wheel (bits 7..4), h=high bits of key|register, bc=keynolang, lx=kempston joystick, nz=no focus (mouse position=0, ignore it!)
 	pop iy
 	pop ix
+	; NZ (no focus) still in F; publish counters for C (oscalls.h).
+	push af
+	ld (mouse_yx),de
+	ld a,l
+	ld (mouse_btns),a
+	pop af
 	ld l,a
 	ld h,c
 	ld bc,0x8000

@@ -58,7 +58,7 @@ typedef struct
 	unsigned char lfname[64]; /* Pointer to the LFN buffer */
 } fileInfo;
 
-signed long OS_GETKEY(void);	 // BC HL
+signed long OS_GETKEY(void);	 // BC HL; also fills mouse_x/y/btns/yx
 unsigned long OS_GETMOUSE(void); // BC HL
 
 unsigned int OS_READSECTORS(struct diskOp *);

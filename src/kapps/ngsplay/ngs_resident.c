@@ -127,19 +127,21 @@ void r_progress_bar_reset(void)
 	unsigned char i;
 	unsigned char x;
 	unsigned char y;
+	unsigned char last;
 
+	last = (unsigned char)(statPos.winH - 1u);
 	bar_w = r_status_bar_w();
 	x = (unsigned char)(statPos.winX + 1);
-	y = (unsigned char)(statPos.winY + 3);
+	y = (unsigned char)(statPos.winY + last);
 	OS_SETCOLOR(statPos.color);
-	r_clear_status_line(3);
+	r_clear_status_line(last);
 	OS_SETXY(x, y);
 	putchar('[');
 	for (i = 0; i < bar_w; i++)
 		putchar('.');
 	putchar(']');
 	printf("%3u%%", 0u);
-	r_restore_right_border_row(statPos, 3);
+	r_restore_right_border_row(statPos, last);
 	bar_filled = 0;
 	bar_inited = 1;
 }
@@ -154,7 +156,7 @@ void r_progress_bar_grow(unsigned char pct)
 
 	bar_w = r_status_bar_w();
 	x = (unsigned char)(statPos.winX + 1);
-	y = (unsigned char)(statPos.winY + 3);
+	y = (unsigned char)(statPos.winY + statPos.winH - 1u);
 
 	if (!bar_inited)
 		r_progress_bar_reset();
@@ -195,15 +197,15 @@ void r_draw_status_meta(void)
 	else
 		st = "[STOPPED]";
 	printf("%s ", st);
-	maxn = (unsigned char)(statPos.winW - 12u);
+	maxn = (statPos.winW > 12u) ? (unsigned char)(statPos.winW - 12u) : 0;
 	r_put_clipped(cur_file, maxn);
 
 	r_clear_status_line(1);
 	OS_SETXY(statPos.winX + 1, statPos.winY + 1);
 	if (mod.title[0] != 0)
-		r_put_clipped(mod.title, (unsigned char)(statPos.winW - 2u));
+		r_put_clipped(mod.title, (unsigned char)(statPos.winW > 2u ? statPos.winW - 2u : 0));
 	else
-	r_print_static("Select .S3M / .MOD / .MP3 and press Enter");
+		r_print_static("Select .S3M / .MOD / .MP3 and press Enter");
 
 	r_clear_status_line(2);
 	OS_SETXY(statPos.winX + 1, statPos.winY + 2);
@@ -225,7 +227,9 @@ void r_draw_status_bottom(void)
 	unsigned long elapsed;
 	unsigned int em;
 	unsigned int es;
+	unsigned char last;
 
+	last = (unsigned char)(statPos.winH - 1u);
 	OS_SETCOLOR(statPos.color);
 
 	if (is_loading)
@@ -237,8 +241,8 @@ void r_draw_status_bottom(void)
 		return;
 	}
 
-	r_clear_status_line(3);
-	OS_SETXY(statPos.winX + 1, statPos.winY + 3);
+	r_clear_status_line(last);
+	OS_SETXY(statPos.winX + 1, (unsigned char)(statPos.winY + last));
 	bar_inited = 0;
 	bar_filled = 0;
 
@@ -260,18 +264,25 @@ void r_draw_status_bottom(void)
 		r_print_static("Ready");
 	}
 
-	r_restore_right_border_row(statPos, 3);
+	r_restore_right_border_row(statPos, last);
 }
 
 void r_draw_status(void)
 {
+	unsigned char q;
+
+	for (q = 3; q + 1u < statPos.winH; q++)
+	{
+		r_clear_status_line(q);
+		r_restore_right_border_row(statPos, q);
+	}
 	r_draw_status_meta();
 	r_draw_status_bottom();
 }
 
 void r_draw_static_chrome(void)
 {
-	OS_CLS(0);
+	/* OS_CLS must run from low CODE (main) ? BDOS may page C000. */
 	r_clear_window_bg(winPos);
 	r_clear_window_bg(statPos);
 	r_draw_player_frame(winPos);

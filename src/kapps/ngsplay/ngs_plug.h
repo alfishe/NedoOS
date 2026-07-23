@@ -36,7 +36,13 @@ struct coordinates
 
 #define COL_LIST 103
 #define COL_CURSOR 188
-#define COL_STAT 223
+#define COL_STAT 223 /* title / hint / status window (magenta) */
+#define COL_BTN 79   /* control buttons: bright white on blue */
+/* Each button 5x3; 2x2 grid with 1-col gap => 11 wide, 6 tall. */
+#define BTN_W 5u
+#define BTN_H 3u
+#define BTN_GAP 1u
+#define BTN_PANEL_W (BTN_W + BTN_GAP + BTN_W)
 
 extern unsigned char residentPg;
 extern unsigned char list_pg[NGS_LIST_PAGES];
@@ -44,6 +50,7 @@ extern union APP_PAGES main_pg;
 
 extern struct coordinates winPos;
 extern struct coordinates statPos;
+extern struct coordinates btnPos;
 extern unsigned int entry_count;
 extern unsigned int ui_selected;
 extern unsigned int ui_scroll;
@@ -88,5 +95,6 @@ void ui_draw_status_meta(void);
 void ui_draw_status_bottom(void);
 void ui_progress_bar_reset(void);
 void ui_progress_bar_grow(unsigned char pct);
+void ui_draw_stat_buttons(void);
 
 #endif

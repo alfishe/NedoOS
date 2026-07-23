@@ -13,6 +13,7 @@
 #include "ngsplay.h"
 #include "app_bank.h"
 #include "ngs_plug.h"
+#include "ui_mouse.h"
 
 #define ATTR_DIR 0x10
 
@@ -22,6 +23,7 @@ union APP_PAGES main_pg;
 
 struct coordinates winPos;
 struct coordinates statPos;
+struct coordinates btnPos;
 unsigned int entry_count;
 unsigned int ui_selected;
 unsigned int ui_scroll;
@@ -68,9 +70,9 @@ void ngs_init_banks(void)
 	bank_slot_set(NGS_BANK_SLOT_RESIDENT, residentPg);
 	list_pg[0] = 0;
 	list_pg[1] = 0;
-	if (!bank_os_new_page(&list_pg[0]))
+	if (!bank_os_new_page(&list_pg[0]) || list_pg[0] == residentPg)
 		list_pg[0] = 0;
-	if (!bank_os_new_page(&list_pg[1]))
+	if (!bank_os_new_page(&list_pg[1]) || list_pg[1] == residentPg)
 		list_pg[1] = 0;
 	bank_slot_set(NGS_BANK_SLOT_LIST0, list_pg[0]);
 	bank_slot_set(NGS_BANK_SLOT_LIST1, list_pg[1]);
@@ -91,10 +93,78 @@ static void ngs_free_list_pages(void)
 	}
 }
 
+/* Buttons live in low CODE ? safe vs C000 banking. */
+static void print_centered(const char *s, unsigned char width)
+{
+	unsigned char len;
+	unsigned char left;
+	unsigned char i;
+
+	len = 0;
+	while (s[len] != 0)
+		len++;
+	if (len > width)
+		len = width;
+	left = (unsigned char)((width - len) / 2u);
+	for (i = 0; i < left; i++)
+		putchar(' ');
+	for (i = 0; i < len; i++)
+		putchar(s[i]);
+	for (i = (unsigned char)(left + len); i < width; i++)
+		putchar(' ');
+}
+
+static void draw_one_btn(unsigned char x, unsigned char y, unsigned char label)
+{
+	unsigned char i;
+
+	/* No OS_SETCOLOR here; no (y+n) in OS_SETXY args ? IAR register spill rake. */
+	OS_SETXY(x, y);
+	putchar(218);
+	for (i = 0; i < (BTN_W - 2u); i++)
+		putchar(196);
+	putchar(191);
+	y++;
+	OS_SETXY(x, y);
+	putchar(179);
+	putchar(' ');
+	putchar(label);
+	putchar(' ');
+	putchar(179);
+	y++;
+	OS_SETXY(x, y);
+	putchar(192);
+	for (i = 0; i < (BTN_W - 2u); i++)
+		putchar(196);
+	putchar(217);
+}
+
+void ui_draw_stat_buttons(void)
+{
+	unsigned char x0;
+	unsigned char x1;
+	unsigned char y0;
+	unsigned char y1;
+
+	x0 = btnPos.winX;
+	x1 = btnPos.winX + BTN_W + BTN_GAP;
+	y0 = btnPos.winY;
+	y1 = btnPos.winY + BTN_H;
+
+	OS_SETCOLOR(btnPos.color);
+	draw_one_btn(x0, y0, 17);
+	draw_one_btn(x1, y0, 16);
+	draw_one_btn(x0, y1, 254);
+	draw_one_btn(x1, y1, 186);
+}
+
 void ui_draw_static_chrome(void)
 {
+	/* CLS from low memory ? never call BDOS page-sensitive ops from CODE_RESIDENT. */
+	OS_CLS(0);
 	ui_resident_map();
 	r_draw_static_chrome();
+	ui_draw_stat_buttons();
 }
 
 void ui_draw_title_bar(void)
@@ -107,6 +177,7 @@ void ui_draw_status(void)
 {
 	ui_resident_map();
 	r_draw_status();
+	ui_draw_stat_buttons();
 	status_dirty = 0;
 }
 
@@ -114,12 +185,14 @@ void ui_draw_status_meta(void)
 {
 	ui_resident_map();
 	r_draw_status_meta();
+	ui_draw_stat_buttons();
 }
 
 void ui_draw_status_bottom(void)
 {
 	ui_resident_map();
 	r_draw_status_bottom();
+	ui_draw_stat_buttons();
 }
 
 void ui_progress_bar_reset(void)
@@ -272,11 +345,11 @@ static unsigned char is_mp3_name(const unsigned char *name)
 	c = name[dot + 3];
 	/* .mp3 */
 	if ((a == 'M' || a == 'm') && (b == 'P' || b == 'p') && (c == '3') &&
-	    (dot + 4 >= NGS_NAME_LEN || name[dot + 4] == 0))
+		(dot + 4 >= NGS_NAME_LEN || name[dot + 4] == 0))
 		return 1;
 	/* .ogg (VS1053+) ? still attempt; codec may reject */
 	if ((a == 'O' || a == 'o') && (b == 'G' || b == 'g') && (c == 'G' || c == 'g') &&
-	    (dot + 4 >= NGS_NAME_LEN || name[dot + 4] == 0))
+		(dot + 4 >= NGS_NAME_LEN || name[dot + 4] == 0))
 		return 1;
 	return 0;
 }
@@ -301,7 +374,7 @@ static unsigned char is_mod_name(const unsigned char *name)
 	b = name[dot + 2];
 	c = name[dot + 3];
 	if ((a == 'M' || a == 'm') && (b == 'O' || b == 'o') && (c == 'D' || c == 'd') &&
-	    (dot + 4 >= NGS_NAME_LEN || name[dot + 4] == 0))
+		(dot + 4 >= NGS_NAME_LEN || name[dot + 4] == 0))
 		return 1;
 	return 0;
 }
@@ -660,7 +733,7 @@ static void on_load_progress(unsigned long done)
 			unsigned char bf;
 
 			x = (unsigned char)(statPos.winX + 1);
-			y = (unsigned char)(statPos.winY + 3);
+			y = (unsigned char)(statPos.winY + statPos.winH - 1u);
 			OS_SETCOLOR(statPos.color);
 			if (!bar_inited)
 			{
@@ -922,6 +995,28 @@ static unsigned char select_next_s3m(void)
 	return 0;
 }
 
+static unsigned char select_prev_s3m(void)
+{
+	unsigned int i;
+	ngs_fent e;
+
+	if (ui_selected == 0)
+		return 0;
+	i = ui_selected;
+	do
+	{
+		i--;
+		list_read_phys(vis_to_phys(i), &e);
+		if ((e.flags & NGS_FENT_DIR) == 0 && is_playable_name(e.name))
+		{
+			ui_selected = i;
+			ensure_sel_visible();
+			return 1;
+		}
+	} while (i != 0);
+	return 0;
+}
+
 static void move_sel(int delta)
 {
 	int ns;
@@ -947,12 +1042,82 @@ static void move_sel(int delta)
 	if (ui_selected >= ui_scroll + (unsigned int)winPos.winH)
 		ui_scroll = ui_selected - (unsigned int)winPos.winH + 1u;
 
+	ui_mouse_hide();
 	if (ui_scroll != old_scroll)
 		need_redraw = 1;
 	else
 	{
 		draw_file_row(old_sel, 0);
 		draw_file_row(ui_selected, 1);
+	}
+	ui_mouse_show();
+}
+
+static void handle_key(unsigned char key);
+
+static void handle_mouse(void)
+{
+	signed char w;
+	unsigned char hit;
+	unsigned int idx;
+	unsigned int old_sel;
+	unsigned int old_scroll;
+
+	w = ui_mouse_wheel_delta();
+	if (w > 0)
+		move_sel(1);
+	else if (w < 0)
+		move_sel(-1);
+
+	if (!ui_mouse_lmb_click())
+		return;
+
+	hit = ui_mouse_hit();
+	if (hit == UI_MOUSE_HIT_BTN0)
+	{
+		if (select_prev_s3m())
+			play_selected();
+	}
+	else if (hit == UI_MOUSE_HIT_BTN1)
+	{
+		if (select_next_s3m())
+			play_selected();
+	}
+	else if (hit == UI_MOUSE_HIT_BTN2)
+	{
+		stop_current();
+		mark_status_dirty();
+		ui_mouse_hide();
+		ui_draw_status();
+		ui_mouse_show();
+	}
+	else if (hit == UI_MOUSE_HIT_BTN3)
+	{
+		handle_key(32);
+	}
+	else if (hit == UI_MOUSE_HIT_LIST)
+	{
+		idx = ui_scroll + (unsigned int)ui_mouse_list_row();
+		if (idx >= entry_count)
+			return;
+		if (idx == ui_selected)
+		{
+			play_selected();
+			return;
+		}
+		old_sel = ui_selected;
+		old_scroll = ui_scroll;
+		ui_selected = idx;
+		ensure_sel_visible();
+		ui_mouse_hide();
+		if (ui_scroll != old_scroll)
+			need_redraw = 1;
+		else
+		{
+			draw_file_row(old_sel, 0);
+			draw_file_row(ui_selected, 1);
+		}
+		ui_mouse_show();
 	}
 }
 
@@ -977,7 +1142,9 @@ static void handle_key(unsigned char key)
 	{
 		stop_current();
 		mark_status_dirty();
+		ui_mouse_hide();
 		ui_draw_status();
+		ui_mouse_show();
 	}
 	else if (key == 32)
 	{
@@ -988,7 +1155,9 @@ static void handle_key(unsigned char key)
 			/* MP3/MOD: pause = freeze UI; MP3 stops feed, MOD keeps sounding. */
 			is_paused = 1;
 			mark_status_dirty();
+			ui_mouse_hide();
 			ui_draw_status();
+			ui_mouse_show();
 		}
 		else if (is_paused)
 		{
@@ -997,13 +1166,17 @@ static void handle_key(unsigned char key)
 			is_paused = 0;
 			is_playing = 1;
 			mark_status_dirty();
+			ui_mouse_hide();
 			ui_draw_status();
+			ui_mouse_show();
 		}
 	}
 	else if (key == 31)
 	{
+		ui_mouse_hide();
 		ui_draw_static_chrome();
 		need_redraw = 1;
+		ui_mouse_show();
 	}
 }
 
@@ -1119,7 +1292,11 @@ static void update_status_bottom_if_needed(void)
 		}
 		sec = (unsigned int)elapsed;
 		if (sec != shown_time_sec)
+		{
+			ui_mouse_hide();
 			ui_draw_status_bottom();
+			ui_mouse_show();
+		}
 	}
 }
 
@@ -1128,11 +1305,14 @@ static void run_ui(void)
 	unsigned char key;
 	unsigned int poll;
 	unsigned char st;
+	signed long gk;
 
 	poll = 0;
 	ui_draw_static_chrome();
+	ui_mouse_init();
 	mark_status_dirty();
 	ui_draw_status();
+	ui_mouse_show();
 
 	try_autostart();
 	(void)scan_dir();
@@ -1144,13 +1324,30 @@ static void run_ui(void)
 	{
 		if (need_redraw)
 		{
+			ui_mouse_hide();
 			draw_file_list();
 			need_redraw = 0;
+			ui_mouse_show();
 		}
 
-		key = (unsigned char)OS_GETKEY();
-		if (key != 0)
-			handle_key(key);
+		gk = OS_GETKEY();
+		if (((unsigned long)gk & 0x80000000UL) != 0UL)
+		{
+			/* No focus: OS zeroes mouse; do not drive the soft cursor. */
+			ui_mouse_hide();
+		}
+		else
+		{
+			key = (unsigned char)gk;
+			if (key != 0)
+			{
+				ui_mouse_hide();
+				handle_key(key);
+				ui_mouse_show();
+			}
+			ui_mouse_poll();
+			handle_mouse();
+		}
 
 		poll++;
 		if (play_kind == 2 && is_playing && !is_paused)
@@ -1165,7 +1362,9 @@ static void run_ui(void)
 				else
 				{
 					mark_status_dirty();
+					ui_mouse_hide();
 					ui_draw_status();
+					ui_mouse_show();
 				}
 			}
 			else
@@ -1183,7 +1382,9 @@ static void run_ui(void)
 				else
 				{
 					mark_status_dirty();
+					ui_mouse_hide();
 					ui_draw_status();
+					ui_mouse_show();
 				}
 			}
 			else
@@ -1205,14 +1406,20 @@ static void run_ui(void)
 				else
 				{
 					mark_status_dirty();
+					ui_mouse_hide();
 					ui_draw_status();
+					ui_mouse_show();
 				}
 			}
 			else
 				update_status_bottom_if_needed();
 		}
 		else if (status_dirty)
+		{
+			ui_mouse_hide();
 			ui_draw_status();
+			ui_mouse_show();
+		}
 		else if ((poll & 31u) == 0)
 			update_status_bottom_if_needed();
 
@@ -1239,11 +1446,19 @@ C_task main(int argc, char *argv[])
 	winPos.winH = 11;
 	winPos.color = COL_LIST;
 
+	/* Outer frame = 6 rows: border@16 + content H=4 + border@21. */
 	statPos.winX = 4;
 	statPos.winY = 17;
-	statPos.winW = 70;
+	statPos.winW = 58;
 	statPos.winH = 4;
 	statPos.color = COL_STAT;
+
+	/* 2x3 buttons cover the same 6 rows as the status outer frame. */
+	btnPos.winX = (unsigned char)(statPos.winX + statPos.winW + 2u);
+	btnPos.winY = (unsigned char)(statPos.winY - 1u);
+	btnPos.winW = BTN_PANEL_W;
+	btnPos.winH = 6;
+	btnPos.color = COL_BTN;
 
 	mod.title[0] = 0;
 	cur_file[0] = 0;
