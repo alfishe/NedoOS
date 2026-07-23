@@ -515,8 +515,7 @@ OS_GETSCR1:
 	#include "sysdefs.asm"
 	RSEG CODE
 OS_RENAME:
-;	    ld de, oldname
-;       ld bc, newname
+	push hl
 	ld h,b
 	ld l,c
 	push ix
@@ -525,6 +524,8 @@ OS_RENAME:
 	call BDOS
 	pop iy
 	pop ix
+	ld a,l
+	pop hl
 	ret
 	ENDMOD
 

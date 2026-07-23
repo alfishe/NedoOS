@@ -859,16 +859,26 @@ void getTools(void)
 
 unsigned char ren2old(unsigned char *name)
 {
-	unsigned char counter = 255; // For OLD must be 255
-	OS_MKDIR((void *)name);
-	sprintf(nameBuf, "%s.old", name);
-	while (OS_RENAME((void *)name, (void *)nameBuf) != 0)
+	static unsigned char src[32];
+	static unsigned char dst[40];
+	unsigned char counter;
+
+	if (name == 0 || name[0] == 0)
+	{
+		fatalError((const unsigned char *)"ren2old: empty name");
+	}
+	strncpy((char *)src, (const char *)name, sizeof(src) - 1);
+	src[sizeof(src) - 1] = 0;
+
+	counter = 255;
+	sprintf((char *)dst, "%s.old", src);
+	while (OS_RENAME(src, dst) != 0)
 	{
 		counter++;
-		sprintf(nameBuf, "%s.%u", name, counter);
+		sprintf((char *)dst, "%s.%u", src, counter);
 		if (counter == 255)
 		{
-			fatalError("Unable to rename old folder");
+			fatalError((const unsigned char *)"Unable to rename old folder");
 		}
 	}
 	return counter;
