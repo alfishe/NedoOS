@@ -479,15 +479,6 @@ oldH=$+1
         LD (HL),A
 noH
 
-haltON=$
-        DB 55+128
-        JP C,nogame
-
-gamescf=$
-        OR A
-        JP NC,nogame
-
-nogame
 RETER   RET 
 
 TIMEBACK
