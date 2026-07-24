@@ -31,7 +31,7 @@ unsigned int espRetry = 5;
 unsigned long factor, timerok, count = 0;
 unsigned int magic = 15;
 
-unsigned char uVer[] = "2.1";
+unsigned char uVer[] = "2.3";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -39,6 +39,11 @@ unsigned int errn, headlng;
 unsigned long contLen;
 unsigned char saveFlag, saveBak;
 unsigned char crlf[2] = {13, 10};
+
+/* CLI flags (override network.ini where noted) */
+unsigned char forceEsp = 0;		/* -e : ESP-COM mode */
+unsigned char doFullUpdate = 0; /* -f : full update */
+unsigned char useMirror = 0;	/* -m : kulich.su instead of nedoos.ru */
 
 unsigned char status, curFormat;
 
@@ -66,25 +71,27 @@ struct configuration
 	unsigned char is_atm;
 } config;
 
-unsigned char netbuf[4096];
+unsigned char userAgent[128];
+unsigned char binLink[128];
+unsigned char pkunzipLink[128];
+unsigned char tarLink[128];
+unsigned char cmdLink[128];
+unsigned char termLink[128];
+unsigned char updLink[128];
+unsigned char newsLink[128];
+unsigned char wizNetLink[128];
+unsigned char netIniLink[128];
+unsigned char relLink[128];
+unsigned char updateHost[16];
 
-unsigned char userAgent[] = " HTTP/1.1\r\nHost: nedoos.ru\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n\0";
-unsigned char binLink[] = "http://nedoos.ru/images/sysbin.zip";
-unsigned char pkunzipLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/pkunzip.com";
-unsigned char tarLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/tar.com";
-unsigned char cmdLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/cmd.com";
-unsigned char termLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/term.com";
-unsigned char updLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/updater.com";
-unsigned char newsLink[] = "/svn/dl.php?repname=NedoOS&path=/release/doc/updater.new";
-unsigned char wizNetLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/wizcfg.com";
-unsigned char netIniLink[] = "/svn/dl.php?repname=NedoOS&path=/release/bin/net.ini";
-unsigned char relLink[] = "http://nedoos.ru/images/release.zip";
+unsigned char netbuf[6000];
 unsigned char nameBuf1[512];
+unsigned char cmd[512];
+unsigned char link[512];
+
 unsigned char *nameBuf = nameBuf1;
 // const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
-unsigned char cmd[512];
-unsigned char link[512];
 
 void clearNetBuf(unsigned int const size)
 {
@@ -654,7 +661,7 @@ unsigned char getFileNet(const unsigned char *fileLink, unsigned char *fileNameP
 		if (_low_level_get() == 27)
 		{
 			saveBuf(fileNamePtr, 02, 00);
-			fatalError("Updating aborted!");
+			fatalError("Update aborted!");
 		}
 	} while (downloaded < contLen);
 	netShutDown(socket, 0);
@@ -679,7 +686,8 @@ unsigned char getFileEsp(const unsigned char *fileLink, unsigned char *fileNameP
 
 	do
 	{
-		sendcommand("AT+CIPSTART=\"TCP\",\"nedoos.ru\",80");
+		sprintf(cmd, "AT+CIPSTART=\"TCP\",\"%s\",80", updateHost);
+		sendcommand(cmd);
 
 		if (!getAnswer3()) // "CONNECT"
 		{
@@ -807,36 +815,50 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 unsigned char getConfig(void)
 {
 	config.is_atm = (unsigned char)OS_GETCONFIG();
-	// H=system drive, L= 1-Evo 2-ATM2 3-ATM3 6-p2.666 ;E=pgsys(system page) D= TR-DOS page
+	/* H=system drive, L= 1-Evo 2-ATM2 3-ATM3 6-p2.666 ;E=pgsys(system page) D= TR-DOS page */
 	switch ((config.is_atm))
 	{
 	case 1:
 		strcpy(config.machineName, "ZX-Evolution");
 		strcpy(config.kernelName, "sd_boot.$C");
-		strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/sd_boot.%24C");
+		if (useMirror)
+			strcpy(config.kernelLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/sd_boot.%24C");
+		else
+			strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/sd_boot.%24C");
 		break;
 	case 2:
 		strcpy(config.machineName, "TURBO 2+");
 		strcpy(config.kernelName, "osatm2hd.$C");
-		strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/osatm2hd.%24C");
-
+		if (useMirror)
+			strcpy(config.kernelLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/osatm2hd.%24C");
+		else
+			strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/osatm2hd.%24C");
 		break;
 
-	case 3: // SD HDD versions
+	case 3: /* SD HDD versions */
 		strcpy(config.machineName, "TURBO 3 [SD]");
 		strcpy(config.kernelName, "osatm3hd.$C");
-		strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/osatm3hd.%24C");
+		if (useMirror)
+			strcpy(config.kernelLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/osatm3hd.%24C");
+		else
+			strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/osatm3hd.%24C");
 		break;
-	case 6: // SD HDD versions
+	case 6: /* SD HDD versions */
 		strcpy(config.machineName, "P2.666 [SD]");
 		strcpy(config.kernelName, "osp26sd.$C");
-		strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/osp26sd.%24C");
+		if (useMirror)
+			strcpy(config.kernelLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/osp26sd.%24C");
+		else
+			strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/osp26sd.%24C");
 		break;
 
 	default:
 		strcpy(config.machineName, "NOT DETECED (ZX-Evo)");
 		strcpy(config.kernelName, "sd_boot.$C");
-		strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/sd_boot.s%24C");
+		if (useMirror)
+			strcpy(config.kernelLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/sd_boot.s%24C");
+		else
+			strcpy(config.kernelLink, "/svn/dl.php?repname=NedoOS&path=/release/sd_boot.s%24C");
 		break;
 	}
 	return config.is_atm;
@@ -1166,10 +1188,144 @@ char readParamFromIni(void)
 	return curNet;
 }
 
+void setUpdateSource(unsigned char mirror)
+{
+	if (mirror)
+	{
+		strcpy(updateHost, "kulich.su");
+		strcpy(userAgent, " HTTP/1.1\r\nHost: kulich.su\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n");
+		strcpy(binLink, "http://kulich.su/images/sysbin.zip");
+		strcpy(relLink, "http://kulich.su/images/release.zip");
+		strcpy(pkunzipLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/bin/pkunzip.com");
+		strcpy(tarLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/bin/tar.com");
+		strcpy(cmdLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/bin/cmd.com");
+		strcpy(termLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/bin/term.com");
+		strcpy(updLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/bin/updater.com");
+		strcpy(newsLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/doc/updater.new");
+		strcpy(wizNetLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/bin/wizcfg.com");
+		strcpy(netIniLink, "/svn/dl.php?repname=nedoos&path=/nedoos/release/bin/net.ini");
+	}
+	else
+	{
+		strcpy(updateHost, "nedoos.ru");
+		strcpy(userAgent, " HTTP/1.1\r\nHost: nedoos.ru\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS)\r\n\r\n");
+		strcpy(binLink, "http://nedoos.ru/images/sysbin.zip");
+		strcpy(relLink, "http://nedoos.ru/images/release.zip");
+		strcpy(pkunzipLink, "/svn/dl.php?repname=NedoOS&path=/release/bin/pkunzip.com");
+		strcpy(tarLink, "/svn/dl.php?repname=NedoOS&path=/release/bin/tar.com");
+		strcpy(cmdLink, "/svn/dl.php?repname=NedoOS&path=/release/bin/cmd.com");
+		strcpy(termLink, "/svn/dl.php?repname=NedoOS&path=/release/bin/term.com");
+		strcpy(updLink, "/svn/dl.php?repname=NedoOS&path=/release/bin/updater.com");
+		strcpy(newsLink, "/svn/dl.php?repname=NedoOS&path=/release/doc/updater.new");
+		strcpy(wizNetLink, "/svn/dl.php?repname=NedoOS&path=/release/bin/wizcfg.com");
+		strcpy(netIniLink, "/svn/dl.php?repname=NedoOS&path=/release/bin/net.ini");
+	}
+}
+
+void parseArgs(int argc, const char *argv[])
+{
+	int i;
+	const char *a;
+	unsigned char c;
+	unsigned char bad = 0;
+
+	forceEsp = 0;
+	doFullUpdate = 0;
+	useMirror = 0;
+
+	for (i = 1; i < argc; i++)
+	{
+		a = argv[i];
+		if (a == 0 || a[0] == 0)
+		{
+			continue;
+		}
+
+		if (a[0] == '-' || a[0] == '/')
+		{
+			a++;
+			if (*a == 0)
+			{
+				bad = 1;
+				break;
+			}
+			while (*a)
+			{
+				c = (unsigned char)*a++;
+				if (c >= 'A' && c <= 'Z')
+				{
+					c = (unsigned char)(c + 32);
+				}
+				switch (c)
+				{
+				case 'e':
+					forceEsp = 1;
+					break;
+				case 'f':
+					doFullUpdate = 1;
+					break;
+				case 'm':
+					useMirror = 1;
+					break;
+				default:
+					bad = 1;
+					break;
+				}
+				if (bad)
+				{
+					break;
+				}
+			}
+		}
+		else
+		{
+			/* Legacy single-token forms */
+			if (a[0] == 'E' && a[1] == 0)
+			{
+				forceEsp = 1;
+				doFullUpdate = 1;
+			}
+			else if ((a[0] == 'F' || a[0] == 'f') && a[1] == 0)
+			{
+				doFullUpdate = 1;
+			}
+			else if (a[0] == 'e' && a[1] == 0)
+			{
+				forceEsp = 1;
+			}
+			else if ((a[0] == 'm' || a[0] == 'M') && a[1] == 0)
+			{
+				useMirror = 1;
+			}
+			else
+			{
+				bad = 1;
+			}
+		}
+		if (bad)
+		{
+			break;
+		}
+	}
+
+	if (bad)
+	{
+		AT(1, 1);
+		printf("Usage: updater.com [-e] [-f] [-m]\r\n");
+		printf("  -e  ESP-COM mode (override network.ini)\r\n");
+		printf("  -f  full update (all system files)\r\n");
+		printf("  -m  use mirror kulich.su\r\n");
+		fatalError("Bad command line");
+	}
+}
+
 C_task main(int argc, const char *argv[])
 {
 	unsigned char test;
 	os_initstdio();
+
+	parseArgs(argc, argv);
+	setUpdateSource(useMirror);
 
 	targetadr.family = AF_INET;
 	targetadr.porth = 00;
@@ -1186,70 +1342,44 @@ C_task main(int argc, const char *argv[])
 	OS_GETPATH((unsigned int)&curPath);
 	curLetter = curPath[0];
 
-	if (argc > 1)
+	clearStatus();
+	if (forceEsp)
 	{
-		if (argv[1][0] == 'F')
+		printf("forced ESP-COM\r\n");
+		netDriver = 1;
+	}
+	if (useMirror)
+	{
+
+		printf("forced Mirror %s\r\n", updateHost);
+	}
+
+	if (netDriver == 0)
+	{
+		get_dns();
+		test = dnsResolve(updateHost);
+		if (!test)
 		{
-			netDriver = 0;
-			get_dns();
-			test = dnsResolve("nedoos.ru");
-			if (test)
-			{
-				fullUpdate();
-			}
-		}
-		else if (argv[1][0] == 'e')
-		{
-			netDriver = 1;
-			clearStatus();
-			printf("    ESP-COM mode enabled...");
-			loadEspConfig();
-			uart_init(divider);
-			espReBoot();
-			binUpdate();
-		}
-		else if (argv[1][0] == 'E')
-		{
-			netDriver = 1;
-			clearStatus();
-			printf("    ESP-COM mode enabled...");
-			loadEspConfig();
-			uart_init(divider);
-			espReBoot();
-			fullUpdate();
-		}
-		else
-		{
-			AT(1, 1);
-			// printTable();
-			//  printNews();
-			// getchar();
-			fatalError("Use 'F' key to FULL update");
+			sprintf(cmd, "Check connection to %s!", updateHost);
+			fatalError(cmd);
 		}
 	}
 	else
 	{
-
-		if (netDriver == 0)
-		{
-			get_dns();
-			if (dnsResolve("nedoos.ru"))
-			{
-				binUpdate();
-			}
-			else
-			{
-				fatalError("Check connection to the nedoos.ru server!");
-			}
-		}
-		else if (netDriver == 1)
-		{
-			loadEspConfig();
-			uart_init(divider);
-			espReBoot();
-			binUpdate();
-		}
+		loadEspConfig();
+		uart_init(divider);
+		espReBoot();
 	}
+
+	if (doFullUpdate)
+	{
+		fullUpdate();
+	}
+	else
+	{
+		binUpdate();
+	}
+
 	restoreConfig(oldBinExt);
 	OS_DELETE("bin/bin.zip");
 	OS_DELETE("pkunzip.com");
