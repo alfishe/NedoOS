@@ -124,15 +124,15 @@ static void draw_one_btn(unsigned char x, unsigned char y, unsigned char label)
 	for (i = 0; i < (BTN_W - 2u); i++)
 		putchar(196);
 	putchar(191);
-	y++;
-	OS_SETXY(x, y);
+	// y++;
+	OS_SETXY(x, y + 1);
 	putchar(179);
 	putchar(' ');
 	putchar(label);
 	putchar(' ');
 	putchar(179);
-	y++;
-	OS_SETXY(x, y);
+	// y++;
+	OS_SETXY(x, y + 2);
 	putchar(192);
 	for (i = 0; i < (BTN_W - 2u); i++)
 		putchar(196);
@@ -152,10 +152,10 @@ void ui_draw_stat_buttons(void)
 	y1 = btnPos.winY + BTN_H;
 
 	OS_SETCOLOR(btnPos.color);
-	draw_one_btn(x0, y0, 17);
-	draw_one_btn(x1, y0, 16);
-	draw_one_btn(x0, y1, 254);
-	draw_one_btn(x1, y1, 186);
+	draw_one_btn(x0, y0, 17);  // Prev
+	draw_one_btn(x1, y0, 16);  // Next
+	draw_one_btn(x0, y1, 219); // Stop
+	draw_one_btn(x1, y1, 186); // Pause
 }
 
 void ui_draw_static_chrome(void)
@@ -807,6 +807,7 @@ static void play_selected(void)
 		ui_draw_status_meta();
 		ui_resident_map();
 		err = ngs_mp3_start(namebuf, e.size);
+
 		is_loading = 0;
 		after_load_restore_ui();
 		if (err != 0)
@@ -1352,6 +1353,7 @@ static void run_ui(void)
 		poll++;
 		if (play_kind == 2 && is_playing && !is_paused)
 		{
+
 			if (!ngs_mp3_pump())
 			{
 				is_playing = 0;
@@ -1440,7 +1442,7 @@ C_task main(int argc, char *argv[])
 
 	ngs_init_banks();
 
-	winPos.winX = 13;
+	winPos.winX = 14;
 	winPos.winY = 3;
 	winPos.winW = 48;
 	winPos.winH = 11;
@@ -1454,7 +1456,7 @@ C_task main(int argc, char *argv[])
 	statPos.color = COL_STAT;
 
 	/* 2x3 buttons cover the same 6 rows as the status outer frame. */
-	btnPos.winX = (unsigned char)(statPos.winX + statPos.winW + 2u);
+	btnPos.winX = (unsigned char)(statPos.winX + statPos.winW + 4u);
 	btnPos.winY = (unsigned char)(statPos.winY - 1u);
 	btnPos.winW = BTN_PANEL_W;
 	btnPos.winH = 6;

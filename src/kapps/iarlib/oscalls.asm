@@ -814,8 +814,8 @@ OS_CLS:
 	call BDOS
 	pop iy
 	pop ix
-	pop bc
 	pop hl
+	pop bc
 	ret
 	ENDMOD
 
@@ -885,8 +885,8 @@ OS_SETCOLOR
 	call BDOS
 	pop iy
 	pop ix
-	pop bc
 	pop hl
+	pop bc
 	ret
 	ENDMOD
 

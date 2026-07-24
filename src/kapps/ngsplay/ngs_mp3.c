@@ -47,14 +47,30 @@ static const unsigned char pad_first_hdr[36] = {
 	0xFF, 0xFB, 0x90, 0x64, 0x00, 0x0F, 0xF0, 0x00, 0x00,
 	0x69, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x0D, 0x20,
 	0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0xA4, 0x00, 0x00,
-	0x00, 0x20, 0x00, 0x00, 0x34, 0x80, 0x00, 0x00, 0x04
-};
+	0x00, 0x20, 0x00, 0x00, 0x34, 0x80, 0x00, 0x00, 0x04};
 static const unsigned char pad_next_hdr[36] = {
 	0xFF, 0xFB, 0x90, 0x64, 0x40, 0x8F, 0xF0, 0x00, 0x00,
 	0x69, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x0D, 0x20,
 	0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0xA4, 0x00, 0x00,
-	0x00, 0x20, 0x00, 0x00, 0x34, 0x80, 0x00, 0x00, 0x04
-};
+	0x00, 0x20, 0x00, 0x00, 0x34, 0x80, 0x00, 0x00, 0x04};
+
+unsigned char delayLong(unsigned long counter)
+{
+	unsigned long start, finish;
+	counter = counter / 20;
+	if (counter < 1)
+	{
+		counter = 1;
+	}
+	start = time();
+	finish = start + counter;
+
+	while (time() < finish)
+	{
+		YIELD();
+	}
+	return 0;
+}
 
 static unsigned char wait_cmd_busy(void)
 {
@@ -100,20 +116,26 @@ static unsigned char mp3_cmd_only(unsigned char cmd)
 	return wait_cmd_busy();
 }
 
-static void mp3_hw_reset(void)
+static unsigned char mp3_hw_reset(void)
 {
 	unsigned char t;
 
+	/* Same as GP gshardreset: must see C-bit clear after #F3. */
 	output(GSCTR, C_GRST);
 	for (t = 0; t < 3u; t++)
 		YIELD();
 	output(GSCOM, 0xF3);
+	delayLong(1000);
 	for (t = 0; t < 50u; t++)
 	{
 		if ((input(GSCOM) & 1) == 0)
-			break;
+		{
+			delayLong(1000);
+			return 1;
+		}
 		YIELD();
 	}
+	return 0;
 }
 
 static unsigned char mp3_start_gscode(void)
@@ -147,7 +169,8 @@ static unsigned char mp3_start_gscode(void)
 		return 0;
 	output(GSDAT, (unsigned char)(addr >> 8));
 	(void)wait_dat_clear_busy();
-	for (t = 0; t < 3u; t++)
+	/* VS10xx init inside gscode before preload accepts commands ? give it time. */
+	for (t = 0; t < 15u; t++)
 		YIELD();
 	return 1;
 }
@@ -170,7 +193,7 @@ static unsigned char refill_chunk(void)
 	chunk_pos = 0;
 	chunk_len = 0;
 
-	if (mp3_fp != 0 && mp3_file_left != 0)
+	if (mp3_file_left != 0)
 	{
 		need = MP3_CHUNK;
 		if ((unsigned long)need > mp3_file_left)
@@ -234,17 +257,35 @@ unsigned char ngs_mp3_start(unsigned char *path, unsigned long filesize)
 {
 	unsigned char ver;
 	unsigned char t;
+	unsigned char tries;
 
 	ngs_mp3_stop();
-	mp3_hw_reset();
 	ngs_invalidate();
 
-	/* One upload: gscode enters preload and waits for stream bytes. */
+	/* Cold NeoGS often needs a second F3 after player launch. */
+	mp3_hw_reset();
+	delayLong(1000);
+	/*
+	 * GP musicload: upload gscode then stream. Chip-id only answers after
+	 * VS10xx init inside gscode reaches preload (LOAD256 handles commands).
+	 */
 	if (!mp3_start_gscode())
+	{
 		return 1;
-	if (!mp3_cmd_byte(CMDGETCHIPID, &ver))
+	}
+	ver = 0xff;
+	for (tries = 0; tries < 40u; tries++)
+	{
+		if (mp3_cmd_byte(CMDGETCHIPID, &ver))
+		{
+			break;
+		}
+		delayLong(500);
+	}
+	if (tries >= 40u)
 		return 2;
 	mp3_vsver = ver;
+
 	if (ver > SS_VER_VS1103)
 		return 3;
 
@@ -255,7 +296,6 @@ unsigned char ngs_mp3_start(unsigned char *path, unsigned long filesize)
 	 */
 	if (!mp3_cmd_only(CMDRESTARTSTREAM))
 	{
-		/* Older path: brief settle then continue; preload may still be ok. */
 		for (t = 0; t < 5u; t++)
 			YIELD();
 	}
@@ -266,7 +306,6 @@ unsigned char ngs_mp3_start(unsigned char *path, unsigned long filesize)
 		mp3_fp = 0;
 		return 6;
 	}
-
 	if (filesize == 0)
 		filesize = OS_GETFILESIZE(mp3_fp);
 	mp3_file_left = filesize;
