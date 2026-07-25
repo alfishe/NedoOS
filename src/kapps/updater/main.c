@@ -1085,7 +1085,7 @@ void binUpdate(void)
 
 	clearStatus();
 	AT(cw.x + 2, cw.y + 10);
-	printf(">To full update start 'updater.com -f'<");
+	printf(">To full update start'updater.com -f'<");
 	YIELD();
 
 	OS_CHDIR("/");
