@@ -161,6 +161,19 @@ GO
 
 	call swapimer
 
+waitfreecpu0
+        OS_GETTIMER ;out: dehl=timer
+        push hl
+        dup 5
+        halt
+        edup
+        OS_GETTIMER ;out: dehl=timer
+        ld a,l
+        pop hl
+        sub l
+        cp 5
+        jr nz,waitfreecpu0
+
        LD HL,AFXBANK
        CALL AFXINIT
         

@@ -12,6 +12,7 @@ music=0x4000
 begin
         ld sp,STACK
 
+        OS_HIDEFROMPARENT
         ld e,0
         OS_SETGFX ;e=0:EGA, e=2:MC, e=3:6912, e=6:text ;+SET FOCUS ;e=-1: disable gfx (out: e=old gfxmode)
         ld e,0 ;color byte
@@ -156,11 +157,25 @@ copypal0
         ld hl,MDLADDR
         call INIT
 
+        call swapimer
+        
+waitfreecpu0
+        OS_GETTIMER ;out: dehl=timer
+        push hl
+        dup 5
+        halt
+        edup
+        OS_GETTIMER ;out: dehl=timer
+        ld a,l
+        pop hl
+        sub l
+        cp 5
+        jr nz,waitfreecpu0
+
         ld a,(pgmusic)
         ld hl,PLAY
         OS_SETMUSIC
 
-        call swapimer
 MUSICPATTERNSIZE=256;192
         OS_GETTIMER ;dehl
         ld (oldtimer),hl;de
