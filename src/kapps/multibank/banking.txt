@@ -1,0 +1,47 @@
+multibank ? unlimited CODE overlays @8000 (IAR C demo)
+======================================================
+
+Output pack
+-----------
+  bin/multibank.com
+  bin/multibank/codeB_XX.bin
+  ? release/bin/ and emulator /bin/ (same layout)
+
+Adding a bank
+-------------
+  1. Add codebank_04.c (pragma CODE_RESIDENT, r_bank_entry)
+  2. Append 04 to BANKS in Makefile
+  3. make / build.bat
+  No need to rebuild tools/mbovl.exe
+
+Tool (no Python)
+----------------
+  tools/mbovl.exe
+    extract  ? cut 8000-window from ovl .com ? .bin (+ root fingerprint)
+    check    ? verify libc/root CALL addresses match com vs ovl maps
+    gen-h    ? write mb_banks.h (MB_BANK_COUNT) from BANKS length
+  Source: tools/src/mbovl/  (rebuild once with build.bat if needed)
+
+Calling libc from a bank
+------------------------
+  Call puts/printf directly. Root must reference the symbol (e.g. puts("")
+  in mb_init) so it is linked into multibank.com.
+
+
+Что делает mbovl
+------------------------
+Команда	Назначение
+extract       вырезать окно 8000?BFFF из temp .com ? codeB_XX.bin (+ FNV root hash)
+check         сравнить адреса символов root vs overlay (список символов с cmdline)
+gen-h         сгенерировать mb_banks.h с MB_BANK_COUNT
+
+Исходник: tools/src/mbovl/ ? пересборка только если правите сам инструмент (build.bat + MSVC).
+------------------------
+Добавление банка (без пересборки mbovl)
+
+codebank_04.c
+в Makefile: BANKS := 01 02 03 04
+build.bat
+Список OVL_SYMS ? какие libc/API проверять на drift; банки/имена файлов в exe не зашиты.
+
+build.bat копирует все bin/multibank/*.bin циклом for.
