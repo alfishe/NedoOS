@@ -1,0 +1,428 @@
+tdesk / NedoOS ? Window & Control API
+=====================================
+Path: src/kapps/tdesk/
+Target: ATM / NedoOS text 80x25 (OS_SETGFX 0x86)
+Language: IAR C (Z80), C89
+
+Read this once top-down. Examples are recipes, not optional fluff.
+
+
+==============================================================================
+HOW TO STUDY THE CODE (start here)
+==============================================================================
+Do not jump into main.c first ? it is a demo of everything at once.
+
+Recommended order (1?2 evenings):
+
+  1. bank.h / bank.c
+     Memory map: 0100-7FFF code, C000 = banked 16K. push/pop around access.
+
+  2. vtxt.h / vtxt.c (+ vtxt_blit.asm)
+     Soft 80x25 framebuffer ? present to VRAM. CP866 ? ATM glyphs.
+
+  3. wm.h / wm.c
+     Windows: create, z-order, chrome, hit-test, modal, redraw.
+
+  4. wm_ctrl.h / wm_ctrl.c
+     THE key idea: attach = moves with window. Freehand draw does not.
+
+  5. wm_button / wm_label / wm_edit
+     Widgets = ops vtable + private data + wm_ctrl_attach.
+
+  6. wm_form.h / wm_form.c + forms/*.frm
+     Binary layout of a dialog; load from RAM or disk; binds = actions.
+
+  7. ui_mouse.* then main.c
+     Soft cursor, drag, event loop wiring it all together.
+
+Mental model:
+
+  App
+   ÃÄ wm_*          window chrome + z-order + modal
+   ÃÄ wm_ctrl_*     binding (client-relative ? absolute on paint)
+   ÃÄ widgets       button / label / edit
+   ÃÄ wm_form_*     .frm blob ? window + widgets
+   ÃÄ vtxt_*        compose screen, then present
+   ÃÄ ui_mouse_*    soft pointer
+   ÀÄ bank_*        extra page for window records
+
+Rule of thumb:
+  Anything that must MOVE WITH THE WINDOW ? wm_ctrl_attach / wm_*_add.
+  Absolute vtxt_* outside attach = decoration; drag leaves it behind.
+
+
+==============================================================================
+1. Memory map
+==============================================================================
+  0100-7FFF   CODE + DATA + CSTACK (lnk.xcl). Keep app code here.
+  8000-BFFF   reserved (future code banks).
+  C000-FFFF   16K window:
+                - window records (bank_push)
+                - during vtxt_present: video pages
+
+  Soft char+attr buffer lives in low RAM so it survives C000 remaps.
+  App sources use CP866; vtxt converts via cp866toatm.inc (BDOS-style).
+
+
+==============================================================================
+2. Typical app loop
+==============================================================================
+  OS_SETGFX(0x86);
+  wm_init();
+  wm_ctrl_set_redraw(desk_redraw);   /* button press flash */
+
+  /* create / load forms / add widgets */
+
+  ui_mouse_init();
+  desk_redraw();
+
+  for (;;) {
+    gk = OS_GETKEY();          /* also fills mouse_x/y/btns */
+    if (no focus) { ui_mouse_hide(); YIELD(); continue; }
+
+    /* keys: first wm_ctrl_key_focused(), then Tab/Enter/` /Esc? */
+    ui_mouse_poll();
+    /* LMB: wm_hit_test ? close / min / title-drag / ctrl / minbar */
+
+    if (idle) YIELD();
+  }
+
+  ui_mouse_hide();
+  wm_shutdown();
+  OS_SETGFX(0xFF);
+
+desk_redraw (always wrap full paint):
+
+  void desk_redraw(void)
+  {
+    ui_mouse_hide();
+    wm_redraw();       /* desktop + windows + controls + present */
+    ui_mouse_show();
+  }
+
+
+==============================================================================
+3. Windows (wm.h)
+==============================================================================
+Handles: wm_id = 1..WM_MAX_WIN (12). 0 = invalid.
+
+Flags (OR):
+  WM_F_VISIBLE    0x01
+  WM_F_MINIMIZED  0x02
+  WM_F_SHADOW     0x04
+  WM_F_ACTIVE     0x08   /* reserved / paint hint */
+  WM_F_MODAL      0x10   /* see ?14 */
+
+API:
+  wm_init / wm_shutdown
+  wm_create(x,y,w,h,title,color) ? id
+  wm_destroy(id)          /* clears attached controls too */
+  wm_set_title / wm_set_body / wm_set_color
+  wm_show / wm_hide / wm_minimize / wm_restore
+  wm_bring_front / wm_move / wm_get_geom
+  wm_set_modal / wm_is_modal / wm_modal_top
+  wm_active / wm_next
+  wm_set_desktop_color / wm_set_desktop_char
+  wm_redraw
+  wm_hit_test(sx,sy, &hit)
+
+Screen: WM_SCR_W=80, WM_SCR_H=25, WM_DESK_H=24 (row 24 = minibar).
+
+Title hit zones (row y == win.y):
+  x+2  close þ     ? WM_HIT_CLOSE
+  x+4  minimize    ? WM_HIT_MINBTN  (absent on modal)
+  else title       ? WM_HIT_TITLE   (drag)
+
+struct wm_hit { kind; id; ctrl_id; };
+kind: NONE, DESK, WIN, TITLE, CLOSE, MINBTN, MINBAR, CTRL
+
+Example:
+
+  id = wm_create(5, 3, 40, 12, "Hello",
+                 MKCOLOR(BR_BOTH, PAPER_BLUE, INK_WHITE));
+  wm_set_body(id, "Body\nline 2");
+  wm_redraw();
+
+
+==============================================================================
+4. Control binding (wm_ctrl.h) ? the important part
+==============================================================================
+Attach coords are CLIENT-RELATIVE:
+  (0,0) = first cell inside the frame (not the border).
+
+On every paint, binding converts to ABSOLUTE and calls ops->paint.
+Drag the window ? next wm_redraw places controls correctly.
+
+  h = wm_ctrl_attach(win, cx, cy, cw, ch,
+                     flags,   /* FOCUSABLE | HITABLE | PRESSED */
+                     tag,     /* form bind id; 0 = none */
+                     &ops, data);
+
+Flags: WM_CF_FOCUSABLE, WM_CF_HITABLE, WM_CF_PRESSED
+Paint state: WM_CS_FOCUSED | WM_CS_PRESSED | WM_CS_ACTIVEWIN
+
+struct wm_ctrl_ops {
+  void (*paint)(const struct wm_ctrl_draw *d);
+  void (*click)(wm_ctrl_h h, wm_id win, void *data);
+  unsigned char (*key)(...);   /* 1 = consumed */
+  void (*destroy)(void *data);
+};
+
+Focus helpers:
+  wm_ctrl_set_redraw(desk_redraw);  /* REQUIRED for button flash */
+  wm_ctrl_focus_first / next / prev
+  wm_ctrl_activate_focused
+  wm_ctrl_key_focused(win, key)
+  wm_ctrl_click_tag(win, tag)
+  wm_clear_controls(win)            /* also on wm_destroy */
+
+Custom widget sketch:
+
+  static void box_paint(const struct wm_ctrl_draw *d)
+  {
+    vtxt_fill(d->ax, d->ay, d->cw, d->ch, 0xB0, 0x1F);
+  }
+  static const struct wm_ctrl_ops box_ops = { box_paint, 0, 0, 0 };
+  wm_ctrl_attach(win, 2, 4, 8, 3, 0, 0, &box_ops, 0);
+
+
+==============================================================================
+5. Ready-made widgets
+==============================================================================
+5.1 Button ? wm_button.h
+
+  typedef void (*wm_btn_fn)(wm_id win, unsigned char tag, void *user);
+  wm_button_add(win, cx, cy, cw, ch, " OK ", tag, on_click, user);
+  /* green; yellow >label< when focused; white flash on press */
+
+5.2 Label ? wm_label.h
+
+  wm_label_add(win, cx, cy, cw, ch, "Caption", color);
+  /* color 0 = default; not focusable */
+
+5.3 Edit ? wm_edit.h
+
+  struct wm_edit { char *buf; unsigned char maxlen, len, cursor; };
+  /* buf is caller-owned and must stay valid while attached */
+  wm_edit_add(win, cx, cy, cw, &edit);
+  /* keys: printable, BS, Del, Left/Right; Tab not consumed */
+
+
+==============================================================================
+6. Forms (.frm) ? memory and disk
+==============================================================================
+Binary layout (little endian bytes, CP866 strings):
+
+  u8 magic = 'F' (0x46)
+  u8 ver   = 1
+  u8 x, y, w, h
+  u8 color          /* Spectrum attr */
+  u8 flags          /* WM_FORM_F_SHADOW=0x01, WM_FORM_F_MODAL=0x02 */
+  u8 nctrl
+  zstring title
+  zstring body
+  nctrl ? {
+    u8 type     1=button  2=label
+    u8 id       tag for binds
+    u8 cx,cy,cw,ch
+    u8 color    0 = default
+    u8 flags    bit0 = initial focus (buttons)
+    zstring label
+  }
+
+Actions are NOT in the file. Bind in C:
+
+  static const struct wm_form_bind binds[] = {
+    { 1, on_close, 0 },
+    { 2, on_ping,  0 },
+  };
+
+----- three ways to open -----
+
+A) Already in memory (ROM/CODE or previously loaded):
+
+  id = wm_form_open(blob, binds, n);
+
+B) Load into YOUR buffer now, open later (or reuse):
+
+  unsigned char buf[WM_FORM_MAX];   /* 256 */
+  unsigned int n;
+
+  n = wm_form_load("welcome.frm", buf, sizeof(buf));
+  if (n == 0) { /* missing / too big / bad magic */ }
+  /* ? maybe tweak buf, or keep for later ? */
+  id = wm_form_open(buf, binds, nbinds);
+
+  /* or one call: */
+  id = wm_form_open_buf("welcome.frm", buf, sizeof(buf), binds, nbinds);
+
+C) One-shot via internal staging (WM_FORM_MAX), then open:
+
+  id = wm_form_open_file("dialog.frm", binds, nbinds);
+  /* staging overwritten on next open_file; do not keep pointers into it
+     unless you only need them until the next load */
+
+Demo files on the disk image (build.bat puts them):
+  /bin/welcome.frm
+  /bin/dialog.frm
+Source copies: src/kapps/tdesk/forms/
+Embedded fallback: forms_demo.inc (if file missing).
+
+Demo main uses both B (welcome -> g_frm_cache) and C (dialog -> open_file).
+
+NedoOS file handles -- NEVER test fp == 0 / !fp:
+
+  fp = OS_OPENHANDLE(path, 0x80);
+  /* HL = handle<<8 | errno. Success = low byte 0; handle MAY be 0. */
+  if (((int)fp) & 0xFF)
+    return error;   /* errno in low byte */
+  /* wrong: if (fp == 0)  -- treats valid handle 0 as failure */
+
+Same rule for CREATEHANDLE. CLOSE/READ/WRITE take the opaque FILE* as-is.
+
+
+==============================================================================
+7. Text framebuffer - vtxt.h
+==============================================================================
+  vtxt_init / shutdown
+  vtxt_clear / putc / puts / fill / hline
+  vtxt_present()
+
+Draw UI only through vtxt_* inside ops->paint (absolute ax,ay given).
+Avoid OS_SETXY/putchar for chrome ? BDOS path flickers.
+
+
+==============================================================================
+8. Mouse ? ui_mouse.h
+==============================================================================
+  ui_mouse_init / hide / show
+  ui_mouse_poll() after OS_GETKEY while focused
+  ui_mouse_x / y
+  ui_mouse_lmb_click()   /* edge */
+  ui_mouse_lmb_down()    /* level ? drag */
+  ui_mouse_wheel_delta()
+
+Soft cursor = OS_PRATTR on live VRAM ? hide before wm_redraw, show after.
+
+Drag (current): real window + full desk_redraw each cell move.
+  (Rubber-band / bitblt later ? intentional for now; modal Yes/No is fine.)
+
+
+==============================================================================
+9. Banking ? bank.h
+==============================================================================
+  bank_new_page / bank_del_page
+  bank_push(page) / bank_pop(saved)   /* C000 */
+  bank_map_8000 / bank_map_c000
+
+Window records live in an extra page at C000. Always push/pop.
+
+
+==============================================================================
+10. Keyboard (demo conventions)
+==============================================================================
+  Tab / arrows     focus among focusable controls
+  Enter / Space    activate focused button (Space types in edit)
+  `                cycle windows (blocked while modal)
+  N / M / R        new form / minimize / restore (gated by modal)
+  Esc              quit
+
+Always offer wm_ctrl_key_focused() BEFORE Tab/Enter so edit gets input.
+
+
+==============================================================================
+11. Mini example ? modal name dialog
+==============================================================================
+  static char name[24];
+  static struct wm_edit name_ed;
+
+  static void on_ok(wm_id w, unsigned char tag, void *u)
+  {
+    (void)tag; (void)u;
+    wm_set_body(w, name[0] ? name : "(empty)");
+  }
+
+  void open_name(void)
+  {
+    wm_id id = wm_create(10, 8, 40, 8, "Name",
+                         MKCOLOR(0xC0, PAPER_WHITE, INK_BLACK));
+    wm_set_body(id, "Type, Tab to OK:");
+    name[0] = 0;
+    name_ed.buf = name;
+    name_ed.maxlen = sizeof(name);
+    name_ed.len = name_ed.cursor = 0;
+    wm_edit_add(id, 1, 3, 28, &name_ed);
+    wm_button_add(id, 1, 5, 10, 1, " OK ", 1, on_ok, 0);
+    wm_ctrl_focus_first(id);
+    wm_set_modal(id, 1);
+  }
+
+
+==============================================================================
+12. Adding a new control type
+==============================================================================
+  1. wm_foo.c/h ? private pool + static wm_ctrl_ops
+  2. paint via vtxt at d->ax/d->ay
+  3. optional click / key / destroy
+  4. wm_foo_add(...) ? wm_ctrl_attach(...)
+  5. never freehand-draw if it must track the window
+
+Sticky-on-drag checklist:
+  - absolute draw outside ops->paint? ? attach it
+  - forgot desk_redraw after wm_move?
+
+
+==============================================================================
+13. File map
+==============================================================================
+  winApi.txt       this document
+  main.c           demo event loop
+  wm.c / wm.h      window manager + modal
+  wm_ctrl.*        attach / focus
+  wm_button.*      button
+  wm_label.*       label
+  wm_edit.*        single-line edit
+  wm_form.*        .frm open / load / open_file
+  forms/*.frm      disk form binaries
+  forms_demo.inc   embedded fallback blobs
+  vtxt.* + vtxt_blit.asm
+  ui_mouse.*
+  bank.*
+  cp866toatm.inc
+  lnk.xcl          0100-7FFF only
+  build.bat        make + dmimg tdesk.com + .frm ? /bin/
+
+
+==============================================================================
+14. Modal windows
+==============================================================================
+  WM_F_MODAL (0x10) on the window, or WM_FORM_F_MODAL (0x02) in .frm.
+
+  wm_set_modal(id, 1);
+  wm_is_modal(id);
+  mt = wm_modal_top();
+
+While modal_top != 0:
+  - hits only that window (minibar / others ignored)
+  - keyboard stuck on it; ` cycle no-op
+  - non-modal cannot steal bring_front
+  - new wm_create sits UNDER the modal
+  - no minimize glyph; wm_minimize is no-op
+  - nest OK: close top ? previous modal becomes top
+
+Yes/No over a busy calculator is exactly this use case
+(full redraw while dragging that small dialog is acceptable).
+
+
+==============================================================================
+15. Limits / TODO
+==============================================================================
+  WM_MAX_WIN    12
+  WM_CTRL_MAX   32
+  WM_FORM_MAX   256  (staging + typical .frm)
+  title 28 / body 160
+  no resize handles
+  drag = full redraw (bitblt / rubber-band later)
+  form types: button + label only (edit still code-built)
+
+End of winApi.txt

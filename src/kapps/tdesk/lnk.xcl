@@ -1,0 +1,10 @@
+-cZ80
+-Ilist
+/* tdesk: all code+data in 0100-7FFF.
+ * 8000-BFFF reserved for future code banks.
+ * C000-FFFF = 16K data window (window records via SETPG32KHIGH).
+ * Do NOT place CODE/DATA/CSTACK at 8000 or C000. */
+-Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-7FFF
+-Z(DATA)DATA0,IDATA0,UDATA0,ECSTR,NO_INIT,CSTACK+200=0100-7FFF
+-e_medium_write=_formatted_write
+-e_medium_read=_formatted_read
