@@ -1,0 +1,13 @@
+-cZ80
+-Ilist
+/*
+ * Multibank map (logical):
+ *   0100-7FFF  ROOT: main, iarlib, banking, blitter stubs, data/stack
+ *   8000-BFFF  CODE_RESIDENT: one loadable code page (window @ 8000)
+ *   C000-FFFF  free for runtime data page (OS_NEWPAGE + SETPGC000)
+ *
+ * No CODE in C000 — code and data no longer share one window.
+ */
+-Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-7FFF
+-Z(DATA)DATA0,IDATA0,ECSTR,NO_INIT,UDATA0,CSTACK+250=0100-7FFF
+-Z(CODE)CODE_RESIDENT=8000-BFFF

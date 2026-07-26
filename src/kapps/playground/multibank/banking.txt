@@ -1,0 +1,41 @@
+multibank — skeleton with two windows (code @8000, data @C000)
+==============================================================
+
+Logical map
+-----------
+  0100-7FFF  ROOT   main, iarlib, banking, blit stub, stack/globals
+  8000-BFFF  CODE   CODE_RESIDENT (one code page; from .com → window_2)
+  C000-FFFF  DATA   runtime page via OS_NEWPAGE (not in link image)
+
+Why two windows
+---------------
+With a single bank window, code and big buffers fight for C000.
+Here resident code stays at 8000 and buffers live at C000 at the same time:
+  mb_code_select()  → OS_SETPG8000(g_codePg)
+  mb_data_select()  → OS_SETPGC000(g_dataPg)
+  netbuf = (unsigned char *)(0xC000 + MB_NETBUF_OFF);
+
+netbuf pattern
+--------------
+Do not use a large static array in root.
+Allocate a data page, map it at C000, then:
+  unsigned char *netbuf;
+  netbuf = (unsigned char *)0xC010;  /* or MB_DATA_ADDR + MB_NETBUF_OFF */
+Valid only while that page is mapped at C000.
+
+Build
+-----
+  build.bat
+  → multibank.com → release/bin/kapps/ (via iar.mk INSTDIR)
+  → optional dmimg + emul
+
+Link
+----
+  lnk.xcl places CODE_RESIDENT at 8000-BFFF.
+  Map file: obj/cout.html
+
+Next steps (tooling ideas)
+--------------------------
+  - load second code page from disk into OS_NEWPAGE @8000
+  - dispatch table / wrapper generator for r_* exports
+  - shared mb_bank in kapps/common/
