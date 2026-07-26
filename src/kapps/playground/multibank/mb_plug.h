@@ -2,41 +2,33 @@
 #define MB_PLUG_H
 
 #include <oscalls.h>
+#include <osfs.h>
+
+#define MB_BANK_COUNT 3u
 
 /* Physical pages (OS page numbers). */
-extern unsigned char g_codePg;   /* CODE_RESIDENT, window @ 8000 */
-extern unsigned char g_dataPg;   /* data page, window @ C000 */
+extern unsigned char g_bankPg[MB_BANK_COUNT]; /* overlays @ 8000 */
+extern unsigned char g_dataPg;                /* optional data @ C000 */
 extern union APP_PAGES g_main_pg;
 
-/*
- * netbuf-style pointer: always 0xC000 + offset, valid only while g_dataPg
- * is mapped at C000. Prefer keeping data page mapped after mb_init().
- */
 extern unsigned char *netbuf;
 
 void mb_init(void);
 void mb_shutdown(void);
 
-/* Ensure data page is mapped; netbuf points into it. */
 void mb_data_select(void);
+void mb_code_select_page(unsigned char page);
 
-/* Ensure code page is mapped at 8000. */
-void mb_code_select(void);
+/* Root helpers overlays may CALL (same absolute addr as in .com). */
+void mb_report_bank(unsigned int bank_nr);
+/* puts/printf/putchar: call directly from banks; kept in .com via root refs. */
 
-/* CODE_RESIDENT @ 8000 — call only while g_codePg is mapped there. */
-unsigned short r_mock_magic(void);
-unsigned char r_mock_transform(unsigned char tag);
-void r_mock_message(char *buf, unsigned char buf_sz, const char *prefix);
-/* Resident reads/writes netbuf while data page stays @ C000. */
-unsigned int r_fill_netbuf(unsigned char seed, unsigned int n);
+/* Load codeBank_XX.bin into a fresh OS page; returns 1 on success. */
+unsigned char mb_load_bank_bin(const char *path, unsigned char *page_out);
 
-/* Root wrappers: map code page, call, restore (data window untouched). */
-unsigned short ui_mock_magic(void);
-unsigned char ui_mock_transform(unsigned char tag);
-void ui_mock_message(char *buf, unsigned char buf_sz, const char *prefix);
-unsigned int ui_fill_netbuf(unsigned char seed, unsigned int n);
+/* Map page @8000, call entry at 0x8000, restore. */
+void mb_call_bank(unsigned char page);
 
-/* Root "blitter": touches data page @ C000 (demo fill). */
-void blit_mark_data(unsigned char tag);
+typedef void (*bank_entry_fn)(void);
 
 #endif

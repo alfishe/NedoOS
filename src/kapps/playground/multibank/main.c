@@ -2,17 +2,27 @@
 #include "mb_plug.h"
 #include "mb_bank.h"
 
-unsigned char g_codePg;
+unsigned char g_bankPg[MB_BANK_COUNT];
 unsigned char g_dataPg;
 union APP_PAGES g_main_pg;
-
-/* Points into data page @ C000 + MB_NETBUF_OFF (valid while data page mapped). */
 unsigned char *netbuf;
 
-void mb_code_select(void)
+/*
+ * Overlays CALL root/libc by absolute address (resolved at ovl-link time).
+ * Those must match multibank.com ? banks call puts/printf directly.
+ * Root must reference any libc symbol banks use (see puts("") in mb_init).
+ */
+static const char g_bank_fmt[] = "This procedure run from codebank %u\r\n";
+
+void mb_report_bank(unsigned int bank_nr)
 {
-	if (g_codePg != 0u)
-		mb_code_map(g_codePg);
+	printf(g_bank_fmt, bank_nr);
+}
+
+void mb_code_select_page(unsigned char page)
+{
+	if (page != 0u)
+		mb_code_map(page);
 }
 
 void mb_data_select(void)
@@ -26,15 +36,79 @@ void mb_data_select(void)
 		netbuf = 0;
 }
 
+static const char *mb_bank_name(unsigned char idx)
+{
+	/* 8.3 names under /bin/multibank/ */
+	if (idx == 0u)
+		return "codeB_01.bin";
+	if (idx == 1u)
+		return "codeB_02.bin";
+	return "codeB_03.bin";
+}
+
+/* cwd=/bin ? multibank/codeB_0N.bin ; also try bin/multibank/ from volume root */
+static unsigned char mb_try_load(unsigned char idx, unsigned char *page_out)
+{
+	char path[40];
+	const char *name;
+	unsigned char i;
+
+	name = mb_bank_name(idx);
+
+	/* multibank/codeB_0N.bin */
+	path[0] = 'm';
+	path[1] = 'u';
+	path[2] = 'l';
+	path[3] = 't';
+	path[4] = 'i';
+	path[5] = 'b';
+	path[6] = 'a';
+	path[7] = 'n';
+	path[8] = 'k';
+	path[9] = '/';
+	for (i = 0u; name[i] != 0 && (unsigned char)(10u + i) < (unsigned char)(sizeof(path) - 1u); i++)
+		path[10u + i] = name[i];
+	path[10u + i] = 0;
+	if (mb_load_bank_bin(path, page_out))
+		return 1u;
+
+	/* bin/multibank/codeB_0N.bin */
+	path[0] = 'b';
+	path[1] = 'i';
+	path[2] = 'n';
+	path[3] = '/';
+	path[4] = 'm';
+	path[5] = 'u';
+	path[6] = 'l';
+	path[7] = 't';
+	path[8] = 'i';
+	path[9] = 'b';
+	path[10] = 'a';
+	path[11] = 'n';
+	path[12] = 'k';
+	path[13] = '/';
+	for (i = 0u; name[i] != 0 && (unsigned char)(14u + i) < (unsigned char)(sizeof(path) - 1u); i++)
+		path[14u + i] = name[i];
+	path[14u + i] = 0;
+	return mb_load_bank_bin(path, page_out);
+}
+
 void mb_init(void)
 {
+	unsigned char i;
+
 	g_main_pg.l = OS_GETMAINPAGES();
 
-	/* Code page already loaded into window_2 by .com (CODE_RESIDENT @ 8000). */
-	g_codePg = g_main_pg.pgs.window_2;
-	mb_code_select();
+	/*
+	 * Force-link puts into multibank.com. Overlays CALL puts by absolute
+	 * address ? if root never references puts, xlink omits it and the
+	 * bank jumps to the wrong routine (that was the hang).
+	 */
+	puts("");
 
-	/* Data page: allocate and map permanently at C000 for this demo. */
+	for (i = 0u; i < MB_BANK_COUNT; i++)
+		g_bankPg[i] = 0u;
+
 	g_dataPg = 0u;
 	netbuf = 0;
 	if (mb_os_new_page(&g_dataPg))
@@ -42,14 +116,22 @@ void mb_init(void)
 		mb_data_fill(g_dataPg, 0u);
 		mb_data_select();
 		mb_data_poke_u32(g_dataPg, MB_DATA_SIG_OFF, MB_DATA_SIG_MAGIC);
-		mb_data_poke_u32(g_dataPg, MB_DATA_COUNTER_OFF, 1ul);
-		/* After poke helpers, re-select so netbuf mapping is current. */
 		mb_data_select();
 	}
 }
 
 void mb_shutdown(void)
 {
+	unsigned char i;
+
+	for (i = 0u; i < MB_BANK_COUNT; i++)
+	{
+		if (g_bankPg[i] != 0u)
+		{
+			mb_os_release_page(g_bankPg[i]);
+			g_bankPg[i] = 0u;
+		}
+	}
 	if (g_dataPg != 0u)
 	{
 		mb_os_release_page(g_dataPg);
@@ -58,149 +140,61 @@ void mb_shutdown(void)
 	}
 }
 
-unsigned short ui_mock_magic(void)
+static unsigned char demo_load_banks(void)
 {
-	unsigned char saved;
-	unsigned short v;
+	unsigned char i;
+	unsigned char ok;
 
-	saved = mb_code_push(g_codePg);
-	v = r_mock_magic();
-	mb_code_pop(saved);
-	return v;
-}
-
-unsigned char ui_mock_transform(unsigned char tag)
-{
-	unsigned char saved;
-	unsigned char v;
-
-	saved = mb_code_push(g_codePg);
-	v = r_mock_transform(tag);
-	mb_code_pop(saved);
-	return v;
-}
-
-void ui_mock_message(char *buf, unsigned char buf_sz, const char *prefix)
-{
-	unsigned char saved;
-
-	saved = mb_code_push(g_codePg);
-	r_mock_message(buf, buf_sz, prefix);
-	mb_code_pop(saved);
-}
-
-unsigned int ui_fill_netbuf(unsigned char seed, unsigned int n)
-{
-	unsigned char saved_code;
-	unsigned int got;
-
-	/* Data stays @ C000; only code window is switched if needed. */
-	mb_data_select();
-	saved_code = mb_code_push(g_codePg);
-	got = r_fill_netbuf(seed, n);
-	mb_code_pop(saved_code);
-	return got;
-}
-
-void blit_mark_data(unsigned char tag)
-{
-	/* Root-side "blitter": write a marker into data page without resident. */
-	mb_data_select();
-	if (netbuf != 0)
-		netbuf[0] = tag;
-	mb_data_poke_u8(g_dataPg, MB_DATA_COUNTER_OFF, tag);
-}
-
-static void demo_map(void)
-{
-	printf("map: root 0100-7FFF, code pg %u @8000, data pg %u @C000\r\n",
-		   (unsigned int)g_codePg, (unsigned int)g_dataPg);
-	printf("  cur code window pg=%u data window pg=%u\r\n",
-		   (unsigned int)mb_code_current(), (unsigned int)mb_data_current());
-	printf("  netbuf=%p (expect C000+%u)\r\n",
-		   (void *)netbuf, (unsigned int)MB_NETBUF_OFF);
-}
-
-static void demo_data(void)
-{
-	unsigned long sig;
-	unsigned char b0;
-
-	printf("--- data page @ C000 ---\r\n");
-	if (g_dataPg == 0u)
+	ok = 1u;
+	printf("--- load overlays ---\r\n");
+	for (i = 0u; i < MB_BANK_COUNT; i++)
 	{
-		printf("  OS_NEWPAGE failed\r\n");
-		return;
+		if (!mb_try_load(i, &g_bankPg[i]))
+		{
+			printf("  FAIL %s\r\n", mb_bank_name(i));
+			ok = 0u;
+		}
+		else
+			printf("  OK   %s -> page %u\r\n",
+				   mb_bank_name(i), (unsigned int)g_bankPg[i]);
 	}
-
-	sig = mb_data_peek_u32(g_dataPg, MB_DATA_SIG_OFF);
-	printf("  sig=0x%lX (expect 0x%lX)\r\n", sig, MB_DATA_SIG_MAGIC);
-
-	blit_mark_data(0x5Au);
-	mb_data_select();
-	b0 = (netbuf != 0) ? netbuf[0] : 0u;
-	printf("  blit netbuf[0]=0x%02X\r\n", b0);
+	return ok;
 }
 
-static void demo_code(void)
+static void demo_run_banks(void)
 {
-	unsigned short magic;
-	unsigned char out;
-	char msg[48];
-	unsigned int n;
 	unsigned char i;
 
-	printf("--- code page @ 8000 ---\r\n");
-
-	magic = ui_mock_magic();
-	printf("  r_mock_magic=0x%04X\r\n", magic);
-
-	out = ui_mock_transform(0x42u);
-	printf("  r_mock_transform(0x42)=0x%02X\r\n", out);
-
-	ui_mock_message(msg, (unsigned char)sizeof(msg), "hello");
-	printf("  r_mock_message: %s\r\n", msg);
-
-	/* Resident fills netbuf while data page remains mapped @ C000. */
-	n = ui_fill_netbuf(0x10u, 8u);
-	printf("  r_fill_netbuf n=%u:", n);
-	mb_data_select();
-	for (i = 0u; i < n && i < 8u; i++)
-		printf(" %02X", (unsigned int)netbuf[i]);
-	printf("\r\n");
-}
-
-static void demo_both_windows(void)
-{
-	unsigned short magic;
-
-	printf("--- both windows at once ---\r\n");
-	/* Keep data @ C000 and code @ 8000; call resident that uses netbuf. */
-	mb_data_select();
-	mb_code_select();
-	magic = r_mock_magic(); /* direct call: both pages already selected */
-	(void)r_fill_netbuf(0xA0u, 4u);
-	printf("  direct r_mock_magic=0x%04X netbuf:", magic);
-	printf(" %02X %02X %02X %02X\r\n",
-		   (unsigned int)netbuf[0], (unsigned int)netbuf[1],
-		   (unsigned int)netbuf[2], (unsigned int)netbuf[3]);
+	printf("--- call overlays @8000 ---\r\n");
+	for (i = 0u; i < MB_BANK_COUNT; i++)
+	{
+		if (g_bankPg[i] == 0u)
+		{
+			printf("  skip bank %u (not loaded)\r\n", (unsigned int)(i + 1u));
+			continue;
+		}
+		mb_call_bank(g_bankPg[i]);
+	}
 }
 
 C_task main(void)
 {
 	os_initstdio();
-
-	/* Init before printf (same reason as emptyres: avoid prompt glue). */
 	mb_init();
 
-	printf("multibank skeleton\r\n");
-	demo_map();
+	printf("multibank: root 0100-7FFF, overlays @8000\r\n");
+	printf("  data pg %u @C000, com window_2 was %u\r\n",
+		   (unsigned int)g_dataPg, (unsigned int)g_main_pg.pgs.window_2);
+
+	if (!demo_load_banks())
+	{
+		printf("Load failed. Need /bin/multibank/codeB_0N.bin\r\n");
+		mb_shutdown();
+		exit(1);
+	}
+
 	printf("\r\n");
-	demo_data();
-	printf("\r\n");
-	demo_code();
-	printf("\r\n");
-	demo_both_windows();
+	demo_run_banks();
 
 	mb_shutdown();
 	exit(0);
