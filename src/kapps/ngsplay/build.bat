@@ -9,3 +9,4 @@ if not exist gs\ngsdrv_bin.c (
 if errorlevel 1 exit /b 1
 if "%makeall%"=="" "..\..\..\tools\dmimg.exe" ..\..\..\us\sd_nedo.vhd put ngsplay.com /bin/ngsplay.com
 if "%makeall%"=="" ..\..\..\us\emul.exe
+rd /Q /S obj
