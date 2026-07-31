@@ -99,6 +99,7 @@ void uart_setrts(unsigned char mode)
 			enable_interrupt();
 			break;
 		}
+		break;
 	case 1:
 		switch (mode)
 		{
@@ -127,6 +128,7 @@ void uart_setrts(unsigned char mode)
 			enable_interrupt();
 			break;
 		}
+		break;
 	case 2:
 		break;
 	case 3:
@@ -252,7 +254,7 @@ void uartFlush(unsigned int millis)
 		while (time() < finish)
 		{
 			disable_interrupt();
-			input(0x55fe); // Переход в режим команд
+			input(0x55fe);			// Переход в режим команд
 			if (input(0xc2fe) != 0) // Получаем количество байт в приемном буфере
 			{
 				input(0x55fe); // Переход в режим команд
@@ -275,7 +277,7 @@ void uartFlush(unsigned int millis)
 		}
 		uart_setrts(0);
 	}
-	 writeLog("Flushed data", "uartFlush      ");
+	writeLog("Flushed data", "uartFlush      ");
 }
 
 unsigned int uartReadBlock(void)
@@ -304,7 +306,7 @@ unsigned int uartReadBlock(void)
 		for (;;)
 		{
 			disable_interrupt();
-			input(0x55fe); // Переход в режим команд
+			input(0x55fe);			// Переход в режим команд
 			if (input(0xc2fe) != 0) // Получаем количество байт в приемном буфере
 			{
 				input(0x55fe);		  // Переход в режим команд
@@ -367,7 +369,7 @@ unsigned int uartReadBlock(void)
 char getdataEsp(unsigned int counted)
 {
 	unsigned int counter;
-	// writeLog("Get data Packet.", "getDataEsp     ");
+	//writeLog("Get data Packet.", "getDataEsp     ");
 	switch (comType)
 	{
 	case 0: // Kondratyev  NO AFC
@@ -398,7 +400,7 @@ char getdataEsp(unsigned int counted)
 			for (;;)
 			{
 				disable_interrupt();
-				input(0x55fe); // Переход в режим команд
+				input(0x55fe);			// Переход в режим команд
 				if (input(0xc2fe) != 0) // Получаем количество байт в приемном буфере
 				{
 					input(0x55fe);					 // Переход в режим команд
@@ -521,7 +523,7 @@ void sendcommand(const char *commandline)
 		uart_write('\n');
 	}
 	YIELD();
-	 // writeLog(commandline, "sendcommand    ");
+	//writeLog(commandline, "sendcommand    ");
 }
 
 void sendcommandNrn(const char *commandline)
@@ -552,7 +554,7 @@ void sendcommandNrn(const char *commandline)
 			uart_write(commandline[count]);
 		}
 	}
-	 // writeLog(commandline, "sendcommandNrn ");
+	//writeLog(commandline, "sendcommandNrn ");
 	YIELD();
 }
 
@@ -592,7 +594,7 @@ unsigned char getAnswer3(void)
 		return false;
 	}
 
-	 writeLog(netbuf, "getAnswer3     ");
+	//writeLog(netbuf, "getAnswer3     ");
 	YIELD();
 	return true;
 }
@@ -623,19 +625,19 @@ unsigned long uartBench(void)
 		for (count = 0; count < cycles; count++)
 		{
 			disable_interrupt();
-			input(0x55fe); // Переход в режим команд
+			input(0x55fe);		  // Переход в режим команд
 			data = input(0xc2fe); // Получаем количество байт в приемном буфере
 			data = input(0xc2fe); // Получаем количество байт в приемном буфере
 			if (count == 0)
 			{
 			}
-			input(0x55fe); // Переход в режим команд
-			input(0x43fe); // Команда установить статус
-			input(0x03fe); // Устанавливаем готовность DTR и RTS
-			input(0x55fe); // Переход в режим команд
-			input(0x43fe); // Команда установить статус
-			input(0x00fe); // Снимаем готовность DTR и RTS
-			input(0x55fe); // Переход в режим команд
+			input(0x55fe);		  // Переход в режим команд
+			input(0x43fe);		  // Команда установить статус
+			input(0x03fe);		  // Устанавливаем готовность DTR и RTS
+			input(0x55fe);		  // Переход в режим команд
+			input(0x43fe);		  // Команда установить статус
+			input(0x00fe);		  // Снимаем готовность DTR и RTS
+			input(0x55fe);		  // Переход в режим команд
 			data = input(0x02fe); // Команда прочесть из порта
 			enable_interrupt();
 		}
@@ -822,7 +824,7 @@ int recvHead(void)
 	// <actual_len>
 	// printf("recvHead(); todo = %d  ", todo);
 	// sprintf(cmd, "In header[todo=%d]", todo);
-	// writeLog("+IPD processing.", "recvHead       ");
+	//writeLog("+IPD processing.", "recvHead       ");
 	return todo;
 }
 
