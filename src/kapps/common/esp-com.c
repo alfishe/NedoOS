@@ -279,7 +279,7 @@ void uartFlush(unsigned int millis)
 		}
 		uart_setrts(0);
 	}
-	writeLog("Flushed data", "uartFlush      ");
+	//writeLog("Flushed data", "uartFlush      ");
 }
 
 unsigned int uartReadBlock(void)
@@ -526,7 +526,7 @@ void sendcommand(const char *commandline)
 		uart_write('\n');
 	}
 	YIELD();
-	writeLog(commandline, "sendcommand    ");
+	//writeLog(commandline, "sendcommand    ");
 }
 
 void sendcommandNrn(const char *commandline)
@@ -557,7 +557,7 @@ void sendcommandNrn(const char *commandline)
 			uart_write(commandline[count]);
 		}
 	}
-	writeLog(commandline, "sendcommandNrn ");
+	//writeLog(commandline, "sendcommandNrn ");
 	YIELD();
 }
 
@@ -597,7 +597,7 @@ unsigned char getAnswer3(void)
 		return false;
 	}
 
-	writeLog(netbuf, "getAnswer3     ");
+	//writeLog(netbuf, "getAnswer3     ");
 	YIELD();
 	return true;
 }
@@ -827,7 +827,7 @@ int recvHead(void)
 	// <actual_len>
 	// printf("recvHead(); todo = %d  ", todo);
 	// sprintf(cmd, "In header[todo=%d]", todo);
-	writeLog("+IPD processing.", "recvHead       ");
+	//writeLog("+IPD processing.", "recvHead       ");
 	return todo;
 }
 

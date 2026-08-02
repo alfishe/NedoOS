@@ -162,15 +162,16 @@ int recvHeadNoBlock(void)
 {
 	unsigned int dataRead = 0;
 	unsigned int byte, todo = 0, count = 0, countErr = 0, toComa;
+	unsigned char queue;
 	const char closed[] = "CLOSED";
 	const char error[] = "ERROR";
 
-	writeLog("Waiting +IPD head ", "recvHeadNoBlock");
+	/* Do NOT writeLog on the empty-poll path — main loop calls this every tick. */
 	do
 	{
 		switch (comType)
 		{
-		case 0: /* NO AFC ? RTS nudge then LSR */
+		case 0: /* NO AFC — RTS nudge then LSR */
 			disable_interrupt();
 			output(MCR, 2);
 			output(MCR, 0);
@@ -182,11 +183,28 @@ int recvHeadNoBlock(void)
 			if ((1 & input(LSR)) == 0)
 				return 0;
 			break;
-		case 1: /* ATM2 ? queue empty? */
-			if (!uart_hasByte())
+		case 1:
+			/*
+			 * ATM2 COM: host RX queue fills only while DTR/RTS are asserted
+			 * (same pulse as uartReadBlock). Plain uart_hasByte() never
+			 * nudges the modem — after CIPSEND the UI spun with 0 forever,
+			 * and welcome +IPD only appeared on ESC→esp_wait_send_prompt
+			 * (which uses uartReadBlock and finally pulsed RTS).
+			 */
+			disable_interrupt();
+			input(0x55fe);
+			input(0x43fe);
+			input(0x03fe); /* DTR+RTS on */
+			input(0x55fe);
+			input(0x43fe);
+			input(0x00fe); /* off */
+			input(0x55fe);
+			queue = input(0xc2fe);
+			enable_interrupt();
+			if (queue == 0)
 				return 0;
 			break;
-		case 3: /* ATM2IOESP ? RTS pulse + LSR */
+		case 3: /* ATM2IOESP — RTS pulse + LSR */
 			disable_interrupt();
 			output(0xfb, MCR);
 			output(0xfa, 2);
@@ -245,6 +263,6 @@ int recvHeadNoBlock(void)
 	} while ((unsigned char)byte != ':');
 
 	todo = (unsigned int)atoi((char *)netbuf + toComa);
-	writeLog("+IPD processing.", "recvHeadNoBlock");
+	/* writeLog("+IPD processing.", "recvHeadNoBlock"); */
 	return (int)todo;
 }
