@@ -282,11 +282,11 @@ execcmd_pipe
         ld (hl),0
         pop hl
         
-        ex de,hl ;de=right app filename
-
-        OS_OPENHANDLE
+        ; Open right app: add .com if needed, then try cwd and SYSDIR (bin/)
+        ; (old code opened bare name only ? grep without .com always failed)
+        call pipe_open_right ;in: hl=name ;out: b=handle, a=error
         or a
-        jr nz,execcmd_pipe_error
+        jr nz,execcmd_pipe_openfail
 
         push bc ;b=right app file handle
         ld de,tpipename
@@ -294,11 +294,14 @@ execcmd_pipe
         ld a,b
         ld (pipehandle),a
         call setstdouthandle
+        ; Also update cmd app.stdout ? external left apps (time2) inherit via NEWAPP
+        ; and strcpexec SETSTDINOUT; without this, left child can keep term stdout.
+        call setstdinout
         pop bc ;b=right app file handle
         
-        call readapp ;out: dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error ;делает CLOSE ;TODO через loadapp, чтобы дописывать .com и грузить из /bin
+        call readapp ;out: dehl=pages, b=id, a=error ;does CLOSE
         push bc ;b=id
-;dehl=номера страниц в 0000,4000,8000,c000 нового приложения, b=id, a=error
+;dehl=pages in 0000,4000,8000,c000, b=id, a=error
         ld a,d
         SETPGC000
 rightapp_filename_end=$+1
@@ -321,35 +324,115 @@ pipehandle=$+1
         OS_SETSTDINOUT
         pop af ;id
         ld e,a ;e=id
-        ;ld (waitpid_id),a
         push de ;e=id
         OS_RUNAPP
         
-        ;call execcmd ;can show errors ;a!=0: no such internal command
-        ; or a
-        ; call nz,callcmd
+        ; Ensure left side still sees pipe as stdout (defensive: some paths touch handles)
+        ld a,(pipehandle)
+        call setstdouthandle
+        call setstdinout
+
          call callcmd ;exec or run
         pop de ;e=id
-        ;push af ;a=error
         push de ;e=id
         ld a,(pipehandle)
         ld b,a
         OS_CLOSEHANDLE ;закрыли источник данных
         pop de ;e=id
-       ;call waitpid_keepresult
-        ;WAITPID ;hl=result
-        ;ld (lastresult),hl
-        ;call prword_hl_crlf
 
         ld a,(stdouthandle_wasatstart)
         call setstdouthandle
-;закрыть входной файл правой программы
-        ;ld a,(pipehandle)
-        ;ld b,a
-        ;OS_CLOSEHANDLE
-
-        ;pop af ;a=error
+        call setstdinout
 execcmd_pipe_error
+        ret
+
+execcmd_pipe_openfail
+        ld hl,tunknowncommand
+        jp cmderror
+
+;in: hl=ASCIIZ program name (no spaces)
+;out: b=handle, a=error (0=ok)
+pipe_open_right
+        push hl
+        ld de,wordbuf
+        call strcopy
+        pop hl
+        ; append .com if no dot in name
+        ld hl,wordbuf
+pipe_open_finddot
+        ld a,(hl)
+        or a
+        jr z,pipe_open_addcom
+        cp '.'
+        jr z,pipe_open_hasdot
+        inc hl
+        jr pipe_open_finddot
+pipe_open_addcom
+        ld (hl),'.'
+        inc hl
+        ld (hl),'c'
+        inc hl
+        ld (hl),'o'
+        inc hl
+        ld (hl),'m'
+        inc hl
+        ld (hl),0
+pipe_open_hasdot
+        ld de,wordbuf
+        OS_OPENHANDLE
+        or a
+        ret z ;ok in cwd
+        ; try SYSDIR (usually bin/), then restore cwd
+        push bc
+        ld de,oldpath
+        OS_GETPATH
+        OS_SETSYSDRV
+        ld de,sysdir
+        OS_GETPATH
+        ld de,oldpath
+        OS_CHDIR
+        pop bc
+        ld hl,sysdir
+        call strlen
+        ld a,l
+        or h
+        jr z,pipe_open_sysfail
+        ; ensure trailing slash
+        ld hl,sysdir
+        call strlen
+        ld e,l
+        ld d,h
+        ld hl,sysdir
+        add hl,de
+        dec hl ; last char
+        ld a,(hl)
+        cp '/'
+        jr z,pipe_open_sysslashok
+        cp '\'
+        jr z,pipe_open_sysslashok
+        inc hl
+        ld (hl),'/'
+        inc hl
+        ld (hl),0
+pipe_open_sysslashok
+        ld hl,sysdir
+        ld de,wordbuf2
+        call strcopy
+        ld hl,wordbuf2
+        call strlen
+        ld e,l
+        ld d,h
+        ld hl,wordbuf2
+        add hl,de ; end of path
+        ex de,hl
+        ld hl,wordbuf
+        call strcopy
+        ld de,wordbuf2
+        OS_OPENHANDLE
+        or a
+        ret
+pipe_open_sysfail
+        ld a,1
         ret
 
 tpipename
