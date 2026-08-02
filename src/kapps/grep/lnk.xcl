@@ -1,0 +1,6 @@
+-cZ80
+-Ilist
+-Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-7FFF
+-Z(DATA)DATA0,IDATA0,UDATA0,ECSTR,NO_INIT,CSTACK+200,FREESEG=8000-FBFF
+-e_medium_write=_formatted_write
+-e_medium_read=_formatted_read
