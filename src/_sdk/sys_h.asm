@@ -520,7 +520,25 @@ __1=$
 ;        HL - новое имя, пока что требуется такой же путь, как в DE.
 ;    Возвращаемые значения в регистрах:
 ;        HL - указатель на последний элемент пути в этом буфере
-;
+;        A  - FRESULT error code (C unsigned char: only A; HL is not a return).
+;             0  = FR_OK (success)
+;             1  = FR_DISK_ERR
+;             2  = FR_INT_ERR
+;             3  = FR_NOT_READY
+;             4  = FR_NO_FILE      (old name missing)
+;             5  = FR_NO_PATH
+;             6  = FR_INVALID_NAME
+;             7  = FR_DENIED
+;             8  = FR_EXIST        (new name taken -- typical updater retry)
+;             9  = FR_INVALID_OBJECT
+;            10  = FR_WRITE_PROTECTED
+;            11  = FR_INVALID_DRIVE
+;            12  = FR_NOT_ENABLED
+;            13  = FR_NO_FILESYSTEM
+;            14..18 = FR_MKFS_ABORTED / FR_TIMEOUT / FR_LOCKED /
+;                     FR_NOT_ENOUGH_CORE / FR_TOO_MANY_OPEN_FILES
+;        Success: A=0. Not OS_GETPATH: HL is NOT a path pointer here.
+;        (Kernel FatFs leaves FRESULT in L; IAR wrapper: ld a,l, restore caller HL.)
 ;Примечания:
 ;В отличие от MSX-DOS, в новом имени пока что требуется такой же путь, как в DE (если там не было пути, то и в новом не надо).
         macro OS_RENAME ;DE = Drive/path/file ASCIIZ string, HL = New filename ASCIIZ string (NOT MSXDOS compatible! with Drive/path!) ;RENAME OR MOVE FILE
