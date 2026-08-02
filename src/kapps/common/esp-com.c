@@ -60,12 +60,12 @@ void uart_write(unsigned char data)
 		disable_interrupt();
 		do
 		{
-			input(0x55fe); // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-		} while ((input(0x42fe) & 32) == 0); // äÆ¨†≠§† Ø‡ÆÁ•·‚Ï ·‚†‚„· & è‡Æ¢•‡Ô•¨ 5 °®‚
+			input(0x55fe); // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+		} while ((input(0x42fe) & 32) == 0); // –ö–æ–º–∞–Ω–¥–∞ –ø—Ä–æ—á–µ—Å—Ç—å —Å—Ç–∞—Ç—É—Å & –ü—Ä–æ–≤–µ—Ä—è–µ–º 5 –±–∏—Ç
 
-		input(0x55fe);				 // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-		input(0x03fe);				 // äÆ¨†≠§† ß†Ø®·†‚Ï ¢ ØÆ‡‚
-		input((data << 8) | 0x00fe); // á†Ø®·Î¢†•¨ data ¢ ØÆ‡‚
+		input(0x55fe);				 // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+		input(0x03fe);				 // –ö–æ–º–∞–Ω–¥–∞ –∑–∞–ø–∏—Å–∞—Ç—å –≤ –ø–æ—Ä—Ç
+		input((data << 8) | 0x00fe); // –ó–∞–ø–∏—Å—ã–≤–∞–µ–º data –≤ –ø–æ—Ä—Ç
 		enable_interrupt();
 		return;
 	case 3:
@@ -79,6 +79,11 @@ void uart_write(unsigned char data)
 		return;
 	}
 }
+/*
+ * UART helpers below are the original esp-com paths (per comType).
+ * Do not leave RTS open across enable_interrupt() from girc ? use
+ * uart_setrts(2) pulse or the typed branches in uartReadBlock/getdataEsp.
+ */
 void uart_setrts(unsigned char mode)
 {
 	switch (comType)
@@ -105,26 +110,26 @@ void uart_setrts(unsigned char mode)
 		{
 		case 1:
 			disable_interrupt();
-			input(0x55fe); // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-			input(0x43fe); // äÆ¨†≠§† „·‚†≠Æ¢®‚Ï ·‚†‚„·
-			input(0x03fe); // ì·‚†≠†¢´®¢†•¨ £Æ‚Æ¢≠Æ·‚Ï DTR ® RTS
+			input(0x55fe); // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+			input(0x43fe); // –ö–æ–º–∞–Ω–¥–∞ —É—Å—Ç–∞–Ω–æ–≤–∏—Ç—å —Å—Ç–∞—Ç—É—Å
+			input(0x03fe); // –£—Å—Ç–∞–Ω–∞–≤–ª–∏–≤–∞–µ–º –≥–æ—Ç–æ–≤–Ω–æ—Å—Ç—å DTR –∏ RTS
 			enable_interrupt();
 			break;
 		case 0:
 			disable_interrupt();
-			input(0x55fe); // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-			input(0x43fe); // äÆ¨†≠§† „·‚†≠Æ¢®‚Ï ·‚†‚„·
-			input(0x00fe); // ë≠®¨†•¨ £Æ‚Æ¢≠Æ·‚Ï DTR ® RTS
+			input(0x55fe); // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+			input(0x43fe); // –ö–æ–º–∞–Ω–¥–∞ —É—Å—Ç–∞–Ω–æ–≤–∏—Ç—å —Å—Ç–∞—Ç—É—Å
+			input(0x00fe); // –°–Ω–∏–º–∞–µ–º –≥–æ—Ç–æ–≤–Ω–æ—Å—Ç—å DTR –∏ RTS
 			enable_interrupt();
 			break;
 		default:
 			disable_interrupt();
-			input(0x55fe); // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-			input(0x43fe); // äÆ¨†≠§† „·‚†≠Æ¢®‚Ï ·‚†‚„·
-			input(0x03fe); // ì·‚†≠†¢´®¢†•¨ £Æ‚Æ¢≠Æ·‚Ï DTR ® RTS
-			input(0x55fe); // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-			input(0x43fe); // äÆ¨†≠§† „·‚†≠Æ¢®‚Ï ·‚†‚„·
-			input(0x00fe); // ë≠®¨†•¨ £Æ‚Æ¢≠Æ·‚Ï DTR ® RTS
+			input(0x55fe); // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+			input(0x43fe); // –ö–æ–º–∞–Ω–¥–∞ —É—Å—Ç–∞–Ω–æ–≤–∏—Ç—å —Å—Ç–∞—Ç—É—Å
+			input(0x03fe); // –£—Å—Ç–∞–Ω–∞–≤–ª–∏–≤–∞–µ–º –≥–æ—Ç–æ–≤–Ω–æ—Å—Ç—å DTR –∏ RTS
+			input(0x55fe); // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+			input(0x43fe); // –ö–æ–º–∞–Ω–¥–∞ —É—Å—Ç–∞–Ω–æ–≤–∏—Ç—å —Å—Ç–∞—Ç—É—Å
+			input(0x00fe); // –°–Ω–∏–º–∞–µ–º –≥–æ—Ç–æ–≤–Ω–æ—Å—Ç—å DTR –∏ RTS
 			enable_interrupt();
 			break;
 		}
@@ -176,9 +181,9 @@ void uart_init(unsigned char divisor)
 		input(0x55fe);
 		input(0xc3fe);
 		input((divisor << 8) | 0x00fe);
-		input(0x55fe); // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-		input(0x43fe); // äÆ¨†≠§† „·‚†≠Æ¢®‚Ï ·‚†‚„·
-		input(0x00fe); // ë≠®¨†•¨ £Æ‚Æ¢≠Æ·‚Ï DTR ® RTS
+		input(0x55fe); // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+		input(0x43fe); // –ö–æ–º–∞–Ω–¥–∞ —É—Å—Ç–∞–Ω–æ–≤–∏—Ç—å —Å—Ç–∞—Ç—É—Å
+		input(0x00fe); // –°–Ω–∏–º–∞–µ–º –≥–æ—Ç–æ–≤–Ω–æ—Å—Ç—å DTR –∏ RTS
 		enable_interrupt();
 		break;
 	case 3:
@@ -205,8 +210,8 @@ unsigned char uart_hasByte(void)
 		return (1 & input(LSR));
 	case 1:
 		disable_interrupt();
-		input(0x55fe);		   // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-		queue = input(0xc2fe); // èÆ´„Á†•¨ ™Æ´®Á•·‚¢Æ °†©‚ ¢ Ø‡®•¨≠Æ¨ °„‰•‡•
+		input(0x55fe);		   // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+		queue = input(0xc2fe); // –ü–æ–ª—É—á–∞–µ–º –∫–æ–ª–∏—á–µ—Å—Ç–≤–æ –±–∞–π—Ç –≤ –ø—Ä–∏–µ–º–Ω–æ–º –±—É—Ñ–µ—Ä–µ
 		enable_interrupt();
 		return queue;
 	case 3:
@@ -225,8 +230,8 @@ unsigned char uart_read(void)
 		return input(RBR_THR);
 	case 1: // ATM2 COM port
 		disable_interrupt();
-		input(0x55fe);		  // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-		data = input(0x02fe); // äÆ¨†≠§† Ø‡ÆÁ•·‚Ï ®ß ØÆ‡‚†
+		input(0x55fe);		  // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+		data = input(0x02fe); // –ö–æ–º–∞–Ω–¥–∞ –ø—Ä–æ—á–µ—Å—Ç—å –∏–∑ –ø–æ—Ä—Ç–∞
 		enable_interrupt();
 		return data;
 	case 3:
@@ -247,25 +252,25 @@ void uartFlush(unsigned int millis)
 	if (comType == 1)
 	{
 		disable_interrupt();
-		input(0x55fe); // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-		input(0x43fe); // äÆ¨†≠§† „·‚†≠Æ¢®‚Ï ·‚†‚„·
-		input(0x03fe); // ì·‚†≠†¢´®¢†•¨ £Æ‚Æ¢≠Æ·‚Ï DTR ® RTS
+		input(0x55fe); // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+		input(0x43fe); // –ö–æ–º–∞–Ω–¥–∞ —É—Å—Ç–∞–Ω–æ–≤–∏—Ç—å —Å—Ç–∞—Ç—É—Å
+		input(0x03fe); // –£—Å—Ç–∞–Ω–∞–≤–ª–∏–≤–∞–µ–º –≥–æ—Ç–æ–≤–Ω–æ—Å—Ç—å DTR –∏ RTS
 		enable_interrupt();
 		while (time() < finish)
 		{
 			disable_interrupt();
-			input(0x55fe);			// è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-			if (input(0xc2fe) != 0) // èÆ´„Á†•¨ ™Æ´®Á•·‚¢Æ °†©‚ ¢ Ø‡®•¨≠Æ¨ °„‰•‡•
+			input(0x55fe);			// –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+			if (input(0xc2fe) != 0) // –ü–æ–ª—É—á–∞–µ–º –∫–æ–ª–∏—á–µ—Å—Ç–≤–æ –±–∞–π—Ç –≤ –ø—Ä–∏–µ–º–Ω–æ–º –±—É—Ñ–µ—Ä–µ
 			{
-				input(0x55fe); // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-				input(0x02fe); // äÆ¨†≠§† Ø‡ÆÁ•·‚Ï ®ß ØÆ‡‚†
+				input(0x55fe); // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+				input(0x02fe); // –ö–æ–º–∞–Ω–¥–∞ –ø—Ä–æ—á–µ—Å—Ç—å –∏–∑ –ø–æ—Ä—Ç–∞
 			}
 			enable_interrupt();
 		}
 		disable_interrupt();
-		input(0x55fe); // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-		input(0x43fe); // äÆ¨†≠§† „·‚†≠Æ¢®‚Ï ·‚†‚„·
-		input(0x00fe); // ë≠®¨†•¨ £Æ‚Æ¢≠Æ·‚Ï DTR ® RTS
+		input(0x55fe); // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+		input(0x43fe); // –ö–æ–º–∞–Ω–¥–∞ —É—Å—Ç–∞–Ω–æ–≤–∏—Ç—å —Å—Ç–∞—Ç—É—Å
+		input(0x00fe); // –°–Ω–∏–º–∞–µ–º –≥–æ—Ç–æ–≤–Ω–æ—Å—Ç—å DTR –∏ RTS
 		enable_interrupt();
 	}
 	else
@@ -306,11 +311,11 @@ unsigned int uartReadBlock(void)
 		for (;;)
 		{
 			disable_interrupt();
-			input(0x55fe);			// è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-			if (input(0xc2fe) != 0) // èÆ´„Á†•¨ ™Æ´®Á•·‚¢Æ °†©‚ ¢ Ø‡®•¨≠Æ¨ °„‰•‡•
+			input(0x55fe);			// –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+			if (input(0xc2fe) != 0) // –ü–æ–ª—É—á–∞–µ–º –∫–æ–ª–∏—á–µ—Å—Ç–≤–æ –±–∞–π—Ç –≤ –ø—Ä–∏–µ–º–Ω–æ–º –±—É—Ñ–µ—Ä–µ
 			{
-				input(0x55fe);		  // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-				data = input(0x02fe); // äÆ¨†≠§† Ø‡ÆÁ•·‚Ï ®ß ØÆ‡‚†
+				input(0x55fe);		  // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+				data = input(0x02fe); // –ö–æ–º–∞–Ω–¥–∞ –ø—Ä–æ—á–µ—Å—Ç—å –∏–∑ –ø–æ—Ä—Ç–∞
 				enable_interrupt();
 				return data;
 			}
@@ -322,12 +327,12 @@ unsigned int uartReadBlock(void)
 			}
 			timerok = timerok - 1;
 			disable_interrupt();
-			input(0x55fe); // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-			input(0x43fe); // äÆ¨†≠§† „·‚†≠Æ¢®‚Ï ·‚†‚„·
-			input(0x03fe); // ì·‚†≠†¢´®¢†•¨ £Æ‚Æ¢≠Æ·‚Ï DTR ® RTS
-			input(0x55fe); // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-			input(0x43fe); // äÆ¨†≠§† „·‚†≠Æ¢®‚Ï ·‚†‚„·
-			input(0x00fe); // ë≠®¨†•¨ £Æ‚Æ¢≠Æ·‚Ï DTR ® RTS
+			input(0x55fe); // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+			input(0x43fe); // –ö–æ–º–∞–Ω–¥–∞ —É—Å—Ç–∞–Ω–æ–≤–∏—Ç—å —Å—Ç–∞—Ç—É—Å
+			input(0x03fe); // –£—Å—Ç–∞–Ω–∞–≤–ª–∏–≤–∞–µ–º –≥–æ—Ç–æ–≤–Ω–æ—Å—Ç—å DTR –∏ RTS
+			input(0x55fe); // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+			input(0x43fe); // –ö–æ–º–∞–Ω–¥–∞ —É—Å—Ç–∞–Ω–æ–≤–∏—Ç—å —Å—Ç–∞—Ç—É—Å
+			input(0x00fe); // –°–Ω–∏–º–∞–µ–º –≥–æ—Ç–æ–≤–Ω–æ—Å—Ç—å DTR –∏ RTS
 			enable_interrupt();
 		}
 	case 2: // Kondratyev AFC
@@ -369,7 +374,7 @@ unsigned int uartReadBlock(void)
 char getdataEsp(unsigned int counted)
 {
 	unsigned int counter;
-	//writeLog("Get data Packet.", "getDataEsp     ");
+	// writeLog("Get data Packet.", "getDataEsp     ");
 	switch (comType)
 	{
 	case 0: // Kondratyev  NO AFC
@@ -400,11 +405,11 @@ char getdataEsp(unsigned int counted)
 			for (;;)
 			{
 				disable_interrupt();
-				input(0x55fe);			// è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-				if (input(0xc2fe) != 0) // èÆ´„Á†•¨ ™Æ´®Á•·‚¢Æ °†©‚ ¢ Ø‡®•¨≠Æ¨ °„‰•‡•
+				input(0x55fe);			// –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+				if (input(0xc2fe) != 0) // –ü–æ–ª—É—á–∞–µ–º –∫–æ–ª–∏—á–µ—Å—Ç–≤–æ –±–∞–π—Ç –≤ –ø—Ä–∏–µ–º–Ω–æ–º –±—É—Ñ–µ—Ä–µ
 				{
-					input(0x55fe);					 // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-					netbuf[counter] = input(0x02fe); // äÆ¨†≠§† Ø‡ÆÁ•·‚Ï ®ß ØÆ‡‚†
+					input(0x55fe);					 // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+					netbuf[counter] = input(0x02fe); // –ö–æ–º–∞–Ω–¥–∞ –ø—Ä–æ—á–µ—Å—Ç—å –∏–∑ –ø–æ—Ä—Ç–∞
 					enable_interrupt();
 					break;
 				}
@@ -416,12 +421,12 @@ char getdataEsp(unsigned int counted)
 				}
 				timerok = timerok - 1;
 				disable_interrupt();
-				input(0x55fe); // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-				input(0x43fe); // äÆ¨†≠§† „·‚†≠Æ¢®‚Ï ·‚†‚„·
-				input(0x03fe); // ì·‚†≠†¢´®¢†•¨ £Æ‚Æ¢≠Æ·‚Ï DTR ® RTS
-				input(0x55fe); // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-				input(0x43fe); // äÆ¨†≠§† „·‚†≠Æ¢®‚Ï ·‚†‚„·
-				input(0x00fe); // ë≠®¨†•¨ £Æ‚Æ¢≠Æ·‚Ï DTR ® RTS
+				input(0x55fe); // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+				input(0x43fe); // –ö–æ–º–∞–Ω–¥–∞ —É—Å—Ç–∞–Ω–æ–≤–∏—Ç—å —Å—Ç–∞—Ç—É—Å
+				input(0x03fe); // –£—Å—Ç–∞–Ω–∞–≤–ª–∏–≤–∞–µ–º –≥–æ—Ç–æ–≤–Ω–æ—Å—Ç—å DTR –∏ RTS
+				input(0x55fe); // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+				input(0x43fe); // –ö–æ–º–∞–Ω–¥–∞ —É—Å—Ç–∞–Ω–æ–≤–∏—Ç—å —Å—Ç–∞—Ç—É—Å
+				input(0x00fe); // –°–Ω–∏–º–∞–µ–º –≥–æ—Ç–æ–≤–Ω–æ—Å—Ç—å DTR –∏ RTS
 				enable_interrupt();
 			}
 		}
@@ -473,6 +478,7 @@ char getdataEsp(unsigned int counted)
 	}
 	return true;
 }
+
 void sendcommand(const char *commandline)
 {
 	unsigned int count, cmdLen;
@@ -487,11 +493,11 @@ void sendcommand(const char *commandline)
 			disable_interrupt();
 			do
 			{
-				input(0x55fe); // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-			} while ((input(0x42fe) & 32) == 0); // äÆ¨†≠§† Ø‡ÆÁ•·‚Ï ·‚†‚„· & è‡Æ¢•‡Ô•¨ 5 °®‚
-			input(0x55fe);				 // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-			input(0x03fe);				 // äÆ¨†≠§† ß†Ø®·†‚Ï ¢ ØÆ‡‚
-			input((data << 8) | 0x00fe); // á†Ø®·Î¢†•¨ data ¢ ØÆ‡‚
+				input(0x55fe); // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+			} while ((input(0x42fe) & 32) == 0); // –ö–æ–º–∞–Ω–¥–∞ –ø—Ä–æ—á–µ—Å—Ç—å —Å—Ç–∞—Ç—É—Å & –ü—Ä–æ–≤–µ—Ä—è–µ–º 5 –±–∏—Ç
+			input(0x55fe);				 // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+			input(0x03fe);				 // –ö–æ–º–∞–Ω–¥–∞ –∑–∞–ø–∏—Å–∞—Ç—å –≤ –ø–æ—Ä—Ç
+			input((data << 8) | 0x00fe); // –ó–∞–ø–∏—Å—ã–≤–∞–µ–º data –≤ –ø–æ—Ä—Ç
 			enable_interrupt();
 		}
 		disable_interrupt();
@@ -523,7 +529,7 @@ void sendcommand(const char *commandline)
 		uart_write('\n');
 	}
 	YIELD();
-	//writeLog(commandline, "sendcommand    ");
+	writeLog(commandline, "sendcommand    ");
 }
 
 void sendcommandNrn(const char *commandline)
@@ -539,11 +545,11 @@ void sendcommandNrn(const char *commandline)
 			disable_interrupt();
 			do
 			{
-				input(0x55fe); // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-			} while ((input(0x42fe) & 32) == 0); // äÆ¨†≠§† Ø‡ÆÁ•·‚Ï ·‚†‚„· & è‡Æ¢•‡Ô•¨ 5 °®‚
-			input(0x55fe);				 // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-			input(0x03fe);				 // äÆ¨†≠§† ß†Ø®·†‚Ï ¢ ØÆ‡‚
-			input((data << 8) | 0x00fe); // á†Ø®·Î¢†•¨ data ¢ ØÆ‡‚
+				input(0x55fe); // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+			} while ((input(0x42fe) & 32) == 0); // –ö–æ–º–∞–Ω–¥–∞ –ø—Ä–æ—á–µ—Å—Ç—å —Å—Ç–∞—Ç—É—Å & –ü—Ä–æ–≤–µ—Ä—è–µ–º 5 –±–∏—Ç
+			input(0x55fe);				 // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+			input(0x03fe);				 // –ö–æ–º–∞–Ω–¥–∞ –∑–∞–ø–∏—Å–∞—Ç—å –≤ –ø–æ—Ä—Ç
+			input((data << 8) | 0x00fe); // –ó–∞–ø–∏—Å—ã–≤–∞–µ–º data –≤ –ø–æ—Ä—Ç
 			enable_interrupt();
 		}
 	}
@@ -554,7 +560,7 @@ void sendcommandNrn(const char *commandline)
 			uart_write(commandline[count]);
 		}
 	}
-	//writeLog(commandline, "sendcommandNrn ");
+	writeLog(commandline, "sendcommandNrn ");
 	YIELD();
 }
 
@@ -564,7 +570,7 @@ unsigned char getAnswer3(void)
 	unsigned int curPos = 0;
 	do
 	{
-		readbyte = uartReadBlock(); // éÁ®·‚™† ¢·•Â ´®Ë≠®Â CRLF Ø•‡•§ Æ‚¢•‚Æ¨.
+		readbyte = uartReadBlock(); // –û—á–∏—Å—Ç–∫–∞ –≤—Å–µ—Ö –ª–∏—à–Ω–∏—Ö CRLF –ø–µ—Ä–µ–¥ –æ—Ç–≤–µ—Ç–æ–º.
 		if (readbyte > 255)
 		{
 			writeLog("Timeout while (readbyte == 0x0a) || (readbyte == 0x0d) ", "getAnswer3     ");
@@ -574,7 +580,7 @@ unsigned char getAnswer3(void)
 	} while (((readbyte == 0x0a) || (readbyte == 0x0d)));
 	netbuf[curPos] = readbyte;
 	curPos++;
-	do // ó‚•≠®• ·ÆÆ°È•≠®Ô
+	do // –ß—Ç–µ–Ω–∏–µ —Å–æ–æ–±—â–µ–Ω–∏—è
 	{
 		readbyte = uartReadBlock();
 		if (readbyte > 255)
@@ -594,7 +600,7 @@ unsigned char getAnswer3(void)
 		return false;
 	}
 
-	//writeLog(netbuf, "getAnswer3     ");
+	writeLog(netbuf, "getAnswer3     ");
 	YIELD();
 	return true;
 }
@@ -625,20 +631,20 @@ unsigned long uartBench(void)
 		for (count = 0; count < cycles; count++)
 		{
 			disable_interrupt();
-			input(0x55fe);		  // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-			data = input(0xc2fe); // èÆ´„Á†•¨ ™Æ´®Á•·‚¢Æ °†©‚ ¢ Ø‡®•¨≠Æ¨ °„‰•‡•
-			data = input(0xc2fe); // èÆ´„Á†•¨ ™Æ´®Á•·‚¢Æ °†©‚ ¢ Ø‡®•¨≠Æ¨ °„‰•‡•
+			input(0x55fe);		  // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+			data = input(0xc2fe); // –ü–æ–ª—É—á–∞–µ–º –∫–æ–ª–∏—á–µ—Å—Ç–≤–æ –±–∞–π—Ç –≤ –ø—Ä–∏–µ–º–Ω–æ–º –±—É—Ñ–µ—Ä–µ
+			data = input(0xc2fe); // –ü–æ–ª—É—á–∞–µ–º –∫–æ–ª–∏—á–µ—Å—Ç–≤–æ –±–∞–π—Ç –≤ –ø—Ä–∏–µ–º–Ω–æ–º –±—É—Ñ–µ—Ä–µ
 			if (count == 0)
 			{
 			}
-			input(0x55fe);		  // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-			input(0x43fe);		  // äÆ¨†≠§† „·‚†≠Æ¢®‚Ï ·‚†‚„·
-			input(0x03fe);		  // ì·‚†≠†¢´®¢†•¨ £Æ‚Æ¢≠Æ·‚Ï DTR ® RTS
-			input(0x55fe);		  // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-			input(0x43fe);		  // äÆ¨†≠§† „·‚†≠Æ¢®‚Ï ·‚†‚„·
-			input(0x00fe);		  // ë≠®¨†•¨ £Æ‚Æ¢≠Æ·‚Ï DTR ® RTS
-			input(0x55fe);		  // è•‡•ÂÆ§ ¢ ‡•¶®¨ ™Æ¨†≠§
-			data = input(0x02fe); // äÆ¨†≠§† Ø‡ÆÁ•·‚Ï ®ß ØÆ‡‚†
+			input(0x55fe);		  // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+			input(0x43fe);		  // –ö–æ–º–∞–Ω–¥–∞ —É—Å—Ç–∞–Ω–æ–≤–∏—Ç—å —Å—Ç–∞—Ç—É—Å
+			input(0x03fe);		  // –£—Å—Ç–∞–Ω–∞–≤–ª–∏–≤–∞–µ–º –≥–æ—Ç–æ–≤–Ω–æ—Å—Ç—å DTR –∏ RTS
+			input(0x55fe);		  // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+			input(0x43fe);		  // –ö–æ–º–∞–Ω–¥–∞ —É—Å—Ç–∞–Ω–æ–≤–∏—Ç—å —Å—Ç–∞—Ç—É—Å
+			input(0x00fe);		  // –°–Ω–∏–º–∞–µ–º –≥–æ—Ç–æ–≤–Ω–æ—Å—Ç—å DTR –∏ RTS
+			input(0x55fe);		  // –ü–µ—Ä–µ—Ö–æ–¥ –≤ —Ä–µ–∂–∏–º –∫–æ–º–∞–Ω–¥
+			data = input(0x02fe); // –ö–æ–º–∞–Ω–¥–∞ –ø—Ä–æ—á–µ—Å—Ç—å –∏–∑ –ø–æ—Ä—Ç–∞
 			enable_interrupt();
 		}
 		break;
@@ -824,7 +830,7 @@ int recvHead(void)
 	// <actual_len>
 	// printf("recvHead(); todo = %d  ", todo);
 	// sprintf(cmd, "In header[todo=%d]", todo);
-	//writeLog("+IPD processing.", "recvHead       ");
+	writeLog("+IPD processing.", "recvHead       ");
 	return todo;
 }
 
@@ -879,4 +885,3 @@ void loadEspConfig(void)
 	}
 	YIELD();
 }
-////////////////////////ESP32 PROCEDURES//////////////////////

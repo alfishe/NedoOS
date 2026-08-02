@@ -256,6 +256,17 @@ int tcpRead(signed char socket, unsigned char retry)
   readStruct.bufsize = NETBUF_BYTES;
   readStruct.protocol = SOCK_STREAM;
 
+  /* retry==0: single non-blocking poll (IRC / UI main loops). */
+  if (retry == 0)
+  {
+    todo = OS_WIZNETREAD(&readStruct);
+    if (OS_CALL_OK(todo))
+      return (int)todo;
+    if (OS_CALL_ERR(todo) == ERR_EAGAIN)
+      return 0;
+    return 0 - (int)OS_CALL_ERR(todo);
+  }
+
   while (retry != 0)
   {
     todo = OS_WIZNETREAD(&readStruct);
