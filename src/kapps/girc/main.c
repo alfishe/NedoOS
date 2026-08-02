@@ -107,7 +107,7 @@ unsigned char netbuf[NETBUF_SIZE];
 unsigned char curPath[128];
 unsigned char crlf[2] = {13, 10};
 const unsigned char gotWiFi[] = "WIFI GOT IP";
-unsigned char uVer[] = "0.4";
+unsigned char uVer[] = "0.5";
 unsigned char netDriver = 0;
 
 struct sockaddr_in targetadr;
@@ -989,6 +989,7 @@ static int irc_send_line(const char *line)
 	g_sendline[n++] = '\n';
 	g_sendline[n] = 0;
 
+	result = -1;
 	switch (netDriver)
 	{
 	case 0:
@@ -1004,14 +1005,15 @@ static int irc_send_line(const char *line)
 			byte = uartReadBlock();
 			if (byte > 255)
 			{
-				writeLog("Timeout when waiting '>' ", "fillPictureEsp ");
-				return false;
+				writeLog("Timeout when waiting '>' ", "irc_send_line  ");
+				return -1;
 			}
 
-			// putchar(byte);
+			/* putchar(byte); */
 		} while (byte != '>');
 
 		result = putDataEsp((unsigned int)g_sendline, n);
+		break;
 	}
 
 	return result;
@@ -1088,7 +1090,7 @@ static int net_connect_host(void)
 		if (s < 0)
 		{
 			set_status("connect failed");
-			return true;
+			return 0;
 		}
 		break;
 	case 1:
@@ -1101,22 +1103,23 @@ static int net_connect_host(void)
 			sprintf(tmp, "AT+CIPSTART=\"TCP\",\"%s\",%u", g_host, g_port);
 			sendcommand(tmp);
 
-			getAnswer3(); // CONNECT or ERROR or link is not valid
+			getAnswer3(); /* CONNECT or ERROR */
 			netbuf[128] = 0;
-			if (strstr(netbuf, "CONNECT") != NULL)
+			if (strstr((char *)netbuf, "CONNECT") != NULL)
 			{
+				getAnswer3(); /* OK (gopher-style; some firmwares need it) */
 				s = 1;
 				break;
 			}
 			else
 			{
-				if (strstr(netbuf, "ERROR") != NULL)
+				if (strstr((char *)netbuf, "ERROR") != NULL)
 				{
 					retry--;
 					uartFlush(200);
 					if (retry == 0)
 					{
-						return false;
+						return 0;
 					}
 				}
 			}
@@ -1131,18 +1134,19 @@ static int net_connect_host(void)
 /* ---- IRC protocol ---- */
 static int irc_register(void)
 {
-	char line[160];
 	unsigned int byte;
 	int r, n;
 
-	sprintf(line, "NICK %s\r\nUSER %s 0 * :girc on NedoOS\r\n", g_nick, g_nick);
+	/* g_sendline is BSS ? never put NICK/USER on CSTACK */
+	sprintf(g_sendline, "NICK %s\r\nUSER %s 0 * :girc on NedoOS\r\n", g_nick, g_nick);
 	set_status("Sending NICK/USER...");
-	n = strlen(line);
+	n = strlen(g_sendline);
 	draw_status();
+	r = -1;
 	switch (netDriver)
 	{
 	case 0:
-		r = tcpSend(g_sock, (unsigned int)line, n, 3);
+		r = tcpSend(g_sock, (unsigned int)g_sendline, n, 3);
 		break;
 	case 1:
 
@@ -1154,14 +1158,15 @@ static int irc_register(void)
 			byte = uartReadBlock();
 			if (byte > 255)
 			{
-				writeLog("Timeout when waiting '>' ", "fillPictureEsp ");
+				writeLog("Timeout when waiting '>' ", "irc_register   ");
 				return -1;
 			}
 
-			// putchar(byte);
+			/* putchar(byte); */
 		} while (byte != '>');
 
-		r = putDataEsp((unsigned int)line, strlen(line));
+		r = putDataEsp((unsigned int)g_sendline, n);
+		break;
 	}
 	if (r < 0)
 	{
@@ -1173,7 +1178,7 @@ static int irc_register(void)
 	set_status("NICK/USER sent, wait server...");
 	draw_status();
 	log_add(COL_SYS, "NICK/USER sent");
-	return true;
+	return 1;
 }
 
 static int irc_do_join(void)
@@ -2268,11 +2273,17 @@ void main(void)
 					{
 						break;
 					}
-
-					if (!getdataEsp(n))
+					if ((unsigned int)n > NETBUF_SIZE)
+						n = (int)NETBUF_SIZE;
+					/*
+					 * Clear payload window first: if getdataEsp times out mid-packet,
+					 * unread tail stays 0 instead of stale bytes from a previous +IPD.
+					 * Still irc_feed below (best-effort) ? do not drop the link.
+					 */
+					memset(netbuf, 0, (unsigned int)n);
+					if (!getdataEsp((unsigned int)n))
 					{
-						printf("[getdataEsp] Downloading timeout. [%u]", n);
-						writeLog("Downloading timeout in getdataEsp!", "main if(g_conn) ");
+						writeLog("getdataEsp truncate; feed partial", "main if(g_conn) ");
 					}
 					break;
 				}

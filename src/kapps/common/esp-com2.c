@@ -43,8 +43,8 @@ int uartReadburst(unsigned int messageadr)
 	}
 	return 255;
 }
-// отправка массива данных в есп
-char putDataEsp(unsigned int messageadr, unsigned int size)
+/* TX raw UART bytes. Returns byte count, or -1 on timeout (int, not char). */
+int putDataEsp(unsigned int messageadr, unsigned int size)
 {
 	unsigned int counter;
 	writeLog("put data Packet.", "putDataEsp     ");
@@ -70,7 +70,7 @@ char putDataEsp(unsigned int messageadr, unsigned int size)
 			output(RBR_THR, ((char *)messageadr)[counter]);
 			enable_interrupt();
 		}
-		return counter;
+		return (int)counter;
 	case 1: // ATM2 COM port
 		for (counter = 0; counter < size; counter++)
 		{
@@ -97,8 +97,9 @@ char putDataEsp(unsigned int messageadr, unsigned int size)
 			input(0x55fe);
 			input(0x03fe);
 			input((((char *)messageadr)[counter] << 8) | 0x00fe);
+			enable_interrupt();
 		}
-		return counter;
+		return (int)counter;
 	case 3: // ATM2IOESP
 		for (counter = 0; counter < size; counter++)
 		{
@@ -124,11 +125,11 @@ char putDataEsp(unsigned int messageadr, unsigned int size)
 			}
 			output(0xfb, RBR_THR);
 			output(0xfa, ((char *)messageadr)[counter]);
-			break;
+			enable_interrupt();
 		}
+		return (int)counter;
 	}
-	enable_interrupt();
-	return counter;
+	return -1;
 }
 // неблокирующая попытка получить +IPD
 int recvHeadNoBlock(void)
