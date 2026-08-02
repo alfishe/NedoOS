@@ -1,16 +1,16 @@
 /*
- * girc ? graphical IRC client for NedoOS (flat 64K prototype)
- * UI style: cdplay / ngsplay / gcalc
- * Net: ZXNETUSB (OS sockets) + ESP-COM (AT+CIP packet mode)
+ * girc - graphical IRC client for NedoOS
+ * UI: cdplay / ngsplay / gcalc
+ * Net: ZXNETUSB only (OS sockets via network.c)
  */
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <intrz80.h>
 #include <oscalls.h>
 #include <osfs.h>
 #include <tcp.h>
+#include <intrz80.h>
 
 #define true 1
 #define false 0
@@ -56,9 +56,6 @@
 #define SCR_CONNECT 0
 #define SCR_CHAT 1
 
-#define NET_ZXNET 0
-#define NET_ESP 1
-
 #define MAX_HOST 48
 #define MAX_NICK 24
 #define MAX_CHAN 32
@@ -73,7 +70,7 @@
 #define NICK_X 64
 #define NICK_W 12
 #define MAX_NICKS 22
-#define NETBUF_SIZE 1024
+#define NETBUF_SIZE 4096
 
 /* Rows 0..23 only ? writing col 80 on row 24 scrolls the screen */
 #define ROW_TITLE 0
@@ -104,7 +101,19 @@
 #define OS_CALL_OK(todo) ((todo) <= 32767)
 #define OS_CALL_ERR(todo) ((unsigned char)((todo) & 255))
 
-/* ---- globals required by esp-com.c / network.c ---- */
+/* ---- globals for network.c (ZXNET) ---- */
+unsigned char cmd[512];
+unsigned char netbuf[NETBUF_SIZE];
+unsigned char curPath[128];
+unsigned char crlf[2] = {13, 10};
+const unsigned char gotWiFi[] = "WIFI GOT IP";
+unsigned char uVer[] = "0.4";
+unsigned char netDriver = 0;
+
+struct sockaddr_in targetadr;
+struct readstructure readStruct;
+struct sockaddr_in dnsaddress;
+
 unsigned int RBR_THR = 0xf8ef;
 unsigned int IER = 0xf9ef;
 unsigned int IIR_FCR = 0xfaef;
@@ -117,35 +126,8 @@ unsigned int divider = 1;
 unsigned int comType = 0;
 unsigned int espType = 32;
 unsigned int espRetry = 5;
-unsigned long factor, timerok, count = 0;
-unsigned int magic = 15;
-unsigned char curPath[128];
-unsigned char cmd[512];
-unsigned char netbuf[NETBUF_SIZE];
-unsigned char uVer[] = "0.1";
-const unsigned char gotWiFi[] = "WIFI GOT IP";
-unsigned char netDriver = NET_ZXNET;
-
-struct sockaddr_in targetadr;
-struct readstructure readStruct;
-struct sockaddr_in dnsaddress;
-
-void clearStatus(void)
-{
-	OS_SETCOLOR(COL_STATUS);
-	OS_SETXY(0, ROW_STATUS);
-	{
-		unsigned char i;
-		for (i = 0; i < COLS_SAFE; i++)
-			putchar(' ');
-	}
-	OS_SETXY(0, ROW_STATUS);
-}
-
-/* Disk logging during IRC freezes UART RX ? keep stub on for girc. */
-#define ESP_WRITELOG_STUB 1
-#include <../common/esp-com.c>
-#include <../common/network.c>
+unsigned long factor, timerok;
+const unsigned int magic = 11;
 
 /* ---- app state ---- */
 static unsigned char g_scr;
@@ -153,9 +135,7 @@ static signed char g_sock = -1;
 static unsigned char g_conn;
 static unsigned char g_joined;
 static unsigned char g_registered;
-static unsigned char g_need_register; /* ESP: send NICK/USER from main loop */
-static unsigned char g_reg_ticks;
-/* Defer TX until irc_feed() finishes ? CIPSEND/getAnswer3 would clobber netbuf. */
+/* Defer TX until irc_feed() finishes (netbuf still in use). */
 static unsigned char g_need_join;
 static unsigned char g_need_pong;
 static char g_pingarg[96];
@@ -195,7 +175,7 @@ static char g_status[72];
 #define MX_FACT 4u
 #define MY_FACT 8u
 #define MX_MAX ((80u - 1u) * MX_FACT)
-/* Keep soft mouse off status row ? PRATTR trash looked like "�->" there */
+/* Keep soft mouse off status row ? PRATTR trash looked like "я┐╜->" there */
 #define MY_MAX (22u * MY_FACT)
 #define LMB_MASK 0x01u
 #define WHEEL_MASK 0xf0u
@@ -238,6 +218,13 @@ static void spaces(unsigned char n)
 		n--;
 	}
 }
+void clearStatus(void)
+{
+}
+
+#include <../common/esp-com.c>
+#include <../common/esp-com2.c>
+#include <../common/network.c>
 
 /* Invert ink/paper (keep bright bits) ? text caret like term.com */
 static unsigned char inv_attr(unsigned char a)
@@ -930,52 +917,50 @@ static int parse_ipv4(const char *host, unsigned char *o)
 	return *p == 0;
 }
 
-static unsigned char read_net_ini(void)
+static char readParamFromIni(void)
 {
-	FILE *fp;
-	unsigned char *p;
-	unsigned int cur = NET_ZXNET;
+	FILE *fpini;
+	unsigned char *count1;
+	const char currentNetwork[] = "currentNetwork";
+	unsigned char curNet = 0;
 
-	OS_GETPATH((unsigned int)curPath);
+	OS_GETPATH((unsigned int)&curPath);
+
 	OS_SETSYSDRV();
 	OS_CHDIR("/");
 	OS_CHDIR("ini");
-	fp = OS_OPENHANDLE("network.ini", 0x80);
-	if (((int)fp) & 0xff)
+
+	fpini = OS_OPENHANDLE("network.ini", 0x80);
+	if (((int)fpini) & 0xff)
 	{
 		OS_CHDIR(curPath);
-		return NET_ZXNET;
+		clearStatus();
+		printf("network.ini not found.\r\n");
+		getchar();
+		return false;
 	}
-	memset(netbuf, 0, 256);
-	OS_READHANDLE(netbuf, fp, 255);
-	OS_CLOSEHANDLE(fp);
-	p = (unsigned char *)strstr((char *)netbuf, "currentNetwork");
-	if (p != NULL)
-		sscanf((char *)p + 15, "%u", &cur);
-	OS_CHDIR(curPath);
-	return (unsigned char)cur;
-}
 
-static void irc_feed(const unsigned char *data, unsigned int len);
+	OS_READHANDLE(netbuf, fpini, sizeof(netbuf) - 1);
+	OS_CLOSEHANDLE(fpini);
+
+	count1 = strstr(netbuf, currentNetwork);
+	if (count1 != NULL)
+	{
+		sscanf(count1 + strlen(currentNetwork) + 1, "%u", &curNet);
+	}
+
+	OS_CHDIR(curPath);
+	return curNet;
+}
 
 static void net_init_driver(void)
 {
-	netDriver = read_net_ini();
-	if (netDriver == NET_ESP)
+	netDriver = readParamFromIni();
+	if (netDriver == 1)
 	{
-		set_status("ESP-COM init...");
-		draw_status();
-		OS_SETCOLOR(70);
-		puts("");
-		OS_GETPATH((unsigned int)curPath);
 		loadEspConfig();
-		OS_CHDIR(curPath);
-		uart_init((unsigned char)divider);
-		if (!espReBoot())
-		{
-			set_status("ESP reboot failed ? check espcom.ini");
-			return;
-		}
+		uart_init(divider);
+		espReBoot();
 		set_status("ESP-COM ready");
 	}
 	else
@@ -989,355 +974,13 @@ static void net_init_driver(void)
 	}
 }
 
-
-
-/*
- * ESP IRC: passive receive (AT+CIPRECVMODE=1) + proven esp-com UART path.
- *
- * Multitasking + 16550 without Auto-RTS (comType 0/1/3):
- *  - RTS CLOSED when not reading; DI/EI around open-line access (esp-com)
- *  - Do NOT leave RTS open across YIELD()
- * comType 2 (AFC): hardware flow
- *
- * CIPRECVMODE=1: TCP stays on ESP until AT+CIPRECVDATA (no async +IPD).
- * CRITICAL: getAnswer3() writes netbuf ? never call it while IRC payload
- * lives in netbuf (during/after getdataEsp until irc_feed finishes).
- * SEND OK wait uses esp_getc into a small static line, not getAnswer3().
- */
-
-static unsigned char g_esp_tx; /* 1 during CIPSEND - skip CIPRECV poll */
-static unsigned char g_esp_linkerr; /* 1 if wait saw ERROR/CLOSED */
-
-/*
- * One UART RX byte, short wall-clock timeout.
- * CRITICAL: NO YIELD here. With manual RTS, YIELD leaves RTS closed and the
- * 16550 FIFO overflows - we lose the CIPSEND '>' (seen on hardware).
- * Pulse uart_setrts(2) like cuart; prefer this over uartReadBlock(factor).
- */
-static unsigned int esp_getc(unsigned long max_ticks)
-{
-	unsigned long t0;
-	unsigned int b;
-
-	t0 = time();
-	for (;;) {
-		if (uart_hasByte()) {
-			b = uart_read();
-			return b;
-		}
-		uart_setrts(2);
-		if (uart_hasByte()) {
-			b = uart_read();
-			return b;
-		}
-		if ((unsigned long)(time() - t0) > max_ticks)
-			return 0xffff;
-	}
-}
-
-/* Drop pending UART noise before AT+CIPSEND (busy, no YIELD). */
-static void esp_uart_drain(unsigned long max_ticks)
-{
-	unsigned long t0;
-	unsigned char quiet;
-
-	t0 = time();
-	quiet = 0;
-	while ((unsigned long)(time() - t0) <= max_ticks) {
-		if (uart_hasByte()) {
-			(void)uart_read();
-			quiet = 0;
-			continue;
-		}
-		uart_setrts(2);
-		if (uart_hasByte()) {
-			(void)uart_read();
-			quiet = 0;
-			continue;
-		}
-		quiet++;
-		if (quiet >= 3)
-			return;
-	}
-}
-
-/* Consume one AT line without touching netbuf. */
-static void esp_eat_line(void)
-{
-	unsigned int b;
-	unsigned long t0;
-
-	t0 = time();
-	do {
-		b = esp_getc(20UL);
-		if (b > 255)
-			return;
-	} while (b == '\r' || b == '\n');
-
-	t0 = time();
-	for (;;) {
-		b = esp_getc(20UL);
-		if (b > 255)
-			return;
-		if (b == '\r') {
-			(void)esp_getc(5UL);
-			return;
-		}
-		if (b == '\n')
-			return;
-		if ((unsigned long)(time() - t0) > 40UL)
-			return;
-	}
-}
-
-static int esp_wait_gt(void)
-{
-	unsigned long t0;
-	unsigned int b;
-	unsigned char est, cst;
-	static const char errtag[] = "ERROR";
-	static const char clostag[] = "CLOSED";
-
-	g_esp_linkerr = 0;
-	est = 0;
-	cst = 0;
-	t0 = time();
-	for (;;) {
-		b = esp_getc(4UL);
-		if (b > 255) {
-			if ((unsigned long)(time() - t0) > 90UL)
-				return -1;
-			continue;
-		}
-		if ((unsigned char)b == '>')
-			return 0;
-		if ((unsigned char)b == (unsigned char)errtag[est]) {
-			est++;
-			if (est == 5) {
-				g_esp_linkerr = 1;
-				return -1;
-			}
-		} else {
-			est = ((unsigned char)b == 'E') ? 1 : 0;
-		}
-		if ((unsigned char)b == (unsigned char)clostag[cst]) {
-			cst++;
-			if (cst == 6) {
-				g_esp_linkerr = 1;
-				return -1;
-			}
-		} else {
-			cst = ((unsigned char)b == 'C') ? 1 : 0;
-		}
-		if ((unsigned long)(time() - t0) > 90UL)
-			return -1;
-	}
-}
-
-/*
- * Wait for SEND OK / OK / ERROR after CIPSEND payload.
- * Do NOT use getAnswer3() here ? it writes netbuf and would clobber IRC
- * bytes if anything ever sends during irc_feed(netbuf, ...).
- */
-static int esp_wait_send_done(void)
-{
-	unsigned long t0;
-	unsigned int b;
-	unsigned char pos;
-	static char atline[40];
-
-	t0 = time();
-	for (;;) {
-		/* skip CR/LF */
-		do {
-			b = esp_getc(20UL);
-			if (b > 255) {
-				if ((unsigned long)(time() - t0) > 150UL)
-					return -1;
-			}
-		} while (b <= 255 && (b == '\r' || b == '\n'));
-
-		if (b > 255) {
-			if ((unsigned long)(time() - t0) > 150UL)
-				return -1;
-			continue;
-		}
-
-		pos = 0;
-		atline[pos++] = (char)b;
-		for (;;) {
-			b = esp_getc(20UL);
-			if (b > 255)
-				break;
-			if (b == '\r' || b == '\n') {
-				if (b == '\r')
-					(void)esp_getc(5UL);
-				break;
-			}
-			if (pos + 1 < sizeof(atline))
-				atline[pos++] = (char)b;
-		}
-		atline[pos] = 0;
-
-		if (strstr(atline, "ERROR") != NULL)
-			return -1;
-		if (strstr(atline, "SEND OK") != NULL)
-			return 0;
-		if (strstr(atline, "OK") != NULL)
-			return 0;
-		if (strstr(atline, "CLOSED") != NULL)
-			return -1;
-		if ((unsigned long)(time() - t0) > 150UL)
-			return -1;
-	}
-}
-
-/*
- * AT+CIPRECVDATA=<max> -> +CIPRECVDATA:<len>,<data> then OK (or OK if empty).
- * Payload left in netbuf; trailing OK eaten without getAnswer3().
- */
-static int esp_ciprecv(void)
-{
-	unsigned int b;
-	unsigned int len;
-	unsigned char i;
-	unsigned long t0;
-	static const char pref[] = "+CIPRECVDATA:";
-
-	if (g_esp_tx)
-		return 0;
-
-	sprintf((char *)cmd, "AT+CIPRECVDATA=%u", (unsigned int)(NETBUF_SIZE - 1));
-	sendcommand((char *)cmd);
-
-	t0 = time();
-	for (;;) {
-		b = esp_getc(20UL);
-		if (b > 255) {
-			if ((unsigned long)(time() - t0) > 40UL)
-				return 0;
-			continue;
-		}
-		if ((unsigned char)b == '+')
-			break;
-		if ((unsigned char)b == 'O' || (unsigned char)b == 'E' ||
-		    (unsigned char)b == 'C') {
-			while (b != '\r' && b != '\n' && b <= 255) {
-				b = esp_getc(20UL);
-				if (b > 255)
-					return 0;
-			}
-			if (b == '\r')
-				(void)esp_getc(5UL);
-			return 0;
-		}
-		if ((unsigned long)(time() - t0) > 40UL)
-			return 0;
-	}
-
-	for (i = 1; pref[i]; i++) {
-		b = esp_getc(20UL);
-		if (b > 255)
-			return 0;
-		if ((unsigned char)b != (unsigned char)pref[i]) {
-			while (b != '\r' && b != '\n' && b <= 255) {
-				b = esp_getc(10UL);
-				if (b > 255)
-					break;
-			}
-			if (b == '\r')
-				(void)esp_getc(5UL);
-			return 0;
-		}
-	}
-
-	len = 0;
-	for (;;) {
-		b = esp_getc(20UL);
-		if (b > 255)
-			return 0;
-		if ((unsigned char)b == ',' || (unsigned char)b == ':')
-			break;
-		if ((unsigned char)b < '0' || (unsigned char)b > '9')
-			return 0;
-		len = len * 10U + (unsigned int)((unsigned char)b - '0');
-		if (len > 4096U)
-			return 0;
-	}
-
-	if (len == 0) {
-		esp_eat_line();
-		return 0;
-	}
-	if (len > NETBUF_SIZE - 1) {
-		if (!getdataEsp(NETBUF_SIZE - 1))
-			return 0;
-		netbuf[NETBUF_SIZE - 1] = 0;
-		{
-			unsigned int left = len - (NETBUF_SIZE - 1);
-			while (left > 0) {
-				b = esp_getc(20UL);
-				if (b > 255)
-					break;
-				left--;
-			}
-		}
-		esp_eat_line();
-		return (int)(NETBUF_SIZE - 1);
-	}
-	if (!getdataEsp(len))
-		return 0;
-	netbuf[len] = 0;
-	esp_eat_line();
-	return (int)len;
-}
-
-static int net_send_raw(const char *data, unsigned int len)
-{
-	int todo;
-	unsigned int i;
-	unsigned char attempt;
-
-	if (len == 0)
-		return 0;
-
-	if (netDriver == NET_ESP) {
-		g_esp_tx = 1;
-		for (attempt = 0; attempt < 2; attempt++) {
-			esp_uart_drain(8UL);
-			sprintf((char *)cmd, "AT+CIPSEND=%u", len);
-			sendcommand((char *)cmd);
-			if (esp_wait_gt() == 0) {
-				for (i = 0; i < len; i++)
-					uart_write((unsigned char)data[i]);
-				if (esp_wait_send_done() == 0) {
-					g_esp_tx = 0;
-					return (int)len;
-				}
-				/* SEND OK missing ? UART may be desynced; drain and retry */
-				esp_uart_drain(20UL);
-			}
-			if (g_esp_linkerr)
-				break;
-			esp_uart_drain(15UL);
-		}
-		g_esp_tx = 0;
-		return -1;
-	}
-
-	if (g_sock < 0)
-		return -1;
-	todo = tcpSend(g_sock, (unsigned int)data, len, 3);
-	return todo;
-}
-
-/* BSS ? never put MAX_LINE buffers on CSTACK (+300 only). */
+/* BSS - never put MAX_LINE buffers on CSTACK (+300 only). */
 static char g_sendline[MAX_LINE + 4];
 
 static int irc_send_line(const char *line)
 {
-	unsigned int n;
-
+	unsigned int n, byte;
+	signed int result;
 	n = strlen(line);
 	if (n >= MAX_LINE)
 		n = MAX_LINE - 1;
@@ -1345,61 +988,51 @@ static int irc_send_line(const char *line)
 	g_sendline[n++] = '\r';
 	g_sendline[n++] = '\n';
 	g_sendline[n] = 0;
-	return net_send_raw(g_sendline, n);
-}
 
-/* Poll: >0 bytes in netbuf, 0 none, <0 error. */
-static int net_poll(void)
-{
-	unsigned int todo;
-	int n;
+	switch (netDriver)
+	{
+	case 0:
+		result = tcpSend(g_sock, (unsigned int)g_sendline, n, 3);
+		break;
+	case 1:
 
-	if (netDriver == NET_ESP) {
-		if (g_esp_tx)
-			return 0;
-		n = esp_ciprecv();
-		/* Guard: never feed bare AT replies into IRC */
-		if (n <= 0)
-			return 0;
-		if (n <= 4 && netbuf[0] == 'O' && netbuf[1] == 'K')
-			return 0;
-		return n;
+		sprintf(netbuf, "AT+CIPSEND=%u", n);
+		sendcommand(netbuf);
+
+		do
+		{
+			byte = uartReadBlock();
+			if (byte > 255)
+			{
+				writeLog("Timeout when waiting '>' ", "fillPictureEsp ");
+				return false;
+			}
+
+			// putchar(byte);
+		} while (byte != '>');
+
+		result = putDataEsp((unsigned int)g_sendline, n);
 	}
 
-	if (g_sock < 0)
-		return -1;
-	readStruct.socket = (unsigned char)g_sock;
-	readStruct.BufAdr = (unsigned int)netbuf;
-	readStruct.bufsize = NETBUF_SIZE - 1;
-	readStruct.protocol = SOCK_STREAM;
-	todo = OS_WIZNETREAD(&readStruct);
-	if (OS_CALL_OK(todo)) {
-		if (todo > NETBUF_SIZE - 1)
-			todo = NETBUF_SIZE - 1;
-		netbuf[todo] = 0;
-		return (int)todo;
-	}
-	if (OS_CALL_ERR(todo) == ERR_EAGAIN)
-		return 0;
-	return -(int)OS_CALL_ERR(todo);
+	return result;
 }
 
 static void net_close(void)
 {
-	if (netDriver == NET_ESP) {
+	switch (netDriver)
+	{
+	case 0:
+		netShutDown(g_sock, 0);
+		break;
+	case 1:
 		sendcommand("AT+CIPCLOSE");
 		getAnswer3();
-		uartFlush(50);
-		sendcommand("AT+CIPRECVMODE=0");
-		getAnswer3();
-	} else if (g_sock >= 0) {
-		netShutDown(g_sock, 0);
+		break;
 	}
 	g_sock = -1;
 	g_conn = 0;
 	g_joined = 0;
 	g_registered = 0;
-	g_need_register = 0;
 	g_need_join = 0;
 	g_need_pong = 0;
 }
@@ -1408,82 +1041,87 @@ static int net_connect_host(void)
 {
 	unsigned char ip4[4];
 	signed char s;
+	unsigned char retry = 3;
 	char tmp[96];
-
 	g_port = (unsigned int)atoi(g_portstr);
 	if (g_port == 0)
 		g_port = 6667;
 
-	if (netDriver == NET_ESP) {
-		/*
-		 * CIPRECVMODE=1 BEFORE CIPSTART: TCP payload stays on ESP,
-		 * UART only sees AT replies ? safe under preemption + manual RTS.
-		 */
-		set_status("ESP CIPRECVMODE=1...");
+	switch (netDriver)
+	{
+	case 0:
+
+		sprintf(tmp, "DNS %s ...", g_host);
+		set_status(tmp);
 		draw_status();
-		sendcommand("AT+CIPRECVMODE=1");
-		if (!getAnswer3() || strstr((char *)netbuf, "ERROR") != NULL) {
-			set_status("ESP CIPRECVMODE failed");
-			draw_status();
+
+		if (parse_ipv4(g_host, ip4))
+		{
+			targetadr.b1 = ip4[0];
+			targetadr.b2 = ip4[1];
+			targetadr.b3 = ip4[2];
+			targetadr.b4 = ip4[3];
+		}
+		else if (!dnsResolve(g_host))
+		{
+			set_status("DNS failed");
 			return 0;
 		}
 
-		sprintf(tmp, "ESP connect %s:%u", g_host, g_port);
+		targetadr.family = AF_INET;
+		targetadr.porth = (unsigned char)((g_port >> 8) & 0xFF);
+		targetadr.portl = (unsigned char)(g_port & 0xFF);
+
+		sprintf(tmp, "TCP %u.%u.%u.%u:%u",
+				(unsigned int)targetadr.b1, (unsigned int)targetadr.b2,
+				(unsigned int)targetadr.b3, (unsigned int)targetadr.b4, g_port);
 		set_status(tmp);
 		draw_status();
-		sprintf((char *)cmd, "AT+CIPSTART=\"TCP\",\"%s\",%u", g_host, g_port);
-		sendcommand((char *)cmd);
-		for (;;) {
-			if (!getAnswer3())
-				return 0;
-			if (strstr((char *)netbuf, "CONNECT") != NULL)
-				break;
-			if (strstr((char *)netbuf, "ERROR") != NULL)
-				return 0;
+
+		s = OpenSock(AF_INET, SOCK_STREAM);
+		if (s < 0)
+		{
+			set_status("socket error");
+			return 0;
 		}
-		getAnswer3(); /* OK */
+		s = netConnect(s, 2);
+		if (s < 0)
+		{
+			set_status("connect failed");
+			return true;
+		}
+		break;
+	case 1:
+		while (true)
+		{
+			sprintf(tmp, "Connecting[%u] to %s:%u...", retry, g_host, g_port);
+			set_status(tmp);
+			draw_status();
 
-		esp_uart_drain(10UL);
-		set_status("ESP TCP passive OK");
-		draw_status();
-		g_conn = 1;
-		g_sock = 1;
-		return 1;
-	}
+			sprintf(tmp, "AT+CIPSTART=\"TCP\",\"%s\",%u", g_host, g_port);
+			sendcommand(tmp);
 
-	sprintf(tmp, "DNS %s ...", g_host);
-	set_status(tmp);
-	draw_status();
-
-	if (parse_ipv4(g_host, ip4)) {
-		targetadr.b1 = ip4[0];
-		targetadr.b2 = ip4[1];
-		targetadr.b3 = ip4[2];
-		targetadr.b4 = ip4[3];
-	} else if (!dnsResolve(g_host)) {
-		set_status("DNS failed");
-		return 0;
-	}
-
-	targetadr.family = AF_INET;
-	targetadr.porth = (unsigned char)((g_port >> 8) & 0xFF);
-	targetadr.portl = (unsigned char)(g_port & 0xFF);
-
-	sprintf(tmp, "TCP %u.%u.%u.%u:%u",
-		(unsigned int)targetadr.b1, (unsigned int)targetadr.b2,
-		(unsigned int)targetadr.b3, (unsigned int)targetadr.b4, g_port);
-	set_status(tmp);
-	draw_status();
-
-	s = OpenSock(AF_INET, SOCK_STREAM);
-	if (s < 0) {
-		set_status("socket error");
-		return 0;
-	}
-	s = netConnect(s, 2);
-	if (s < 0) {
-		set_status("connect failed");
-		return 0;
+			getAnswer3(); // CONNECT or ERROR or link is not valid
+			netbuf[128] = 0;
+			if (strstr(netbuf, "CONNECT") != NULL)
+			{
+				s = 1;
+				break;
+			}
+			else
+			{
+				if (strstr(netbuf, "ERROR") != NULL)
+				{
+					retry--;
+					uartFlush(200);
+					if (retry == 0)
+					{
+						return false;
+					}
+				}
+			}
+		}
+		break;
 	}
 	g_sock = s;
 	g_conn = 1;
@@ -1494,31 +1132,48 @@ static int net_connect_host(void)
 static int irc_register(void)
 {
 	char line[160];
-	int r;
+	unsigned int byte;
+	int r, n;
 
 	sprintf(line, "NICK %s\r\nUSER %s 0 * :girc on NedoOS\r\n", g_nick, g_nick);
-	if (netDriver == NET_ESP) {
-		set_status("ESP: sending NICK/USER...");
-		draw_status();
+	set_status("Sending NICK/USER...");
+	n = strlen(line);
+	draw_status();
+	switch (netDriver)
+	{
+	case 0:
+		r = tcpSend(g_sock, (unsigned int)line, n, 3);
+		break;
+	case 1:
+
+		sprintf(netbuf, "AT+CIPSEND=%u", n);
+		sendcommand(netbuf);
+
+		do
+		{
+			byte = uartReadBlock();
+			if (byte > 255)
+			{
+				writeLog("Timeout when waiting '>' ", "fillPictureEsp ");
+				return -1;
+			}
+
+			// putchar(byte);
+		} while (byte != '>');
+
+		r = putDataEsp((unsigned int)line, strlen(line));
 	}
-	r = net_send_raw(line, strlen(line));
-	if (r < 0) {
-		if (g_esp_linkerr) {
-			set_status("ESP: link closed before NICK");
-			log_add(COL_ERR, "Register failed: ESP link closed");
-		} else {
-			set_status("ESP: CIPSEND fail (no >)");
-			log_add(COL_ERR, "Register failed: no CIPSEND prompt");
-		}
+	if (r < 0)
+	{
+		set_status("Register send failed");
+		log_add(COL_ERR, "Register failed: send error");
 		draw_status();
 		return -1;
 	}
-	if (netDriver == NET_ESP) {
-		set_status("ESP: NICK/USER sent, wait server...");
-		draw_status();
-	}
+	set_status("NICK/USER sent, wait server...");
+	draw_status();
 	log_add(COL_SYS, "NICK/USER sent");
-	return 0;
+	return true;
 }
 
 static int irc_do_join(void)
@@ -1530,7 +1185,8 @@ static int irc_do_join(void)
 	i = 0;
 	while (g_chan[i] == ' ')
 		i++;
-	if (i) {
+	if (i)
+	{
 		j = 0;
 		while (g_chan[i])
 			g_chan[j++] = g_chan[i++];
@@ -1573,7 +1229,7 @@ static void irc_handle_line(char *line)
 
 	if (strncmp(cmdp, "PING ", 5) == 0)
 	{
-		/* Defer PONG ? must not CIPSEND while irc_feed still reads netbuf. */
+		/* Defer PONG ? netbuf still owned by irc_feed. */
 		strncpy(g_pingarg, cmdp + 5, sizeof(g_pingarg) - 1);
 		g_pingarg[sizeof(g_pingarg) - 1] = 0;
 		g_need_pong = 1;
@@ -2080,7 +1736,7 @@ static void connect_focus_next(signed char dir)
 static void draw_connect(void)
 {
 	OS_CLS(0);
-	draw_title(netDriver == NET_ESP ? "[ESP-COM]" : "[ZXNETUSB]");
+	draw_title("[ZXNETUSB]");
 	draw_frm(10, 2, 60, 14, COL_DLG);
 	draw_box(11, 3, 58, 12, COL_DLG);
 
@@ -2165,12 +1821,8 @@ static void do_connect(void)
 	sprintf(msg, "Connected - registering as %s", g_nick);
 	set_status(msg);
 	log_add(COL_SYS, msg);
-	/*
-	 * Register immediately after TCP is up. Deferred register + CIPRECV
-	 * before NICK let idle IRC/ESP drop the link (ERROR closing link).
-	 */
-	g_need_register = 0;
-	if (irc_register() == 0)
+	/* Register immediately after TCP is up. */
+	if (irc_register() == true)
 		set_status("Up/Dn=scroll  Esc=disconnect  F10=quit  /help");
 	g_need_chrome = 1;
 }
@@ -2260,7 +1912,7 @@ static void handle_connect_key(unsigned char k)
 	unsigned char maxlen;
 	unsigned char len;
 
-	if (k == KEY_F10 || k == KEY_ESC)
+	if (k == KEY_F10)
 	{
 		exit(0);
 	}
@@ -2285,7 +1937,9 @@ static void handle_connect_key(unsigned char k)
 		if (k == KEY_ENTER || k == ' ')
 		{
 			if (g_field == FOC_CONNECT)
+			{
 				do_connect();
+			}
 			else
 				exit(0);
 		}
@@ -2556,10 +2210,10 @@ void main(void)
 	OS_SETGFX(0x86);
 	OS_CLS(0);
 
-	strcpy(g_host, "irc.forestnet.org");
-	strcpy(g_portstr, "6667");
+	strcpy(g_host, "irc.386.su");
+	strcpy(g_portstr, "6666");
 	strcpy(g_nick, "nedouser");
-	strcpy(g_chan, "#mhm");
+	strcpy(g_chan, "#tabor");
 	g_field = 0;
 	g_fcurs = (unsigned char)strlen(g_host);
 	g_scr = SCR_CONNECT;
@@ -2598,17 +2252,39 @@ void main(void)
 				mouse_show();
 			}
 		}
-
 		if (g_conn)
 		{
-			/* One CIPRECVDATA per tick - each call is a full AT round-trip. */
+			/* One socket read per tick. */
 			{
-				n = net_poll();
-				if (n > 0) {
+				switch (netDriver)
+				{
+				case 0:
+					n = tcpRead(g_sock, 0);
+					break;
+				case 1:
+
+					n = recvHeadNoBlock();
+					if (n < 1)
+					{
+						break;
+					}
+
+					if (!getdataEsp(n))
+					{
+						printf("[getdataEsp] Downloading timeout. [%u]", n);
+						writeLog("Downloading timeout in getdataEsp!", "main if(g_conn) ");
+					}
+					break;
+				}
+
+				if (n > 0)
+				{
 					mouse_hide();
 					irc_feed(netbuf, (unsigned int)n);
 					mouse_show();
-				} else if (n < 0) {
+				}
+				else if (n < 0)
+				{
 					set_status("Connection lost");
 					mouse_hide();
 					draw_status();
@@ -2619,22 +2295,25 @@ void main(void)
 					g_need_chrome = 1;
 				}
 			}
-			/*
-			 * One CIPSEND per tick (PONG vs JOIN). Never log success before
-			 * net_send_raw returns; keep g_need_join on failure for retry.
-			 */
-			if (g_need_pong) {
+			/* One outbound IRC line per tick (PONG then JOIN). */
+			if (g_need_pong)
+			{
 				g_need_pong = 0;
 				sprintf((char *)cmd, "PONG %s", g_pingarg);
 				if (irc_send_line((char *)cmd) < 0)
 					g_need_pong = 1;
-			} else if (g_need_join && !g_joined && g_chan[0]) {
+			}
+			else if (g_need_join && !g_joined && g_chan[0])
+			{
 				set_status("Joining channel...");
 				draw_status();
-				if (irc_do_join() >= 0) {
+				if (irc_do_join() >= 0)
+				{
 					g_need_join = 0;
 					log_add(COL_SYS, "JOIN sent");
-				} else {
+				}
+				else
+				{
 					log_add(COL_ERR, "JOIN send failed, retry...");
 					set_status("JOIN send failed, retry...");
 					draw_status();
