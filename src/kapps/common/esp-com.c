@@ -5,8 +5,7 @@ void writeLog(const char *logline, char *place)
 	FILE *LogFile;
 	unsigned long fileSize;
 	unsigned char toLog[256];
-
-	OS_GETPATH((unsigned int)&curPath);
+	OS_GETPATH(curPath);
 	OS_SETSYSDRV();
 	LogFile = OS_OPENHANDLE("../espcom.log", 0x80);
 	if (((int)LogFile) & 0xff)
@@ -15,10 +14,8 @@ void writeLog(const char *logline, char *place)
 		OS_CLOSEHANDLE(LogFile);
 		LogFile = OS_OPENHANDLE("../espcom.log", 0x80);
 	}
-
 	fileSize = OS_GETFILESIZE(LogFile);
 	OS_SEEKHANDLE(LogFile, fileSize);
-
 	sprintf(toLog, "%7lu : %s : ", time(), place);
 	strncat(toLog, logline, 200);
 	strcat(toLog, "\r\n");
@@ -366,7 +363,7 @@ unsigned int uartReadBlock(void)
 		output(0xfb, RBR_THR);
 		return input(0xfa);
 	}
-	puts("Error, Unknown COM port");
+	printf("Error, Unknown COM port: %u", comType);
 	getchar();
 	return 0xffff;
 }

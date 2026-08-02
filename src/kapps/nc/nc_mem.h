@@ -5,10 +5,10 @@
 #define NC_MAIN_BASE           0x0100u
 #define NC_MAIN_LIMIT          0xBFFFu
 #define NC_MAIN_SIZE           0xBF00u
-#define NC_MAIN_USED_END       0xB4ACu /* CSTACK top */
-#define NC_MAIN_FREE           0x0B53u
-#define NC_MAIN_CODE_BYTES     54762u
-#define NC_MAIN_DATA_BYTES     6187u
+#define NC_MAIN_USED_END       0xB4D4u /* CSTACK top */
+#define NC_MAIN_FREE           0x0B2Bu
+#define NC_MAIN_CODE_BYTES     54799u
+#define NC_MAIN_DATA_BYTES     6190u
 
 #define NC_RES_BASE            0xC000u
 #define NC_RES_LIMIT           0xFFFFu

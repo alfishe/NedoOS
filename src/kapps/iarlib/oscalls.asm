@@ -656,16 +656,16 @@ OS_WRITESECTORS:
 	#include "sysdefs.asm"
 	RSEG CODE
 OS_GETPATH:
+	push hl
 	push bc
 	push ix
 	push iy
 	ld c,CMD_GETPATH
-	ex af,af
 	call BDOS
 	pop iy
 	pop ix
 	pop bc
-	ld hl,0
+	pop hl
 	ret
 	ENDMOD
 

@@ -22,6 +22,29 @@ os_initstdio
 	pop bc
 	ret
 	ENDMOD
+
+	MODULE OS_GETSTDINOUT
+	PUBLIC OS_GETSTDINOUT
+	#include "sysdefs.asm"
+	RSEG CODE
+; unsigned int OS_GETSTDINOUT(void);
+; BDOS out: e=stdin, d=stdout, h=stderr, l=hgt
+; Return: L=stdin handle, H=stdout handle
+OS_GETSTDINOUT:
+	push bc
+	push de
+	push ix
+	push iy
+	ld c,CMD_GETSTDINOUT
+	call BDOS
+	ld l,e
+	ld h,d
+	pop iy
+	pop ix
+	pop de
+	pop bc
+	ret
+	ENDMOD
 	
 	MODULE TTYGETKEY
 	PUBLIC ttygetkey

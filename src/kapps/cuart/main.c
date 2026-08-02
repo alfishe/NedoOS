@@ -870,7 +870,7 @@ C_task main(void)
   OS_CLS(0);
   if (!loopback_enabled)
   {
-    OS_GETPATH((unsigned int)&curPath);
+    OS_GETPATH(curPath);
     loadEspConfig();
     OS_CHDIR(curPath);
     uart_init(divider);

@@ -723,7 +723,7 @@ void loadParm(void)
   unsigned int ip16[6];
   unsigned int porthl;
 
-  OS_GETPATH((unsigned int)&tempbuf);
+  OS_GETPATH(tempbuf);
   OS_SETSYSDRV();
   OS_CHDIR("../ini");
   params = OS_OPENHANDLE("netprint.ini", 0x80);

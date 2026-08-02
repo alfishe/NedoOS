@@ -962,7 +962,7 @@ static void panel_sync_path(PanelState *panel)
 {
 	char path_buf[64];
 
-	OS_GETPATH((unsigned int)path_buf);
+	OS_GETPATH(path_buf);
 	panel_path_normalize(panel, path_buf);
 }
 
@@ -3688,7 +3688,7 @@ static unsigned char nc_run_bin_direct(PanelState *panel, const char *exe, const
 	if (!panel_chdir_only(panel->current_path))
 		return 0u;
 
-	OS_GETPATH((unsigned int)g_run_saved_cwd);
+	OS_GETPATH(g_run_saved_cwd);
 
 	OS_SETSYSDRV();
 	fp = OS_OPENHANDLE((unsigned char *)exe, 0x80);

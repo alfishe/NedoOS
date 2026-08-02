@@ -7,27 +7,26 @@ unsigned char g_dataPg;
 union APP_PAGES g_main_pg;
 unsigned char *netbuf;
 
-/*
- * Overlays CALL root/libc by absolute address (resolved at ovl-link time).
- * Those must match multibank.com ? banks call puts/printf directly.
- * Root must reference any libc symbol banks use (see puts("") in mb_init).
- */
-static const char g_bank_fmt[] = "This procedure run from codebank %u\r\n";
+extern void force_helpers(void);
 
-/* bank_nr ? 1-based overlay number printed by printf. */
+/*
+ * Overlays CALL root/libc by absolute address (ovl-link time).
+ * Root must reference any libc symbol banks use (puts/printf below).
+ * Banks are entered via JT @8000 (bank_call.c), not a raw CALL 8000.
+ */
+static const char g_bank_fmt[] = "JT slot0 from codebank %u\r\n";
+
 void mb_report_bank(unsigned int bank_nr)
 {
 	printf(g_bank_fmt, bank_nr);
 }
 
-/* page ? OS page to map at 8000 (0 = no-op). */
 void mb_code_select_page(unsigned char page)
 {
 	if (page != 0u)
 		mb_code_map(page);
 }
 
-/* Map g_dataPg @C000; netbuf -> data+MB_NETBUF_OFF. */
 void mb_data_select(void)
 {
 	if (g_dataPg != 0u)
@@ -39,14 +38,11 @@ void mb_data_select(void)
 		netbuf = 0;
 }
 
-/* idx0 - 0-based bank index; name - out buf >=13 for "codeB_NN.bin". */
 static void mb_fmt_bank_name(unsigned char idx0, char *name)
 {
 	sprintf(name, "codeB_%02u.bin", (unsigned int)(idx0 + 1u));
 }
 
-/* idx - 0-based; page_out - OS page of loaded .bin.
- * Tries multibank/ then bin/multibank/. Return: 1 ok, 0 fail. */
 static unsigned char mb_try_load(unsigned char idx, unsigned char *page_out)
 {
 	char path[40];
@@ -64,20 +60,17 @@ static unsigned char mb_try_load(unsigned char idx, unsigned char *page_out)
 	return mb_load_bank_bin(path, page_out);
 }
 
-/* Alloc g_dataPg, force-link puts for overlays. */
 void mb_init(void)
 {
 	unsigned char i;
 
 	g_main_pg.l = OS_GETMAINPAGES();
 
-	/*
-	 * Force-link puts into multibank.com. Overlays CALL puts by absolute
-	 * address ? if root never references puts, xlink omits it and the
-	 * bank jumps to the wrong routine (that was the hang).
-	 */
+	/* Force-link symbols banks CALL by absolute address. */
 	puts("");
-	
+	printf("");
+	force_helpers();
+
 	for (i = 0u; i < MB_BANK_COUNT; i++)
 		g_bankPg[i] = 0u;
 
@@ -92,7 +85,6 @@ void mb_init(void)
 	}
 }
 
-/* Free all g_bankPg[] and g_dataPg. */
 void mb_shutdown(void)
 {
 	unsigned char i;
@@ -138,18 +130,10 @@ static unsigned char demo_load_banks(void)
 
 static void demo_run_banks(void)
 {
-	unsigned char i;
-
-	printf("--- call overlays @8000 ---\r\n");
-	for (i = 0u; i < MB_BANK_COUNT; i++)
-	{
-		if (g_bankPg[i] == 0u)
-		{
-			printf("  skip bank %u (not loaded)\r\n", (unsigned int)(i + 1u));
-			continue;
-		}
-		mb_call_bank(g_bankPg[i]);
-	}
+	printf("--- JT call bank1/2/3 ---\r\n");
+	bank1();
+	bank2();
+	bank3();
 }
 
 C_task main(void)
@@ -157,8 +141,8 @@ C_task main(void)
 	os_initstdio();
 	mb_init();
 
-	printf("multibank: root 0100-7FFF, overlays @8000\r\n");
-	printf("  data pg %u @C000, com window_2 was %u\r\n",
+	printf("multibank JT: root 0100-7FFF, code @8000, data @C000\r\n");
+	printf("  data pg %u, cold window_2=%u\r\n",
 		   (unsigned int)g_dataPg, (unsigned int)g_main_pg.pgs.window_2);
 
 	if (!demo_load_banks())

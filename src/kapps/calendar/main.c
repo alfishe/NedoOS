@@ -568,7 +568,7 @@ char readParamFromIni(void)
 	const char useProdCalendar[] = "useProdCalendar";
 	const char currentCountry[] = "currentCountry";
 
-	OS_GETPATH((unsigned int)&curPath);
+	OS_GETPATH(curPath);
 	OS_SETSYSDRV();
 	OS_CHDIR("/");
 	OS_CHDIR("ini");
@@ -616,7 +616,7 @@ char loadProdCalDisk(int year)
 	clearStatus();
 	printf("Загрузка производственного кадендаря с диска на %d год", year);
 
-	OS_GETPATH((unsigned int)&curPath);
+	OS_GETPATH(curPath);
 	OS_SETSYSDRV();
 	OS_CHDIR("/");
 	OS_CHDIR("ini");

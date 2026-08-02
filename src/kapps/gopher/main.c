@@ -203,7 +203,7 @@ char readParamFromIni(void)
 	const char currentNetwork[] = "currentNetwork";
 	unsigned char curNet = 0;
 
-	OS_GETPATH((unsigned int)&curPath);
+	OS_GETPATH(curPath);
 	OS_SETSYSDRV();
 	OS_CHDIR("/");
 	OS_CHDIR("ini");
@@ -350,7 +350,7 @@ unsigned char OS_SHELL(const char *command)
 
 	main_pg.l = OS_GETMAINPAGES();
 	pgbak = main_pg.pgs.window_3;
-	OS_GETPATH((unsigned int)&curPath);
+	OS_GETPATH(curPath);
 	OS_SETSYSDRV();
 
 	fp3 = OS_OPENHANDLE(fileName, 0x80);
@@ -1290,8 +1290,8 @@ char getFileEsp(unsigned char *fileNamePtr)
 	}
 
 	sprintf(cmd, "AT+CIPSTART=\"TCP\",\"%s\",%u", link.host, link.port);
-	sendcommand(cmd);
 
+	sendcommand(cmd);
 	for (;;) // Try until endo of the days recieve CONNECT or ERROR
 	{
 		getAnswer3(); // CONNECT or ERROR or link is not valid
@@ -1308,13 +1308,10 @@ char getFileEsp(unsigned char *fileNamePtr)
 			}
 		}
 	}
-
 	getAnswer3(); // OK
-
 	sprintf(cmd, "AT+CIPSEND=%u", strlen(link.path)); // second CRLF in send command
 	sendcommand(cmd);
 	getAnswer3();
-
 	do
 	{
 		byte = uartReadBlock();
@@ -1839,7 +1836,7 @@ void doLink(char backSpace)
 		}
 		OS_CHDIR("/");
 		OS_CHDIR("downloads");
-		OS_GETPATH((unsigned int)&curPath);
+		OS_GETPATH(curPath);
 
 		if (getFile(navi.fileName))
 		{
@@ -2339,7 +2336,7 @@ C_task main(int argc, const char *argv[])
 
 			//	printf("keypress [%d]", keypress);
 		}
-		
+
 		YIELD();
 		drawClock();
 	} while (keypress != 27);

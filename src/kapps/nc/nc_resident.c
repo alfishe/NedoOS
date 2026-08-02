@@ -520,7 +520,7 @@ void nc_capture_startup_path(void)
 	unsigned int i;
 
 	path_buf[0] = 0;
-	OS_GETPATH((unsigned int)path_buf);
+	OS_GETPATH(path_buf);
 	len = 0;
 	while (path_buf[len] != 0 && len < 63u)
 		len++;

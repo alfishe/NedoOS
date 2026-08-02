@@ -46,7 +46,7 @@ void at_zmodem_bank_leave(unsigned char saved)
 
 void at_path_to_ini(unsigned char *saved_path)
 {
-  OS_GETPATH((unsigned int)saved_path);
+  OS_GETPATH(saved_path);
   OS_SETSYSDRV();
   OS_CHDIR("/");
   OS_CHDIR("ini");
@@ -54,7 +54,7 @@ void at_path_to_ini(unsigned char *saved_path)
 
 void at_path_to_downloads(unsigned char *saved_path)
 {
-  OS_GETPATH((unsigned int)saved_path);
+  OS_GETPATH(saved_path);
   OS_SETSYSDRV();
   (void)OS_MKDIR((unsigned char *)"../downloads");
   (void)OS_CHDIR((unsigned char *)"../downloads");

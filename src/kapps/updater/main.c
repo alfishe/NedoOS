@@ -349,7 +349,7 @@ unsigned char OS_SHELL(const unsigned char *command)
 
 	main_pg.l = OS_GETMAINPAGES();
 	pgbak = main_pg.pgs.window_3;
-	OS_GETPATH((unsigned int)&curPath);
+	OS_GETPATH(curPath);
 	OS_CHDIR("/");
 
 	fp3 = OS_OPENHANDLE(fileName, 0x80);
@@ -1161,7 +1161,7 @@ char readParamFromIni(void)
 	const char currentNetwork[] = "currentNetwork";
 	unsigned char curNet = 0;
 
-	OS_GETPATH((unsigned int)&curPath);
+	OS_GETPATH(curPath);
 	OS_SETSYSDRV();
 	OS_CHDIR("/");
 	OS_CHDIR("ini");
@@ -1339,7 +1339,7 @@ C_task main(int argc, const char *argv[])
 	clearStatus();
 	// puts("network.ini loaded.");
 	// YIELD();
-	OS_GETPATH((unsigned int)&curPath);
+	OS_GETPATH(curPath);
 	curLetter = curPath[0];
 
 	clearStatus();

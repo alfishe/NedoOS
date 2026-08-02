@@ -289,7 +289,7 @@ char readParamFromIni(void)
 	const char currentNetwork[] = "currentNetwork";
 	unsigned char curNet = 0;
 
-	OS_GETPATH((unsigned int)&curPath);
+	OS_GETPATH(curPath);
 	OS_SETSYSDRV();
 	OS_CHDIR("/");
 	OS_CHDIR("ini");

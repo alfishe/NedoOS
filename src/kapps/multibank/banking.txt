@@ -1,47 +1,165 @@
-multibank ? unlimited CODE overlays @8000 (IAR C demo)
-======================================================
+NedoOS multibank / Plan JT
+==========================
+Канонический шаблон: src/kapps/multibank/
+Рабочий крупный пример:  src/kapps/getpic_ovl/ (getpovl)
+Инструмент:              tools/mbovl.exe  (исходник tools/src/mbovl/)
 
-Output pack
------------
-  bin/multibank.com
-  bin/multibank/codeB_XX.bin
-  ? release/bin/ and emulator /bin/ (same layout)
+Проверено: getpovl на zxnetusb показывает картинки. Метод рабочий.
+Главный урок: страницы @C000 забывать переключать нельзя.
 
-Adding a bank
--------------
-  1. Add codebank_04.c (pragma CODE_RESIDENT, r_bank_entry)
-  2. Append 04 to BANKS in Makefile
-  3. make / build.bat
-  No need to rebuild tools/mbovl.exe
 
-Tool (no Python)
-----------------
-  tools/mbovl.exe
-    extract  ? cut 8000-window from ovl .com ? .bin (+ root fingerprint)
-    check    ? verify libc/root CALL addresses match com vs ovl maps
-    gen-h    ? write mb_banks.h (MB_BANK_COUNT) from BANKS length
-  Source: tools/src/mbovl/  (rebuild once with build.bat if needed)
+1. Карта памяти
+---------------
+  0100-7FFF   ROOT  (.com): main, loaders, iarlib, BSS/stack, thin JT-wrappers
+  8000-BFFF   CODE  (codeB_XX.bin): одна overlay-страница; на входе JP-таблица
+  C000-FFFF   DATA  (datapage): одна OS-страница за раз через OS_SETPGC000
 
-Calling libc from a bank
+Несколько datapage (пример getpic):
+  g_dataPg  ? пути, cmd, dnsPkt, struct fileStruct (смещения в mb_bank.h)
+  g_netPg   ? netbuf[4000] @0
+  g_picPg   ? picture[13700] @0
+  Указатели netbuf/picture = 0xC000 на РАЗНЫХ страницах ? это не два массива сразу.
+
+Исключение в ROOT (низкая память):
+  picstage[] / strstage[] ? bounce-буферы. Нужны когда:
+    ? SETPG32KHIGH переключает 8000-FFFF на экран (источник blit не может быть @C000);
+    ? два буфера на C000 разных page надо ?скопировать друг в друга?.
+
+
+2. Plan JT ? вызов банка
 ------------------------
-  Call puts/printf directly. Root must reference the symbol (e.g. puts("")
-  in mb_init) so it is linked into multibank.com.
+Начало codeB_XX.bin = jump table (bank_jt.asm), слот = 3 байта (JP nn).
+
+  Root:
+    OS_SETPG8000(g_bankPg[i]);
+    fn = (void(*)(void))MB_JT_ADDR(slot);
+    fn();
+    OS_SETPG8000(g_main_pg.pgs.window_2);   /* cold window, не GETMAINPAGES */
+
+  Multibank demo: bank1()/bank2()/bank3() ? mb_run_bank(idx) ? slot 0.
+  Getpic: net_call.c ? тонкие обёртки на каждый экспортируемый r_*.
+
+Внутри банка:
+  ? вызывать соседние r_* напрямую (НЕ root-wrapper ? он сделает LEAVE и снимет страницу);
+  ? load_banks() только в root (банк не грузит сам себя).
 
 
-Что делает mbovl
-------------------------
-Команда	Назначение
-extract       вырезать окно 8000?BFFF из temp .com ? codeB_XX.bin (+ FNV root hash)
-check         сравнить адреса символов root vs overlay (список символов с cmdline)
-gen-h         сгенерировать mb_banks.h с MB_BANK_COUNT
+3. Datapage ? правила (критично)
+--------------------------------
+Одна страница на C000. Перед КАЖДЫМ доступом к буферу ? нужный MAP:
 
-Исходник: tools/src/mbovl/ ? пересборка только если правите сам инструмент (build.bat + MSVC).
-------------------------
-Добавление банка (без пересборки mbovl)
+  #define MAP_DATA() OS_SETPGC000(g_dataPg)
+  #define MAP_NET()  OS_SETPGC000(g_netPg)
+  #define MAP_PIC()  OS_SETPGC000(g_picPg)
 
-codebank_04.c
-в Makefile: BANKS := 01 02 03 04
-build.bat
-Список OVL_SYMS ? какие libc/API проверять на drift; банки/имена файлов в exe не зашиты.
+Запрещено без bounce:
+  strcpy(MB_CFS_PTR->field, netbuf);   /* оба ?на C000?, разные page ? мусор */
+  MB_CFS_PTR->id = atol(netbuf);       /* запись CFS при mapped NET ? мимо */
 
-build.bat копирует все bin/multibank/*.bin циклом for.
+Правильно:
+  root_cfs_from_net(dst, maxlen);      /* NET ? strstage ? DATA */
+  id = root_atol_net(); MAP_DATA(); MB_CFS_PTR->id = id;
+
+JSON parse (getpic): тело на g_picPg ? root_pic_to_stage ? читать picstage,
+писать результат в netbuf (MAP_NET), в CFS ? только через bounce.
+
+Сетевой send: держать MAP_NET. MAP_PIC перед tcpSend = пустой/чужой буфер.
+
+Вывод: ?забыл страницу? выглядит как Format not supported / Error pic info /
+пустой HTTP / зависон ? сначала проверь MAP, потом BDOS.
+
+
+4. Что можно / нельзя в банке
+-----------------------------
+Можно:
+  ? printf("...") / литералы ? Makefile: RSEG CSTR ? CSTR_RESIDENT (@8000);
+  ? CONST_RESIDENT (#pragma memory = constseg(CONST_RESIDENT));
+  ? вызовы root/libc по абсолютному адресу (puts, printf, OS_*, root_*).
+
+Нельзя (эмитит low DATA/CONST/CSTR ? ломает root fingerprint):
+  ? инициализированные/mutable globals в банке (IDATA0/UDATA0/DATA0);
+  ? новые RCODE helpers только для банка без force-link в root
+    (адреса CODE в .com съезжают ? check-addrs / root-hash падают).
+
+static в codebank_XX.c:
+  ? локальные хелперы, не вызываемые из main/другого банка;
+  ? НЕ нужны слот JT, прототип в net_req.h, wrapper в bank_call.c.
+  Экспорт наружу = r_name + слот JT + тонкий wrapper в root.
+
+
+5. Чеклист: новая экспортируемая процедура
+------------------------------------------
+Предпочтительно: mbgen ?Scan and add?. Вручную:
+
+  1. codebank_XX.c     void r_foo(...);  реализация; static = только локальное
+  2. bank_jt.asm       EXTERN r_foo + JP r_foo   (новый слот в конце)
+  3. bank_jt.h         #define MB_JT_FOO N
+  4. bank_call.c       thin ENTER / CALL MB_JT_ADDR / LEAVE  (или net_call.c)
+  5. mb_req.h          объявление mb_foo() для root
+  6. main.c            убрать старое тело; вызвать/keep force_helpers();
+                       force-link новых OS/libc если банк их зовёт
+  7. Makefile          OVL_SYMS += символы которые банк CALL в root
+  8. force_helpers.asm при необходимости новые runtime helpers
+                       (модуль должен быть referenced из root, иначе DCE)
+
+
+6. Сборка / mbovl
+-----------------
+Pack:
+  bin/<app>.com
+  bin/<app>/codeB_XX.bin   ?  release/bin/  и /bin/ в образе
+
+Makefile BANKS := 01 02 03
+  mbovl gen-h  ? mb_banks.h (MB_BANK_COUNT)
+  iccz80 bank ? rewrite CSTR/CONST ? *_RESIDENT ? az80
+  xlink root+jt+bank -gbank_jt -gforce_helpers -f lnk_ovl.xcl
+  mbovl extract  ? codeB_XX.bin (+ FNV root fingerprint)
+  mbovl check cout.html cout_ovlNN.html <OVL_SYMS>
+
+Добавить банк: codebank_04.c + BANKS += 04 (+ свой bank_jt если слоты другие).
+mbovl.exe пересобирать не нужно.
+
+
+7. Multibank (этот каталог) ? минимальный эталон
+------------------------------------------------
+  3 банка, короткий текст, вызов через JT:
+    bank1(); bank2(); bank3();   /* или mb_run_bank(0..2) */
+  Файлы-ядро шаблона:
+    main.c, bank_call.c, bank_jt.asm/.h, force_helpers.asm
+    mb_bank.c/.h, mb_load.c, mb_plug.h, mb_inc.h
+    Makefile, lnk.xcl, lnk_ovl.xcl, build.bat
+
+Отсюда копировать каркас; логику приложения класть в codebank_*.c.
+
+
+8. Утилита mbgen (GUI)
+----------------------
+  Путь:      kapps/multibank/tools/mbgen.exe
+  Исходники: kapps/multibank/tools/src/
+  Сборка:    kapps/multibank/tools/build.bat  (отдельно от .com)
+
+  GUI: project folder -> Autofill
+       (codebank_XX.c, bank_jt.asm, bank_jt.h, bank_call.c|net_call.c, mb_req.h)
+       Open рядом с путём; кнопка "Scan and add".
+
+  Скан: все не-static функции в codebank (локальные помечай static).
+  Имена:  r_get_dns -> MB_JT_GET_DNS + mb_get_dns()
+          r_ping    -> MB_JT_PING    + mb_ping()
+  Уже есть в asm/h/call/req -> skip (идемпотентно).
+  g_bankPg[i]: из codebank_NN (N-1) или вручную.
+
+  Бинарник приложения может быть любым (superprog.com); каркас banking
+  остаётся codebank_*/bank_jt*/bank_call.c/mb_*.
+
+  CLI: mbgen.exe --scan ... / --apply ...
+  См. tools/README.txt
+
+
+9. Быстрый диагноз
+------------------
+  check-addrs fail     - банк тянет новый libc/OS без force-link в root
+  root-hash fail       - low 0100-7FFF разъехался между банками
+  Format/мусор строк   - CFS vs netbuf без bounce / неверный MAP
+  пустой TCP send      - MAP_PIC вместо MAP_NET перед write
+  чёрный экран после   - root_view_pic восстановил не тот window_2
+  hang в банке         - вызвали root wrapper - LEAVE снял CODE page

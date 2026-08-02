@@ -262,7 +262,7 @@ static void refresh_path(void)
 
 	for (i = 0; i < 79u; i++)
 		path_buf[i] = 0;
-	(void)OS_GETPATH((unsigned int)path_buf);
+	(void)OS_GETPATH(path_buf);
 	path_buf[79] = 0;
 }
 

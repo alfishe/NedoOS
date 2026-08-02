@@ -103,21 +103,15 @@ label1:
 	
 	
 	MODULE OSWRITEHANDLE
-	PUBLIC OS_WRITEHANDLE,OS_READHANDLE;,OS_GETPATH,OS_SETSYSDRV
+	PUBLIC OS_WRITEHANDLE,OS_READHANDLE,OS_READHANDLE_STATUS
 	PUBLIC OS_GETFILESIZE
 	EXTERN errno
 	#include "sysdefs.asm"
 	RSEG CODE
-;OS_SETSYSDRV:
-;	ld c,CMD_SETSYSDRV	
-;	jr label1
 OS_GETFILESIZE:
 	ld c,CMD_GETFILESIZE
 	ld b,d
 	jr label1
-;OS_GETPATH:
-;	ld c,CMD_GETPATH	
-;	jr label1
 OS_READHANDLE:
 OS_READHANDLEMEM:
 	ld c,CMD_READHANDLE	
@@ -137,6 +131,26 @@ label1:
 	ld c,e
 	pop iy
 	pop ix
+	ret
+
+; Same args as OS_READHANDLE.
+; HL = bytes read; on BDOS error/EOF returns 0xFFFF (do not use errno).
+; Empty pipe (wait): HL=0, not an error.
+OS_READHANDLE_STATUS:
+	ld c,CMD_READHANDLE
+	pop af
+	pop hl
+	push hl
+	push af
+	push ix
+	push iy
+	call BDOS
+	ld (errno),a
+	pop iy
+	pop ix
+	or a
+	ret z
+	ld hl,0xffff
 	ret
 	ENDMOD
 	

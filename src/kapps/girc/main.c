@@ -977,10 +977,90 @@ static void net_init_driver(void)
 /* BSS - never put MAX_LINE buffers on CSTACK (+300 only). */
 static char g_sendline[MAX_LINE + 4];
 
+static void irc_feed(const unsigned char *data, unsigned int len);
+
+/* One +IPD payload (n from recvHead*) into IRC. */
+static void esp_feed_ipd(int n)
+{
+	if (n < 1)
+		return;
+	if ((unsigned int)n > NETBUF_SIZE)
+		n = (int)NETBUF_SIZE;
+	memset(netbuf, 0, (unsigned int)n);
+	if (!getdataEsp((unsigned int)n))
+		writeLog("getdataEsp truncate; feed partial", "esp_feed_ipd   ");
+	irc_feed(netbuf, (unsigned int)n);
+}
+
+/*
+ * Drain all pending +IPD before CIPSEND (welcome may be several packets).
+ * 0 = UART quiet, -1 = CLOSED/ERROR.
+ */
+static int esp_drain_ipd(void)
+{
+	int n;
+	unsigned char pkts;
+
+	pkts = 0;
+	for (;;)
+	{
+		n = recvHeadNoBlock();
+		if (n == 0)
+			return 0;
+		if (n < 0)
+			return -1;
+		esp_feed_ipd(n);
+		pkts++;
+		if (pkts >= 16)
+			return 0; /* rest on next drain / main tick */
+	}
+}
+
+/* After AT+CIPSEND: wait '>', re-feed +IPD if it races the prompt. */
+static int esp_wait_send_prompt(void)
+{
+	unsigned int byte;
+	int n;
+
+	for (;;)
+	{
+		byte = uartReadBlock();
+		if (byte > 255)
+		{
+			writeLog("Timeout when waiting '>' ", "esp_wait_prompt");
+			return -1;
+		}
+		if ((unsigned char)byte == '>')
+			return 0;
+		if ((unsigned char)byte == '+')
+		{
+			/* '+' already eaten; recvHead syncs on ',' */
+			n = recvHead();
+			if (n <= 0)
+				return -1;
+			esp_feed_ipd(n);
+		}
+		/* else skip OK / CRLF noise */
+	}
+}
+
+/* CIPMODE=0 send: drain RX, CIPSEND, '>', payload. */
+static int esp_cipsend(unsigned int addr, unsigned int n)
+{
+	if (esp_drain_ipd() < 0)
+		return -1;
+	sprintf((char *)netbuf, "AT+CIPSEND=%u", n);
+	sendcommand((char *)netbuf);
+	if (esp_wait_send_prompt() < 0)
+		return -1;
+	return putDataEsp(addr, n);
+}
+
 static int irc_send_line(const char *line)
 {
-	unsigned int n, byte;
+	unsigned int n;
 	signed int result;
+
 	n = strlen(line);
 	if (n >= MAX_LINE)
 		n = MAX_LINE - 1;
@@ -996,23 +1076,7 @@ static int irc_send_line(const char *line)
 		result = tcpSend(g_sock, (unsigned int)g_sendline, n, 3);
 		break;
 	case 1:
-
-		sprintf(netbuf, "AT+CIPSEND=%u", n);
-		sendcommand(netbuf);
-
-		do
-		{
-			byte = uartReadBlock();
-			if (byte > 255)
-			{
-				writeLog("Timeout when waiting '>' ", "irc_send_line  ");
-				return -1;
-			}
-
-			/* putchar(byte); */
-		} while (byte != '>');
-
-		result = putDataEsp((unsigned int)g_sendline, n);
+		result = esp_cipsend((unsigned int)g_sendline, n);
 		break;
 	}
 
@@ -1134,7 +1198,6 @@ static int net_connect_host(void)
 /* ---- IRC protocol ---- */
 static int irc_register(void)
 {
-	unsigned int byte;
 	int r, n;
 
 	/* g_sendline is BSS ? never put NICK/USER on CSTACK */
@@ -1149,23 +1212,7 @@ static int irc_register(void)
 		r = tcpSend(g_sock, (unsigned int)g_sendline, n, 3);
 		break;
 	case 1:
-
-		sprintf(netbuf, "AT+CIPSEND=%u", n);
-		sendcommand(netbuf);
-
-		do
-		{
-			byte = uartReadBlock();
-			if (byte > 255)
-			{
-				writeLog("Timeout when waiting '>' ", "irc_register   ");
-				return -1;
-			}
-
-			/* putchar(byte); */
-		} while (byte != '>');
-
-		r = putDataEsp((unsigned int)g_sendline, n);
+		r = esp_cipsend((unsigned int)g_sendline, n);
 		break;
 	}
 	if (r < 0)
@@ -2267,32 +2314,24 @@ void main(void)
 					n = tcpRead(g_sock, 0);
 					break;
 				case 1:
-
 					n = recvHeadNoBlock();
-					if (n < 1)
+					if (n > 0)
 					{
-						break;
-					}
-					if ((unsigned int)n > NETBUF_SIZE)
-						n = (int)NETBUF_SIZE;
-					/*
-					 * Clear payload window first: if getdataEsp times out mid-packet,
-					 * unread tail stays 0 instead of stale bytes from a previous +IPD.
-					 * Still irc_feed below (best-effort) ? do not drop the link.
-					 */
-					memset(netbuf, 0, (unsigned int)n);
-					if (!getdataEsp((unsigned int)n))
-					{
-						writeLog("getdataEsp truncate; feed partial", "main if(g_conn) ");
+						mouse_hide();
+						esp_feed_ipd(n);
+						mouse_show();
 					}
 					break;
 				}
 
 				if (n > 0)
 				{
-					mouse_hide();
-					irc_feed(netbuf, (unsigned int)n);
-					mouse_show();
+					if (netDriver == 0)
+					{
+						mouse_hide();
+						irc_feed(netbuf, (unsigned int)n);
+						mouse_show();
+					}
 				}
 				else if (n < 0)
 				{

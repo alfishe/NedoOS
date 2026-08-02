@@ -59,7 +59,7 @@ unsigned char mb_load_bank_bin(const char *path, unsigned char *page_out)
 	return 1u;
 }
 
-/* page ? OS page with overlay; maps @8000, CALL 0x8000, restores prior. */
+/* Legacy: CALL 0x8000 (first byte of JT = JP). Prefer mb_run_bank / bankN(). */
 void mb_call_bank(unsigned char page)
 {
 	unsigned char saved;

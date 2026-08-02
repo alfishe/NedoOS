@@ -19,19 +19,14 @@ typedef struct {
 FILE *		OS_CREATEHANDLE(unsigned char * path, unsigned char flags);
 unsigned int 	OS_WRITEHANDLE(unsigned char * buffer, FILE * hnd, unsigned int count);
 unsigned int 	OS_READHANDLE(unsigned char * buffer, FILE * hnd, unsigned int count);
+/* Like OS_READHANDLE, but returns 0xFFFF on BDOS EOF/error; 0 = empty (retry/YIELD). */
+unsigned int 	OS_READHANDLE_STATUS(unsigned char * buffer, FILE * hnd, unsigned int count);
 FILE *		OS_OPENHANDLE(unsigned char * path, unsigned char flags);
 unsigned int 	OS_CLOSEHANDLE(FILE * hnd);
 unsigned long	OS_GETFILESIZE(FILE * hnd);
 void		OS_SEEKHANDLE(FILE * hnd, unsigned long ofset);
 unsigned char	OS_GETFILINFO(unsigned char * path, FILINFO*);
-//unsigned char * OS_GETPATH(unsigned char * path);
-//unsigned char	OS_OPENDIR(unsigned char * path);
-//unsigned char	OS_READDIR(FILINFO*);
-//unsigned char	OS_CHDIR(const unsigned char * path);
-//unsigned char	OS_CHDRV(unsigned char drive);
 unsigned char	OS_MKDIR(unsigned char * path);
-//unsigned char	OS_DELETE(unsigned char * path);
-//void			OS_SETSYSDRV(void);
 unsigned char * fs_get_err_str(void);
 
 #endif

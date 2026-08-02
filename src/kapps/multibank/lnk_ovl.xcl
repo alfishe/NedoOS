@@ -1,13 +1,10 @@
 -cZ80
 -Ilist
 /*
- * Overlay link map ? used ONLY when linking root + codebank_0N.
- * CSTR/CONST go to 8000 with CODE_RESIDENT so puts("...") in a bank
- * lands inside codeB_0N.bin (not in low root).
- *
- * Root-only multibank.com still uses lnk.xcl (strings stay in 0100-7FFF
- * so they remain visible while an overlay page is mapped at 8000).
+ * Overlay link: low 0100-7FFF MUST match lnk.xcl (root multibank.com).
+ * Bank-only code/const/strings -> *_RESIDENT @8000.
+ * Makefile rewrites RSEG CSTR/CONST -> CSTR_RESIDENT/CONST_RESIDENT.
  */
--Z(CODE)RCODE,CODE,CDATA0=0100-7FFF
+-Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-7FFF
 -Z(DATA)DATA0,IDATA0,ECSTR,NO_INIT,UDATA0,CSTACK+250=0100-7FFF
--Z(CODE)CODE_RESIDENT,CONST,CSTR,CCSTR=8000-BFFF
+-Z(CODE)CODE_RESIDENT,CONST_RESIDENT,CSTR_RESIDENT,CCSTR_RESIDENT=8000-BFFF

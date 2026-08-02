@@ -1663,14 +1663,14 @@ unsigned char runPlayer(void)
   player_pg.l = OS_GETMAINPAGES();
   pgbak = main_pg.pgs.window_3;
 
-  OS_GETPATH((unsigned int)&curPath);
+  OS_GETPATH(curPath);
   OS_SETSYSDRV();
   OS_CHDIR("radio");
   fp2 = OS_OPENHANDLE(fileName, 0x80);
   if (((int)fp2) & 0xff)
   {
     clearStatus();
-    OS_GETPATH((unsigned int)&curPath);
+    OS_GETPATH(curPath);
     printf("[%s] not found at [%s].", fileName, curPath);
     getchar();
     exit(0);
@@ -1755,7 +1755,7 @@ char readParamFromIni(void)
   const char currentNetwork[] = "currentNetwork";
   unsigned char curNet = 0;
 
-  OS_GETPATH((unsigned int)&curPath);
+  OS_GETPATH(curPath);
   OS_SETSYSDRV();
   OS_CHDIR("/");
   OS_CHDIR("ini");

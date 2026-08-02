@@ -1470,7 +1470,7 @@ void safeKeys(unsigned char keypress)
     if (netDriver == 1)
     {
       printf("    ESP-COM mode enabled...\r\n");
-      OS_GETPATH((unsigned int)&curPath);
+      OS_GETPATH(curPath);
       loadEspConfig();
       OS_CHDIR(curPath);
       uart_init(divider);
@@ -1522,7 +1522,7 @@ char readParamFromIni(void)
   const char currentNetwork[] = "currentNetwork";
   unsigned char curNet = 0;
 
-  OS_GETPATH((unsigned int)&curPath);
+  OS_GETPATH(curPath);
 
   OS_SETSYSDRV();
   OS_CHDIR("/");
@@ -1585,7 +1585,7 @@ void init(void)
 
   if (netDriver == 1)
   {
-    OS_GETPATH((unsigned int)&curPath);
+    OS_GETPATH(curPath);
     loadEspConfig();
     OS_CHDIR(curPath);
     uart_init(divider);
