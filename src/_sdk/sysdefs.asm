@@ -46,7 +46,7 @@ CMD_CREATEHANDLE=0x44 ;DE = Drive/path/file ASCIIZ string
 CMD_CLOSEHANDLE=0x45 ;B = file handle, out: A=error
 CMD_READHANDLE=0x48 ;B = file handle, DE = Buffer address, HL = Number of bytes to read, out: HL = Number of bytes actually read, A=error(=0)
 CMD_WRITEHANDLE=0x49 ;B = file handle, DE = Buffer address, HL = Number of bytes to write, out: HL = Number of bytes actually written, A=error(=0)
-CMD_RENAME=0x4e ;DE = Drive/path/file ASCIIZ string, HL = New filename ASCIIZ string (NOT MSXDOS compatible! with Drive/path!) ;RENAME OR MOVE FILE
+CMD_RENAME=0x4e ;DE = Drive/path/file ASCIIZ string, HL = New filename ASCIIZ string (NOT MSXDOS compatible! with Drive/path!) ;RENAME OR MOVE FILE RENAME/MOVE; out: A=FRESULT (0=FR_OK, 1=DISK_ERR, 2=INT_ERR, 3=NOT_READY, 4=NO_FILE, 5=NO_PATH, 6=INVALID_NAME, 7=DENIED, 8=FR_EXIST, 9=INVALID_OBJECT, 10=WRITE_PROTECTED, 11=INVALID_DRIVE, 12=NOT_ENABLED, 13=NO_FILESYSTEM, 14=MKFS_ABORTED, 15=TIMEOUT, 16=LOCKED, 17=NOT_ENOUGH_CORE, 18=TOO_MANY_OPEN_FILES)
 CMD_CHDIR=0x5a ;DE = Pointer to ASCIIZ string. Out A=error
 CMD_PARSEFNAME=0x5c ;NOT RECOMMENDED ;de(dotname) -> hl(cpmname) ;out: de=pointer to termination character, hl=buffer filled in
 CMD_GETPATH=0x5e ;DE = Pointer to MAXPATH_sz byte buffer ;out: DE = Filled in with whole path string (WITH DRIVE! Finished by slash only if root dir), HL = Pointer to start of last item
