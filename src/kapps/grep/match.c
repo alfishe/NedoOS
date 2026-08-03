@@ -4,7 +4,7 @@
 #include "grep.h"
 
 grep_opts_t g_opts;
-unsigned char g_patterns[GREP_MAX_PATTERNS][GREP_PATTERN_LEN + 1];
+grep_pat_t g_pats[GREP_MAX_PATTERNS];
 unsigned char g_pat_count;
 unsigned char g_any_match;
 unsigned char g_any_error;
@@ -33,16 +33,63 @@ unsigned char grep_is_word_char(unsigned char c)
 
 static unsigned char fold_ch(unsigned char c)
 {
-	if (g_opts.ignore_case && c >= 'A' && c <= 'Z')
+	if (c >= 'A' && c <= 'Z')
 	{
 		return (unsigned char)(c + 32);
 	}
 	return c;
 }
 
+static unsigned char other_case(unsigned char c)
+{
+	if (c >= 'a' && c <= 'z')
+	{
+		return (unsigned char)(c - 32);
+	}
+	if (c >= 'A' && c <= 'Z')
+	{
+		return (unsigned char)(c + 32);
+	}
+	return 0;
+}
+
 static int chars_equal(unsigned char a, unsigned char b)
 {
+	if (a == b)
+	{
+		return 1;
+	}
+	if (!g_opts.ignore_case)
+	{
+		return 0;
+	}
 	return fold_ch(a) == fold_ch(b);
+}
+
+/* True if pattern has no regex metacharacters for current mode. */
+static unsigned char pattern_is_literal(const unsigned char *pat)
+{
+	unsigned char c;
+	unsigned char ext;
+
+	if (g_opts.regex_mode == GREP_MODE_FIXED)
+	{
+		return 1;
+	}
+	ext = (g_opts.regex_mode == GREP_MODE_EXTENDED) ? 1 : 0;
+	while ((c = *pat++) != 0)
+	{
+		if (c == '.' || c == '*' || c == '[' || c == '\\' ||
+		    c == '^' || c == '$')
+		{
+			return 0;
+		}
+		if (ext && (c == '+' || c == '?' || c == '|' || c == '(' || c == ')'))
+		{
+			return 0;
+		}
+	}
+	return 1;
 }
 
 int grep_add_pattern(const unsigned char *pat)
@@ -59,46 +106,113 @@ int grep_add_pattern(const unsigned char *pat)
 	}
 	for (i = 0; i < GREP_PATTERN_LEN && pat[i] != 0; i++)
 	{
-		g_patterns[g_pat_count][i] = pat[i];
+		g_pats[g_pat_count].text[i] = pat[i];
 	}
-	g_patterns[g_pat_count][i] = 0;
+	g_pats[g_pat_count].text[i] = 0;
+	g_pats[g_pat_count].len = (unsigned char)i;
+	g_pats[g_pat_count].literal = 0;
+	g_pats[g_pat_count].first = 0;
+	g_pats[g_pat_count].first2 = 0;
+	g_pats[g_pat_count].has_dol = 0;
 	g_pat_count++;
 	return 0;
 }
 
+/* Call once after argv parse (when -i / -F / -E are known). */
+void grep_prepare(void)
+{
+	unsigned char i;
+	unsigned char j;
+	grep_pat_t *p;
+	unsigned char c;
+
+	for (i = 0; i < g_pat_count; i++)
+	{
+		p = &g_pats[i];
+		p->literal = pattern_is_literal(p->text);
+		p->has_dol = 0;
+		for (j = 0; j < p->len; j++)
+		{
+			if (p->text[j] == '$')
+			{
+				p->has_dol = 1;
+				break;
+			}
+		}
+		if (p->len > 0)
+		{
+			c = p->text[0];
+			if (g_opts.ignore_case)
+			{
+				p->first = fold_ch(c);
+				p->first2 = other_case(c);
+				/* Fold whole literal pattern once for fast -i compare. */
+				if (p->literal)
+				{
+					for (j = 0; j < p->len; j++)
+					{
+						p->text[j] = fold_ch(p->text[j]);
+					}
+				}
+			}
+			else
+			{
+				p->first = c;
+				p->first2 = 0;
+			}
+		}
+	}
+}
+
+/*
+ * Fixed / literal search: first-byte filter, then compare.
+ * Pattern already folded when -i (see grep_prepare).
+ */
 static int fixed_find(const unsigned char *line, unsigned int len,
-                      const unsigned char *pat, unsigned int from,
+                      const grep_pat_t *pat, unsigned int from,
                       grep_span_t *out)
 {
 	unsigned int plen;
 	unsigned int i;
 	unsigned int j;
+	unsigned char first;
+	unsigned char first2;
+	unsigned char c;
+	const unsigned char *ptext;
 
-	plen = (unsigned int)strlen((const char *)pat);
-	if (plen == 0)
+	plen = pat->len;
+	if (plen == 0 || from + plen > len)
 	{
 		return 0;
 	}
-	for (i = from; i + plen <= len; i++)
+	ptext = pat->text;
+	first = pat->first;
+	first2 = pat->first2;
+
+	if (!g_opts.ignore_case)
 	{
-		for (j = 0; j < plen; j++)
+		for (i = from; i + plen <= len; i++)
 		{
-			if (!chars_equal(line[i + j], pat[j]))
+			if (line[i] != first)
 			{
-				break;
+				continue;
 			}
-		}
-		if (j == plen)
-		{
+			for (j = 1; j < plen; j++)
+			{
+				if (line[i + j] != ptext[j])
+				{
+					goto next_cs;
+				}
+			}
 			if (g_opts.whole_word)
 			{
 				if (i > 0 && grep_is_word_char(line[i - 1]))
 				{
-					continue;
+					goto next_cs;
 				}
 				if (i + plen < len && grep_is_word_char(line[i + plen]))
 				{
-					continue;
+					goto next_cs;
 				}
 			}
 			if (out != 0)
@@ -107,7 +221,46 @@ static int fixed_find(const unsigned char *line, unsigned int len,
 				out->len = plen;
 			}
 			return 1;
+next_cs:
+			;
 		}
+		return 0;
+	}
+
+	/* -i: pattern text is lowercased; fold line bytes while comparing. */
+	for (i = from; i + plen <= len; i++)
+	{
+		c = line[i];
+		if (c != first && c != first2 && fold_ch(c) != first)
+		{
+			continue;
+		}
+		for (j = 1; j < plen; j++)
+		{
+			if (fold_ch(line[i + j]) != ptext[j])
+			{
+				goto next_ci;
+			}
+		}
+		if (g_opts.whole_word)
+		{
+			if (i > 0 && grep_is_word_char(line[i - 1]))
+			{
+				goto next_ci;
+			}
+			if (i + plen < len && grep_is_word_char(line[i + plen]))
+			{
+				goto next_ci;
+			}
+		}
+		if (out != 0)
+		{
+			out->start = i;
+			out->len = plen;
+		}
+		return 1;
+next_ci:
+		;
 	}
 	return 0;
 }
@@ -142,11 +295,16 @@ static int in_class(unsigned char c, const unsigned char **pp)
 		}
 		if (p[1] == '-' && p[2] != 0 && p[2] != ']')
 		{
-			lo = fold_ch(p[0]);
-			hi = fold_ch(p[2]);
-			if (fold_ch(c) >= lo && fold_ch(c) <= hi)
+			lo = g_opts.ignore_case ? fold_ch(p[0]) : p[0];
+			hi = g_opts.ignore_case ? fold_ch(p[2]) : p[2];
 			{
-				found = 1;
+				unsigned char fc;
+
+				fc = g_opts.ignore_case ? fold_ch(c) : c;
+				if (fc >= lo && fc <= hi)
+				{
+					found = 1;
+				}
 			}
 			p += 3;
 			continue;
@@ -196,10 +354,11 @@ static const unsigned char *skip_group(const unsigned char *p)
 }
 
 static const unsigned char *match_here(const unsigned char *s, const unsigned char *end,
-                                       const unsigned char *p);
+                                       const unsigned char *p, const unsigned char *p_end);
 
 static const unsigned char *match_star(const unsigned char *s, const unsigned char *end,
-                                       const unsigned char *p, const unsigned char *atom,
+                                       const unsigned char *p, const unsigned char *p_end,
+                                       const unsigned char *atom,
                                        int min, int max_more)
 {
 	const unsigned char *best;
@@ -212,7 +371,7 @@ static const unsigned char *match_star(const unsigned char *s, const unsigned ch
 	{
 		if (n >= min)
 		{
-			t = match_here(s, end, p);
+			t = match_here(s, end, p, p_end);
 			if (t != 0)
 			{
 				return t;
@@ -223,7 +382,7 @@ static const unsigned char *match_star(const unsigned char *s, const unsigned ch
 		{
 			break;
 		}
-		t = match_here(s, end, atom);
+		t = match_here(s, end, atom, p_end);
 		if (t == 0 || t == s)
 		{
 			break;
@@ -233,13 +392,13 @@ static const unsigned char *match_star(const unsigned char *s, const unsigned ch
 	}
 	if (n >= min && best != 0)
 	{
-		return match_here(best, end, p);
+		return match_here(best, end, p, p_end);
 	}
 	return 0;
 }
 
 static const unsigned char *match_piece(const unsigned char *s, const unsigned char *end,
-                                        const unsigned char **pp)
+                                        const unsigned char **pp, const unsigned char *p_end)
 {
 	const unsigned char *p;
 	const unsigned char *atom;
@@ -256,20 +415,20 @@ static const unsigned char *match_piece(const unsigned char *s, const unsigned c
 		if (*p == '*')
 		{
 			(*pp) = p + 1;
-			return match_star(s, end, *pp, atom, 0, 65535);
+			return match_star(s, end, *pp, p_end, atom, 0, 65535);
 		}
 		if (*p == '+')
 		{
 			(*pp) = p + 1;
-			return match_star(s, end, *pp, atom, 1, 65535);
+			return match_star(s, end, *pp, p_end, atom, 1, 65535);
 		}
 		if (*p == '?')
 		{
 			(*pp) = p + 1;
-			return match_star(s, end, *pp, atom, 0, 1);
+			return match_star(s, end, *pp, p_end, atom, 0, 1);
 		}
 		(*pp) = p;
-		return match_here(s, end, atom);
+		return match_here(s, end, atom, p);
 	}
 
 	if (*p == '.')
@@ -283,17 +442,17 @@ static const unsigned char *match_piece(const unsigned char *s, const unsigned c
 		if (*p == '*')
 		{
 			(*pp) = p + 1;
-			return match_star(s + 1, end, *pp, atom, 0, 65535);
+			return match_star(s + 1, end, *pp, p_end, atom, 0, 65535);
 		}
 		if (ext && *p == '+')
 		{
 			(*pp) = p + 1;
-			return match_star(s + 1, end, *pp, atom, 1, 65535);
+			return match_star(s + 1, end, *pp, p_end, atom, 1, 65535);
 		}
 		if (ext && *p == '?')
 		{
 			(*pp) = p + 1;
-			return match_star(s + 1, end, *pp, atom, 0, 1);
+			return match_star(s + 1, end, *pp, p_end, atom, 0, 1);
 		}
 		(*pp) = p;
 		return s + 1;
@@ -312,26 +471,21 @@ static const unsigned char *match_piece(const unsigned char *s, const unsigned c
 		{
 			return 0;
 		}
-		if (*p != ']')
-		{
-			return 0;
-		}
-		p++;
 		atom = cls;
 		if (*p == '*')
 		{
 			(*pp) = p + 1;
-			return match_star(s + 1, end, *pp, atom, 0, 65535);
+			return match_star(s + 1, end, *pp, p_end, atom, 0, 65535);
 		}
 		if (ext && *p == '+')
 		{
 			(*pp) = p + 1;
-			return match_star(s + 1, end, *pp, atom, 1, 65535);
+			return match_star(s + 1, end, *pp, p_end, atom, 1, 65535);
 		}
 		if (ext && *p == '?')
 		{
 			(*pp) = p + 1;
-			return match_star(s + 1, end, *pp, atom, 0, 1);
+			return match_star(s + 1, end, *pp, p_end, atom, 0, 1);
 		}
 		(*pp) = p;
 		return s + 1;
@@ -352,7 +506,7 @@ static const unsigned char *match_piece(const unsigned char *s, const unsigned c
 		p++;
 	}
 
-	if (*p == 0)
+	if (*p == 0 || p >= p_end)
 	{
 		return s;
 	}
@@ -367,17 +521,17 @@ static const unsigned char *match_piece(const unsigned char *s, const unsigned c
 	if (*p == '*')
 	{
 		(*pp) = p + 1;
-		return match_star(s + 1, end, *pp, atom, 0, 65535);
+		return match_star(s + 1, end, *pp, p_end, atom, 0, 65535);
 	}
 	if (ext && *p == '+')
 	{
 		(*pp) = p + 1;
-		return match_star(s + 1, end, *pp, atom, 1, 65535);
+		return match_star(s + 1, end, *pp, p_end, atom, 1, 65535);
 	}
 	if (ext && *p == '?')
 	{
 		(*pp) = p + 1;
-		return match_star(s + 1, end, *pp, atom, 0, 1);
+		return match_star(s + 1, end, *pp, p_end, atom, 0, 1);
 	}
 	(*pp) = p;
 	return s + 1;
@@ -391,16 +545,12 @@ static const unsigned char *match_branch(const unsigned char *s, const unsigned 
 
 	while (p < p_end)
 	{
-		if (g_opts.regex_mode == GREP_MODE_EXTENDED && *p == '|')
-		{
-			break;
-		}
-		if (g_opts.regex_mode == GREP_MODE_EXTENDED && *p == ')')
+		if (g_opts.regex_mode == GREP_MODE_EXTENDED && (*p == '|' || *p == ')'))
 		{
 			break;
 		}
 		pp = p;
-		t = match_piece(s, end, &pp);
+		t = match_piece(s, end, &pp, p_end);
 		if (t == 0)
 		{
 			return 0;
@@ -412,7 +562,7 @@ static const unsigned char *match_branch(const unsigned char *s, const unsigned 
 }
 
 static const unsigned char *match_here(const unsigned char *s, const unsigned char *end,
-                                       const unsigned char *p)
+                                       const unsigned char *p, const unsigned char *p_end)
 {
 	const unsigned char *best;
 	const unsigned char *t;
@@ -420,19 +570,19 @@ static const unsigned char *match_here(const unsigned char *s, const unsigned ch
 
 	if (g_opts.regex_mode != GREP_MODE_EXTENDED)
 	{
-		return match_branch(s, end, p, p + strlen((const char *)p));
+		return match_branch(s, end, p, p_end);
 	}
 
 	best = 0;
 	q = p;
 	while (1)
 	{
-		t = match_branch(s, end, q, p + strlen((const char *)p));
+		t = match_branch(s, end, q, p_end);
 		if (t != 0 && (best == 0 || t > best))
 		{
 			best = t;
 		}
-		while (*q != 0 && *q != '|')
+		while (q < p_end && *q != '|')
 		{
 			if (*q == '(')
 			{
@@ -447,7 +597,7 @@ static const unsigned char *match_here(const unsigned char *s, const unsigned ch
 				q++;
 			}
 		}
-		if (*q != '|')
+		if (q >= p_end || *q != '|')
 		{
 			break;
 		}
@@ -457,34 +607,51 @@ static const unsigned char *match_here(const unsigned char *s, const unsigned ch
 }
 
 static int regex_match_span(const unsigned char *line, unsigned int len,
-                            const unsigned char *pat, unsigned int from,
+                            const grep_pat_t *pat, unsigned int from,
                             grep_span_t *out)
 {
 	const unsigned char *end;
 	const unsigned char *p;
+	const unsigned char *p_end;
 	const unsigned char *t;
 	unsigned int i;
+	unsigned int i_last;
+	unsigned char anchored;
 
 	end = line + len;
-	for (i = from; i <= len; i++)
+	p = pat->text;
+	p_end = p + pat->len;
+	anchored = (*p == '^') ? 1 : 0;
+
+	if (anchored)
 	{
-		p = pat;
-		if (*p == '^')
+		if (from != 0)
 		{
-			if (i != 0)
-			{
-				continue;
-			}
+			return 0;
+		}
+		i = 0;
+		i_last = 0;
+	}
+	else
+	{
+		i = from;
+		i_last = len;
+	}
+
+	for (; i <= i_last; i++)
+	{
+		p = pat->text;
+		if (anchored)
+		{
 			p++;
 		}
-		t = match_here(line + i, end, p);
+		t = match_here(line + i, end, p, p_end);
 		if (t == 0)
 		{
 			continue;
 		}
-		if (strchr((const char *)p, '$') != 0)
+		if (pat->has_dol)
 		{
-			/* $ anchor: match must reach end */
 			if (t != end)
 			{
 				continue;
@@ -512,13 +679,13 @@ static int regex_match_span(const unsigned char *line, unsigned int len,
 }
 
 static int pattern_matches(const unsigned char *line, unsigned int len,
-                           const unsigned char *pat, unsigned int from,
+                           const grep_pat_t *pat, unsigned int from,
                            grep_span_t *out)
 {
 	grep_span_t span;
 	int hit;
 
-	if (g_opts.regex_mode == GREP_MODE_FIXED)
+	if (pat->literal)
 	{
 		hit = fixed_find(line, len, pat, from, out);
 	}
@@ -554,21 +721,38 @@ int grep_find_match(const unsigned char *line, unsigned int len,
 {
 	unsigned char i;
 	grep_span_t local;
+	grep_span_t best;
+	unsigned char found;
+
+	found = 0;
+	best.start = 0;
+	best.len = 0;
+
+	/* -x: only a full-line hit counts; try each pattern once from 0. */
+	if (g_opts.whole_line && from != 0)
+	{
+		return 0;
+	}
 
 	for (i = 0; i < g_pat_count; i++)
 	{
 		local.start = 0;
 		local.len = 0;
-		if (pattern_matches(line, len, g_patterns[i], from, &local))
+		if (pattern_matches(line, len, &g_pats[i], from, &local))
 		{
-			if (out != 0)
+			if (!found || local.start < best.start ||
+			    (local.start == best.start && local.len > best.len))
 			{
-				*out = local;
+				best = local;
+				found = 1;
 			}
-			return 1;
 		}
 	}
-	return 0;
+	if (found && out != 0)
+	{
+		*out = best;
+	}
+	return found;
 }
 
 int grep_line_matches(const unsigned char *line, unsigned int len)

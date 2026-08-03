@@ -54,6 +54,7 @@ static void usage(void)
 	printf("  -B NUM  lines before match\r\n");
 	printf("  -C NUM  context lines\r\n");
 	printf("  -r -R  recursive\r\n");
+	printf("  -N  no color (disable ESC sequences)\r\n");
 }
 
 static int add_file_arg(const unsigned char *name)
@@ -324,6 +325,9 @@ static int parse_args(int argc, char *argv[])
 			case 'n':
 				g_opts.line_num = 1;
 				break;
+			case 'N':
+				g_opts.no_color = 1;
+				break;
 			case 'o':
 				g_opts.only_match = 1;
 				break;
@@ -392,6 +396,34 @@ static void ctx_push(const unsigned char *line, unsigned int len)
 	}
 }
 
+void TSETCOLOR(unsigned char fg, unsigned char bg)
+{
+	unsigned char fgc;
+	unsigned char bgc;
+
+	if (g_opts.no_color)
+	{
+		return;
+	}
+	if (fg < 8)
+	{
+		fgc = (unsigned char)(30 + fg);
+	}
+	else
+	{
+		fgc = (unsigned char)(90 + (fg & 7));
+	}
+	bgc = (unsigned char)(40 + (bg & 7));
+	putchar(27);
+	putchar('[');
+	putchar('0' + (char)(fgc / 10));
+	putchar('0' + (char)(fgc % 10));
+	putchar(';');
+	putchar('0' + (char)(bgc / 10));
+	putchar('0' + (char)(bgc % 10));
+	putchar('m');
+}
+
 static void print_prefix(const unsigned char *fname, unsigned long line_no, unsigned long byte_off)
 {
 	if (g_show_name && fname != 0)
@@ -408,13 +440,70 @@ static void print_prefix(const unsigned char *fname, unsigned long line_no, unsi
 	}
 }
 
-static void print_line_body(const unsigned char *line, unsigned int len)
+static void print_chars(const unsigned char *p, unsigned int n)
 {
 	unsigned int i;
 
-	for (i = 0; i < len; i++)
+	for (i = 0; i < n; i++)
 	{
-		putchar((char)line[i]);
+		putchar((char)p[i]);
+	}
+}
+
+static void print_line_body(const unsigned char *line, unsigned int len)
+{
+	print_chars(line, len);
+	printf("\r\n");
+}
+
+/* White line text, yellow match spans (all occurrences). No-op colors with -N. */
+static void print_line_highlighted(const unsigned char *line, unsigned int len)
+{
+	unsigned int pos;
+	grep_span_t span;
+
+	if (g_opts.no_color || g_opts.invert || len == 0)
+	{
+		print_line_body(line, len);
+		return;
+	}
+
+	pos = 0;
+	TSETCOLOR(WHITE, BLACK);
+	while (grep_find_match(line, len, pos, &span))
+	{
+		if (span.start < pos || span.start > len)
+		{
+			break;
+		}
+		if (span.start > pos)
+		{
+			print_chars(line + pos, span.start - pos);
+		}
+		if (span.len > 0 && span.start + span.len <= len)
+		{
+			TSETCOLOR(BRYELLOW, BLACK);
+			print_chars(line + span.start, span.len);
+			TSETCOLOR(WHITE, BLACK);
+			pos = span.start + span.len;
+		}
+		else
+		{
+			/* empty match: advance one char to avoid infinite loop */
+			if (span.start < len)
+			{
+				print_chars(line + span.start, 1);
+			}
+			pos = span.start + 1;
+		}
+		if (pos >= len)
+		{
+			break;
+		}
+	}
+	if (pos < len)
+	{
+		print_chars(line + pos, len - pos);
 	}
 	printf("\r\n");
 }
@@ -474,7 +563,15 @@ static void print_match_line(const unsigned char *fname, const unsigned char *li
 		while (grep_find_match(line, len, pos, &span))
 		{
 			print_prefix(fname, line_no, byte_off + span.start);
+			if (!g_opts.no_color)
+			{
+				TSETCOLOR(BRYELLOW, BLACK);
+			}
 			print_line_body(line + span.start, span.len);
+			if (!g_opts.no_color)
+			{
+				TSETCOLOR(WHITE, BLACK);
+			}
 			pos = span.start + span.len;
 			if (pos >= len || span.len == 0)
 			{
@@ -485,7 +582,7 @@ static void print_match_line(const unsigned char *fname, const unsigned char *li
 	}
 	print_ctx_before(line_no);
 	print_prefix(fname, line_no, byte_off);
-	print_line_body(line, len);
+	print_line_highlighted(line, len);
 	if (g_opts.ctx_after > 0)
 	{
 		g_after_left = g_opts.ctx_after;
@@ -551,7 +648,11 @@ static int grep_stream(FILE *fp, const unsigned char *fname, unsigned char *bina
 				{
 					g_line[pos] = 0;
 					line_no++;
-					hit = (unsigned char)grep_line_matches(g_line, pos);
+					hit = (unsigned char)grep_find_match(g_line, pos, 0, 0);
+					if (g_opts.invert)
+					{
+						hit = (unsigned char)!hit;
+					}
 					if (hit)
 					{
 						match_count++;
@@ -604,7 +705,11 @@ static int grep_stream(FILE *fp, const unsigned char *fname, unsigned char *bina
 	{
 		g_line[pos] = 0;
 		line_no++;
-		hit = (unsigned char)grep_line_matches(g_line, pos);
+		hit = (unsigned char)grep_find_match(g_line, pos, 0, 0);
+		if (g_opts.invert)
+		{
+			hit = (unsigned char)!hit;
+		}
 		if (hit)
 		{
 			match_count++;
@@ -826,6 +931,7 @@ C_task main(int argc, char *argv[])
 		usage();
 		exit(2);
 	}
+	grep_prepare();
 
 	if (g_file_count == 0)
 	{
