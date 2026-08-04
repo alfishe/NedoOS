@@ -33,7 +33,11 @@
 #define COL_DLG MKCOLOR(BR_BOTH, PAPER_MAGENTA, INK_WHITE)
 #define COL_FIELD MKCOLOR(BR_BOTH, PAPER_BLACK, INK_WHITE)
 #define COL_FIELDFOC MKCOLOR(BR_BOTH, PAPER_BLACK, INK_YELLOW)
+/* Connect form inputs: blue paper so fields stand out on black dialog. */
+#define COL_CONN_FIELD MKCOLOR(BR_NORMAL, PAPER_BLUE, INK_WHITE)
+#define COL_CONN_FIELDFOC MKCOLOR(BR_BOTH, PAPER_BLUE, INK_YELLOW)
 #define COL_BTN MKCOLOR(BR_BOTH, PAPER_GREEN, INK_BLACK)
+#define COL_BTNFOC MKCOLOR(BR_BOTH, PAPER_WHITE, INK_BLACK)
 #define COL_BTNQUIT MKCOLOR(BR_BOTH, PAPER_RED, INK_WHITE)
 #define COL_HINT MKCOLOR(BR_NORMAL, PAPER_BLACK, INK_CYAN)
 
@@ -55,6 +59,9 @@
 
 #define SCR_CONNECT 0
 #define SCR_CHAT 1
+#define SCR_BOOK 2
+
+#define KEY_INS 29
 
 #define MAX_HOST 48
 #define MAX_NICK 24
@@ -71,6 +78,18 @@
 #define NICK_W 12
 #define MAX_NICKS 22
 #define NETBUF_SIZE 4096
+
+#define BOOK_MAX 8
+#define BOOK_LABEL_LEN 16
+#define BOOK_VIEW 8
+/* Frame at y=1 h=BOOK_VIEW+4 ? bottom border y=12; help below it. */
+#define BOOK_HELP_Y 13
+#define BOOK_F_LABEL 0
+#define BOOK_F_HOST 1
+#define BOOK_F_PORT 2
+#define BOOK_F_NICK 3
+#define BOOK_F_CHAN 4
+#define BOOK_F_COUNT 5
 
 /* Rows 0..23 only ? writing col 80 on row 24 scrolls the screen */
 #define ROW_TITLE 0
@@ -171,6 +190,28 @@ static unsigned char g_need_nicks;
 static unsigned char g_need_title;
 static char g_status[72];
 
+typedef struct
+{
+	char label[BOOK_LABEL_LEN + 1];
+	char host[MAX_HOST + 1];
+	char port[MAX_PORTSTR + 1];
+	char nick[MAX_NICK + 1];
+	char chan[MAX_CHAN + 1];
+} BookEntry;
+
+static BookEntry g_book[BOOK_MAX];
+static unsigned char g_book_n;
+static unsigned char g_book_sel;
+static unsigned char g_book_scroll;
+static unsigned char g_book_dirty;
+static unsigned char g_book_editing;
+static unsigned char g_book_efld;
+static unsigned char g_book_ecurs;
+/* BSS I/O ? not on CSTACK */
+static char g_book_file[640];
+static char g_book_line[160];
+static unsigned char g_book_path[128];
+
 /* Soft mouse (ngsplay/term style) */
 #define MX_FACT 4u
 #define MY_FACT 8u
@@ -188,26 +229,36 @@ static unsigned char m_saved_attr, m_cursor_on, m_inited, m_have_sample;
 static unsigned char m_lmb_click;
 static signed char m_wheel_delta;
 
-/* connect dialog button hitboxes */
-#define BTN_CX 22
-#define BTN_CY 14
+/* connect dialog ? same chrome as book/chat (yellow frame, black fill) */
+#define BTN_CX 16
+#define BTN_CY 12
 #define BTN_CW 12
-#define BTN_QX 42
-#define BTN_QY 14
+#define BTN_BX 32
+#define BTN_BY 12
+#define BTN_BW 10
+#define BTN_QX 46
+#define BTN_QY 12
 #define BTN_QW 10
 
-#define FLD_Y_SERVER 5
-#define FLD_Y_PORT 7
-#define FLD_Y_NICK 9
-#define FLD_Y_CHANNEL 11
+#define FLD_Y_SERVER 4
+#define FLD_Y_PORT 6
+#define FLD_Y_NICK 8
+#define FLD_Y_CHANNEL 10
+
+#define CONN_FRAME_X 1
+#define CONN_FRAME_Y 1
+#define CONN_FRAME_W 78
+#define CONN_FRAME_H 13
+#define CONN_HELP_Y 15
 
 #define FOC_SERVER 0
 #define FOC_PORT 1
 #define FOC_NICK 2
 #define FOC_CHAN 3
 #define FOC_CONNECT 4
-#define FOC_QUIT 5
-#define FOC_COUNT 6
+#define FOC_BOOK 5
+#define FOC_QUIT 6
+#define FOC_COUNT 7
 
 /* ---- tiny UI helpers ---- */
 static void spaces(unsigned char n)
@@ -1656,6 +1707,606 @@ static void irc_user_cmd(char *line)
 	}
 }
 
+/* ---- address book (ini/gircbook.ini) ---- */
+static void book_clear_entry(BookEntry *e)
+{
+	/* Full wipe: book_put_field walks each char, not strlen. */
+	memset(e, 0, sizeof(*e));
+}
+
+static void sanitize_port(void);
+static void edit_char(char *buf, unsigned char *len, unsigned char *curs, unsigned char maxlen, unsigned char k);
+
+static int book_parse_line(char *line, BookEntry *e)
+{
+	char *p1, *p2, *p3, *p4, *p5;
+
+	while (*line == ' ' || *line == '\t')
+		line++;
+	if (*line == 0 || *line == '#')
+		return 0;
+	p1 = line;
+	p2 = strchr(p1, '|');
+	if (!p2)
+		return 0;
+	*p2++ = 0;
+	p3 = strchr(p2, '|');
+	if (!p3)
+		return 0;
+	*p3++ = 0;
+	p4 = strchr(p3, '|');
+	if (!p4)
+		return 0;
+	*p4++ = 0;
+	p5 = strchr(p4, '|');
+	if (!p5)
+		return 0;
+	*p5++ = 0;
+
+	book_clear_entry(e);
+	strncpy(e->label, p1, BOOK_LABEL_LEN);
+	e->label[BOOK_LABEL_LEN] = 0;
+	strncpy(e->host, p2, MAX_HOST);
+	e->host[MAX_HOST] = 0;
+	strncpy(e->port, p3, MAX_PORTSTR);
+	e->port[MAX_PORTSTR] = 0;
+	strncpy(e->nick, p4, MAX_NICK);
+	e->nick[MAX_NICK] = 0;
+	strncpy(e->chan, p5, MAX_CHAN);
+	e->chan[MAX_CHAN] = 0;
+	return 1;
+}
+
+static void book_seed_defaults(void)
+{
+	book_clear_entry(&g_book[0]);
+	strcpy(g_book[0].label, "386");
+	strcpy(g_book[0].host, "irc.386.su");
+	strcpy(g_book[0].port, "6666");
+	strcpy(g_book[0].nick, "nedouser");
+	strcpy(g_book[0].chan, "#tabor");
+
+	book_clear_entry(&g_book[1]);
+	strcpy(g_book[1].label, "Forest");
+	strcpy(g_book[1].host, "irc.forestnet.org");
+	strcpy(g_book[1].port, "6667");
+	strcpy(g_book[1].nick, "nedouser");
+	strcpy(g_book[1].chan, "#mhm");
+
+	g_book_n = 2;
+	g_book_dirty = 1;
+}
+
+static void book_chdir_ini(void)
+{
+	OS_GETPATH(g_book_path);
+	OS_SETSYSDRV();
+	OS_CHDIR("/");
+	OS_CHDIR("ini");
+}
+
+static void book_chdir_back(void)
+{
+	OS_CHDIR(g_book_path);
+}
+
+static void book_load(void)
+{
+	FILE *fp;
+	unsigned int n, i, line_start, len, j;
+
+	g_book_n = 0;
+	g_book_dirty = 0;
+	g_book_sel = 0;
+	g_book_scroll = 0;
+
+	book_chdir_ini();
+	fp = OS_OPENHANDLE((unsigned char *)"gircbook.ini", 0x80);
+	if (((int)fp) & 0xff)
+	{
+		book_chdir_back();
+		book_seed_defaults();
+		return;
+	}
+	n = OS_READHANDLE((unsigned char *)g_book_file, fp, (unsigned int)(sizeof(g_book_file) - 1));
+	OS_CLOSEHANDLE(fp);
+	book_chdir_back();
+	if (n == 0)
+	{
+		book_seed_defaults();
+		return;
+	}
+	if (n >= sizeof(g_book_file))
+		n = sizeof(g_book_file) - 1;
+	g_book_file[n] = 0;
+
+	line_start = 0;
+	for (i = 0; i <= n; i++)
+	{
+		if (g_book_file[i] == 0 || g_book_file[i] == '\r' || g_book_file[i] == '\n')
+		{
+			len = i - line_start;
+			if (len > 0 && g_book_n < BOOK_MAX)
+			{
+				if (len >= sizeof(g_book_line))
+					len = sizeof(g_book_line) - 1;
+				for (j = 0; j < len; j++)
+					g_book_line[j] = g_book_file[line_start + j];
+				g_book_line[len] = 0;
+				if (book_parse_line(g_book_line, &g_book[g_book_n]))
+					g_book_n++;
+			}
+			if (g_book_file[i] == '\r' && g_book_file[i + 1] == '\n')
+				i++;
+			line_start = i + 1;
+		}
+	}
+	if (g_book_n == 0)
+		book_seed_defaults();
+}
+
+static int book_save(void)
+{
+	FILE *fp;
+	unsigned char i;
+	unsigned int out_len;
+	static const char hdr[] =
+		"# girc address book: label|host|port|nick|chan\r\n";
+
+	book_chdir_ini();
+	fp = OS_CREATEHANDLE((unsigned char *)"gircbook.ini", 0x80);
+	if (((int)fp) & 0xff)
+	{
+		book_chdir_back();
+		return 0;
+	}
+	out_len = (unsigned int)strlen(hdr);
+	if (OS_WRITEHANDLE((unsigned char *)hdr, fp, out_len) != out_len)
+	{
+		OS_CLOSEHANDLE(fp);
+		book_chdir_back();
+		return 0;
+	}
+	for (i = 0; i < g_book_n; i++)
+	{
+		sprintf(g_book_line, "%s|%s|%s|%s|%s\r\n",
+				g_book[i].label, g_book[i].host, g_book[i].port,
+				g_book[i].nick, g_book[i].chan);
+		out_len = (unsigned int)strlen(g_book_line);
+		if (OS_WRITEHANDLE((unsigned char *)g_book_line, fp, out_len) != out_len)
+		{
+			OS_CLOSEHANDLE(fp);
+			book_chdir_back();
+			return 0;
+		}
+	}
+	OS_CLOSEHANDLE(fp);
+	book_chdir_back();
+	g_book_dirty = 0;
+	return 1;
+}
+
+static void book_apply_to_form(unsigned char idx)
+{
+	if (idx >= g_book_n)
+		return;
+	strncpy(g_host, g_book[idx].host, MAX_HOST);
+	g_host[MAX_HOST] = 0;
+	strncpy(g_portstr, g_book[idx].port, MAX_PORTSTR);
+	g_portstr[MAX_PORTSTR] = 0;
+	strncpy(g_nick, g_book[idx].nick, MAX_NICK);
+	g_nick[MAX_NICK] = 0;
+	strncpy(g_chan, g_book[idx].chan, MAX_CHAN);
+	g_chan[MAX_CHAN] = 0;
+	sanitize_port();
+}
+
+static void book_from_form(BookEntry *e)
+{
+	book_clear_entry(e);
+	strncpy(e->host, g_host, MAX_HOST);
+	e->host[MAX_HOST] = 0;
+	strncpy(e->port, g_portstr, MAX_PORTSTR);
+	e->port[MAX_PORTSTR] = 0;
+	strncpy(e->nick, g_nick, MAX_NICK);
+	e->nick[MAX_NICK] = 0;
+	strncpy(e->chan, g_chan, MAX_CHAN);
+	e->chan[MAX_CHAN] = 0;
+	strncpy(e->label, g_host, BOOK_LABEL_LEN);
+	e->label[BOOK_LABEL_LEN] = 0;
+}
+
+static char *book_field_ptr(unsigned char idx, unsigned char fld, unsigned char *maxlen)
+{
+	switch (fld)
+	{
+	case BOOK_F_LABEL:
+		*maxlen = BOOK_LABEL_LEN;
+		return g_book[idx].label;
+	case BOOK_F_HOST:
+		*maxlen = MAX_HOST;
+		return g_book[idx].host;
+	case BOOK_F_PORT:
+		*maxlen = MAX_PORTSTR;
+		return g_book[idx].port;
+	case BOOK_F_NICK:
+		*maxlen = MAX_NICK;
+		return g_book[idx].nick;
+	default:
+		*maxlen = MAX_CHAN;
+		return g_book[idx].chan;
+	}
+}
+
+static void book_clamp_scroll(void)
+{
+	unsigned char max_off;
+	if (g_book_n <= BOOK_VIEW)
+	{
+		g_book_scroll = 0;
+		return;
+	}
+	max_off = (unsigned char)(g_book_n - BOOK_VIEW);
+	if (g_book_scroll > max_off)
+		g_book_scroll = max_off;
+	if (g_book_sel < g_book_scroll)
+		g_book_scroll = g_book_sel;
+	if (g_book_sel >= (unsigned char)(g_book_scroll + BOOK_VIEW))
+		g_book_scroll = (unsigned char)(g_book_sel - BOOK_VIEW + 1);
+}
+
+static void book_begin_edit(void)
+{
+	char *fp;
+	unsigned char maxlen;
+	if (g_book_n == 0)
+		return;
+	g_book_editing = 1;
+	g_book_efld = BOOK_F_LABEL;
+	fp = book_field_ptr(g_book_sel, g_book_efld, &maxlen);
+	g_book_ecurs = (unsigned char)strlen(fp);
+}
+
+static void book_end_edit(unsigned char apply)
+{
+	if (!g_book_editing)
+		return;
+	if (apply)
+	{
+		if (g_book[g_book_sel].label[0] == 0)
+		{
+			strncpy(g_book[g_book_sel].label, g_book[g_book_sel].host, BOOK_LABEL_LEN);
+			g_book[g_book_sel].label[BOOK_LABEL_LEN] = 0;
+		}
+		g_book_dirty = 1;
+	}
+	g_book_editing = 0;
+}
+
+static unsigned char book_row_y(unsigned char idx)
+{
+	if (idx < g_book_scroll || idx >= (unsigned char)(g_book_scroll + BOOK_VIEW))
+		return 255;
+	return (unsigned char)(3 + (idx - g_book_scroll));
+}
+
+/* Fixed-width field: always w chars (pad/truncate), clears leftovers for BS. */
+static void book_put_field(const char *s, unsigned char w)
+{
+	unsigned char i;
+	for (i = 0; i < w; i++)
+		putchar((s[i] != 0) ? s[i] : ' ');
+}
+
+static void book_draw_row(unsigned char idx)
+{
+	unsigned char y, sel, col;
+
+	y = book_row_y(idx);
+	if (y == 255)
+		return;
+	sel = (unsigned char)(idx == g_book_sel);
+	col = sel ? COL_FIELDFOC : COL_CHAT;
+	/* Full inner width (frame x=1 w=78 ? cols 2..77) so yellow bar reaches the edge. */
+	fill_row(2, y, 76, col);
+	if (idx >= g_book_n)
+		return;
+
+	OS_SETCOLOR(col);
+	OS_SETXY(3, y);
+	putchar(sel ? '>' : ' ');
+	book_put_field(g_book[idx].label, 15);
+	putchar(' ');
+	book_put_field(g_book[idx].host, 20);
+	putchar(' ');
+	book_put_field(g_book[idx].port, 5);
+	putchar(' ');
+	book_put_field(g_book[idx].nick, 12);
+	putchar(' ');
+	book_put_field(g_book[idx].chan, 16);
+
+	if (g_book_editing && sel)
+	{
+		unsigned char cx;
+		/* Bases match book_draw_row: label@4 host@20 port@41 nick@47 chan@60 */
+		if (g_book_efld == BOOK_F_LABEL)
+			cx = (unsigned char)(4 + g_book_ecurs);
+		else if (g_book_efld == BOOK_F_HOST)
+			cx = (unsigned char)(20 + g_book_ecurs);
+		else if (g_book_efld == BOOK_F_PORT)
+			cx = (unsigned char)(41 + g_book_ecurs);
+		else if (g_book_efld == BOOK_F_NICK)
+			cx = (unsigned char)(47 + g_book_ecurs);
+		else
+			cx = (unsigned char)(60 + g_book_ecurs);
+		if (cx > 77)
+			cx = 77;
+		paint_caret(cx, y, COL_FIELDFOC);
+	}
+}
+
+static void book_draw_list(void)
+{
+	unsigned char i, idx;
+
+	book_clamp_scroll();
+	for (i = 0; i < BOOK_VIEW; i++)
+	{
+		idx = (unsigned char)(g_book_scroll + i);
+		if (idx < g_book_n)
+			book_draw_row(idx);
+		else
+			fill_row(2, (unsigned char)(3 + i), 76, COL_CHAT);
+	}
+}
+
+static void book_draw_help(void)
+{
+	/* Below frame bottom (y=12), do not paint over the yellow border. */
+	fill_row(0, BOOK_HELP_Y, COLS_SAFE, COL_HINT);
+	OS_SETCOLOR(COL_HINT);
+	OS_SETXY(2, BOOK_HELP_Y);
+	if (g_book_editing)
+		printf("Tab=field  Enter=ok  Esc=cancel edit");
+	else
+		printf("Enter=use  E=edit  Ins=add empty  Del=delete  F2=save  Esc=back");
+}
+
+static void book_draw_title(void)
+{
+	draw_title(g_book_dirty ? "[girc book *]" : "[girc book]");
+}
+
+/* Move selection; redraw only changed rows, or whole list if scrolled. */
+static void book_select(unsigned char idx)
+{
+	unsigned char old_sel, old_scroll;
+
+	if (idx >= g_book_n)
+		return;
+	old_sel = g_book_sel;
+	old_scroll = g_book_scroll;
+	g_book_sel = idx;
+	book_clamp_scroll();
+	if (g_book_scroll != old_scroll)
+		book_draw_list();
+	else if (old_sel != g_book_sel)
+	{
+		book_draw_row(old_sel);
+		book_draw_row(g_book_sel);
+	}
+}
+
+static void book_nav(signed char dir)
+{
+	if (dir < 0)
+	{
+		if (g_book_sel > 0)
+			book_select((unsigned char)(g_book_sel - 1));
+	}
+	else if (g_book_n && g_book_sel + 1 < g_book_n)
+		book_select((unsigned char)(g_book_sel + 1));
+}
+
+/* Map mouse x to book field / caret; returns 255 if miss. */
+static unsigned char book_hit_field(unsigned char mx, unsigned char *curs_out)
+{
+	if (mx >= 4 && mx < 19)
+	{
+		*curs_out = (unsigned char)(mx - 4);
+		return BOOK_F_LABEL;
+	}
+	if (mx >= 20 && mx < 40)
+	{
+		*curs_out = (unsigned char)(mx - 20);
+		return BOOK_F_HOST;
+	}
+	if (mx >= 41 && mx < 46)
+	{
+		*curs_out = (unsigned char)(mx - 41);
+		return BOOK_F_PORT;
+	}
+	if (mx >= 47 && mx < 59)
+	{
+		*curs_out = (unsigned char)(mx - 47);
+		return BOOK_F_NICK;
+	}
+	if (mx >= 60 && mx < 76)
+	{
+		*curs_out = (unsigned char)(mx - 60);
+		return BOOK_F_CHAN;
+	}
+	return 255;
+}
+
+static void draw_book(void)
+{
+	OS_CLS(0);
+	book_draw_title();
+	draw_frm(1, 1, 78, BOOK_VIEW + 4, COL_FRAME);
+	OS_SETCOLOR(COL_SYS);
+	OS_SETXY(3, 2);
+	printf("%-16s %-20s %-5s %-12s %-16s", "Label", "Host", "Port", "Nick", "Channel");
+	book_draw_list();
+	book_draw_help();
+	draw_status();
+	g_chrome = 1;
+	g_need_chrome = 0;
+}
+
+static void book_open(void)
+{
+	g_scr = SCR_BOOK;
+	g_book_editing = 0;
+	g_chrome = 0;
+	g_need_chrome = 1;
+	set_status(g_book_dirty ? "Book (unsaved changes)" : "Address book");
+}
+
+static void book_close_to_connect(void)
+{
+	book_end_edit(0);
+	g_scr = SCR_CONNECT;
+	g_field = FOC_SERVER;
+	g_fcurs = (unsigned char)strlen(g_host);
+	g_chrome = 0;
+	g_need_chrome = 1;
+}
+
+static void handle_book_key(unsigned char k)
+{
+	char *fp;
+	unsigned char maxlen, len;
+
+	if (g_book_editing)
+	{
+		if (k == KEY_ESC)
+		{
+			book_end_edit(0);
+			book_draw_row(g_book_sel);
+			book_draw_help();
+			draw_status();
+			return;
+		}
+		if (k == KEY_ENTER)
+		{
+			book_end_edit(1);
+			book_draw_title();
+			book_draw_row(g_book_sel);
+			book_draw_help();
+			set_status("Entry updated");
+			draw_status();
+			return;
+		}
+		if (k == KEY_TAB)
+		{
+			g_book_efld = (unsigned char)((g_book_efld + 1) % BOOK_F_COUNT);
+			fp = book_field_ptr(g_book_sel, g_book_efld, &maxlen);
+			g_book_ecurs = (unsigned char)strlen(fp);
+			book_draw_row(g_book_sel);
+			return;
+		}
+		fp = book_field_ptr(g_book_sel, g_book_efld, &maxlen);
+		len = (unsigned char)strlen(fp);
+		if (g_book_ecurs > len)
+			g_book_ecurs = len;
+		if (g_book_efld == BOOK_F_PORT && k >= 32 && (k < '0' || k > '9'))
+			return;
+		edit_char(fp, &len, &g_book_ecurs, maxlen, k);
+		fp[maxlen] = 0;
+		if (!g_book_dirty)
+		{
+			g_book_dirty = 1;
+			book_draw_title();
+		}
+		else
+			g_book_dirty = 1;
+		book_draw_row(g_book_sel);
+		return;
+	}
+
+	if (k == KEY_ESC || k == KEY_F10)
+	{
+		book_close_to_connect();
+		return;
+	}
+	if (k == KEY_F2)
+	{
+		if (book_save())
+			set_status("Book saved to ini/gircbook.ini");
+		else
+			set_status("Book save failed");
+		book_draw_title();
+		draw_status();
+		return;
+	}
+	if (k == KEY_UP)
+	{
+		book_nav(-1);
+		return;
+	}
+	if (k == KEY_DOWN)
+	{
+		book_nav(1);
+		return;
+	}
+	if (k == KEY_ENTER)
+	{
+		if (g_book_n)
+		{
+			book_apply_to_form(g_book_sel);
+			book_close_to_connect();
+			set_status("Loaded from book");
+		}
+		return;
+	}
+	if (k == 'e' || k == 'E')
+	{
+		book_begin_edit();
+		book_draw_row(g_book_sel);
+		book_draw_help();
+		return;
+	}
+	if (k == KEY_INS)
+	{
+		if (g_book_n >= BOOK_MAX)
+		{
+			set_status("Book full (8 entries)");
+			draw_status();
+			return;
+		}
+		book_clear_entry(&g_book[g_book_n]);
+		g_book_sel = g_book_n;
+		g_book_n++;
+		g_book_dirty = 1;
+		book_begin_edit();
+		book_draw_title();
+		book_draw_list();
+		book_draw_help();
+		set_status("New empty entry");
+		draw_status();
+		return;
+	}
+	if (k == KEY_DEL)
+	{
+		unsigned char j;
+		if (g_book_n == 0)
+			return;
+		for (j = g_book_sel; j + 1 < g_book_n; j++)
+			g_book[j] = g_book[j + 1];
+		g_book_n--;
+		book_clear_entry(&g_book[g_book_n]);
+		if (g_book_sel >= g_book_n && g_book_sel > 0)
+			g_book_sel--;
+		g_book_dirty = 1;
+		book_draw_title();
+		book_draw_list();
+		set_status("Entry deleted");
+		draw_status();
+		return;
+	}
+}
+
 /* ---- screens ---- */
 static void field_ptr(unsigned char f, char **pp, unsigned char *maxlen)
 {
@@ -1685,12 +2336,16 @@ static void draw_field_row(unsigned char y, const char *label, const char *val, 
 	unsigned char i;
 	unsigned char ch;
 	unsigned char cx;
+	unsigned char fcol;
 
-	OS_SETCOLOR(COL_DLG);
-	OS_SETXY(14, y);
+	/* Clear row inside frame (cols 2..77). */
+	fill_row(2, y, 76, COL_CHAT);
+	OS_SETCOLOR(COL_SYS);
+	OS_SETXY(3, y);
 	printf("%-8s", label);
-	OS_SETCOLOR(foc ? COL_FIELDFOC : COL_FIELD);
-	OS_SETXY(24, y);
+	fcol = foc ? COL_CONN_FIELDFOC : COL_CONN_FIELD;
+	OS_SETCOLOR(fcol);
+	OS_SETXY(12, y);
 	putchar('[');
 	for (i = 0; i < vwidth; i++)
 	{
@@ -1703,7 +2358,7 @@ static void draw_field_row(unsigned char y, const char *label, const char *val, 
 		cx = curs;
 		if (cx > vwidth)
 			cx = vwidth;
-		paint_caret((unsigned char)(25 + cx), y, COL_FIELDFOC);
+		paint_caret((unsigned char)(13 + cx), y, fcol);
 	}
 }
 
@@ -1752,13 +2407,22 @@ static void draw_connect_buttons(void)
 {
 	unsigned char c;
 
-	c = (g_field == FOC_CONNECT) ? inv_attr(COL_BTN) : COL_BTN;
+	/* Clear button row inside frame before painting chips. */
+	fill_row(2, BTN_CY, 76, COL_CHAT);
+
+	c = (g_field == FOC_CONNECT) ? COL_BTNFOC : COL_BTN;
 	draw_box(BTN_CX, BTN_CY, BTN_CW, 1, c);
 	OS_SETCOLOR(c);
 	OS_SETXY(BTN_CX + 2, BTN_CY);
 	printf(" Connect ");
 
-	c = (g_field == FOC_QUIT) ? inv_attr(COL_BTNQUIT) : COL_BTNQUIT;
+	c = (g_field == FOC_BOOK) ? COL_BTNFOC : COL_BTN;
+	draw_box(BTN_BX, BTN_BY, BTN_BW, 1, c);
+	OS_SETCOLOR(c);
+	OS_SETXY(BTN_BX + 2, BTN_BY);
+	printf(" Book ");
+
+	c = (g_field == FOC_QUIT) ? COL_BTNFOC : COL_BTNQUIT;
 	draw_box(BTN_QX, BTN_QY, BTN_QW, 1, c);
 	OS_SETCOLOR(c);
 	OS_SETXY(BTN_QX + 2, BTN_QY);
@@ -1785,22 +2449,24 @@ static void connect_focus_next(signed char dir)
 	draw_connect_focus();
 }
 
+static void connect_draw_help(void)
+{
+	fill_row(0, CONN_HELP_Y, COLS_SAFE, COL_HINT);
+	OS_SETCOLOR(COL_HINT);
+	OS_SETXY(2, CONN_HELP_Y);
+	printf("Tab=next  F2/Book=book  Enter=ok  Esc/F10=quit");
+}
+
 static void draw_connect(void)
 {
 	OS_CLS(0);
-	draw_title("[ZXNETUSB]");
-	draw_frm(10, 2, 60, 14, COL_DLG);
-	draw_box(11, 3, 58, 12, COL_DLG);
-
-	OS_SETCOLOR(COL_DLG);
-	OS_SETXY(28, 3);
-	printf("[ Connect to IRC ]");
-
+	draw_title(netDriver == 1 ? "[ESP-COM]" : "[ZXNETUSB]");
+	draw_frm(CONN_FRAME_X, CONN_FRAME_Y, CONN_FRAME_W, CONN_FRAME_H, COL_FRAME);
+	OS_SETCOLOR(COL_SYS);
+	OS_SETXY(3, 2);
+	printf("Connect to IRC");
 	draw_connect_focus();
-
-	OS_SETCOLOR(COL_HINT);
-	OS_SETXY(14, 16);
-	printf("Tab=next  Enter=ok  Esc/F10=quit");
+	connect_draw_help();
 	draw_status();
 	g_chrome = 1;
 	g_need_chrome = 0;
@@ -1834,6 +2500,8 @@ static void redraw(void)
 	g_chrome = 0;
 	if (g_scr == SCR_CONNECT)
 		draw_connect();
+	else if (g_scr == SCR_BOOK)
+		draw_book();
 	else
 		draw_chat();
 }
@@ -1980,21 +2648,38 @@ static void handle_connect_key(unsigned char k)
 	}
 	if (g_field >= FOC_CONNECT)
 	{
-		if (k == KEY_LEFT || k == KEY_RIGHT)
+		if (k == KEY_LEFT)
 		{
-			g_field = (g_field == FOC_CONNECT) ? FOC_QUIT : FOC_CONNECT;
+			if (g_field == FOC_CONNECT)
+				g_field = FOC_QUIT;
+			else
+				g_field--;
+			draw_connect_focus();
+			return;
+		}
+		if (k == KEY_RIGHT)
+		{
+			if (g_field == FOC_QUIT)
+				g_field = FOC_CONNECT;
+			else
+				g_field++;
 			draw_connect_focus();
 			return;
 		}
 		if (k == KEY_ENTER || k == ' ')
 		{
 			if (g_field == FOC_CONNECT)
-			{
 				do_connect();
-			}
+			else if (g_field == FOC_BOOK)
+				book_open();
 			else
 				exit(0);
 		}
+		return;
+	}
+	if (k == KEY_F2)
+	{
+		book_open();
 		return;
 	}
 	if (k == KEY_ENTER)
@@ -2157,6 +2842,32 @@ static void handle_mouse(void)
 		}
 	}
 
+	if (g_scr == SCR_BOOK && w != 0 &&
+		my >= 3 && my < (unsigned char)(3 + BOOK_VIEW))
+	{
+		if (w < 0)
+		{
+			if (g_book_scroll > 0)
+			{
+				g_book_scroll--;
+				mouse_hide();
+				book_draw_list();
+				mouse_show();
+			}
+		}
+		else if (g_book_n > BOOK_VIEW)
+		{
+			max_off = (unsigned char)(g_book_n - BOOK_VIEW);
+			if (g_book_scroll < max_off)
+			{
+				g_book_scroll++;
+				mouse_hide();
+				book_draw_list();
+				mouse_show();
+			}
+		}
+	}
+
 	if (!m_lmb_click)
 		return;
 
@@ -2166,6 +2877,12 @@ static void handle_mouse(void)
 		{
 			g_field = FOC_CONNECT;
 			do_connect();
+			return;
+		}
+		if (my == BTN_BY && mx >= BTN_BX && mx < (unsigned char)(BTN_BX + BTN_BW))
+		{
+			g_field = FOC_BOOK;
+			book_open();
 			return;
 		}
 		if (my == BTN_QY && mx >= BTN_QX && mx < (unsigned char)(BTN_QX + BTN_QW))
@@ -2203,9 +2920,9 @@ static void handle_mouse(void)
 			}
 			field_ptr(g_field, &fp, &maxlen);
 			clen = (unsigned char)strlen(fp);
-			if (mx >= 25 && mx < (unsigned char)(25 + vwidth))
+			if (mx >= 13 && mx < (unsigned char)(13 + vwidth))
 			{
-				g_fcurs = (unsigned char)(mx - 25);
+				g_fcurs = (unsigned char)(mx - 13);
 				if (g_fcurs > clen)
 					g_fcurs = clen;
 			}
@@ -2217,6 +2934,61 @@ static void handle_mouse(void)
 			draw_connect_focus();
 			mouse_show();
 		}
+		return;
+	}
+
+	if (g_scr == SCR_BOOK)
+	{
+		unsigned char fld;
+		unsigned char curs;
+		unsigned char clen;
+		unsigned char maxlen;
+		char *fp;
+
+		if (my < 3 || my >= (unsigned char)(3 + BOOK_VIEW))
+			return;
+		idx = (unsigned char)(g_book_scroll + (my - 3));
+		if (idx >= g_book_n)
+			return;
+
+		mouse_hide();
+		if (g_book_editing)
+		{
+			if (idx != g_book_sel)
+			{
+				book_end_edit(1);
+				book_draw_title();
+				book_draw_help();
+				book_select(idx);
+			}
+			else
+			{
+				fld = book_hit_field(mx, &curs);
+				if (fld != 255)
+				{
+					g_book_efld = fld;
+					fp = book_field_ptr(g_book_sel, g_book_efld, &maxlen);
+					clen = (unsigned char)strlen(fp);
+					if (curs > clen)
+						curs = clen;
+					g_book_ecurs = curs;
+					book_draw_row(g_book_sel);
+				}
+			}
+		}
+		else
+		{
+			if (idx == g_book_sel)
+			{
+				book_apply_to_form(g_book_sel);
+				book_close_to_connect();
+				set_status("Loaded from book");
+				mouse_show();
+				return;
+			}
+			book_select(idx);
+		}
+		mouse_show();
 		return;
 	}
 
@@ -2274,6 +3046,8 @@ void main(void)
 	g_chrome = 0;
 	g_nick_scroll = 0;
 	g_status[0] = 0;
+
+	book_load();
 
 	mouse_init();
 	OS_SETCOLOR(70);
@@ -2388,6 +3162,8 @@ void main(void)
 				mouse_hide();
 				if (g_scr == SCR_CONNECT)
 					handle_connect_key(k);
+				else if (g_scr == SCR_BOOK)
+					handle_book_key(k);
 				else
 					handle_chat_key(k);
 				mouse_show();
