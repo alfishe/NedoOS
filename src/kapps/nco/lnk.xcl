@@ -1,0 +1,14 @@
+-cZ80
+-Ilist
+/*
+ * Multibank map:
+ *   0100-7FFF  ROOT: main, loader, banking, iarlib, data/stack
+ *   8000-BFFF  CODE_RESIDENT: one overlay page (codeB_0N.bin at runtime)
+ *   C000-FFFF  runtime data page (OS_NEWPAGE + SETPGC000)
+ *
+ * Overlay .bin files are produced by linking root+codebank_0N and
+ * extracting the 8000 window (see extract_bank.py).
+ */
+-Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-7FFF
+-Z(DATA)DATA0,IDATA0,ECSTR,NO_INIT,UDATA0,CSTACK+250=0100-7FFF
+-Z(CODE)CODE_RESIDENT=8000-BFFF
