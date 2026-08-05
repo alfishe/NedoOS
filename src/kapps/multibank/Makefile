@@ -2,7 +2,7 @@
 #   bin/multibank.com
 #   bin/multibank/codeB_XX.bin
 #
-# Plan JT: JP table @8000, CSTR/CONST -> *_RESIDENT in bank.
+# Plan JT: per-bank JP table @8000, CSTR/CONST -> *_RESIDENT in bank.
 # --- edit this list when adding/removing overlays (codebank_XX.c) ---
 BANKS := 01 02 03
 OVL_SYMS := mb_report_bank ttyputs printf ttyputchar
@@ -14,8 +14,8 @@ BIN		:= $(OUTDIR)/multibank.com
 INSTDIR :=
 CONSOLE := TTY
 
-SRCC	:= main.c mb_bank.c mb_load.c bank_call.c
-SRCH	:= mb_inc.h mb_plug.h mb_bank.h mb_banks.h bank_jt.h
+SRCC	:= main.c mb_core.c bank_call.c
+SRCH	:= mb_inc.h mb_plug.h mb_banks.h bank_jt.h
 SRCA	:= force_helpers.asm
 XCLFILE	:= lnk.xcl
 XCL_OVL	:= lnk_ovl.xcl
@@ -38,8 +38,18 @@ $(OUTDIR) $(BANKDIR) $(REL_BIN) $(REL_BANK) $(OBJ):
 mb_banks.h: Makefile $(MBOVL)
 	$(MBOVL) gen-h $(words $(BANKS)) $@
 
-$(OBJ)/bank_jt.r01: bank_jt.asm | $(OBJ)
+# Per-bank JT: bank_jt.asm / bank_jt2.asm / bank_jt3.asm
+$(OBJ)/bank_jt01.r01: bank_jt.asm | $(OBJ)
 	$(AZ80) -uu -S -v0 -O$(OBJ)/ -I$(OSSDK) bank_jt.asm
+	$(CP) $(OBJ)/bank_jt.r01 $@
+
+$(OBJ)/bank_jt02.r01: bank_jt2.asm | $(OBJ)
+	$(AZ80) -uu -S -v0 -O$(OBJ)/ -I$(OSSDK) bank_jt2.asm
+	$(CP) $(OBJ)/bank_jt2.r01 $@
+
+$(OBJ)/bank_jt03.r01: bank_jt3.asm | $(OBJ)
+	$(AZ80) -uu -S -v0 -O$(OBJ)/ -I$(OSSDK) bank_jt3.asm
+	$(CP) $(OBJ)/bank_jt3.r01 $@
 
 define BANK_template
 $$(OBJ)/codebank_$(1).r01: codebank_$(1).c $$(SRCH) $$(LIBH) | $$(OBJ)
@@ -49,8 +59,16 @@ $$(OBJ)/codebank_$(1).r01: codebank_$(1).c $$(SRCH) $$(LIBH) | $$(OBJ)
 	$$(AZ80) -uu -S -v0 -O$$(OBJ)/ -I$$(OSSDK) $$(OBJ)/codebank_$(1)_b.s01
 	$$(CP) $$(OBJ)/codebank_$(1)_b.r01 $$(OBJ)/codebank_$(1).r01
 
-$$(OBJ)/mb_ovl$(1).com: $$(LIBDIR)iar.lib $$(OBJC) $$(OBJA) $$(OBJ)/bank_jt.r01 $$(OBJ)/codebank_$(1).r01 $$(XCL_OVL) | $$(OBJ)
-	$$(XLINK) $$(LNK_CONS) -gbank_jt -gforce_helpers $$(OBJC) $$(OBJA) $$(OBJ)/bank_jt.r01 $$(OBJ)/codebank_$(1).r01 -FRAW-BINARY -S -o $$@ -l $$(OBJ)/cout_ovl$(1).html -xehinms -Z\(CODE\)DBGMON=FFFF-FFFF $$(LIBDIR)iar.lib -C $$(IARLIB) -f $$(XCL_OVL)
+# Keep symbol: bank_jt / bank_jt2 / bank_jt3
+JT_KEEP_$(1) := bank_jt$(if $(filter 01,$(1)),,$(patsubst 0%,%,$(1)))
+
+ifeq ($(1),01)
+$$(OBJ)/mb_ovl$(1).com: $$(LIBDIR)iar.lib $$(OBJC) $$(OBJA) $$(OBJ)/bank_jt$(1).r01 $$(OBJ)/codebank_$(1).r01 $$(XCL_OVL) | $$(OBJ)
+	$$(XLINK) $$(LNK_CONS) -gbank_jt -gforce_helpers $$(OBJC) $$(OBJA) $$(OBJ)/bank_jt$(1).r01 $$(OBJ)/codebank_$(1).r01 -FRAW-BINARY -S -o $$@ -l $$(OBJ)/cout_ovl$(1).html -xehinms -Z\(CODE\)DBGMON=FFFF-FFFF $$(LIBDIR)iar.lib -C $$(IARLIB) -f $$(XCL_OVL)
+else
+$$(OBJ)/mb_ovl$(1).com: $$(LIBDIR)iar.lib $$(OBJC) $$(OBJA) $$(OBJ)/bank_jt$(1).r01 $$(OBJ)/codebank_$(1).r01 $$(XCL_OVL) | $$(OBJ)
+	$$(XLINK) $$(LNK_CONS) -g$$(JT_KEEP_$(1)) -gforce_helpers $$(OBJC) $$(OBJA) $$(OBJ)/bank_jt$(1).r01 $$(OBJ)/codebank_$(1).r01 -FRAW-BINARY -S -o $$@ -l $$(OBJ)/cout_ovl$(1).html -xehinms -Z\(CODE\)DBGMON=FFFF-FFFF $$(LIBDIR)iar.lib -C $$(IARLIB) -f $$(XCL_OVL)
+endif
 
 $$(BANKDIR)/codeB_$(1).bin: $$(OBJ)/mb_ovl$(1).com $$(MBOVL) | $$(BANKDIR)
 ifeq ($(1),$$(FIRST_BANK))
@@ -67,7 +85,7 @@ $(foreach b,$(BANKS),\
 	$(eval PREV_BIN := $(BANKDIR)/codeB_$(b).bin))
 
 $(BIN): $(LIBDIR)iar.lib $(OBJC) $(OBJA) lnk.xcl mb_banks.h | $(OBJ) $(OUTDIR)
-	$(XLINK) $(LNK_CONS) $(OBJC) $(OBJA) $(LINK_OPTIONS) $(LIBDIR)iar.lib -C $(IARLIB) -f $(XCLFILE)
+	$(XLINK) $(LNK_CONS) -gforce_helpers $(OBJC) $(OBJA) $(LINK_OPTIONS) $(LIBDIR)iar.lib -C $(IARLIB) -f $(XCLFILE)
 
 check-addrs: $(BIN) $(BANK_BINS) $(MBOVL)
 	$(foreach b,$(BANKS),$(MBOVL) check $(OBJ)/cout.html $(OBJ)/cout_ovl$(b).html $(OVL_SYMS) &&) echo check-addrs OK
