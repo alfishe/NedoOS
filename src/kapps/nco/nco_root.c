@@ -119,19 +119,25 @@ void draw_bottom_info(PanelState *panel)
 
 void menu_close_and_redraw(void)
 {
+	/* Apply sort/LFN changes made with Left/Right/Enter while menu was open. */
+	mb_panel_menu_apply(0u);
 	g_menu_active = 0u;
+	g_menu_level = NC_MENU_LEVEL_TOP;
+	g_menu_sel = 0u;
+	g_menu_panel = NULL;
 	m_redraw_panels_full();
 }
 
 void menu_apply_choice(unsigned char choice)
 {
+	/* Files Enter: only NC_MFI_SAVE reaches here (save + close). */
+	(void)choice;
+	mb_panel_menu_apply(0u);
 	g_menu_active = 0u;
 	g_menu_level = NC_MENU_LEVEL_TOP;
 	g_menu_sel = 0u;
 	g_menu_panel = NULL;
-	mb_panel_menu_apply(choice);
-	if (choice == NC_MFI_CMD_FLAG)
-		mb_nc_ini_save();
+	mb_nc_ini_save();
 	m_redraw_panels_full();
 }
 

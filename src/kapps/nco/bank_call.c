@@ -80,9 +80,21 @@ void mb_ui_error_dialog(const char *t, const char *p) { MB_CALL_VOID(MB_JT_UI_ER
 unsigned char mb_copy_dest_exists(const char *p) { MB_CALL_U8(MB_JT_COPY_DEST_EXISTS, mb_text_ret_fn, (p)); }
 unsigned char mb_copy_dir_exists(const char *p) { MB_CALL_U8(MB_JT_COPY_DIR_EXISTS, mb_text_ret_fn, (p)); }
 unsigned char mb_copy_overwrite_resolve(unsigned char e, const char *m) { MB_CALL_U8(MB_JT_COPY_OVERWRITE_RESOLVE, mb_overwrite_ret_fn, (e, m)); }
-void mb_menu_open(void) { MB_CALL_VOID(MB_JT_MENU_OPEN, mb_void_fn, ()); }
-unsigned char mb_menu_handle_key(unsigned char k) { MB_CALL_U8(MB_JT_MENU_HANDLE_KEY, mb_u8_ret_fn, (k)); }
-void mb_draw_menu_overlay(void) { MB_CALL_VOID(MB_JT_MENU_DRAW_OVERLAY, mb_void_fn, ()); }
+void mb_menu_open(void)
+{
+	mb_void_fn fn; MB_BANK_SAVE() MB_BANK_ENTER(3u);
+	fn = (mb_void_fn)MB_JT_ADDR(MB_JT4_MENU_OPEN); fn(); MB_BANK_LEAVE();
+}
+unsigned char mb_menu_handle_key(unsigned char k)
+{
+	mb_u8_ret_fn fn; unsigned char ret; MB_BANK_SAVE() MB_BANK_ENTER(3u);
+	fn = (mb_u8_ret_fn)MB_JT_ADDR(MB_JT4_MENU_HANDLE_KEY); ret = fn(k); MB_BANK_LEAVE(); return ret;
+}
+void mb_draw_menu_overlay(void)
+{
+	mb_void_fn fn; MB_BANK_SAVE() MB_BANK_ENTER(3u);
+	fn = (mb_void_fn)MB_JT_ADDR(MB_JT4_MENU_DRAW_OVERLAY); fn(); MB_BANK_LEAVE();
+}
 
 /* Bank 02 is independent from the bank 01 UI jump table. */
 unsigned char mb_read_panel_dir_at(PanelState *p, const char *path, unsigned char preserve)

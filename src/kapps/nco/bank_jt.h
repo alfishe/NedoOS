@@ -40,10 +40,7 @@
 #define MB_JT_COPY_DEST_EXISTS          26u
 #define MB_JT_COPY_DIR_EXISTS           27u
 #define MB_JT_COPY_OVERWRITE_RESOLVE    28u
-#define MB_JT_MENU_OPEN                 29u
-#define MB_JT_MENU_HANDLE_KEY           30u
-#define MB_JT_MENU_DRAW_OVERLAY         31u
-#define MB_JT_PANEL_DRAW_FOOTER         32u
+#define MB_JT_PANEL_DRAW_FOOTER         29u
 
 #define MB_JT_ADDR(slot) \
 	((unsigned int)(MB_CODE_ADDR + (unsigned int)(slot) * MB_JT_SLOT_SIZE))
@@ -73,5 +70,8 @@
 #define MB_JT4_RUN_SELECTED            2u
 #define MB_JT4_NVEXT_LOAD              3u
 #define MB_JT4_NVEXT_FIND              4u
+#define MB_JT4_MENU_OPEN               5u
+#define MB_JT4_MENU_HANDLE_KEY         6u
+#define MB_JT4_MENU_DRAW_OVERLAY       7u
 
 #endif

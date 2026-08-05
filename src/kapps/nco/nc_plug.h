@@ -12,17 +12,14 @@
 #define NC_PANEL_SORT_TIME 3u
 #define NC_MENU_LEVEL_TOP 0u
 #define NC_MENU_LEVEL_FILES 1u
-#define NC_MENU_FILES_ITEMS 10u
-#define NC_MFI_NAME 0u
-#define NC_MFI_EXT 1u
-#define NC_MFI_SIZE 2u
-#define NC_MFI_TIME 3u
-#define NC_MFI_AZ 4u
-#define NC_MFI_ZA 5u
-#define NC_MFI_LFN_SORT 6u
-#define NC_MFI_READ_ON_FOCUS 7u
-#define NC_MFI_BRIEF 8u
-#define NC_MFI_CMD_FLAG 9u
+#define NC_MENU_FILES_ITEMS 7u
+#define NC_MFI_SORT_BY 0u
+#define NC_MFI_SORT_DIR 1u
+#define NC_MFI_LFN_SORT 2u
+#define NC_MFI_READ_ON_FOCUS 3u
+#define NC_MFI_BRIEF 4u
+#define NC_MFI_CMD_FLAG 5u
+#define NC_MFI_SAVE 6u
 
 #define NC_CMD_FLAG_NONE 0u
 #define NC_CMD_FLAG_K    1u
@@ -170,6 +167,7 @@ extern unsigned char g_menu_active;
 extern unsigned char g_menu_level;
 extern unsigned char g_menu_sel;
 extern PanelState *g_menu_panel;
+extern unsigned char g_menu_popup_x;
 extern unsigned char g_drive_active;
 extern PanelState *g_drive_panel;
 extern unsigned char g_drive_sel;
@@ -310,9 +308,9 @@ unsigned char panel_request_unique_page(unsigned char *page_out);
 
 void menu_draw_item(unsigned char x0, unsigned char y, unsigned char width, unsigned char selected,
 					const char *label, unsigned char current);
-void menu_open(void);
-void draw_menu_overlay(void);
-unsigned char menu_handle_key(unsigned char key);
+void r_menu_open(void);
+void r_draw_menu_overlay(void);
+unsigned char r_menu_handle_key(unsigned char key);
 
 unsigned char panel_drive_saved_letter(const PanelState *panel);
 void panel_drive_format_line(char *buf, unsigned char letter, const char *cap);

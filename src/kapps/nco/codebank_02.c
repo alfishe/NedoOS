@@ -1156,28 +1156,15 @@ unsigned char r_panel_nav_key(unsigned char key)
 void r_panel_menu_apply(unsigned char choice)
 {
 	PanelState *panel = g_menu_panel;
-	unsigned char resort = 1u;
 
+	(void)choice;
 	if (panel == NULL)
 		panel = left_panel.is_active ? &left_panel : &right_panel;
-
-	if (choice <= NC_MFI_TIME)
-		panel->sort_mode = choice;
-	else if (choice == NC_MFI_AZ)
-		panel->sort_desc = 0u;
-	else if (choice == NC_MFI_ZA)
-		panel->sort_desc = 1u;
-	else if (choice == NC_MFI_LFN_SORT)
-	{
-		if (panel->file_count > 0u)
-			panel_refresh_sort_cache(panel);
-		resort = 0u;
-	}
-	else if (choice == NC_MFI_READ_ON_FOCUS || choice == NC_MFI_BRIEF)
-		resort = 0u;
-	else if (choice == NC_MFI_CMD_FLAG)
-		resort = 0u;
-
-	if (resort && panel->file_count >= 2u)
+	if (panel->file_count == 0u)
+		return;
+	/* After in-menu toggles (arrows / Enter cycle): refresh LFN keys if needed, then resort. */
+	if (panel->sort_lfn)
+		panel_refresh_sort_cache(panel);
+	if (panel->file_count >= 2u)
 		panel_resort_keep_cursor(panel);
 }

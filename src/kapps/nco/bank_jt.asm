@@ -33,9 +33,6 @@
 	EXTERN r_copy_dest_exists
 	EXTERN r_copy_dir_exists
 	EXTERN r_copy_overwrite_resolve
-	EXTERN menu_open
-	EXTERN menu_handle_key
-	EXTERN draw_menu_overlay
 	EXTERN panel_draw_footer
 
 	RSEG CODE_RESIDENT
@@ -69,9 +66,6 @@ bank_jt:
 	JP	r_copy_dest_exists
 	JP	r_copy_dir_exists
 	JP	r_copy_overwrite_resolve
-	JP	menu_open
-	JP	menu_handle_key
-	JP	draw_menu_overlay
 	JP	panel_draw_footer
 
 	END

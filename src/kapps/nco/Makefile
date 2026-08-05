@@ -1,7 +1,7 @@
 # nco ? NC on Plan JT multibank (scaffold).
 # Pack: bin/nco.com + bin/nco/codeB_XX.bin
 #
-# Bank roles: 01 UI | 02 panel | 03 fileops | 04 cold
+# Bank roles: 01 UI | 02 panel | 03 fileops | 04 cold+menu
 BANKS := 01 02 03 04
 OVL_SYMS := bdosputs printf strncpy strncat ?STRCMP_L11 ?STRCHR_L11 \
 	OS_GETMAINPAGES OS_GETAPPMAINPAGES OS_NEWPAGE OS_DELPAGE OS_SETPG8000 OS_SETPGC000 OS_SETXY OS_SETCOLOR OS_CLS OS_GETTIME \
@@ -9,7 +9,7 @@ OVL_SYMS := bdosputs printf strncpy strncat ?STRCMP_L11 ?STRCHR_L11 \
 	OS_READHANDLE OS_WRITEHANDLE OS_CREATEHANDLE OS_GETFILESIZE OS_GETFILETIME OS_SEEKHANDLE OS_SETFILETIME OS_GETFILINFO OS_OPENDIR OS_READDIR \
 	OS_DELETE OS_RENAME OS_MKDIR OS_NEWAPP OS_RUNAPP OS_WAITPID OS_DROPAPP YIELD \
 	panel_request_unique_page menu_close_and_redraw menu_apply_choice panel_fmt_size panel_fmt_size_brief \
-	draw_panel_frame draw_panel_background draw_bottom_info \
+	draw_panel_frame draw_panel_background draw_panel_footer draw_bottom_info \
 	mb_panel_chdir_only mb_read_panel_dir_at mb_redraw_panels_full m_panel_chdir_only m_read_panel_dir_at m_panels_remap_bank_window m_redraw_panels_full \
 	m_panels_redraw_both m_draw_panel m_panel_sort_notice_show m_run_restore_ui \
 	m_run_save_cwd m_run_restore_cwd m_run_restore_session_bank m_run_resident_page \
@@ -54,7 +54,7 @@ $(OUTDIR) $(BANKDIR) $(REL_BIN) $(REL_BANK) $(OBJ):
 mb_banks.h: Makefile $(MBOVL)
 	$(MBOVL) gen-h $(words $(BANKS)) $@
 
-# Per-bank JT: bank_jt.asm / bank_jt2.asm / bank_jt3.asm / bank_jt4.asm
+# Per-bank JT: bank_jt.asm / bank_jt2..bank_jt4.asm
 $(OBJ)/bank_jt01.r01: bank_jt.asm | $(OBJ)
 	$(AZ80) -uu -S -v0 -O$(OBJ)/ -I$(OSSDK) bank_jt.asm
 	$(CP) $(OBJ)/bank_jt.r01 $@
