@@ -594,7 +594,6 @@ void ui_fill_chars(unsigned char x, unsigned char y, unsigned char sym, unsigned
 #define NC_DRVF_TRDOS 4u
 #define NC_PANEL_PORT_NEOGS_GSCFG 0x0Fu
 #define NC_PANEL_PORT_SL811_SEL 0xABu
-#define NC_PANEL_SORT_NOTICE_FILES 50u
 #define NC_SZ_1MB 1048576UL
 #define NC_SZ_100MB 104857600UL
 

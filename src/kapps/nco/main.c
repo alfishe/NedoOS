@@ -1,6 +1,7 @@
 #include "mb_inc.h"
 #include "mb_plug.h"
 #include "mb_req.h"
+#include "nc_colors.h"
 
 /*
  * nco ? NC on Plan JT multibank.
@@ -94,26 +95,45 @@ static void nco_run_banks(void)
 	mb_draw_bottom_info(&g_bottom_snap);
 }
 
-/* Match nc_on_focus_refresh: optional dir reload, then restore drive/menu. */
+/* After OS_CLS on task switch: one white line until panels redraw. */
+static void nco_reading_catalog_msg(void)
+{
+	const char *msg = "Reading catalog...";
+	unsigned char len;
+	unsigned char x;
+	unsigned char i;
+
+	len = 0u;
+	while (msg[len] != 0)
+		len++;
+	x = (unsigned char)((NC_SCREEN_WIDTH - len) / 2u);
+	OS_SETXY(x, 12u);
+	OS_SETCOLOR(NC_COLOR_CMDLINE);
+	for (i = 0u; msg[i] != 0; i++)
+		putchar((unsigned char)msg[i]);
+	YIELD();
+}
+
+static void nco_redraw_panels_no_cls(void)
+{
+	mb_draw_panel_background(&left_panel, 0u);
+	mb_draw_panel_background(&right_panel, 40u);
+	mb_panels_draw_all();
+	mb_ui_draw_status_bar();
+	mb_ui_nc_clock_draw(1u);
+	draw_bottom_info(left_panel.is_active ? &left_panel : &right_panel);
+}
+
+/* Match nc_on_focus_refresh: OS_CLS + hint, optional dir reload, redraw. */
 static void nco_on_focus_refresh(void)
 {
 	g_focus_pending = 0u;
 	mb_panels_remap_bank_window();
+	mb_ui_begin_full_redraw();
+	nco_reading_catalog_msg();
 	if (g_ini_read_on_focus)
-	{
 		mb_panels_reload_both(left_panel.current_path, right_panel.current_path);
-		mb_ui_begin_full_redraw();
-		mb_draw_panel_background(&left_panel, 0u);
-		mb_draw_panel_background(&right_panel, 40u);
-		mb_draw_panel(&left_panel, 0u, PANEL_VIEW_ROWS);
-		mb_draw_panel(&right_panel, 40u, PANEL_VIEW_ROWS);
-		mb_ui_draw_status_bar();
-		mb_ui_nc_clock_draw(1u);
-	}
-	else
-		m_redraw_panels_full();
-	if (g_ini_read_on_focus)
-		draw_bottom_info(left_panel.is_active ? &left_panel : &right_panel);
+	nco_redraw_panels_no_cls();
 	if (g_drive_active)
 		mb_panel_drive_redraw();
 	else if (g_menu_active)
