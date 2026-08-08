@@ -731,30 +731,45 @@ void r_action_delete(void)
 
 void r_action_rename(void)
 {
-	PanelState *p; unsigned int date, time; unsigned char dir, res;
+	PanelState *p;
+	unsigned int date, time;
+	unsigned char dir, res;
+	char saved_name[64];
+
 	p = left_panel.is_active ? &left_panel : &right_panel;
 	if (!panel_item(p, p->cursor_idx, 0u, r_action_name, &dir, &date, &time) ||
-		(dir && strcmp(r_action_name, "..") == 0)) return;
+		(dir && strcmp(r_action_name, "..") == 0))
+		return;
 	snap_panels();
-	strncpy(nc_set.temp_path, r_action_name, 63u); nc_set.temp_path[63] = 0;
+	strncpy(saved_name, r_action_name, sizeof(saved_name) - 1u);
+	saved_name[sizeof(saved_name) - 1u] = 0;
+	strncpy(nc_set.temp_path, saved_name, sizeof(nc_set.temp_path) - 1u);
+	nc_set.temp_path[sizeof(nc_set.temp_path) - 1u] = 0;
 	res = mb_ui_dialog_rename_input(g_ui_rename, g_ui_rename_to);
 	if (res == D_RES_CANCEL) { redraw_after_dialog_cancel(); return; }
 	if (res == D_RES_TO_MOVE) { r_action_move(); return; }
 	name_rtrim(nc_set.temp_path);
-	if (strcmp(nc_set.temp_path, r_action_name) == 0) { redraw_after_dialog_cancel(); return; }
+	if (strcmp(nc_set.temp_path, saved_name) == 0) { redraw_after_dialog_cancel(); return; }
 	if (nc_set.temp_path[0] == 0 || strchr(nc_set.temp_path, '/') || strchr(nc_set.temp_path, '\\') || strchr(nc_set.temp_path, ':'))
 	{
 		mb_ui_alert_dialog(g_ui_rename, g_ui_invalid_name);
 		redraw_after_dialog_cancel();
+		return;
 	}
-	else if (OS_CHDIR((unsigned char *)p->current_path) != 0u ||
-		OS_RENAME((unsigned char *)r_action_name, (unsigned char *)nc_set.temp_path) != 0u)
+	if (!mb_panel_chdir_only(p->current_path))
+	{
+		mb_ui_alert_dialog(g_ui_rename_fail, g_ui_chdir_fail);
+		redraw_after_dialog_cancel();
+		return;
+	}
+	OS_SETPGC000(m_run_resident_page());
+	if (OS_RENAME((unsigned char *)saved_name, (unsigned char *)nc_set.temp_path) != 0u)
 	{
 		mb_ui_alert_dialog(g_ui_rename_fail, g_ui_rename_fail_msg);
 		redraw_after_dialog_cancel();
+		return;
 	}
-	else
-		finish_one_panel_success(p);
+	finish_one_panel_success(p);
 }
 
 void r_action_mkdir(void)

@@ -378,6 +378,27 @@ static const char *menu_cmd_flag_label(void)
 	return "Cmd: none";
 }
 
+static void menu_app_line(const char *prefix, const char *val)
+{
+	unsigned char i;
+	unsigned char j;
+
+	i = 0u;
+	while (prefix[i] != 0 && i < 22u)
+	{
+		g_menu_app_line[i] = prefix[i];
+		i++;
+	}
+	j = 0u;
+	while (val[j] != 0 && i < 23u)
+	{
+		g_menu_app_line[i] = val[j];
+		i++;
+		j++;
+	}
+	g_menu_app_line[i] = 0;
+}
+
 /* Display cycle: Name -> Ext -> Date -> Size (internal TIME before SIZE). */
 static unsigned char menu_cycle_sort_mode(unsigned char mode, signed char delta)
 {
@@ -446,6 +467,14 @@ static void menu_draw_files_row(PanelState *active_p, unsigned char idx, unsigne
 		break;
 	case NC_MFI_CMD_FLAG:
 		menu_draw_item(menu_item_x(), y, NC_MENU_POPUP_INNER_W, cursor_on, menu_cmd_flag_label(), 0);
+		break;
+	case NC_MFI_VIEWER:
+		menu_app_line("Viewer: ", g_ini_viewer);
+		menu_draw_item(menu_item_x(), y, NC_MENU_POPUP_INNER_W, cursor_on, g_menu_app_line, 0);
+		break;
+	case NC_MFI_EDITOR:
+		menu_app_line("Editor: ", g_ini_editor);
+		menu_draw_item(menu_item_x(), y, NC_MENU_POPUP_INNER_W, cursor_on, g_menu_app_line, 0);
 		break;
 	case NC_MFI_SAVE:
 		menu_draw_item(menu_item_x(), y, NC_MENU_POPUP_INNER_W, cursor_on, "Save settings", 0);
@@ -540,6 +569,16 @@ static void menu_adjust_item(PanelState *active_p, signed char delta)
 	}
 }
 
+static void menu_edit_viewer(void)
+{
+	menu_edit_ini_app(g_ini_viewer, g_ui_viewer, g_ui_ini_app_prompt);
+}
+
+static void menu_edit_editor(void)
+{
+	menu_edit_ini_app(g_ini_editor, g_ui_editor, g_ui_ini_app_prompt);
+}
+
 void r_draw_menu_overlay(void)
 {
 	if (!g_menu_active || g_menu_panel == NULL)
@@ -609,6 +648,10 @@ unsigned char r_menu_handle_key(unsigned char key)
 	{
 		if (g_menu_sel == NC_MFI_SAVE)
 			menu_apply_choice(NC_MFI_SAVE);
+		else if (g_menu_sel == NC_MFI_VIEWER)
+			menu_edit_viewer();
+		else if (g_menu_sel == NC_MFI_EDITOR)
+			menu_edit_editor();
 		else
 			menu_adjust_item(g_menu_panel, 1);
 		return 1u;

@@ -12,14 +12,16 @@
 #define NC_PANEL_SORT_TIME 3u
 #define NC_MENU_LEVEL_TOP 0u
 #define NC_MENU_LEVEL_FILES 1u
-#define NC_MENU_FILES_ITEMS 7u
+#define NC_MENU_FILES_ITEMS 9u
 #define NC_MFI_SORT_BY 0u
 #define NC_MFI_SORT_DIR 1u
 #define NC_MFI_LFN_SORT 2u
 #define NC_MFI_READ_ON_FOCUS 3u
 #define NC_MFI_BRIEF 4u
 #define NC_MFI_CMD_FLAG 5u
-#define NC_MFI_SAVE 6u
+#define NC_MFI_VIEWER 6u
+#define NC_MFI_EDITOR 7u
+#define NC_MFI_SAVE 8u
 
 #define NC_CMD_FLAG_NONE 0u
 #define NC_CMD_FLAG_K    1u
@@ -269,6 +271,7 @@ extern const char g_ui_rename_to[];
 extern const char g_ui_invalid_name[];
 extern const char g_ui_rename_fail[];
 extern const char g_ui_rename_fail_msg[];
+extern const char g_ui_chdir_fail[];
 extern const char g_ui_mkdir[];
 extern const char g_ui_mkdir_name[];
 extern const char g_ui_mkdir_short[];
@@ -280,6 +283,7 @@ extern const char g_ui_move_fail[];
 extern const char g_ui_moving[];
 
 extern char g_run_saved_cwd[64];
+extern char g_menu_app_line[24];
 extern char g_run_cmdline[128];
 extern char g_run_inner[96];
 extern char g_run_name[64];
@@ -288,6 +292,9 @@ extern const char g_ui_term_cmd_k[];
 extern const char g_ui_term_cmd_p[];
 extern const char g_ui_term_com[];
 extern const char g_ui_nv_ext[];
+extern const char g_ui_viewer[];
+extern const char g_ui_editor[];
+extern const char g_ui_ini_app_prompt[];
 
 extern unsigned int g_nvext_size;
 extern unsigned int g_ncext_off;
@@ -317,6 +324,7 @@ void panel_drive_format_line(char *buf, unsigned char letter, const char *cap);
 
 void menu_close_and_redraw(void);
 void menu_apply_choice(unsigned char choice);
+void menu_edit_ini_app(char *dest, const char *title, const char *prompt);
 
 void ui_fill_chars(unsigned char x, unsigned char y, unsigned char sym, unsigned char count, unsigned char color);
 

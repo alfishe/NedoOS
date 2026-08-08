@@ -130,9 +130,11 @@ static void nco_on_focus_refresh(void)
 	g_focus_pending = 0u;
 	mb_panels_remap_bank_window();
 	mb_ui_begin_full_redraw();
-	nco_reading_catalog_msg();
 	if (g_ini_read_on_focus)
+	{
+		nco_reading_catalog_msg();
 		mb_panels_reload_both(left_panel.current_path, right_panel.current_path);
+	}
 	nco_redraw_panels_no_cls();
 	if (g_drive_active)
 		mb_panel_drive_redraw();

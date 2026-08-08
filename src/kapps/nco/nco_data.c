@@ -123,6 +123,7 @@ const char g_ui_rename_to[] = "Rename to:";
 const char g_ui_invalid_name[] = "Invalid name";
 const char g_ui_rename_fail[] = "Rename failed";
 const char g_ui_rename_fail_msg[] = "Name in use or invalid";
+const char g_ui_chdir_fail[] = "Cannot enter directory";
 const char g_ui_mkdir[] = "Create directory";
 const char g_ui_mkdir_name[] = "Name:";
 const char g_ui_mkdir_short[] = "MkDir";
@@ -134,6 +135,7 @@ const char g_ui_move_fail[] = "Cannot move to destination";
 const char g_ui_moving[] = "Moving";
 
 char g_run_saved_cwd[64];
+char g_menu_app_line[24];
 char g_run_cmdline[128];
 char g_run_inner[96];
 char g_run_name[64];
@@ -142,6 +144,9 @@ const char g_ui_term_cmd_k[] = "term.com cmd.com /k ";
 const char g_ui_term_cmd_p[] = "term.com cmd.com /p ";
 const char g_ui_term_com[] = "term.com";
 const char g_ui_nv_ext[] = "nv.ext";
+const char g_ui_viewer[] = "Viewer";
+const char g_ui_editor[] = "Editor";
+const char g_ui_ini_app_prompt[] = "Program:";
 
 unsigned int g_nvext_size;
 unsigned int g_ncext_off;

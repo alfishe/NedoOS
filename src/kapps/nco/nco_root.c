@@ -141,6 +141,39 @@ void menu_apply_choice(unsigned char choice)
 	m_redraw_panels_full();
 }
 
+static void menu_trim_input(char *s)
+{
+	unsigned char len;
+
+	len = 0u;
+	while (s[len] != 0)
+		len++;
+	while (len > 0u && (s[len - 1u] == ' ' || s[len - 1u] == '\t'))
+	{
+		len--;
+		s[len] = 0;
+	}
+}
+
+void menu_edit_ini_app(char *dest, const char *title, const char *prompt)
+{
+	strncpy(nc_set.temp_path, dest, sizeof(nc_set.temp_path) - 1u);
+	nc_set.temp_path[sizeof(nc_set.temp_path) - 1u] = 0;
+	if (mb_ui_dialog_input(title, prompt) != D_RES_CANCEL)
+	{
+		menu_trim_input(nc_set.temp_path);
+		if (nc_set.temp_path[0] != 0)
+		{
+			strncpy(dest, nc_set.temp_path, NC_INI_APP_LEN - 1u);
+			dest[NC_INI_APP_LEN - 1u] = 0;
+		}
+	}
+	if (g_menu_active)
+		mb_draw_menu_overlay();
+	else
+		m_redraw_panels_full();
+}
+
 void m_run_restore_ui(PanelState *panel)
 {
 	m_panel_chdir_only(panel->current_path);
