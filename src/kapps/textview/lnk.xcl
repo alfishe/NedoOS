@@ -1,0 +1,7 @@
+-cZ80
+-Ilist
+/* Code+data in 0100-7FFF so SETPG32KHIGH can map VRAM at C000 safely. */
+-Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-7FFF
+-Z(DATA)DATA0,IDATA0,UDATA0,ECSTR,NO_INIT,CSTACK+2E0=0100-7FFF
+-e_medium_write=_formatted_write
+-e_medium_read=_formatted_read
