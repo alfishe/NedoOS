@@ -355,7 +355,7 @@ static void restore_doc(void)
 
 static void map_doc(unsigned char page)
 {
-	if (page != g_map_doc)
+	if (g_map_doc == 0xFFu || page != g_map_doc)
 	{
 		OS_SETPGC000(page);
 		g_map_doc = page;
@@ -907,9 +907,8 @@ static unsigned char ensure_line_pages(unsigned long need_idx)
 			return 0;
 		g_pg_line[g_npg_line] = (unsigned char)r;
 		map_doc(g_pg_line[g_npg_line]);
-		zp = (unsigned char *)0xC000u;
+		zp = (unsigned char *)DOC_WIN;
 		memset(zp, 0, (unsigned int)PAGE_SIZE);
-		g_map_doc = 0xFFu;
 		g_npg_line++;
 	}
 	return 1;
@@ -943,7 +942,6 @@ static void line_set_range(unsigned long idx0, unsigned long *vals, unsigned cha
 		}
 		i += nthis;
 	}
-	g_map_doc = 0xFFu;
 }
 
 /* Must be < 256: bn is unsigned char. */
@@ -957,12 +955,7 @@ static void line_flush_batch(unsigned long batch_base, unsigned char bn, unsigne
 		return;
 	line_set_range(batch_base, g_lbatch, bn);
 	if (file_pg != 0xFFu)
-	{
 		map_doc(g_pg_file[file_pg]);
-		g_map_doc = file_pg;
-	}
-	else
-		g_map_doc = 0xFFu;
 }
 
 static unsigned char index_push_line(unsigned long line_start, unsigned long *idx, unsigned char *bn,
@@ -1034,6 +1027,7 @@ static unsigned char fill_line_cache_sb(void)
 			map_doc(g_pg_file[pi]);
 			cur_pg = (unsigned char)pi;
 			prog_update((unsigned char)((ofs * 100UL) / g_fsize), " Indexing...");
+			cur_pg = 0xFFu; /* progress bar restores screen at C000 */
 		}
 
 		line_start = ofs;
@@ -1057,6 +1051,7 @@ static unsigned char fill_line_cache_sb(void)
 				map_doc(g_pg_file[pi]);
 				cur_pg = (unsigned char)pi;
 				prog_update((unsigned char)((ofs * 100UL) / g_fsize), " Indexing...");
+				cur_pg = 0xFFu; /* progress bar restores screen at C000 */
 			}
 			p = (unsigned char *)(DOC_WIN + off);
 			room = PAGE_SIZE - off;
@@ -2430,18 +2425,60 @@ static void show_help(void)
 	flush_screen();
 }
 
+/* Draw one menu item row; sel != 0xFF highlights that row. */
+static void menu_paint_item(unsigned char y, unsigned char mx, unsigned char mw,
+	const char *text, unsigned char sel_on)
+{
+	unsigned char j;
+
+	g_rowbuf[0] = 0xBA;
+	for (j = 1; j < mw - 1u; j++)
+		g_rowbuf[j] = ' ';
+	g_rowbuf[mw - 1u] = 0xBA;
+	for (j = 0; text[j] && (unsigned char)(2u + j) < (unsigned char)(mw - 1u); j++)
+		g_rowbuf[2u + j] = (unsigned char)text[j];
+	paint_span(y, mx, g_rowbuf, mw, COL_MENU);
+	if (sel_on)
+		paint_span(y, (unsigned char)(mx + 2u), &g_rowbuf[2],
+			(unsigned char)(mw - 4u), COL_MENU_SEL);
+}
+
+static void menu_paint_frame(unsigned char my, unsigned char mx, unsigned char mw,
+	const char *title, const char *const *items, unsigned char nitems,
+	unsigned char sel)
+{
+	unsigned char i, j, k;
+
+	g_rowbuf[0] = 0xC9;
+	for (j = 1; j < mw - 1u; j++)
+		g_rowbuf[j] = 0xCD;
+	g_rowbuf[mw - 1u] = 0xBB;
+	k = 2u;
+	for (j = 0; title[j] && k < (unsigned char)(mw - 2u); j++, k++)
+		g_rowbuf[k] = (unsigned char)title[j];
+	paint_span(my, mx, g_rowbuf, mw, COL_MENU);
+
+	for (i = 0; i < nitems; i++)
+		menu_paint_item((unsigned char)(my + 1u + i), mx, mw, items[i],
+			(unsigned char)(i == sel));
+
+	g_rowbuf[0] = 0xC8;
+	for (j = 1; j < mw - 1u; j++)
+		g_rowbuf[j] = 0xCD;
+	g_rowbuf[mw - 1u] = 0xBC;
+	paint_span((unsigned char)(my + 1u + nitems), mx, g_rowbuf, mw, COL_MENU);
+}
+
 /* List menu dialog. Returns index, or 0xFF if Esc. */
 static unsigned char show_list_menu(const char *title, const char *const *items,
 	unsigned char nitems, unsigned char cur)
 {
-	unsigned char sel, ch, i, j, k;
-	unsigned char mx, my, mw, mh, iw;
+	unsigned char sel, ch, mx, my, mw;
+	unsigned char old;
 
 	mw = 42u;
-	mh = (unsigned char)(nitems + 2u);
 	mx = (unsigned char)((COLS - mw) / 2u);
 	my = 8u;
-	iw = (unsigned char)(mw - 2u);
 	sel = cur;
 	if (sel >= nitems)
 		sel = 0;
@@ -2449,39 +2486,10 @@ static unsigned char show_list_menu(const char *title, const char *const *items,
 	paint_content();
 	draw_status(0);
 	flush_screen();
+	menu_paint_frame(my, mx, mw, title, items, nitems, sel);
 
 	for (;;)
 	{
-		g_rowbuf[0] = 0xC9;
-		for (j = 1; j < mw - 1u; j++)
-			g_rowbuf[j] = 0xCD;
-		g_rowbuf[mw - 1u] = 0xBB;
-		k = 2u;
-		for (j = 0; title[j] && k < iw; j++, k++)
-			g_rowbuf[k] = (unsigned char)title[j];
-		paint_span(my, mx, g_rowbuf, mw, COL_MENU);
-
-		for (i = 0; i < nitems; i++)
-		{
-			g_rowbuf[0] = 0xBA;
-			for (j = 1; j < mw - 1u; j++)
-				g_rowbuf[j] = ' ';
-			g_rowbuf[mw - 1u] = 0xBA;
-			for (j = 0; items[i][j] && (unsigned char)(2u + j) < (unsigned char)(mw - 1u); j++)
-				g_rowbuf[2u + j] = (unsigned char)items[i][j];
-			paint_span((unsigned char)(my + 1u + i), mx, g_rowbuf, mw, COL_MENU);
-			if (i == sel)
-				paint_span((unsigned char)(my + 1u + i),
-					(unsigned char)(mx + 2u), &g_rowbuf[2],
-					(unsigned char)(mw - 4u), COL_MENU_SEL);
-		}
-
-		g_rowbuf[0] = 0xC8;
-		for (j = 1; j < mw - 1u; j++)
-			g_rowbuf[j] = 0xCD;
-		g_rowbuf[mw - 1u] = 0xBC;
-		paint_span((unsigned char)(my + 1u + nitems), mx, g_rowbuf, mw, COL_MENU);
-
 		ch = read_key();
 		if (ch == 0)
 		{
@@ -2500,17 +2508,41 @@ static unsigned char show_list_menu(const char *title, const char *const *items,
 		if (ch == KEY_UP)
 		{
 			if (sel > 0u)
+			{
+				old = sel;
 				sel--;
+				menu_paint_item((unsigned char)(my + 1u + old), mx, mw,
+					items[old], 0);
+				menu_paint_item((unsigned char)(my + 1u + sel), mx, mw,
+					items[sel], 1);
+			}
 			continue;
 		}
 		if (ch == KEY_DOWN)
 		{
 			if (sel + 1u < nitems)
+			{
+				old = sel;
 				sel++;
+				menu_paint_item((unsigned char)(my + 1u + old), mx, mw,
+					items[old], 0);
+				menu_paint_item((unsigned char)(my + 1u + sel), mx, mw,
+					items[sel], 1);
+			}
 			continue;
 		}
 		if (ch >= '1' && (unsigned char)(ch - '1') < nitems)
+		{
+			old = sel;
 			sel = (unsigned char)(ch - '1');
+			if (old != sel)
+			{
+				menu_paint_item((unsigned char)(my + 1u + old), mx, mw,
+					items[old], 0);
+				menu_paint_item((unsigned char)(my + 1u + sel), mx, mw,
+					items[sel], 1);
+			}
+		}
 	}
 }
 
