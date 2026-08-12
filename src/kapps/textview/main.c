@@ -1,6 +1,6 @@
 /*
  * textview - TEXT/HEX viewer for NedoOS (BDOS 80x25)
- * Loads whole file into OS pages (rejects if not enough RAM).
+ * Loads whole file into OS pages at C000 window (rejects if not enough RAM).
  * Builds display-line offset cache for WRAP/CHAR; RAW scans file on the fly.
  *
  * F1 Help  F2 Enc  F3 TEXT/HEX  F4 Wrap  F7 Find  F10/ESC Exit
@@ -12,7 +12,6 @@
 #include <string.h>
 #include <oscalls.h>
 #include <osfs.h>
-#include "vtxt.h"
 
 #define BR_NORMAL 0x00
 #define BR_INK    0x40
@@ -64,6 +63,7 @@
 #define PAGE_SHIFT 14
 #define PAGE_SIZE  16384u
 #define PAGE_MASK  0x3FFFu
+#define DOC_WIN    0xC000u /* file + line-cache page window */
 #define MEM_RESERVE 8u
 #define MAX_FILE_PAGES 200u
 #define MAX_LINE_PAGES 64u
@@ -144,10 +144,10 @@ typedef struct
 	unsigned long nlines;
 	unsigned char pg[MAX_LINE_PAGES];
 } WRAP_CACHE;
-static WRAP_CACHE g_wcache[3];
+static WRAP_CACHE g_wcache[2]; /* WRAP + CHAR; RAW has no line cache */
 static unsigned char g_wcache_enc;
-static unsigned char g_map8000;
-static unsigned char g_home_8000;
+static unsigned char g_map_doc;
+static unsigned char g_home_c000;
 
 static unsigned char g_find_cp866[FIND_MAX + 1];
 static unsigned char g_find_pat[PAT_MAX];
@@ -155,7 +155,7 @@ static unsigned int g_find_pat_len;
 static unsigned char g_have_find;
 
 static unsigned char g_rowbuf[COLS + 1];
-static unsigned long g_lbatch[64];
+static unsigned long g_lbatch[16];
 
 /* ---- tiny helpers ---- */
 
@@ -165,22 +165,47 @@ static unsigned char hex_digit(unsigned char v)
 	return (unsigned char)(v < 10u ? ('0' + v) : ('A' + (v - 10u)));
 }
 
+static void restore_doc(void);
+static void map_doc(unsigned char page);
+
+static void paint_span(unsigned char y, unsigned char x, unsigned char *s,
+	unsigned char n, unsigned char color)
+{
+	unsigned char i;
+
+	if (n == 0u)
+		return;
+	restore_doc();
+	OS_SETCOLOR(color);
+	OS_SETXY(x, y);
+	for (i = 0; i < n; i++)
+		putchar(s[i]);
+}
+
 static void paint_row(unsigned char y, unsigned char color, unsigned char *s)
 {
-	vtxt_puts_row(y, s, color);
+	unsigned char i;
+	unsigned char c;
+
+	restore_doc();
+	OS_SETCOLOR(color);
+	OS_SETXY(0, y);
+	for (i = 0; i < COLS; i++)
+	{
+		c = s[i];
+		if (c == 0)
+			c = ' ';
+		putchar(c);
+	}
 }
 
 static void flush_screen(void)
 {
-	vtxt_present();
-	/* vtxt remaps 8000 via SETPG32KHIGH ? force remap on next file access */
-	g_map8000 = 0xFFu;
 }
 
 static void flush_row(unsigned char y)
 {
-	vtxt_present_row(y);
-	g_map8000 = 0xFFu;
+	(void)y;
 }
 
 static void fill_spaces(unsigned char *dst, unsigned char n)
@@ -226,7 +251,7 @@ static void draw_progress(unsigned char pct, const char *label)
 	k = 2u;
 	for (j = 0; label[j] && k < (unsigned char)(mw - 2u); j++, k++)
 		g_rowbuf[k] = (unsigned char)label[j];
-	vtxt_puts_span(my, mx, g_rowbuf, mw, COL_MENU);
+	paint_span(my, mx, g_rowbuf, mw, COL_MENU);
 
 	/* body: º ÛÛÛÛ°45%°°°° º  (% overlaid on bar center) */
 	g_rowbuf[0] = 0xBA;
@@ -255,17 +280,14 @@ static void draw_progress(unsigned char pct, const char *label)
 	for (i = 0; i < tlen; i++)
 		g_rowbuf[tpos + i] = (unsigned char)tbuf[i];
 
-	vtxt_puts_span((unsigned char)(my + 1u), mx, g_rowbuf, mw, COL_MENU);
+	paint_span((unsigned char)(my + 1u), mx, g_rowbuf, mw, COL_MENU);
 
 	/* bottom: ÈÍÍ¼ */
 	g_rowbuf[0] = 0xC8;
 	for (j = 1; j < mw - 1u; j++)
 		g_rowbuf[j] = 0xCD;
 	g_rowbuf[mw - 1u] = 0xBC;
-	vtxt_puts_span((unsigned char)(my + 2u), mx, g_rowbuf, mw, COL_MENU);
-
-	vtxt_present_rows(my, (unsigned char)(my + 3u));
-	g_map8000 = 0xFFu;
+	paint_span((unsigned char)(my + 2u), mx, g_rowbuf, mw, COL_MENU);
 }
 
 static unsigned char key_is_enter(unsigned char ch)
@@ -322,12 +344,21 @@ static unsigned char count_free_pages(void)
 	return 0;
 }
 
-static void map8000(unsigned char page)
+static void restore_doc(void)
 {
-	if (page != g_map8000)
+	if (g_home_c000 != 0xFFu && g_map_doc != g_home_c000)
 	{
-		OS_SETPG8000(page);
-		g_map8000 = page;
+		OS_SETPGC000(g_home_c000);
+		g_map_doc = g_home_c000;
+	}
+}
+
+static void map_doc(unsigned char page)
+{
+	if (page != g_map_doc)
+	{
+		OS_SETPGC000(page);
+		g_map_doc = page;
 	}
 }
 
@@ -344,7 +375,7 @@ static void wcache_free_mode(unsigned char mode)
 {
 	unsigned char i;
 
-	if (mode > WRAP_NOLF || !g_wcache[mode].valid)
+	if (mode > WRAP_CHAR || !g_wcache[mode].valid)
 		return;
 	for (i = 0; i < g_wcache[mode].npg; i++)
 		OS_DELPAGE((char)g_wcache[mode].pg[i]);
@@ -357,7 +388,7 @@ static void wcache_invalidate_all(void)
 {
 	unsigned char m;
 
-	for (m = 0; m <= WRAP_NOLF; m++)
+	for (m = 0; m <= WRAP_CHAR; m++)
 		wcache_free_mode(m);
 	g_wcache_enc = 0xFFu;
 	g_npg_line = 0;
@@ -366,7 +397,7 @@ static void wcache_invalidate_all(void)
 
 static void wcache_store(unsigned char mode)
 {
-	if (mode > WRAP_NOLF)
+	if (mode > WRAP_CHAR)
 		return;
 	g_wcache[mode].npg = g_npg_line;
 	g_wcache[mode].nlines = g_nlines;
@@ -404,9 +435,7 @@ static void free_all_pages(void)
 {
 	wcache_invalidate_all();
 	free_file_pages();
-	if (g_home_8000 != 0xFFu)
-		OS_SETPG8000(g_home_8000);
-	g_map8000 = 0xFFu;
+	restore_doc();
 }
 
 static unsigned char alloc_pages(unsigned char *dst, unsigned char need)
@@ -440,8 +469,8 @@ static unsigned char file_byte(unsigned long ofs)
 		return 0;
 	pi = (unsigned int)(ofs >> PAGE_SHIFT);
 	off = (unsigned int)ofs & PAGE_MASK;
-	map8000(g_pg_file[pi]);
-	return *((unsigned char *)(0x8000u + off));
+	map_doc(g_pg_file[pi]);
+	return *((unsigned char *)(DOC_WIN + off));
 }
 
 /* ---- RAW mode: no line cache, scan on the fly (page-pointer walks) ---- */
@@ -462,10 +491,10 @@ static unsigned long raw_next_line(unsigned long ofs)
 		off = (unsigned int)ofs & PAGE_MASK;
 		if ((unsigned char)pi != cur_pg)
 		{
-			map8000(g_pg_file[pi]);
+			map_doc(g_pg_file[pi]);
 			cur_pg = (unsigned char)pi;
 		}
-		p = (unsigned char *)(0x8000u + off);
+		p = (unsigned char *)(DOC_WIN + off);
 		room = PAGE_SIZE - off;
 		if ((unsigned long)room > g_fsize - ofs)
 			room = (unsigned int)(g_fsize - ofs);
@@ -500,15 +529,15 @@ static unsigned long raw_line_start(unsigned long ofs)
 		page_base = ((unsigned long)pi << PAGE_SHIFT);
 		if ((unsigned char)pi != cur_pg)
 		{
-			map8000(g_pg_file[pi]);
+			map_doc(g_pg_file[pi]);
 			cur_pg = (unsigned char)pi;
 		}
-		p = (unsigned char *)(0x8000u + off);
+		p = (unsigned char *)(DOC_WIN + off);
 		left = off + 1u;
 		while (left != 0u)
 		{
 			if (*p == '\n')
-				return page_base + (unsigned long)(p - (unsigned char *)0x8000u) + 1UL;
+				return page_base + (unsigned long)(p - (unsigned char *)0xC000u) + 1UL;
 			if (ofs == 0UL)
 				return 0UL;
 			p--;
@@ -579,8 +608,8 @@ static void line_set(unsigned long idx, unsigned long val)
 
 	pi = (unsigned int)(idx >> 12); /* /4096 */
 	off = (unsigned int)(idx & 4095u) << 2;
-	map8000(g_pg_line[pi]);
-	p = (unsigned char *)(0x8000u + off);
+	map_doc(g_pg_line[pi]);
+	p = (unsigned char *)(DOC_WIN + off);
 	p[0] = (unsigned char)val;
 	p[1] = (unsigned char)(val >> 8);
 	p[2] = (unsigned char)(val >> 16);
@@ -600,8 +629,8 @@ static unsigned long line_get(unsigned long idx)
 	if (pi >= (unsigned int)g_npg_line)
 		return g_fsize;
 	off = (unsigned int)(idx & 4095u) << 2;
-	map8000(g_pg_line[pi]);
-	p = (unsigned char *)(0x8000u + off);
+	map_doc(g_pg_line[pi]);
+	p = (unsigned char *)(DOC_WIN + off);
 	v = (unsigned long)p[0];
 	v |= ((unsigned long)p[1] << 8);
 	v |= ((unsigned long)p[2] << 16);
@@ -611,7 +640,7 @@ static unsigned long line_get(unsigned long idx)
 	return v;
 }
 
-/* Batch-read n consecutive line starts (one map8000 per line-cache page). */
+/* Batch-read n consecutive line starts (one map_doc per line-cache page). */
 static void line_get_range(unsigned long idx0, unsigned char n, unsigned long *out)
 {
 	unsigned char i;
@@ -635,10 +664,10 @@ static void line_get_range(unsigned long idx0, unsigned char n, unsigned long *o
 				off = (unsigned int)((idx0 + (unsigned long)i) & 4095u) << 2;
 				if ((unsigned char)pi != cur_pg)
 				{
-					map8000(g_pg_line[pi]);
+					map_doc(g_pg_line[pi]);
 					cur_pg = (unsigned char)pi;
 				}
-				p = (unsigned char *)(0x8000u + off);
+				p = (unsigned char *)(DOC_WIN + off);
 				v = (unsigned long)p[0];
 				v |= ((unsigned long)p[1] << 8);
 				v |= ((unsigned long)p[2] << 16);
@@ -877,10 +906,10 @@ static unsigned char ensure_line_pages(unsigned long need_idx)
 		if (r > 255u)
 			return 0;
 		g_pg_line[g_npg_line] = (unsigned char)r;
-		map8000(g_pg_line[g_npg_line]);
-		zp = (unsigned char *)0x8000u;
+		map_doc(g_pg_line[g_npg_line]);
+		zp = (unsigned char *)0xC000u;
 		memset(zp, 0, (unsigned int)PAGE_SIZE);
-		g_map8000 = 0xFFu;
+		g_map_doc = 0xFFu;
 		g_npg_line++;
 	}
 	return 1;
@@ -901,8 +930,8 @@ static void line_set_range(unsigned long idx0, unsigned long *vals, unsigned cha
 		nthis = (unsigned int)(LINES_PER_PAGE - ((idx0 + (unsigned long)i) & 4095u));
 		if (nthis > (unsigned int)n - i)
 			nthis = (unsigned int)n - i;
-		map8000(g_pg_line[pi]);
-		p = (unsigned char *)(0x8000u + off);
+		map_doc(g_pg_line[pi]);
+		p = (unsigned char *)(DOC_WIN + off);
 		for (j = 0; j < nthis; j++)
 		{
 			v = vals[i + j];
@@ -914,11 +943,11 @@ static void line_set_range(unsigned long idx0, unsigned long *vals, unsigned cha
 		}
 		i += nthis;
 	}
-	g_map8000 = 0xFFu;
+	g_map_doc = 0xFFu;
 }
 
 /* Must be < 256: bn is unsigned char. */
-#define LINE_BATCH 64
+#define LINE_BATCH 16
 
 static void line_flush_batch(unsigned long batch_base, unsigned char bn, unsigned char file_pg)
 {
@@ -929,11 +958,11 @@ static void line_flush_batch(unsigned long batch_base, unsigned char bn, unsigne
 	line_set_range(batch_base, g_lbatch, bn);
 	if (file_pg != 0xFFu)
 	{
-		map8000(g_pg_file[file_pg]);
-		g_map8000 = file_pg;
+		map_doc(g_pg_file[file_pg]);
+		g_map_doc = file_pg;
 	}
 	else
-		g_map8000 = 0xFFu;
+		g_map_doc = 0xFFu;
 }
 
 static unsigned char index_push_line(unsigned long line_start, unsigned long *idx, unsigned char *bn,
@@ -1002,7 +1031,7 @@ static unsigned char fill_line_cache_sb(void)
 		pi = (unsigned int)(ofs >> PAGE_SHIFT);
 		if ((unsigned char)pi != cur_pg)
 		{
-			map8000(g_pg_file[pi]);
+			map_doc(g_pg_file[pi]);
 			cur_pg = (unsigned char)pi;
 			prog_update((unsigned char)((ofs * 100UL) / g_fsize), " Indexing...");
 		}
@@ -1025,11 +1054,11 @@ static unsigned char fill_line_cache_sb(void)
 			off = (unsigned int)ofs & PAGE_MASK;
 			if ((unsigned char)pi != cur_pg)
 			{
-				map8000(g_pg_file[pi]);
+				map_doc(g_pg_file[pi]);
 				cur_pg = (unsigned char)pi;
 				prog_update((unsigned char)((ofs * 100UL) / g_fsize), " Indexing...");
 			}
-			p = (unsigned char *)(0x8000u + off);
+			p = (unsigned char *)(DOC_WIN + off);
 			room = PAGE_SIZE - off;
 			if ((unsigned long)room > g_fsize - ofs)
 				room = (unsigned int)(g_fsize - ofs);
@@ -1212,8 +1241,8 @@ static unsigned char load_file_to_pages(FILE *fp)
 	g_prog_last = 0xFFu;
 	for (i = 0; i < need; i++)
 	{
-		map8000(g_pg_file[i]);
-		dst = (unsigned char *)0x8000u;
+		map_doc(g_pg_file[i]);
+		dst = (unsigned char *)0xC000u;
 		if (left >= (unsigned long)PAGE_SIZE)
 		{
 			got = OS_READHANDLE(dst, fp, PAGE_SIZE);
@@ -1358,6 +1387,12 @@ static void draw_title(void)
 	paint_row(ROW_TITLE, COL_TITLE, g_rowbuf);
 }
 
+static void update_title(void)
+{
+	draw_title();
+	flush_row(ROW_TITLE);
+}
+
 static void draw_status(const char *msg)
 {
 	unsigned char i;
@@ -1437,10 +1472,10 @@ static unsigned long text_skip_cols(unsigned long ofs, unsigned long end,
 		off = (unsigned int)ofs & PAGE_MASK;
 		if ((unsigned char)pi != cur_pg)
 		{
-			map8000(g_pg_file[pi]);
+			map_doc(g_pg_file[pi]);
 			cur_pg = (unsigned char)pi;
 		}
-		p = (unsigned char *)(0x8000u + off);
+		p = (unsigned char *)(DOC_WIN + off);
 		room = PAGE_SIZE - off;
 		if ((unsigned long)room > end - ofs)
 			room = (unsigned int)(end - ofs);
@@ -1509,10 +1544,10 @@ static void hex_fill_row_fast(unsigned long base)
 		off = (unsigned int)pos & PAGE_MASK;
 		if ((unsigned char)pi != cur_pg)
 		{
-			map8000(g_pg_file[pi]);
+			map_doc(g_pg_file[pi]);
 			cur_pg = (unsigned char)pi;
 		}
-		b = *((unsigned char *)(0x8000u + off));
+		b = *((unsigned char *)(DOC_WIN + off));
 		g_rowbuf[hx] = hex_digit((unsigned char)(b >> 4));
 		g_rowbuf[hx + 1u] = hex_digit(b);
 		g_rowbuf[ascii_at + i] = (b < 0x20u || b == 0x7Fu) ? '.' : b;
@@ -1582,10 +1617,10 @@ static void text_fill_row_mem(unsigned long ofs, unsigned long end, unsigned lon
 		off = (unsigned int)ofs & PAGE_MASK;
 		if ((unsigned char)pi != cur_pg)
 		{
-			map8000(g_pg_file[pi]);
+			map_doc(g_pg_file[pi]);
 			cur_pg = (unsigned char)pi;
 		}
-		p = (unsigned char *)(0x8000u + off);
+		p = (unsigned char *)(DOC_WIN + off);
 		room = PAGE_SIZE - off;
 		if ((unsigned long)room > end - ofs)
 			room = (unsigned int)(end - ofs);
@@ -1636,8 +1671,6 @@ static void text_fill_row_fast(unsigned long line)
 
 static void flush_view(void)
 {
-	vtxt_present_rows(ROW_TEXT0, (unsigned char)(ROW_TEXT0 + VIEW_ROWS));
-	g_map8000 = 0xFFu;
 }
 
 static void paint_view(void)
@@ -1740,17 +1773,20 @@ static void scroll_down_one(void)
 		else
 			vis = g_raw_bot;
 		g_raw_vis[VIEW_ROWS - 1u] = vis;
+		restore_doc();
 		OS_SCROLLUP(OS_SCROLL_XY(ROW_TEXT0, 0), OS_SCROLL_WH(VIEW_ROWS, COLS));
 		color = COL_TEXT;
 		text_fill_row_mem(vis, end, 0UL);
 		paint_row((unsigned char)(ROW_TEXT0 + VIEW_ROWS - 1u), color, g_rowbuf);
 		flush_row((unsigned char)(ROW_TEXT0 + VIEW_ROWS - 1u));
+		update_title();
 		return;
 	}
 
 	if (g_view_line >= view_max())
 		return;
 	g_view_line++;
+	restore_doc();
 	OS_SCROLLUP(OS_SCROLL_XY(ROW_TEXT0, 0), OS_SCROLL_WH(VIEW_ROWS, COLS));
 	color = (g_mode == MODE_HEX) ? COL_HEX : COL_TEXT;
 	nlines = (g_mode == MODE_HEX) ? hex_nlines() : g_nlines;
@@ -1763,6 +1799,7 @@ static void scroll_down_one(void)
 		text_fill_row_fast(line);
 	paint_row((unsigned char)(ROW_TEXT0 + VIEW_ROWS - 1u), color, g_rowbuf);
 	flush_row((unsigned char)(ROW_TEXT0 + VIEW_ROWS - 1u));
+	update_title();
 }
 
 static void scroll_up_one(void)
@@ -1793,17 +1830,20 @@ static void scroll_up_one(void)
 		else
 			vis = g_view_ofs;
 		g_raw_vis[0] = vis;
+		restore_doc();
 		OS_SCROLLDOWN(OS_SCROLL_XY(ROW_TEXT0, 0), OS_SCROLL_WH(VIEW_ROWS, COLS));
 		color = COL_TEXT;
 		text_fill_row_mem(vis, end, 0UL);
 		paint_row(ROW_TEXT0, color, g_rowbuf);
 		flush_row(ROW_TEXT0);
+		update_title();
 		return;
 	}
 
 	if (g_view_line == 0UL)
 		return;
 	g_view_line--;
+	restore_doc();
 	OS_SCROLLDOWN(OS_SCROLL_XY(ROW_TEXT0, 0), OS_SCROLL_WH(VIEW_ROWS, COLS));
 	color = (g_mode == MODE_HEX) ? COL_HEX : COL_TEXT;
 	if (g_mode == MODE_HEX)
@@ -1812,6 +1852,7 @@ static void scroll_up_one(void)
 		text_fill_row_fast(g_view_line);
 	paint_row(ROW_TEXT0, color, g_rowbuf);
 	flush_row(ROW_TEXT0);
+	update_title();
 }
 
 static void page_down(void)
@@ -1943,6 +1984,7 @@ static void scroll_left(void)
 	else
 		g_view_col = 0UL;
 	paint_raw_horiz();
+	update_title();
 }
 
 static void scroll_right(void)
@@ -1951,6 +1993,7 @@ static void scroll_right(void)
 		return;
 	g_view_col += 4UL;
 	paint_raw_horiz();
+	update_title();
 }
 
 static void rebuild_wrap(void)
@@ -1994,7 +2037,46 @@ static void rebuild_wrap(void)
 static void build_find_pat(void)
 {
 	unsigned int i, o;
-	unsigned char c, t;
+	unsigned char c, t, hi, n, v;
+
+	if (g_mode == MODE_HEX)
+	{
+		o = 0;
+		hi = 0;
+		n = 0;
+		for (i = 0; g_find_cp866[i] != 0 && o < PAT_MAX; i++)
+		{
+			c = g_find_cp866[i];
+			if (c == ' ')
+				continue;
+			v = (unsigned char)(c - '0');
+			if (v <= 9u)
+				t = v;
+			else
+			{
+				c = (unsigned char)(c | 0x20u);
+				if (c >= 'a' && c <= 'f')
+					t = (unsigned char)(c - 'a' + 10u);
+				else
+				{
+					g_find_pat_len = 0;
+					return;
+				}
+			}
+			if (!n)
+			{
+				hi = t;
+				n = 1;
+			}
+			else
+			{
+				g_find_pat[o++] = (unsigned char)((hi << 4) | t);
+				n = 0;
+			}
+		}
+		g_find_pat_len = n ? 0u : o;
+		return;
+	}
 
 	o = 0;
 	for (i = 0; g_find_cp866[i] != 0 && o + 3u < PAT_MAX; i++)
@@ -2091,11 +2173,11 @@ static unsigned long find_scan(unsigned long start, unsigned long end)
 		off = (unsigned int)pos & PAGE_MASK;
 		if ((unsigned char)pi != cur_pg)
 		{
-			map8000(g_pg_file[pi]);
+			map_doc(g_pg_file[pi]);
 			cur_pg = (unsigned char)pi;
 			YIELD();
 		}
-		p = (unsigned char *)(0x8000u + off);
+		p = (unsigned char *)(DOC_WIN + off);
 		room = PAGE_SIZE - off;
 		if ((unsigned long)room > end - pos + 1UL)
 			room = (unsigned int)(end - pos + 1UL);
@@ -2115,10 +2197,10 @@ static unsigned long find_scan(unsigned long start, unsigned long end)
 					off2 = (unsigned int)q & PAGE_MASK;
 					if ((unsigned char)pi2 != cur_pg)
 					{
-						map8000(g_pg_file[pi2]);
+						map_doc(g_pg_file[pi2]);
 						cur_pg = (unsigned char)pi2;
 					}
-					if (*((unsigned char *)(0x8000u + off2)) != g_find_pat[i])
+					if (*((unsigned char *)(DOC_WIN + off2)) != g_find_pat[i])
 					{
 						ok = 0;
 						break;
@@ -2138,7 +2220,7 @@ static unsigned long find_scan(unsigned long start, unsigned long end)
 static void prompt_find(void)
 {
 	unsigned char buf[FIND_MAX + 2];
-	unsigned char i, ch, len;
+	unsigned char i, ch, len, v;
 
 	len = 0;
 	buf[0] = 0;
@@ -2160,15 +2242,29 @@ static void prompt_find(void)
 	{
 		fill_spaces(g_rowbuf, COLS);
 		g_rowbuf[0] = ' ';
-		g_rowbuf[1] = 'F';
-		g_rowbuf[2] = 'i';
-		g_rowbuf[3] = 'n';
-		g_rowbuf[4] = 'd';
-		g_rowbuf[5] = ':';
-		g_rowbuf[6] = ' ';
-		for (i = 0; i < len; i++)
-			g_rowbuf[7u + i] = buf[i];
-		g_rowbuf[7u + len] = '_';
+		if (g_mode == MODE_HEX)
+		{
+			g_rowbuf[1] = 'H';
+			g_rowbuf[2] = 'e';
+			g_rowbuf[3] = 'x';
+			g_rowbuf[4] = ':';
+			g_rowbuf[5] = ' ';
+			for (i = 0; i < len; i++)
+				g_rowbuf[6u + i] = buf[i];
+			g_rowbuf[6u + len] = '_';
+		}
+		else
+		{
+			g_rowbuf[1] = 'F';
+			g_rowbuf[2] = 'i';
+			g_rowbuf[3] = 'n';
+			g_rowbuf[4] = 'd';
+			g_rowbuf[5] = ':';
+			g_rowbuf[6] = ' ';
+			for (i = 0; i < len; i++)
+				g_rowbuf[7u + i] = buf[i];
+			g_rowbuf[7u + len] = '_';
+		}
 		paint_row(ROW_STATUS, COL_DLG, g_rowbuf);
 		flush_row(ROW_STATUS);
 
@@ -2195,10 +2291,30 @@ static void prompt_find(void)
 			}
 			continue;
 		}
-		if (key_is_printable(ch) && len < FIND_MAX)
+		if (len < FIND_MAX)
 		{
-			buf[len++] = ch;
-			buf[len] = 0;
+			if (g_mode == MODE_HEX)
+			{
+				if (ch == ' ')
+				{
+					buf[len++] = ch;
+					buf[len] = 0;
+				}
+				else
+				{
+					v = (unsigned char)(ch - '0');
+					if (v <= 9u || ((ch | 0x20u) >= 'a' && (ch | 0x20u) <= 'f'))
+					{
+						buf[len++] = ch;
+						buf[len] = 0;
+					}
+				}
+			}
+			else if (key_is_printable(ch))
+			{
+				buf[len++] = ch;
+				buf[len] = 0;
+			}
 		}
 	}
 	if (len == 0u)
@@ -2219,13 +2335,18 @@ static void do_find(unsigned char from_prompt)
 
 	if (from_prompt)
 		prompt_find();
-	if (!g_have_find || g_find_pat_len == 0u)
+	if (!g_have_find)
 	{
 		draw_status(0);
 		flush_screen();
 		return;
 	}
 	build_find_pat();
+	if (g_find_pat_len == 0u)
+	{
+		status_msg(g_mode == MODE_HEX ? " Bad hex." : " Empty.");
+		return;
+	}
 
 	status_msg(" Searching...");
 
@@ -2286,7 +2407,8 @@ static void show_help(void)
 	unsigned char i, n, j;
 
 	n = (unsigned char)(sizeof(lines) / sizeof(lines[0]));
-	vtxt_clear(' ', COL_HELP);
+	restore_doc();
+	OS_CLS(COL_HELP);
 	for (i = 0; i < n && i < 22u; i++)
 	{
 		fill_spaces(g_rowbuf, COLS);
@@ -2337,7 +2459,7 @@ static unsigned char show_list_menu(const char *title, const char *const *items,
 		k = 2u;
 		for (j = 0; title[j] && k < iw; j++, k++)
 			g_rowbuf[k] = (unsigned char)title[j];
-		vtxt_puts_span(my, mx, g_rowbuf, mw, COL_MENU);
+		paint_span(my, mx, g_rowbuf, mw, COL_MENU);
 
 		for (i = 0; i < nitems; i++)
 		{
@@ -2347,9 +2469,9 @@ static unsigned char show_list_menu(const char *title, const char *const *items,
 			g_rowbuf[mw - 1u] = 0xBA;
 			for (j = 0; items[i][j] && (unsigned char)(2u + j) < (unsigned char)(mw - 1u); j++)
 				g_rowbuf[2u + j] = (unsigned char)items[i][j];
-			vtxt_puts_span((unsigned char)(my + 1u + i), mx, g_rowbuf, mw, COL_MENU);
+			paint_span((unsigned char)(my + 1u + i), mx, g_rowbuf, mw, COL_MENU);
 			if (i == sel)
-				vtxt_puts_span((unsigned char)(my + 1u + i),
+				paint_span((unsigned char)(my + 1u + i),
 					(unsigned char)(mx + 2u), &g_rowbuf[2],
 					(unsigned char)(mw - 4u), COL_MENU_SEL);
 		}
@@ -2358,9 +2480,7 @@ static unsigned char show_list_menu(const char *title, const char *const *items,
 		for (j = 1; j < mw - 1u; j++)
 			g_rowbuf[j] = 0xCD;
 		g_rowbuf[mw - 1u] = 0xBC;
-		vtxt_puts_span((unsigned char)(my + 1u + nitems), mx, g_rowbuf, mw, COL_MENU);
-
-		vtxt_present_rows(my, (unsigned char)(my + mh));
+		paint_span((unsigned char)(my + 1u + nitems), mx, g_rowbuf, mw, COL_MENU);
 
 		ch = read_key();
 		if (ch == 0)
@@ -2503,8 +2623,8 @@ C_task main(int argc, char *argv[])
 	os_initstdio();
 	g_npg_file = 0;
 	g_npg_line = 0;
-	g_map8000 = 0xFFu;
-	g_home_8000 = 0xFFu;
+	g_map_doc = 0xFFu;
+	g_home_c000 = 0xFFu;
 	g_wcache_enc = 0xFFu;
 
 	if (argc < 2 || argv[1] == 0 || argv[1][0] == 0)
@@ -2525,16 +2645,12 @@ C_task main(int argc, char *argv[])
 
 	g_fsize = OS_GETFILESIZE(fp);
 	main_pg.l = OS_GETMAINPAGES();
-	g_home_8000 = main_pg.pgs.window_2;
+	g_home_c000 = main_pg.pgs.window_3;
+	g_map_doc = g_home_c000;
 
 	OS_SETGFX(0x86);
-	if (!vtxt_init())
-	{
-		printf("vtxt_init failed\r\n");
-		OS_CLOSEHANDLE(fp);
-		return 1;
-	}
-	vtxt_clear(' ', COL_TEXT);
+	restore_doc();
+	OS_CLS(COL_TEXT);
 	draw_progress(0, " Loading...");
 
 	if (!load_file_to_pages(fp))
@@ -2656,9 +2772,9 @@ C_task main(int argc, char *argv[])
 		}
 	}
 
-	vtxt_shutdown();
 	free_all_pages();
 	OS_SETGFX(0x86);
+	restore_doc();
 	OS_CLS(MKCOLOR(BR_NORMAL, PAPER_BLACK, INK_WHITE));
 	return 0;
 }
