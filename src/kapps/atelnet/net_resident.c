@@ -1,13 +1,252 @@
 #pragma language=extended
 #pragma codeseg(CODE_RESIDENT)
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <oscalls.h>
 #include "netglue.h"
 
-#include "../common/network.c"
+static unsigned char dnsPkt[512];
+
+static void delayLong(unsigned long counter)
+{
+  unsigned long finish;
+
+  counter = counter / 20;
+  if (counter < 1)
+  {
+    counter = 1;
+  }
+  finish = time() + counter;
+  while (time() < finish)
+  {
+    YIELD();
+  }
+}
+
+static char OpenSock(unsigned char family, unsigned char protocol)
+{
+  unsigned int todo;
+
+  todo = OS_NETSOCKET((family << 8) + protocol);
+  if (!OS_CALL_OK(todo))
+  {
+    return 0 - OS_CALL_ERR(todo);
+  }
+  return OS_CALL_SOCKET(todo);
+}
+
+char netShutDown(signed char socket, unsigned char type)
+{
+  unsigned int todo;
+  unsigned char err;
+
+  if (socket < 0)
+  {
+    return socket;
+  }
+
+  for (;;)
+  {
+    todo = OS_NETSHUTDOWN(socket, type);
+    if (OS_CALL_OK(todo))
+    {
+      return socket;
+    }
+
+    err = OS_CALL_ERR(todo);
+    if (type == 1 && err == ERR_EAGAIN)
+    {
+      YIELD();
+      continue;
+    }
+    return 0 - err;
+  }
+}
+
+static char netConnect(signed char socket, unsigned char retry)
+{
+  unsigned int todo;
+
+  todo = 0;
+  while (retry != 0)
+  {
+    todo = OS_NETCONNECT(socket, &targetadr);
+    if (OS_CALL_OK(todo))
+    {
+      return socket;
+    }
+
+    retry--;
+    if (retry == 0)
+    {
+      break;
+    }
+
+    delayLong(150);
+    netShutDown(socket, 0);
+    socket = OpenSock(AF_INET, SOCK_STREAM);
+    if (socket < 0)
+    {
+      return socket;
+    }
+  }
+
+  netShutDown(socket, 0);
+  return 0 - OS_CALL_ERR(todo);
+}
+
+int tcpSend(signed char socket, unsigned int messageadr, unsigned int size, unsigned char retry)
+{
+  unsigned int todo;
+
+  todo = 0;
+  readStruct.socket = socket;
+  readStruct.BufAdr = messageadr;
+  readStruct.bufsize = size;
+  readStruct.protocol = SOCK_STREAM;
+  while (retry != 0)
+  {
+    todo = OS_WIZNETWRITE(&readStruct);
+    if (OS_CALL_OK(todo))
+    {
+      return todo;
+    }
+
+    retry--;
+    if (retry != 0)
+    {
+      delayLong(100);
+    }
+  }
+  return 0 - OS_CALL_ERR(todo);
+}
+
+static unsigned char dnsResolve(const char *domainName)
+{
+  int socket;
+  unsigned char retry;
+  unsigned int todo, queryPos, queryType, domainLng, comaCount, reqSize;
+  unsigned int loop;
+  unsigned char buf[128];
+  static unsigned char dnsQuery1[] = {0x11, 0x22, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  static unsigned char dnsQuery2[] = {0x00, 0x00, 0x01, 0x00, 0x01};
+
+  domainLng = strlen(domainName);
+  if (domainLng == 0 || domainLng > 126)
+  {
+    return 0;
+  }
+
+  comaCount = 0;
+  loop = domainLng;
+  buf[loop + 1] = 0;
+
+  do
+  {
+    if (domainName[loop - 1] == '.')
+    {
+      buf[loop] = comaCount;
+      comaCount = 0;
+    }
+    else
+    {
+      buf[loop] = domainName[loop - 1];
+      comaCount++;
+    }
+    loop--;
+  } while (loop != 0);
+  buf[0] = comaCount;
+
+  memcpy(dnsPkt, dnsQuery1, sizeof(dnsQuery1));
+  memcpy(dnsPkt + sizeof(dnsQuery1), buf, domainLng + 1);
+  memcpy(dnsPkt + domainLng + sizeof(dnsQuery1) + 1, dnsQuery2, sizeof(dnsQuery2));
+  reqSize = sizeof(dnsQuery1) + sizeof(dnsQuery2) + domainLng + 1;
+
+  socket = OpenSock(AF_INET, SOCK_DGRAM);
+  if (socket < 0)
+  {
+    return 0;
+  }
+
+  readStruct.socket = socket;
+  readStruct.BufAdr = (unsigned int)&dnsPkt;
+  readStruct.bufsize = (unsigned int)reqSize;
+  readStruct.protocol = SOCK_DGRAM;
+
+  todo = OS_WIZNETWRITE_UDP(&readStruct, &dnsaddress);
+  if (!OS_CALL_OK(todo))
+  {
+    netShutDown(socket, 0);
+    return 0;
+  }
+
+  readStruct.BufAdr = (unsigned int)&dnsPkt;
+  readStruct.bufsize = (unsigned int)sizeof(dnsPkt);
+  retry = 10;
+  do
+  {
+    todo = OS_WIZNETREAD_UDP(&readStruct, &dnsaddress);
+    if (!OS_CALL_OK(todo))
+    {
+      if (retry == 0)
+      {
+        netShutDown(socket, 0);
+        return 0;
+      }
+      retry--;
+      delayLong(80);
+    }
+  } while (!OS_CALL_OK(todo));
+
+  netShutDown(socket, 0);
+
+  if ((dnsPkt[2] & 0x80) == 0 || (dnsPkt[3] & 0x0f) != 0)
+  {
+    return 0;
+  }
+
+  queryPos = 11;
+  do
+  {
+    queryPos++;
+  } while (dnsPkt[queryPos] != 0);
+
+  queryPos = queryPos + 7;
+  do
+  {
+    unsigned int queryLng;
+    if (queryPos > sizeof(dnsPkt) - 11)
+    {
+      return 0;
+    }
+    queryType = dnsPkt[queryPos] * 256 + dnsPkt[queryPos + 1];
+
+    queryPos = queryPos + 8;
+
+    queryLng = dnsPkt[queryPos] * 256 + dnsPkt[queryPos + 1];
+    queryPos = queryPos + queryLng + 4;
+  } while (queryType != 1);
+
+  targetadr.b1 = dnsPkt[queryPos - 6];
+  targetadr.b2 = dnsPkt[queryPos - 5];
+  targetadr.b3 = dnsPkt[queryPos - 4];
+  targetadr.b4 = dnsPkt[queryPos - 3];
+
+  return 1;
+}
+
+static void get_dns(void)
+{
+  unsigned char ipaddress[4];
+  OS_GETDNS(ipaddress);
+  dnsaddress.family = AF_INET;
+  dnsaddress.porth = 00;
+  dnsaddress.portl = 53;
+  dnsaddress.b1 = ipaddress[0];
+  dnsaddress.b2 = ipaddress[1];
+  dnsaddress.b3 = ipaddress[2];
+  dnsaddress.b4 = ipaddress[3];
+}
 
 void net_init(void)
 {
@@ -21,7 +260,7 @@ void net_init(void)
   targetadr.b4 = 0u;
 }
 
-int net_parse_ipv4(const char *host, unsigned char *out4)
+static int net_parse_ipv4(const char *host, unsigned char *out4)
 {
   unsigned int octet;
   unsigned char idx;

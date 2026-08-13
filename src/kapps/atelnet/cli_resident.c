@@ -10,7 +10,7 @@
 
 static const char ver[] = "atelnet 1.82";
 
-static void r_wait_key(void)
+void r_wait_key(void)
 {
   do
   {
@@ -46,15 +46,8 @@ int r_host_looks_like_file(const char *host)
   {
     return 0;
   }
-  if (strcmp(dot, ".ans") == 0 || strcmp(dot, ".ANS") == 0)
-  {
-    return 1;
-  }
-  if (strcmp(dot, ".asc") == 0 || strcmp(dot, ".ASC") == 0)
-  {
-    return 1;
-  }
-  return 0;
+  return strcmp(dot, ".ans") == 0 || strcmp(dot, ".ANS") == 0
+      || strcmp(dot, ".asc") == 0 || strcmp(dot, ".ASC") == 0;
 }
 
 void r_show_usage(void)

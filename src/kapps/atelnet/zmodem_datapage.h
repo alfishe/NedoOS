@@ -2,7 +2,7 @@
 #define ZMODEM_DATAPAGE_H
 
 /*
- * Zmodem bulk buffers in g_dataPg @ C000 while at_zmodem_bank_enter() is active.
+ * Zmodem bulk buffers in g_dataPg @ C000 while that page is mapped.
  *
  * Offset   Size     Symbol / use
  * ------   ----     ------------

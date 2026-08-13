@@ -8,14 +8,7 @@
 
 extern void term_palette_begin(void);
 extern void term_palette_restore(void);
-
-static void r_wait_key(void)
-{
-  do
-  {
-    YIELD();
-  } while ((OS_GETKEY() & 0xFFL) == 0L);
-}
+extern void r_wait_key(void);
 
 void r_show_connecting(const char *host, unsigned int port)
 {

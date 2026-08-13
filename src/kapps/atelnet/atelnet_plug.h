@@ -3,20 +3,11 @@
 
 #include <oscalls.h>
 
-#define AT_BANK_SLOT_RESIDENT 0u
-#define AT_BANK_SLOT_DATA     1u
-
 extern unsigned char residentPg;
 extern unsigned char g_dataPg;
-extern union APP_PAGES main_pg;
 
 void at_init_banks(void);
-void at_resident_map(void);
-unsigned char at_zmodem_bank_enter(void);
-void at_zmodem_bank_leave(unsigned char saved);
-
 void at_path_to_ini(unsigned char *saved_path);
-
 void at_path_to_downloads(unsigned char *saved_path);
 
 int r_telbook_run(char *host, unsigned int host_sz, unsigned int *port,

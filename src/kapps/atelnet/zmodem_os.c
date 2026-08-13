@@ -120,7 +120,7 @@ void zm_dp_map_ensure(void)
   }
   if (bank_window_current() != g_dataPg)
   {
-    bank_window_map(g_dataPg);
+    SETPG32KHIGH(g_dataPg);
   }
 }
 

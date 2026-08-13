@@ -121,11 +121,6 @@ static const char telbook_default[] =
   "Music Station|musicstation.bsrealm.net|23|866\r\n"
   "HispaMSX|bbs.hispamsx.org|23|437\r\n";
 
-static unsigned char telbook_total_items(void)
-{
-  return telbook_count;
-}
-
 static void telbook_trim_line(char *s)
 {
   unsigned int n;
@@ -159,18 +154,6 @@ static void telbook_clear_entry(TelBookEntry *e)
   e->host[0] = 0;
   e->port = 23u;
   e->cp866 = 0u;
-}
-
-static unsigned char telbook_parse_cp(const char *s)
-{
-  unsigned long v;
-
-  v = strtoul(s, NULL, 10);
-  if (v == 866ul)
-  {
-    return 1u;
-  }
-  return 0u;
 }
 
 static int telbook_parse_line(char *line, TelBookEntry *e)
@@ -221,7 +204,7 @@ static int telbook_parse_line(char *line, TelBookEntry *e)
   e->host[TELBOOK_HOST_STORE] = 0;
   port = strtoul(p2, NULL, 10);
   e->port = (port > 0ul && port <= 65535ul) ? (unsigned int)port : 23u;
-  e->cp866 = telbook_parse_cp(p3);
+  e->cp866 = (strtoul(p3, NULL, 10) == 866ul) ? 1u : 0u;
   if (e->label[0] == 0)
   {
     strncpy(e->label, e->host, TELBOOK_LABEL_LEN);
@@ -321,14 +304,6 @@ static void telbook_seed_defaults(void)
   telbook_dirty = 1u;
 }
 
-static void telbook_ensure_entries(void)
-{
-  if (telbook_count == 0u)
-  {
-    telbook_seed_defaults();
-  }
-}
-
 static int telbook_save(void)
 {
   FILE *fp;
@@ -371,14 +346,6 @@ static int telbook_save(void)
   telbook_dirty = 0u;
   OS_CHDIR(telbook_io_path);
   return 1;
-}
-
-static void telbook_wait_key(void)
-{
-  do
-  {
-    YIELD();
-  } while ((OS_GETKEY() & 0xFFL) == 0L);
 }
 
 static void telbook_fill_rect(unsigned char x, unsigned char y, unsigned char w, unsigned char h, unsigned char attr)
@@ -428,10 +395,8 @@ static void telbook_draw_frame(void)
   putchar((int)TELBOOK_SYM_TL);
   for (x = 1u; x <= 78u; x++)
   {
-    OS_SETXY(x, TELBOOK_FRAME_Y);
     putchar((int)TELBOOK_SYM_H);
   }
-  OS_SETXY(79u, TELBOOK_FRAME_Y);
   putchar((int)TELBOOK_SYM_TR);
 
   for (y = 2u; y < TELBOOK_FRAME_BOT; y++)
@@ -446,10 +411,8 @@ static void telbook_draw_frame(void)
   putchar((int)TELBOOK_SYM_BL);
   for (x = 1u; x <= 78u; x++)
   {
-    OS_SETXY(x, TELBOOK_FRAME_BOT);
     putchar((int)TELBOOK_SYM_H);
   }
-  OS_SETXY(79u, TELBOOK_FRAME_BOT);
   putchar((int)TELBOOK_SYM_BR);
 }
 
@@ -562,29 +525,9 @@ static void telbook_build_row(char *line, unsigned char item_idx, unsigned char 
   telbook_paste(line, TB_ROW_O_CP, TB_W_CP, telbook_field_buf);
 }
 
-static unsigned char telbook_field_x(unsigned char field)
-{
-  switch (field)
-  {
-    case TELBOOK_F_LABEL: return TB_X_LABEL;
-    case TELBOOK_F_HOST: return TB_X_HOST;
-    case TELBOOK_F_PORT: return TB_X_PORT;
-    case TELBOOK_F_CP: return TB_X_CP;
-    default: return TB_X_LABEL;
-  }
-}
-
-static unsigned char telbook_field_w(unsigned char field)
-{
-  switch (field)
-  {
-    case TELBOOK_F_LABEL: return TB_W_LABEL;
-    case TELBOOK_F_HOST: return TB_W_HOST;
-    case TELBOOK_F_PORT: return TB_W_PORT;
-    case TELBOOK_F_CP: return TB_W_CP;
-    default: return TB_W_LABEL;
-  }
-}
+static const unsigned char telbook_fld_x[] = {
+  TB_X_LABEL, TB_X_HOST, TB_X_PORT, TB_X_CP
+};
 
 static void telbook_draw_inner_line(unsigned char y, const char *line, unsigned char attr)
 {
@@ -598,11 +541,6 @@ static void telbook_draw_inner_line(unsigned char y, const char *line, unsigned 
   }
 }
 
-static void telbook_park_cursor(void)
-{
-  OS_SETXY(0u, 24u);
-}
-
 static void telbook_draw_edit_cursor(unsigned char y, unsigned char item_idx, const char *line)
 {
   unsigned char fx;
@@ -614,7 +552,7 @@ static void telbook_draw_edit_cursor(unsigned char y, unsigned char item_idx, co
     return;
   }
 
-  fx = telbook_field_x(telbook_ed_field);
+  fx = telbook_fld_x[telbook_ed_field];
   cx = (unsigned char)(fx + telbook_ed_curs);
   if (cx < TB_INNER_X || cx >= TB_INNER_X + TB_INNER_W)
   {
@@ -644,12 +582,6 @@ static void telbook_draw_row(unsigned char vis_y, unsigned char item_idx)
   telbook_draw_edit_cursor(y, item_idx, telbook_draw_line);
 }
 
-static void telbook_draw_header_row(void)
-{
-  telbook_build_header(telbook_draw_line);
-  telbook_draw_inner_line(TELBOOK_HDR_Y, telbook_draw_line, TELBOOK_ATTR_HDR);
-}
-
 static void telbook_draw_item_if_visible(unsigned char item_idx)
 {
   unsigned char q;
@@ -669,11 +601,12 @@ static void telbook_draw_list(void)
 {
   unsigned char q;
 
-  telbook_draw_header_row();
+  telbook_build_header(telbook_draw_line);
+  telbook_draw_inner_line(TELBOOK_HDR_Y, telbook_draw_line, TELBOOK_ATTR_HDR);
   for (q = 0u; q < TELBOOK_VIEW_H; q++)
   {
     unsigned char item = (unsigned char)(q + tel_scroll);
-    if (item < telbook_total_items())
+    if (item < telbook_count)
     {
       telbook_draw_row(q, item);
     }
@@ -705,7 +638,7 @@ static void telbook_clamp_scroll(void)
 {
   unsigned char total;
 
-  total = telbook_total_items();
+  total = telbook_count;
   if (tel_sel >= total)
   {
     tel_sel = (unsigned char)(total - 1u);
@@ -718,11 +651,6 @@ static void telbook_clamp_scroll(void)
   {
     tel_scroll = (unsigned char)(tel_sel - TELBOOK_VIEW_H + 1u);
   }
-}
-
-static void telbook_port_sync_from_entry(unsigned char idx)
-{
-  sprintf(telbook_port_edit, "%u", telbook[idx].port);
 }
 
 static void telbook_port_sync_to_entry(unsigned char idx)
@@ -746,7 +674,7 @@ static void telbook_begin_edit(unsigned char idx)
   telbook_ed_field = TELBOOK_F_LABEL;
   telbook_ed_curs = (unsigned char)strlen(telbook[idx].label);
   telbook_ed_replace = 0u;
-  telbook_port_sync_from_entry(idx);
+  sprintf(telbook_port_edit, "%u", telbook[idx].port);
 }
 
 static void telbook_end_edit(unsigned char apply)
@@ -839,7 +767,7 @@ static void telbook_edit_next_field(unsigned char idx, signed char delta)
   }
   if (telbook_ed_field == TELBOOK_F_PORT)
   {
-    telbook_port_sync_from_entry(idx);
+    sprintf(telbook_port_edit, "%u", telbook[idx].port);
   }
   telbook_ed_replace = 1u;
   telbook_ed_curs = (unsigned char)strlen(telbook_edit_buf(idx, telbook_ed_field));
@@ -1105,7 +1033,10 @@ int r_telbook_run(char *host, unsigned int host_sz, unsigned int *port,
   telbook_debug = (debug != 0u && *debug != 0u) ? 1u : 0u;
   telbook_editing = 0u;
   telbook_load();
-  telbook_ensure_entries();
+  if (telbook_count == 0u)
+  {
+    telbook_seed_defaults();
+  }
   tel_sel = 0u;
   tel_scroll = 0u;
   telbook_draw_static();
@@ -1125,7 +1056,7 @@ int r_telbook_run(char *host, unsigned int host_sz, unsigned int *port,
     }
     if (telbook_editing != 0u)
     {
-      telbook_park_cursor();
+      OS_SETXY(0u, 24u);
     }
 
     YIELD();
@@ -1149,7 +1080,7 @@ int r_telbook_run(char *host, unsigned int host_sz, unsigned int *port,
       }
     }
 
-    total = telbook_total_items();
+    total = telbook_count;
     if (key == TELBOOK_KEY_UP || key == 'A' || key == 'a')
     {
       if (tel_sel > 0u)

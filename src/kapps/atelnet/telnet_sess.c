@@ -4,11 +4,8 @@
 #include <oscalls.h>
 #include "term.h"
 #include "netglue.h"
-#include "atelnet_net.h"
-#include "atelnet_boot.h"
 #include "atelnet_plug.h"
 #include "app_bank.h"
-#include "telbook.h"
 #include "telnet_sess.h"
 #include "zmodem.h"
 
@@ -35,7 +32,6 @@
 #define TXBUF_SIZE 256u
 #define IDLE_HINT_LOOPS 120000ul
 
-/* BDOS key codes (sysdefs.asm ext0=F10, ext2=F2, cs5..cs8 arrows). */
 #define KEY_LEFT   248u
 #define KEY_DOWN   249u
 #define KEY_UP     250u
@@ -48,6 +44,11 @@
 #define KEY_F10    176u
 #define KEY_ENTER  13u
 #define KEY_CSENTER 253u
+
+#define XFER_ZSEND 0u
+#define XFER_ZRECV 1u
+#define XFER_YRECV 2u
+#define XFER_XRECV 3u
 
 static signed char g_socket = -1;
 static unsigned char g_rx_state;
@@ -69,37 +70,52 @@ static unsigned int g_ga_tx;
 static unsigned long g_idle_loops;
 
 static void telnet_flush_ga_debt(void);
-
 static int telnet_poll_rx(void);
-static char g_book_host[128];
 static char g_cur_host[128];
-
-static void telnet_count_tx(unsigned int n)
-{
-  g_tx_total += n;
-}
 
 static void telnet_flush_tx(void)
 {
   int sent;
   unsigned int done;
+  unsigned char zm;
+  unsigned char saved;
+
+  if (g_txlen == 0u)
+  {
+    return;
+  }
+
+  zm = zm_io_active();
+  if (zm != 0u)
+  {
+    saved = bank_push(residentPg);
+  }
+  else
+  {
+    saved = 0u;
+  }
 
   while (g_txlen > 0u)
   {
-    sent = at_tcpSend(g_socket, (unsigned int)g_txbuf, g_txlen, 3u);
+    sent = tcpSend(g_socket, (unsigned int)g_txbuf, g_txlen, 3u);
     if (sent <= 0)
     {
-      return;
+      break;
     }
     done = (unsigned int)sent;
-    telnet_count_tx(done);
+    g_tx_total += done;
     if (done >= g_txlen)
     {
       g_txlen = 0u;
-      return;
+      break;
     }
     memmove(g_txbuf, g_txbuf + done, g_txlen - done);
     g_txlen = (unsigned char)(g_txlen - done);
+  }
+
+  if (zm != 0u)
+  {
+    SETPG32KHIGH(saved);
   }
 }
 
@@ -147,37 +163,29 @@ static void telnet_send_ttype(void)
   telnet_send_byte(TN_SE);
 }
 
-static void telnet_handle_do(unsigned char opt)
-{
-  switch (opt)
-  {
-  case TN_NAWS:
-    telnet_send_iac(TN_WILL, opt);
-    telnet_send_naws();
-    telnet_flush_tx();
-    break;
-  case TN_TTYPE:
-    telnet_send_iac(TN_WILL, opt);
-    telnet_flush_tx();
-    break;
-  case TN_BIN:
-    g_tn_binary = 1u;
-    telnet_send_iac(TN_WILL, opt);
-    telnet_flush_tx();
-    break;
-  default:
-    telnet_send_iac(TN_WONT, opt);
-    telnet_flush_tx();
-    break;
-  }
-}
-
 static void telnet_handle_cmd(unsigned char cmd, unsigned char opt)
 {
   switch (cmd)
   {
   case TN_DO:
-    telnet_handle_do(opt);
+    switch (opt)
+    {
+    case TN_NAWS:
+      telnet_send_iac(TN_WILL, opt);
+      telnet_send_naws();
+      break;
+    case TN_TTYPE:
+      telnet_send_iac(TN_WILL, opt);
+      break;
+    case TN_BIN:
+      g_tn_binary = 1u;
+      telnet_send_iac(TN_WILL, opt);
+      break;
+    default:
+      telnet_send_iac(TN_WONT, opt);
+      break;
+    }
+    telnet_flush_tx();
     break;
   case TN_DONT:
     if (opt == TN_ECHO)
@@ -235,13 +243,6 @@ static void telnet_emit_reply(unsigned char b)
   telnet_send_byte(b);
 }
 
-static void telnet_send_ga(void)
-{
-  telnet_send_byte(TN_IAC);
-  telnet_send_byte(TN_GA);
-  g_ga_tx++;
-}
-
 static void telnet_flush_replies(void)
 {
   unsigned char before;
@@ -252,7 +253,9 @@ static void telnet_flush_replies(void)
   {
     g_cpr_tx++;
     /* Synchronet may block until IAC GA after CPR even with SGA (CPR before SGA). */
-    telnet_send_ga();
+    telnet_send_byte(TN_IAC);
+    telnet_send_byte(TN_GA);
+    g_ga_tx++;
     if (g_tn_sga == 0u)
     {
       g_cpr_ga_debt++;
@@ -268,219 +271,15 @@ static void telnet_flush_ga_debt(void)
 {
   while (g_cpr_ga_debt > 0u)
   {
-    telnet_send_ga();
+    telnet_send_byte(TN_IAC);
+    telnet_send_byte(TN_GA);
+    g_ga_tx++;
     g_cpr_ga_debt--;
   }
   if (g_txlen > 0u)
   {
     telnet_flush_tx();
   }
-}
-
-static void telnet_data_byte(unsigned char b)
-{
-  if (zm_io_active() != 0u)
-  {
-    zm_io_rx(b);
-    return;
-  }
-  (void)term_feed(b);
-}
-
-/* Feed RX_DATA run with no IAC ? avoids per-byte telnet_process. */
-static void telnet_feed_data_run(unsigned char *buf, unsigned int n)
-{
-  if (n == 0u)
-  {
-    return;
-  }
-  if (zm_io_active() != 0u)
-  {
-    unsigned int i;
-
-    for (i = 0u; i < n; i++)
-    {
-      zm_io_rx(buf[i]);
-    }
-    return;
-  }
-  (void)term_feed_buf(buf, n);
-}
-
-static void telnet_zm_tx(unsigned char b)
-{
-  telnet_send_byte(b);
-  if (b == TN_IAC)
-  {
-    telnet_send_byte(TN_IAC);
-  }
-}
-
-static void telnet_zm_flush(void)
-{
-  telnet_flush_tx();
-}
-
-/* Drop host data still in the TCP buffer before receive (sb-first workflow). */
-static void telnet_zm_discard_rx(unsigned int max_reads)
-{
-  unsigned int i;
-  int n;
-
-  for (i = 0u; i < max_reads; i++)
-  {
-    n = at_telnet_tcp_read(g_socket);
-    if (n <= 0)
-    {
-      break;
-    }
-    g_rx_total += (unsigned int)n;
-  }
-  g_rx_state = RX_DATA;
-}
-
-static void telnet_zm_after_common(int rc, const char *ok_msg, const char *fail_msg)
-{
-  zm_io_end();
-  telnet_send_iac(TN_WONT, TN_BIN);
-  telnet_send_iac(TN_DONT, TN_BIN);
-  telnet_flush_tx();
-  g_tn_binary = 0u;
-  telnet_zm_discard_rx(512u);
-
-  if (rc == OK)
-  {
-    zm_status_line((char *)ok_msg);
-  }
-  else
-  {
-    zm_status_line((char *)fail_msg);
-  }
-  telnet_zm_discard_rx(16u);
-  zm_status_clear();
-  telnet_zm_discard_rx(128u);
-  while ((OS_GETKEY() & 0xFFL) != 0L)
-  {
-    YIELD();
-  }
-}
-
-static void telnet_zm_after(int rc)
-{
-  telnet_zm_after_common(rc, "ZMODEM OK", "ZMODEM failed");
-}
-
-static void telnet_zm_after_ymodem(int rc)
-{
-  telnet_zm_after_common(rc, "YMODEM OK", "YMODEM failed");
-}
-
-static void telnet_zm_after_xmodem(int rc)
-{
-  telnet_zm_after_common(rc, "XMODEM OK", "XMODEM failed");
-}
-
-static void telnet_zm_after_send(int rc)
-{
-  telnet_zm_after_common(rc, "ZMODEM send OK", "ZMODEM send failed");
-}
-
-static void telnet_zm_bin_prep(void)
-{
-  unsigned int i;
-
-  telnet_send_iac(TN_WILL, TN_BIN);
-  telnet_send_iac(TN_DO, TN_BIN);
-  telnet_flush_tx();
-
-  for (i = 0u; i < 256u; i++)
-  {
-    if (telnet_poll_rx() < 0)
-    {
-      break;
-    }
-    YIELD();
-  }
-
-  g_rx_state = RX_DATA;
-}
-
-static void telnet_start_zmodem_send(void)
-{
-  unsigned char bank_saved;
-  int rc;
-
-  if (g_dataPg == 0u)
-  {
-    zm_status_line("ZMODEM: no data page");
-    return;
-  }
-
-  bank_saved = at_zmodem_bank_enter();
-
-  zm_status_line("ZMODEM send: name file, run rz on host");
-  telnet_zm_bin_prep();
-  zm_io_begin(telnet_zm_tx, telnet_poll_rx, telnet_zm_flush);
-  zm_io_drain_input();
-  rc = zmodem_session_send();
-  at_zmodem_bank_leave(bank_saved);
-  telnet_zm_after_send(rc);
-}
-
-static void telnet_start_zmodem(void)
-{
-  unsigned char bank_saved;
-  int rc;
-
-  bank_saved = at_zmodem_bank_enter();
-
-  zm_status_line("ZMODEM: F6 ok, run sz on host...");
-  telnet_zm_bin_prep();
-  zm_io_begin(telnet_zm_tx, telnet_poll_rx, telnet_zm_flush);
-  zm_io_drain_input();
-  rc = zmodem_session_receive();
-  at_zmodem_bank_leave(bank_saved);
-  telnet_zm_after(rc);
-}
-
-static void telnet_start_ymodem(void)
-{
-  unsigned char bank_saved;
-  int rc;
-
-  bank_saved = at_zmodem_bank_enter();
-
-  zm_status_line("YMODEM: sb -g file, then F7 (large: F6+sz)");
-  telnet_zm_bin_prep();
-  /* Drop data sb may have sent before F7 (sb-first workflow). */
-  telnet_zm_discard_rx(512u);
-  zm_io_begin(telnet_zm_tx, telnet_poll_rx, telnet_zm_flush);
-  rc = ymodem_session_receive();
-  at_zmodem_bank_leave(bank_saved);
-  telnet_zm_after_ymodem(rc);
-}
-
-static void telnet_start_xmodem(void)
-{
-  unsigned char bank_saved;
-  int rc;
-
-  bank_saved = at_zmodem_bank_enter();
-
-  if (getpathname("") == 0)
-  {
-    at_zmodem_bank_leave(bank_saved);
-    zm_status_clear();
-    return;
-  }
-
-  zm_status_line("XMODEM: sx on host, waiting...");
-  telnet_zm_bin_prep();
-  telnet_zm_discard_rx(512u);
-  zm_io_begin(telnet_zm_tx, telnet_poll_rx, telnet_zm_flush);
-  rc = xmodem_session_receive();
-  at_zmodem_bank_leave(bank_saved);
-  telnet_zm_after_xmodem(rc);
 }
 
 static void telnet_process(unsigned char b)
@@ -494,7 +293,7 @@ static void telnet_process(unsigned char b)
     }
     else
     {
-      telnet_data_byte(b);
+      (void)term_feed(b);
     }
     break;
 
@@ -502,7 +301,7 @@ static void telnet_process(unsigned char b)
     if (b == TN_IAC)
     {
       g_rx_state = RX_DATA;
-      telnet_data_byte(TN_IAC);
+      (void)term_feed(TN_IAC);
     }
     else if (b == TN_SB)
     {
@@ -563,6 +362,154 @@ static void telnet_process(unsigned char b)
   }
 }
 
+static void telnet_zm_tx(unsigned char b)
+{
+  telnet_send_byte(b);
+  if (b == TN_IAC)
+  {
+    telnet_send_byte(TN_IAC);
+  }
+}
+
+static void telnet_zm_flush(void)
+{
+  telnet_flush_tx();
+}
+
+static void telnet_zm_discard_rx(unsigned int max_reads)
+{
+  unsigned int i;
+  int n;
+
+  for (i = 0u; i < max_reads; i++)
+  {
+    n = telnet_tcp_read(g_socket);
+    if (n <= 0)
+    {
+      break;
+    }
+    g_rx_total += (unsigned int)n;
+  }
+  g_rx_state = RX_DATA;
+}
+
+static void telnet_zm_after_common(int rc, char *ok_msg, char *fail_msg)
+{
+  zm_io_end();
+  telnet_send_iac(TN_WONT, TN_BIN);
+  telnet_send_iac(TN_DONT, TN_BIN);
+  telnet_flush_tx();
+  g_tn_binary = 0u;
+  telnet_zm_discard_rx(512u);
+
+  zm_status_line(rc == OK ? ok_msg : fail_msg);
+  telnet_zm_discard_rx(16u);
+  zm_status_clear();
+  telnet_zm_discard_rx(128u);
+  while ((OS_GETKEY() & 0xFFL) != 0L)
+  {
+    YIELD();
+  }
+}
+
+static void telnet_zm_bin_prep(void)
+{
+  unsigned int i;
+
+  telnet_send_iac(TN_WILL, TN_BIN);
+  telnet_send_iac(TN_DO, TN_BIN);
+  telnet_flush_tx();
+
+  for (i = 0u; i < 256u; i++)
+  {
+    if (telnet_poll_rx() < 0)
+    {
+      break;
+    }
+    YIELD();
+  }
+
+  g_rx_state = RX_DATA;
+}
+
+static void telnet_start_xfer(unsigned char kind)
+{
+  unsigned char saved;
+  int rc;
+  char *ok_msg;
+  char *fail_msg;
+
+  if (g_dataPg == 0u)
+  {
+    zm_status_line("ZMODEM: no data page");
+    return;
+  }
+
+  if (kind == XFER_XRECV && getpathname("") == 0)
+  {
+    zm_status_clear();
+    return;
+  }
+
+  switch (kind)
+  {
+  case XFER_ZSEND:
+    zm_status_line("ZMODEM send: name file, run rz on host");
+    ok_msg = "ZMODEM send OK";
+    fail_msg = "ZMODEM send failed";
+    break;
+  case XFER_ZRECV:
+    zm_status_line("ZMODEM: F6 ok, run sz on host...");
+    ok_msg = "ZMODEM OK";
+    fail_msg = "ZMODEM failed";
+    break;
+  case XFER_YRECV:
+    zm_status_line("YMODEM: sb -g file, then F7 (large: F6+sz)");
+    ok_msg = "YMODEM OK";
+    fail_msg = "YMODEM failed";
+    break;
+  default:
+    zm_status_line("XMODEM: sx on host, waiting...");
+    ok_msg = "XMODEM OK";
+    fail_msg = "XMODEM failed";
+    break;
+  }
+
+  /* Negotiate BINARY and drain host data while resident is still mapped. */
+  telnet_zm_bin_prep();
+  if (kind >= XFER_YRECV)
+  {
+    telnet_zm_discard_rx(512u);
+  }
+
+  saved = bank_push(g_dataPg);
+  zm_io_begin(telnet_zm_tx, telnet_poll_rx, telnet_zm_flush);
+  if (kind < XFER_YRECV)
+  {
+    zm_io_drain_input();
+  }
+
+  if (kind == XFER_ZSEND)
+  {
+    rc = zmodem_session_send();
+  }
+  else if (kind == XFER_ZRECV)
+  {
+    rc = zmodem_session_receive();
+  }
+  else if (kind == XFER_YRECV)
+  {
+    rc = ymodem_session_receive();
+  }
+  else
+  {
+    rc = xmodem_session_receive();
+  }
+
+  SETPG32KHIGH(saved);
+  telnet_zm_after_common(rc, ok_msg, fail_msg);
+}
+
 static void telnet_zm_feed_chunk(unsigned char *buf, unsigned int n)
 {
   unsigned int i;
@@ -611,13 +558,26 @@ static int telnet_poll_rx(void)
 {
   unsigned int i;
   int n;
+  unsigned char zm;
+  unsigned char saved;
 
-  if (zm_io_active() != 0u && zm_io_nb_pending() != 0u)
+  zm = zm_io_active();
+  if (zm != 0u && zm_io_nb_pending() != 0u)
   {
     return 1;
   }
 
-  n = at_telnet_tcp_read(g_socket);
+  if (zm != 0u)
+  {
+    saved = bank_push(residentPg);
+    n = telnet_tcp_read(g_socket);
+    SETPG32KHIGH(saved);
+  }
+  else
+  {
+    n = telnet_tcp_read(g_socket);
+  }
+
   if (n < 0)
   {
     g_sock_err = (unsigned char)(-n);
@@ -629,7 +589,7 @@ static int telnet_poll_rx(void)
   }
   g_rx_total += (unsigned int)n;
   g_idle_loops = 0ul;
-  if (zm_io_active() != 0u)
+  if (zm != 0u)
   {
     telnet_zm_feed_chunk(netbuf, (unsigned int)n);
   }
@@ -654,7 +614,7 @@ static int telnet_poll_rx(void)
       }
       if (i > start)
       {
-        telnet_feed_data_run(netbuf + start, i - start);
+        (void)term_feed_buf(netbuf + start, i - start);
       }
       if (i < (unsigned int)n)
       {
@@ -673,14 +633,6 @@ static int telnet_poll_rx(void)
     telnet_flush_tx();
   }
   return 1;
-}
-
-static void telnet_drain_keys(void)
-{
-  while ((OS_GETKEY() & 0xFFL) != 0L)
-  {
-    YIELD();
-  }
 }
 
 static void telnet_status_draw(void)
@@ -725,22 +677,6 @@ static void telnet_waiting_hint(void)
   term_set_color(0x07u);
 }
 
-static void telnet_send_text(const char *s)
-{
-  while (*s)
-  {
-    telnet_send_byte((unsigned char)*s);
-    s++;
-  }
-  telnet_flush_tx();
-}
-
-static void telnet_send_esc(void)
-{
-  telnet_send_byte(27u);
-  telnet_flush_tx();
-}
-
 static void telnet_send_key(unsigned char key)
 {
   switch (key)
@@ -755,15 +691,8 @@ static void telnet_send_key(unsigned char key)
     telnet_send_byte(13u);
     break;
   default:
-    if (key >= 32 && key < 127)
-    {
-      telnet_send_byte(key);
-    }
-    else if (key >= 1u && key < 32u)
-    {
-      telnet_send_byte(key);
-    }
-    else if (term_wire_is_cp866() != 0u && key >= 0x80u)
+    if ((key >= 1u && key < 127u)
+        || (term_wire_is_cp866() != 0u && key >= 0x80u))
     {
       telnet_send_byte(key);
     }
@@ -774,23 +703,32 @@ static void telnet_send_key(unsigned char key)
 
 static void telnet_send_arrow(unsigned char key)
 {
-  switch (key)
+  unsigned char ch;
+
+  if (key == KEY_LEFT)
   {
-  case KEY_LEFT:
-    telnet_send_text("\x1b[D");
-    break;
-  case KEY_RIGHT:
-    telnet_send_text("\x1b[C");
-    break;
-  case KEY_UP:
-    telnet_send_text("\x1b[A");
-    break;
-  case KEY_DOWN:
-    telnet_send_text("\x1b[B");
-    break;
-  default:
-    break;
+    ch = 'D';
   }
+  else if (key == KEY_RIGHT)
+  {
+    ch = 'C';
+  }
+  else if (key == KEY_UP)
+  {
+    ch = 'A';
+  }
+  else if (key == KEY_DOWN)
+  {
+    ch = 'B';
+  }
+  else
+  {
+    return;
+  }
+  telnet_send_byte(27u);
+  telnet_send_byte('[');
+  telnet_send_byte(ch);
+  telnet_flush_tx();
 }
 
 int telnet_session(const char *host, unsigned int port, unsigned char debug, unsigned char cp866)
@@ -830,13 +768,20 @@ int telnet_session(const char *host, unsigned int port, unsigned char debug, uns
     g_ga_tx = 0u;
     g_idle_loops = 0ul;
 
-    g_socket = at_net_session_connect(g_cur_host, cur_port);
+    r_show_connecting(g_cur_host, cur_port);
+    if (!net_resolve_host(g_cur_host))
+    {
+      r_show_net_error("DNS failed");
+      return 0;
+    }
+    g_socket = net_connect_tcp(cur_port, 5u);
     if (g_socket < 0)
     {
+      r_show_net_error("connect failed");
       return 0;
     }
 
-    at_telnet_display_prep(cur_cp866);
+    r_telnet_display_prep(cur_cp866);
 
     for (kick = 0u; kick < 64u; kick++)
     {
@@ -872,9 +817,7 @@ int telnet_session(const char *host, unsigned int port, unsigned char debug, uns
       {
         break;
       }
-      if (term_take_ed2_needs_cr() != 0u
-          && zm_io_active() == 0u
-          )
+      if (term_take_ed2_needs_cr() != 0u && zm_io_active() == 0u)
       {
         telnet_send_byte(13u);
         telnet_flush_tx();
@@ -907,18 +850,18 @@ int telnet_session(const char *host, unsigned int port, unsigned char debug, uns
 
           book_cp866 = cur_cp866;
           book_debug = cur_debug;
-          g_book_host[0] = 0;
 
           telnet_flush_tx();
           term_palette_restore();
-          at_netShutDown(g_socket, 0u);
+          netShutDown(g_socket, 0u);
           g_socket = -1;
-          telnet_drain_keys();
-
-          if (telbook_run(g_book_host, sizeof(g_book_host), &book_port, &book_cp866, &book_debug))
+          while ((OS_GETKEY() & 0xFFL) != 0L)
           {
-            strncpy(g_cur_host, g_book_host, sizeof(g_cur_host) - 1u);
-            g_cur_host[sizeof(g_cur_host) - 1u] = 0;
+            YIELD();
+          }
+
+          if (r_telbook_run(g_cur_host, sizeof(g_cur_host), &book_port, &book_cp866, &book_debug))
+          {
             cur_port = book_port;
             cur_cp866 = book_cp866;
             cur_debug = book_debug;
@@ -928,31 +871,32 @@ int telnet_session(const char *host, unsigned int port, unsigned char debug, uns
         }
         else if (key == KEY_F5)
         {
-          telnet_start_zmodem_send();
+          telnet_start_xfer(XFER_ZSEND);
         }
         else if (key == KEY_F6)
         {
-          telnet_start_zmodem();
+          telnet_start_xfer(XFER_ZRECV);
         }
         else if (key == KEY_F7)
         {
-          telnet_start_ymodem();
+          telnet_start_xfer(XFER_YRECV);
         }
         else if (key == KEY_F8)
         {
-          telnet_start_xmodem();
+          telnet_start_xfer(XFER_XRECV);
         }
         else if (key == 27)
         {
-          telnet_send_esc();
+          telnet_send_byte(27u);
+          telnet_flush_tx();
         }
         else if (key == KEY_LEFT || key == KEY_RIGHT || key == KEY_UP || key == KEY_DOWN)
         {
-          telnet_send_arrow((unsigned char)key);
+          telnet_send_arrow(key);
         }
         else
         {
-          telnet_send_key((unsigned char)key);
+          telnet_send_key(key);
         }
       }
       else
@@ -964,7 +908,7 @@ int telnet_session(const char *host, unsigned int port, unsigned char debug, uns
     telnet_flush_tx();
     if (g_socket >= 0)
     {
-      at_netShutDown(g_socket, 0u);
+      netShutDown(g_socket, 0u);
       g_socket = -1;
     }
     if (do_reconnect != 0u)
@@ -972,7 +916,7 @@ int telnet_session(const char *host, unsigned int port, unsigned char debug, uns
       continue;
     }
     term_palette_restore();
-    at_show_session_end(user_quit, g_sock_err, g_rx_total);
+    r_show_session_end(user_quit, g_sock_err, g_rx_total);
     return 1;
   }
 }

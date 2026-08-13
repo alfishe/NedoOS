@@ -1,46 +1,23 @@
 #include <intrz80.h>
 #include <oscalls.h>
 #include <osfs.h>
-#include "app_bank.h"
 #include "atelnet_plug.h"
 
 unsigned char residentPg;
 unsigned char g_dataPg;
-union APP_PAGES main_pg;
 
 void at_init_banks(void)
 {
-  main_pg.l = OS_GETMAINPAGES();
-  residentPg = main_pg.pgs.window_3;
-  bank_slot_set(AT_BANK_SLOT_RESIDENT, residentPg);
+  union APP_PAGES pg;
+  unsigned int np;
 
+  pg.l = OS_GETMAINPAGES();
+  residentPg = pg.pgs.window_3;
   g_dataPg = 0u;
-  if (bank_os_new_page(&g_dataPg))
+  np = OS_NEWPAGE();
+  if (np <= 255u)
   {
-    bank_slot_set(AT_BANK_SLOT_DATA, g_dataPg);
-    bank_data_fill(g_dataPg, 0u);
-  }
-}
-
-void at_resident_map(void)
-{
-  bank_window_map(residentPg);
-}
-
-unsigned char at_zmodem_bank_enter(void)
-{
-  if (g_dataPg == 0u)
-  {
-    return 0u;
-  }
-  return bank_push(g_dataPg);
-}
-
-void at_zmodem_bank_leave(unsigned char saved)
-{
-  if (g_dataPg != 0u)
-  {
-    bank_pop(saved);
+    g_dataPg = (unsigned char)np;
   }
 }
 

@@ -8,12 +8,12 @@ ATELNET_BIN := atelnet.com
 TERMDIR := $(abspath $(dir $(abspath $(lastword $(MAKEFILE_LIST))))../ansiview)
 TERMINC := "$(TERMDIR)/"
 
-ATELNET_C := main_telnet.c net_data.c net_resident.c atelnet_net.c telnet_sess.c app_bank.c atelnet_bank.c telbook.c telbook_resident.c cli_resident.c boot_resident.c atelnet_cli.c atelnet_boot.c term_doc_stub.c zmodem_recv.c zmodem_send.c zmodem_os.c
+ATELNET_C := main_telnet.c net_data.c net_resident.c telnet_sess.c app_bank.c atelnet_bank.c telbook_resident.c cli_resident.c boot_resident.c zmodem_recv.c zmodem_send.c zmodem_os.c
 TERM_C := term.c cp437toatm.c
 ATELNET_DEFS := -DMALLOC_BUFSIZE=0 -DTERM_NO_DOC=1
 TERM_A := termscr.asm
 
-SRCH := $(TERMDIR)/term.h $(TERMDIR)/term_doc.h netglue.h telnet_sess.h telbook.h app_bank.h atelnet_plug.h atelnet_cli.h atelnet_boot.h atelnet_net.h zmodem.h zmodem_datapage.h
+SRCH := $(TERMDIR)/term.h $(TERMDIR)/term_doc.h netglue.h telnet_sess.h app_bank.h atelnet_plug.h zmodem.h zmodem_datapage.h
 
 LIBDIR	:= $(dir $(abspath $(lastword $(MAKEFILE_LIST))))../iarlib/
 ROOTDIR := $(abspath $(LIBDIR)../../..)

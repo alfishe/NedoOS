@@ -7,9 +7,28 @@
 extern void term_palette_begin(void);
 extern void term_palette_restore(void);
 
-/* atelnet: -DTERM_NO_DOC ? stub always off; kill call tax + dead branches. */
+/* atelnet: -DTERM_NO_DOC ? no doc canvas; kill call tax + undefined refs. */
 #ifdef TERM_NO_DOC
 #define TERM_DOC_ON() 0
+#define term_doc_cls(a) ((void)0)
+#define term_doc_set_color(a) ((void)0)
+#define term_doc_set_vis_xy(c, r) ((void)0)
+#define term_doc_get_vis_xy(c, r) ((void)0)
+#define term_doc_fill_spaces(n) ((void)0)
+#define term_doc_newline() ((void)0)
+#define term_doc_backspace() ((void)0)
+#define term_doc_put_atm(ch) ((void)0)
+#define term_doc_carriage_return() ((void)0)
+#define term_doc_scroll_up(n) ((void)0)
+#define term_doc_scroll_down(n) ((void)0)
+#define term_doc_erase_line(m) ((void)0)
+#define term_doc_erase_display(m) ((void)0)
+#define term_doc_cursor_up(n) ((void)0)
+#define term_doc_cursor_down(n) ((void)0)
+#define term_doc_cursor_left(n) ((void)0)
+#define term_doc_cursor_right(n) ((void)0)
+#define term_doc_end() ((void)0)
+#define term_doc_content_last_row() TERM_LAST_ROW
 #else
 #define TERM_DOC_ON() (term_doc_active() != 0u)
 #endif
@@ -32,7 +51,6 @@ static unsigned char term_col;
 static unsigned char term_row;
 static unsigned char term_literal_next;
 static unsigned char term_wire_cp866;
-static unsigned char term_bs_echo_skip;
 
 #define ANSI_MAX_ARGS 8u
 #define ST_TEXT 0u
@@ -273,8 +291,9 @@ void term_init(void)
   term_literal_next = 0u;
   term_wire_cp866 = 0u;
   term_cpr_fix_corner = 0u;
-  term_bs_echo_skip = 0u;
+#ifndef TERM_NO_DOC
   term_doc_end();
+#endif
   term_desync_hw();
   g_ed2_needs_cr = 0u;
   g_curs_hold = 0u;
@@ -454,39 +473,19 @@ static void term_newline(void)
 
 static void term_backspace(void)
 {
-  unsigned char erase;
-  unsigned char col;
-  unsigned char row;
-
+  /* VT100 BS: cursor left only. BBS erase is BS SPACE BS from the host. */
   if (TERM_DOC_ON())
   {
     term_doc_backspace();
     term_doc_get_vis_xy(&term_col, &term_row);
     return;
   }
-  term_cursor_hide();
-  term_pull_hw_xy();
   if (term_col == 0u)
   {
     return;
   }
+  term_curs_invalidate();
   term_col--;
-  col = term_col;
-  row = term_row;
-  term_sync_hw();
-  erase = term_erase_attr();
-  if (erase != term_color)
-  {
-    OS_SETCOLOR(erase);
-  }
-  term_emit_bdos(' ');
-  if (erase != term_color)
-  {
-    OS_SETCOLOR(term_color);
-  }
-  /* putchar(' ') advances BDOS cursor; stay on the erased cell. */
-  term_col = col;
-  term_row = row;
   term_sync_hw();
 }
 
@@ -563,33 +562,9 @@ void term_putchar(unsigned char cp437)
   {
     return;
   }
-  if (term_bs_echo_skip != 0u)
-  {
-    if (cp437 == 0x20u && term_bs_echo_skip == 2u)
-    {
-      term_bs_echo_skip = 1u;
-      return;
-    }
-    if (cp437 == 0x08u && term_bs_echo_skip == 1u)
-    {
-      term_bs_echo_skip = 0u;
-      return;
-    }
-    if (cp437 != 0x08u && cp437 != 0x20u)
-    {
-      term_bs_echo_skip = 0u;
-    }
-  }
-  if (cp437 == 0x08u)
+  if (cp437 == 0x08u || cp437 == 0x7Fu)
   {
     term_backspace();
-    term_bs_echo_skip = 2u;
-    return;
-  }
-  if (cp437 == 0x7Fu)
-  {
-    term_backspace();
-    term_bs_echo_skip = 0u;
     return;
   }
   if (cp437 == 0x09u)
@@ -910,7 +885,10 @@ static void term_cursor_up(unsigned char count)
     return;
   }
   term_curs_invalidate();
-  term_pull_hw_xy();
+  if (term_hw_sync == 0u)
+  {
+    term_pull_hw_xy();
+  }
   if (count == 0u)
   {
     count = 1u;
@@ -938,7 +916,10 @@ static void term_cursor_down(unsigned char count)
   }
 
   term_curs_invalidate();
-  term_pull_hw_xy();
+  if (term_hw_sync == 0u)
+  {
+    term_pull_hw_xy();
+  }
   if (count == 0u)
   {
     count = 1u;
@@ -964,7 +945,10 @@ static void term_cursor_left(unsigned char count)
     return;
   }
   term_curs_invalidate();
-  term_pull_hw_xy();
+  if (term_hw_sync == 0u)
+  {
+    term_pull_hw_xy();
+  }
   if (count == 0u)
   {
     count = 1u;
@@ -991,7 +975,10 @@ static void term_cursor_right(unsigned char count)
     return;
   }
   term_curs_invalidate();
-  term_pull_hw_xy();
+  if (term_hw_sync == 0u)
+  {
+    term_pull_hw_xy();
+  }
   if (count == 0u)
   {
     count = 1u;
@@ -1198,8 +1185,8 @@ int term_feed(unsigned char b)
       ansi_state = ST_ESC;
       return 1;
     }
-    /* Fast path: plain glyph, no control / BS-echo bookkeeping. */
-    if (b >= 0x20u && b != 0x7Fu && term_bs_echo_skip == 0u)
+    /* Fast path: plain glyph, no control. */
+    if (b >= 0x20u && b != 0x7Fu)
     {
       term_putchar_glyph(b);
       return 1;
@@ -1249,7 +1236,6 @@ int term_feed_buf(const unsigned char *buf, unsigned int n)
     b = buf[i];
     /* Tight loop for runs of plain text (common BBS / ANSI flood). */
     if (ansi_state == ST_TEXT && term_literal_next == 0u
-        && term_bs_echo_skip == 0u
         && b >= 0x20u && b != 0x7Fu && b != 0x1Bu && b != 0x1Au)
     {
       term_putchar_glyph(b);
