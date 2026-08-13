@@ -1,4 +1,5 @@
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
+set installdir=nedodemo
 
 "../../_sdk/convega.exe" forest00.bmp > nul
 "../../_sdk/convega.exe" forest01.bmp > nul
@@ -54,7 +55,7 @@ if "%currentdir%"=="" (
   @FOR %%j IN (*.com) DO (
   @"../../../tools/dmimg.exe" ../../../us/sd_nedo.vhd put %%j /nedodemo/%%j
   @move "*.com" "%releasedir2%nedodemo" > nul
-  @IF EXIST %%~nj xcopy /Y "%%~nj" "%releasedir2%nedodemo\%%~nj\" > nul
+  @IF EXIST %%~nj xcopy /Y /E /I "%%~nj" "%releasedir2%nedodemo\%%~nj\" > nul
   )
  rem pause
 cd ../../../src/

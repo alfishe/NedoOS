@@ -1,4 +1,5 @@
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
+set installdir=nedogame
 
 sjasmplus --nologo --msg=war  players\ptsplay.asm
 sjasmplus --nologo --msg=war  players\s98_plr.asm

@@ -1,4 +1,5 @@
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
+set installdir=nedodemo
 set NEDORES="../../_sdk/nedores.exe"
 set SJASMPLUS=sjasmplus
 set SJASMPLUSFLAGS=--nologo --msg=war

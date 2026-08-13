@@ -30,7 +30,7 @@ IF "%softbuilded%"=="" (
 				if not exist "%releasedir%!installdir!" mkdir "%releasedir%!installdir!"
 				FOR %%j IN (*.com) DO (
 					copy /Y "*.com" "%releasedir%!installdir!" > nul
-					IF EXIST %%~nj xcopy /Y "%%~nj" "%releasedir%!installdir!\%%~nj\" > nul
+					IF EXIST %%~nj xcopy /Y /E /I "%%~nj" "%releasedir%!installdir!\%%~nj\" > nul
 				)
 				if exist *.ext ( copy *.ext %releasedir%!installdir!\ > nul )
 				if exist *.ccc ( copy *.ccc %releasedir%!installdir!\ > nul )

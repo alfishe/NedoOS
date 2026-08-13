@@ -1,4 +1,5 @@
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
+set installdir=nedogame
 
 textprep\fasm   textprep\r_mdl1.asm jb2manreq\r_mdl1.bin
 textprep\fasm   textprep\r_mdl2.asm jb2manreq\r_mdl2.bin

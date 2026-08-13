@@ -1,4 +1,5 @@
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
+set installdir=nedodemo
 sjasmplus --nologo --msg=war main.asm
 
 if "%currentdir%"=="" (

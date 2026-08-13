@@ -1,4 +1,5 @@
 if "%settedpath%"=="" call ../../_sdk/setpath.bat
+set installdir=nedogame
 sjasmplus --nologo --msg=war main.asm
 
 
@@ -7,7 +8,7 @@ if "%currentdir%"=="" (
   FOR %%j IN (*.com) DO (
   "../../../tools/dmimg.exe" ../../../us/sd_nedo.vhd put %%j /nedogame/%%j
   move "*.com" "%releasedir2%nedogame" > nul
-  IF EXIST %%~nj xcopy /Y "%%~nj" "%releasedir2%nedogame\%%~nj\" > nul
+  IF EXIST %%~nj xcopy /Y /E /I "%%~nj" "%releasedir2%nedogame\%%~nj\" > nul
   )
 cd ../../../src/
 call ..\tools\chkimg.bat sd
