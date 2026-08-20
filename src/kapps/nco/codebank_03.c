@@ -605,7 +605,7 @@ void r_action_copy(void)
 	OS_DELPAGE(g_copy_io_page); g_panel_page_used[g_copy_io_page] = 0u; g_copy_io_page = 0u;
 	if (g_fileop_abort) mb_copy_progress_draw_name(g_ui_cancelled);
 	else if (g_copy_tree_failed) mb_ui_error_dialog(g_ui_copy, g_ui_copy_write_fail);
-	mb_fileop_progress_restore();
+	/* nc: clear drawn only ? restore() would repaint progress before panel redraw */
 	if (g_fileop_abort)
 		redraw_after_dialog_cancel();
 	else
@@ -716,7 +716,6 @@ void r_action_delete(void)
 		if (marks == 0u || g_fileop_abort) break;
 		poll_abort();
 	}
-	mb_fileop_progress_restore();
 	if (g_delete_stack_page != 0u)
 	{
 		OS_DELPAGE(g_delete_stack_page);
@@ -915,7 +914,6 @@ void r_action_move(void)
 		{
 			g_move_active = 0u;
 			mb_ui_alert_dialog(g_ui_move, g_ui_copy_nomem);
-			mb_fileop_progress_restore();
 			redraw_after_dialog_cancel();
 			return;
 		}
@@ -953,7 +951,6 @@ void r_action_move(void)
 	g_move_active = 0u;
 	if (g_fileop_abort) mb_copy_progress_draw_name(g_ui_cancelled);
 	else if (g_copy_tree_failed) mb_ui_error_dialog(g_ui_move, g_ui_move_fail);
-	mb_fileop_progress_restore();
 	if (g_fileop_abort)
 		redraw_after_dialog_cancel();
 	else
