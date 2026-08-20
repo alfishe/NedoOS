@@ -1,3 +1,5 @@
+#ifndef TCP_H
+#define TCP_H
 
 struct sockaddr_in {
         unsigned char   family;			/*net type*/
@@ -130,3 +132,5 @@ unsigned long OS_DNSRESOLVE (unsigned int adrptr);
 #define	ECONNABORTED	53	/* Software caused connection abort */
 #define ERR_CONNRESET 	 54
 #define ERR_NOTCONN 	 57
+
+#endif

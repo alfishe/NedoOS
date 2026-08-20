@@ -942,7 +942,8 @@ OS_DIHALT:
 	ENDMOD
 
 	; unsigned char OS_GETFILETIME(char *path, unsigned int *date, unsigned int *time)
-	; IAR: DE=path, BC=&date, time* на стеке (sp+2)
+	; IAR: DE=path, BC=&date, time* on stack at entry SP+2
+	; After PUSH IX,IY,BC and POP BC: time* is at SP+6 (IY,IX,ret,time*)
 	; BDOS: DE=path, out IX=date, HL=time
 	MODULE OS_GETFILETIME
 	PUBLIC OS_GETFILETIME
@@ -974,7 +975,7 @@ OS_GETFILETIME:
 	INC	BC
 	LD	A,H
 	LD	(BC),A
-	LD	HL,8
+	LD	HL,6
 	ADD	HL,SP
 	LD	E,(HL)
 	INC	HL
