@@ -8,5 +8,6 @@ if exist bin\nc.com (
 	)
 )
 rd /Q /S obj
+rd /Q /S bin
 del nc.com
 if "%makeall%"=="" if "%notrunemu%"=="" ..\..\..\us\emul.exe
