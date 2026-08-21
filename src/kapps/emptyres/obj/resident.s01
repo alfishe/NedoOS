@@ -1,0 +1,136 @@
+	NAME	resident(16)
+	RSEG	CODE_RESIDENT(0)
+	RSEG	CSTR(0)
+	PUBLIC	r_mock_magic
+	PUBLIC	r_mock_message
+	PUBLIC	r_mock_transform
+	EXTERN	?CLZ80L_4_06_L00
+	RSEG	CODE_RESIDENT
+r_mock_magic:
+	LD	HL,21070
+	RET
+r_mock_transform:
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	LD	D,E
+	LD	A,E
+	XOR	165
+	LD	SP,IX
+	POP	IX
+	RET
+r_mock_message:
+	PUSH	IY
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	BC
+	PUSH	DE
+	LD	A,E
+	OR	D
+	JP	Z,?0027
+	XOR	A
+	OR	(IX-2)
+	JP	Z,?0027
+?0012:
+?0013:
+?0010:
+?0011:
+	LD	IYL,0
+	LD	A,(IX+6)
+	OR	(IX+7)
+	JR	Z,?0016
+?0014:
+?0017:
+	LD	C,IYL
+	LD	B,0
+	LD	L,(IX+6)
+	LD	H,(IX+7)
+	ADD	HL,BC
+	LD	A,(HL)
+	OR	A
+	JR	Z,?0016
+	LD	C,(IX-2)
+	LD	B,0
+	LD	D,IYL
+	LD	L,D
+	LD	H,0
+	INC	HL
+	AND	A
+	SBC	HL,BC
+	JR	NC,?0016
+?0020:
+?0019:
+?0018:
+	LD	C,IYL
+	LD	B,0
+	LD	L,(IX+6)
+	LD	H,(IX+7)
+	ADD	HL,BC
+	LD	B,(HL)
+	PUSH	BC
+	LD	C,IYL
+	LD	B,0
+	LD	L,(IX-4)
+	LD	H,(IX-3)
+	ADD	HL,BC
+	POP	BC
+	LD	(HL),B
+	INC	IYL
+	JR	?0014
+?0016:
+?0015:
+	LD	IYH,0
+?0022:
+	LD	C,IYH
+	LD	B,0
+	LD	HL,?0024
+	ADD	HL,BC
+	LD	A,(HL)
+	OR	A
+	JR	Z,?0021
+	LD	C,(IX-2)
+	LD	B,0
+	LD	D,IYL
+	LD	L,D
+	LD	H,0
+	INC	HL
+	AND	A
+	SBC	HL,BC
+	JR	NC,?0021
+?0026:
+?0025:
+?0023:
+	LD	C,IYL
+	LD	B,0
+	LD	L,(IX-4)
+	LD	H,(IX-3)
+	ADD	HL,BC
+	PUSH	HL
+	LD	C,IYH
+	LD	B,0
+	LD	HL,?0024
+	ADD	HL,BC
+	LD	B,(HL)
+	POP	HL
+	LD	(HL),B
+	INC	IYL
+	INC	IYH
+	JR	?0022
+?0021:
+	LD	C,IYL
+	LD	B,0
+	LD	L,(IX-4)
+	LD	H,(IX-3)
+	ADD	HL,BC
+	LD	(HL),0
+?0027:
+	LD	SP,IX
+	POP	IX
+	POP	IY
+	RET
+	RSEG	CSTR
+?0024:
+	DEFB	' [resident@C000]'
+	DEFB	0
+	END

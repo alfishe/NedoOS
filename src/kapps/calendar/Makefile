@@ -10,7 +10,7 @@ CONSOLE := TTY
 #файлы .с
 SRCC	:= main.c
 #файлы .h
-SRCH	:=
+SRCH	:= ../common/esp-com.c ../common/network.c ../common/espnet.c ../common/espnet-net.c ../iarlib/espnet.h ../common/espnet/protocol.h ../common/ini.c
 #файлы .asm
 SRCA	:=
 #линковочный файл-скрипт. можно не указывать, тогда будет использоватся стандартный

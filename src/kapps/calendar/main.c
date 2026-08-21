@@ -2,6 +2,7 @@
 #include <string.h>
 #include <oscalls.h>
 #include <tcp.h>
+#include <espnet.h>
 #include <intrz80.h>
 #include <stdlib.h>
 #include <../common/terminal.c>
@@ -62,6 +63,8 @@ unsigned int comType = 0;
 unsigned int espType = 32;
 unsigned int espRetry = 5;
 unsigned int magic = 16;
+unsigned char netDriver;
+unsigned char net_inited;
 unsigned long factor, timerok, count = 0;
 
 unsigned int odoa = 12;
@@ -567,6 +570,8 @@ char readParamFromIni(void)
 
 	const char useProdCalendar[] = "useProdCalendar";
 	const char currentCountry[] = "currentCountry";
+	const char currentNetwork[] = "currentNetwork";
+	unsigned int curNet;
 
 	OS_GETPATH(curPath);
 	OS_SETSYSDRV();
@@ -579,13 +584,12 @@ char readParamFromIni(void)
 		clearStatus();
 		printf("calendar.ini not found.\r\n");
 		getchar();
+		OS_CHDIR(curPath);
 		return false;
 	}
 
 	OS_READHANDLE(calbuf, fpini, 512);
 	OS_CLOSEHANDLE(fpini);
-
-	// calbuf[loop + 1] = 0;
 
 	count1 = strstr(calbuf, useProdCalendar);
 	if (count1 != NULL)
@@ -599,6 +603,28 @@ char readParamFromIni(void)
 		sscanf(count1 + strlen(currentCountry) + 1, "%c", &ini.currentCountry[0]);
 		sscanf(count1 + strlen(currentCountry) + 2, "%c", &ini.currentCountry[1]);
 		ini.currentCountry[2] = 0;
+	}
+
+	/* 3 in old calendar.ini meant ESP-COM; transport is now network.ini. */
+	if (ini.useProdCalendar == 3)
+	{
+		ini.useProdCalendar = 2;
+	}
+
+	netDriver = 0;
+	curNet = 0;
+	fpini = OS_OPENHANDLE("network.ini", 0x80);
+	if ((((int)fpini) & 0xff) == 0)
+	{
+		memset(netbuf, 0, sizeof(netbuf));
+		OS_READHANDLE(netbuf, fpini, (unsigned int)(sizeof(netbuf) - 1u));
+		OS_CLOSEHANDLE(fpini);
+		count1 = strstr(netbuf, currentNetwork);
+		if (count1 != NULL)
+		{
+			sscanf(count1 + strlen(currentNetwork) + 1, "%u", &curNet);
+			netDriver = (unsigned char)curNet;
+		}
 	}
 
 	OS_CHDIR(curPath);
@@ -686,6 +712,45 @@ char fillProdCal(int year)
 
 #include <../common/esp-com.c>
 #include <../common/network.c>
+/* Must fit full HTTP response headers in one READ (cutHeader needs \\r\\n\\r\\n). */
+#define ESPNET_HOST_MAX 2048
+#define ESPNET_CLIENT_ONLY 1
+#include <../common/espnet.c>
+#include <../common/espnet-net.c>
+
+void net_setup(void)
+{
+	if (net_inited)
+	{
+		return;
+	}
+	OS_GETPATH(curPath);
+	switch (netDriver)
+	{
+	case 1:
+		loadEspConfig();
+		OS_CHDIR(curPath);
+		uart_init(divider);
+		if (!espReBoot())
+		{
+			clearStatus();
+			printf("Error rebooting ESP. Press a key.");
+			getchar();
+		}
+		break;
+	case 2:
+		OS_ESPINIT();
+		OS_CHDIR(curPath);
+		EspGetDns();
+		EspDnsResolve("xmlcalendar.ru");
+		break;
+	default:
+		get_dns();
+		break;
+	}
+	OS_CHDIR(curPath);
+	net_inited = 1;
+}
 
 int cutHeader(unsigned int todo)
 {
@@ -882,7 +947,109 @@ unsigned char loadProdCalEsp(int year, const char *country)
 	calbuf[downloaded + 1] = 0;
 	strcat(calbuf, "\n9999.12.31\n");
 
-	return 3;
+	return 2;
+}
+
+unsigned char loadProdCalEspNet(int year, const char *country)
+{
+	int todo;
+	int socket;
+	unsigned int downloaded;
+	unsigned char firstPacket;
+	unsigned int calmax;
+
+	odoa = 11;
+	calmax = (unsigned int)(sizeof(calbuf) - 16u);
+	clearStatus();
+	printf("ESPNET xmlcalendar.ru %d", year);
+
+	if (!EspDnsResolve("xmlcalendar.ru"))
+	{
+		clearStatus();
+		printf("ESPNET DNS failed");
+		return 0;
+	}
+	targetadr.family = AF_INET;
+	targetadr.porth = 0;
+	targetadr.portl = 80;
+
+	sprintf(netbuf, "GET /data/%s/%d/calendar.txt HTTP/1.1\r\n%s", country, year, userAgent);
+
+	socket = EspOpenSock(AF_INET, SOCK_STREAM);
+	if (socket < 0)
+	{
+		clearStatus();
+		printf("ESPNET socket err %d", socket);
+		return 0;
+	}
+	todo = EspConnect((signed char)socket);
+	if (todo < 0)
+	{
+		EspShutDown((signed char)socket, 0);
+		clearStatus();
+		printf("ESPNET connect err %d", todo);
+		return 0;
+	}
+	todo = EspSend((signed char)socket, (unsigned int)&netbuf, strlen((char *)netbuf));
+	if (todo < 0)
+	{
+		EspShutDown((signed char)socket, 0);
+		clearStatus();
+		printf("ESPNET send err %d", todo);
+		return 0;
+	}
+
+	downloaded = 0;
+	firstPacket = 1;
+	do
+	{
+		headlng = 0;
+		do
+		{
+			todo = EspRead((signed char)socket);
+			if (todo == 0 - (int)ESPNET_ERR_EAGAIN)
+			{
+				YIELD();
+			}
+		} while (todo == 0 - (int)ESPNET_ERR_EAGAIN);
+
+		if (todo < 1)
+		{
+			EspShutDown((signed char)socket, 0);
+			clearStatus();
+			printf("ESPNET read err %d @%u", todo, downloaded);
+			return 0;
+		}
+
+		if (firstPacket)
+		{
+			todo = cutHeader((unsigned int)todo);
+			firstPacket = 0;
+			if (todo < 0 || contLen == 0ul)
+			{
+				EspShutDown((signed char)socket, 0);
+				clearStatus();
+				printf("ESPNET bad HTTP (len=%lu)", contLen);
+				return 0;
+			}
+		}
+
+		if (downloaded + (unsigned int)todo > calmax)
+		{
+			todo = (int)(calmax - downloaded);
+			if (todo <= 0)
+			{
+				break;
+			}
+		}
+		memcpy(calbuf + downloaded, netbuf + headlng, (unsigned int)todo);
+		downloaded = downloaded + (unsigned int)todo;
+	} while ((unsigned long)downloaded < contLen && downloaded < calmax);
+
+	EspShutDown((signed char)socket, 0);
+	calbuf[downloaded] = 0;
+	strcat(calbuf, "\n9999.12.31\n");
+	return 2;
 }
 
 C_task main(int argc, char *argv[])
@@ -899,8 +1066,6 @@ C_task main(int argc, char *argv[])
 	os_initstdio();
 	CLS();
 	printf("[Build:%s  %s]", __DATE__, __TIME__);
-	loadEspConfig();
-	get_dns();
 	AT(3, 25);
 	ATRIB(40);
 	ATRIB(90);
@@ -921,10 +1086,9 @@ C_task main(int argc, char *argv[])
 		foreColor = 30;
 	}
 
-	if (ini.useProdCalendar == 3)
+	if (ini.useProdCalendar == 2)
 	{
-		uart_init(divider);
-		espReBoot();
+		net_setup();
 	}
 
 	BOX(1, 1, 80, 24, 44, 32);
@@ -970,10 +1134,18 @@ loop:
 		ini.useProdCalendar = loadProdCalDisk(year);
 		break;
 	case 2:
-		ini.useProdCalendar = loadProdCalNet(year, ini.currentCountry);
-		break;
-	case 3:
-		ini.useProdCalendar = loadProdCalEsp(year, ini.currentCountry);
+		switch (netDriver)
+		{
+		case 1:
+			ini.useProdCalendar = loadProdCalEsp(year, ini.currentCountry);
+			break;
+		case 2:
+			ini.useProdCalendar = loadProdCalEspNet(year, ini.currentCountry);
+			break;
+		default:
+			ini.useProdCalendar = loadProdCalNet(year, ini.currentCountry);
+			break;
+		}
 		break;
 	default:
 		break;
@@ -1063,7 +1235,7 @@ loop2:
 		ATRIB(40);
 		ATRIB(37);
 	}
-
+	AT(1, 24);
 	key = getchar();
 	switch (key)
 	{
@@ -1102,13 +1274,12 @@ loop2:
 			ini.useProdCalendar = 1;
 		break;
 
-	case 'n': // NedoNET
+	case 'n':
 	case 'N':
-		ini.useProdCalendar = 2;
-		break;
-	case 'e': // ESP-COM
+	case 'e':
 	case 'E':
-		ini.useProdCalendar = 3;
+		ini.useProdCalendar = 2;
+		net_setup();
 		break;
 	default:
 		if (half == 0)

@@ -1,7 +1,6 @@
--cZ80 //процессор, под который собираем
+-cZ80
 -Ilist
--Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-FF00 //сегменты памяти с константами и кодом
--Z(DATA)DATA0,IDATA0,ECSTR,NO_INIT,CSTACK+512,UDATA0 //сегменты стека, переменных и т.п.
--e_medium_write=_formatted_write //конфигурация printf/sprintf  
--e_medium_read=_formatted_read //конфигурация scanf/sscanf 
-
+-Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-FF00
+-Z(DATA)DATA0,IDATA0,ECSTR,NO_INIT,CSTACK+274,UDATA0
+-e_medium_write=_formatted_write
+-e_medium_read=_formatted_read

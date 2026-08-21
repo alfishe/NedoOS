@@ -31,7 +31,7 @@ unsigned int espRetry = 5;
 unsigned long factor, timerok, count = 0;
 unsigned int magic = 15;
 
-unsigned char uVer[] = "2.3";
+unsigned char uVer[] = "2.4";
 unsigned char curPath[128];
 unsigned char curLetter;
 unsigned char oldBinExt;
@@ -59,7 +59,7 @@ struct window
 	unsigned char h;
 	unsigned char text;
 	unsigned char back;
-	unsigned char tittle[80];
+	unsigned char tittle[60];
 
 } cw;
 
@@ -67,29 +67,27 @@ struct configuration
 {
 	unsigned char kernelName[32];
 	unsigned char machineName[32];
-	unsigned char kernelLink[256];
+	unsigned char kernelLink[128];
 	unsigned char is_atm;
 } config;
 
-unsigned char userAgent[128];
-unsigned char binLink[128];
-unsigned char pkunzipLink[128];
-unsigned char tarLink[128];
-unsigned char cmdLink[128];
-unsigned char termLink[128];
-unsigned char updLink[128];
-unsigned char newsLink[128];
-unsigned char wizNetLink[128];
-unsigned char netIniLink[128];
-unsigned char relLink[128];
+unsigned char userAgent[100];
+unsigned char binLink[100];
+unsigned char pkunzipLink[100];
+unsigned char tarLink[90];
+unsigned char cmdLink[90];
+unsigned char termLink[90];
+unsigned char updLink[90];
+unsigned char newsLink[90];
+unsigned char wizNetLink[90];
+unsigned char netIniLink[90];
+unsigned char relLink[90];
 unsigned char updateHost[16];
 
-unsigned char netbuf[6000];
-unsigned char nameBuf1[512];
-unsigned char cmd[512];
-unsigned char link[512];
+unsigned char netbuf[4000];
+unsigned char cmd[350];
+unsigned char link[350];
 
-unsigned char *nameBuf = nameBuf1;
 // const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 
@@ -412,6 +410,9 @@ unsigned char OS_SHELL(const unsigned char *command)
 ///////////////////////////
 #include <../common/esp-com.c>
 #include <../common/network.c>
+#define ESPNET_CLIENT_ONLY 1
+#include <../common/espnet.c>
+#include <../common/espnet-net.c>
 //////////////////////////
 
 unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsigned int sizeOfBuf)
@@ -608,6 +609,90 @@ char delete(char *target_dir_ptr)
 	return 0;
 }
 
+unsigned char getFileEspNet(const unsigned char *fileLink, unsigned char *fileNamePtr)
+{
+	int todo;
+	char socket, firstPacket;
+	unsigned int fileSize1;
+	unsigned long downloaded = 0;
+	unsigned int down;
+	sprintf(netbuf, "GET %s%s", fileLink, userAgent);
+
+	if (!EspDnsResolve((char *)updateHost))
+	{
+		return false;
+	}
+
+	socket = EspOpenSock(AF_INET, SOCK_STREAM);
+	if (socket < 0)
+		return false;
+
+	todo = EspConnect(socket);
+	if (todo < 0)
+	{
+		EspShutDown(socket, 0);
+		return false;
+	}
+
+	todo = EspSend(socket, (unsigned int)&netbuf, strlen(netbuf));
+	if (todo < 0)
+	{
+		EspShutDown(socket, 0);
+		return false;
+	}
+
+	firstPacket = true;
+
+	do
+	{
+		headlng = 0;
+		do
+		{
+			todo = EspRead(socket);
+		} while (todo == 0 - ESPNET_ERR_EAGAIN);
+		if (todo < 1)
+		{
+			EspShutDown(socket, 0);
+			if (todo == 0 - (int)ESPNET_ERR_HOSTUNREACH ||
+				todo == 0 - (int)ESPNET_ERR_INTR)
+			{
+				clearStatus();
+				printf("ESPNET link lost after %lu kb", downloaded / 1024);
+				return false;
+			}
+			clearStatus();
+			printf("[%ld] Unknown error at %lu kb", todo, downloaded / 1024);
+			return false;
+		}
+		if (firstPacket)
+		{
+			firstPacket = false;
+			headlng = cutHeader();
+			todo = todo - headlng;
+			fileSize1 = contLen / 1024;
+			saveBuf(fileNamePtr, 00, 0);
+		}
+
+		downloaded = downloaded + todo;
+		down = downloaded / 1024;
+		printf("\r %5u of %5u kb     ", down, fileSize1);
+		saveBuf(fileNamePtr, 01, todo);
+		if (_low_level_get() == 27)
+		{
+			saveBuf(fileNamePtr, 02, 00);
+			fatalError("Update aborted!");
+		}
+	} while (downloaded < contLen);
+	EspShutDown(socket, 0);
+	saveBuf(fileNamePtr, 02, 00);
+
+	if (downloaded != contLen)
+	{
+		return false;
+	}
+	return true;
+}
+
 unsigned char getFileNet(const unsigned char *fileLink, unsigned char *fileNamePtr)
 {
 	int todo;
@@ -666,11 +751,6 @@ unsigned char getFileNet(const unsigned char *fileLink, unsigned char *fileNameP
 	} while (downloaded < contLen);
 	netShutDown(socket, 0);
 	saveBuf(fileNamePtr, 02, 00);
-
-	if (downloaded != contLen)
-	{
-		return false;
-	}
 	return true;
 }
 
@@ -762,9 +842,8 @@ unsigned char getFileEsp(const unsigned char *fileLink, unsigned char *fileNameP
 		if (_low_level_get() == 27)
 		{
 			saveBuf(fileNamePtr, 02, 00);
-			fatalError("Updating aborted! Exit.");
+			fatalError("Update aborted!");
 		}
-
 	} while (downloaded < contLen);
 	saveBuf(fileNamePtr, 02, 00);
 	sendcommand("AT+CIPCLOSE");
@@ -800,6 +879,9 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 		break;
 	case 1:
 		result = getFileEsp(fileLink, fileNamePtr);
+		break;
+	case 2:
+		result = getFileEspNet(fileLink, fileNamePtr);
 		break;
 	}
 
@@ -961,16 +1043,16 @@ void restoreConfig(unsigned char oldBinExt)
 	}
 	else
 	{
-		sprintf(nameBuf, "copy bin.%u/autoexec.bat bin/autoexec.bat", oldBinExt);
-		OS_SHELL((void *)nameBuf);
-		sprintf(nameBuf, "copy bin.%u/net.ini bin/net.ini", oldBinExt);
-		OS_SHELL((void *)nameBuf);
-		sprintf(nameBuf, "copy bin.%u/nv.ext bin/nv.ext", oldBinExt);
-		OS_SHELL((void *)nameBuf);
-		sprintf(nameBuf, "copy bin.%u/gp/gp.ini bin/gp/gp.ini", oldBinExt);
-		OS_SHELL((void *)nameBuf);
-		sprintf(nameBuf, "copy bin.%u/browser/index.gph bin/browser/index.gph", oldBinExt);
-		OS_SHELL((void *)nameBuf);
+		sprintf(netbuf, "copy bin.%u/autoexec.bat bin/autoexec.bat", oldBinExt);
+		OS_SHELL((void *)netbuf);
+		sprintf(netbuf, "copy bin.%u/net.ini bin/net.ini", oldBinExt);
+		OS_SHELL((void *)netbuf);
+		sprintf(netbuf, "copy bin.%u/nv.ext bin/nv.ext", oldBinExt);
+		OS_SHELL((void *)netbuf);
+		sprintf(netbuf, "copy bin.%u/gp/gp.ini bin/gp/gp.ini", oldBinExt);
+		OS_SHELL((void *)netbuf);
+		sprintf(netbuf, "copy bin.%u/browser/index.gph bin/browser/index.gph", oldBinExt);
+		OS_SHELL((void *)netbuf);
 	}
 	AT(1, 4);
 	ATRIB(40);
@@ -1354,8 +1436,9 @@ C_task main(int argc, const char *argv[])
 		printf("forced Mirror %s\r\n", updateHost);
 	}
 
-	if (netDriver == 0)
+	switch (netDriver)
 	{
+	case 0:
 		get_dns();
 		test = dnsResolve(updateHost);
 		if (!test)
@@ -1363,12 +1446,16 @@ C_task main(int argc, const char *argv[])
 			sprintf(cmd, "Check connection to %s!", updateHost);
 			fatalError(cmd);
 		}
-	}
-	else
-	{
+		break;
+	case 1:
 		loadEspConfig();
 		uart_init(divider);
 		espReBoot();
+		break;
+	case 2:
+		OS_ESPINIT();
+		EspGetDns();
+		break;
 	}
 
 	if (doFullUpdate)

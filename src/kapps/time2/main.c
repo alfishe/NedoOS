@@ -1,11 +1,12 @@
 #include <stdio.h>
 #include <string.h>
-#include <oscalls.h>
-#include <socket.h>
 #include <intrz80.h>
-#include <osfs.h>
 #include <stdlib.h>
-////////
+#include <oscalls.h>
+#include <tcp.h>
+#include <espnet.h>
+#include <osfs.h>
+
 #define true 1
 #define false 0
 
@@ -22,59 +23,63 @@ unsigned int comType = 0;
 unsigned int espType = 32;
 unsigned int espRetry = 5;
 unsigned int magic = 15;
+unsigned int netDriver = 0;
 unsigned long factor, timerok, count = 0;
-//const unsigned char sendOk[] = "SEND OK";
+
 const unsigned char gotWiFi[] = "WIFI GOT IP";
-const unsigned char timeUpdated[] = "+CIPSNTPTIME:";
 int GMT = 3;
 unsigned char is_atm;
-unsigned char netbuf[4096];
+unsigned char netbuf[1024];
 unsigned char cmd[512];
 unsigned char curPath[128];
 
-struct sockaddr_in ntp_ia;
+struct sockaddr_in targetadr;
+struct sockaddr_in dnsaddress;
+struct readstructure readStruct;
+
 union
 {
 	unsigned long ul;
 	unsigned char b[4];
 } secsUnix;
 unsigned int hour, minute, second, day, month, year, weekday;
-SOCKET s = 0;
 unsigned char inet = 0, espInet = 0;
 const unsigned char monthDays[12] =
 	{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-const unsigned char ntpnead[48] =
+const unsigned char ntpnead[12] =
 	{
-		0xdb,
-		0x00,
-		0x11,
-		0xfa,
-		0x00,
-		0x00,
-		0x00,
-		0x00,
-		0x00,
-		0x01,
-		0x03,
-		0xfe,
-};
+		0xdb, 0x00, 0x11, 0xfa,
+		0x00, 0x00, 0x00, 0x00,
+		0x00, 0x01, 0x03, 0xfe};
 unsigned char *defntp = "2.ru.pool.ntp.org";
 const unsigned char regaddr_ve[16] = {0x10, 0, 0x50, 0, 0x90, 0, 0, 0x12, 0x52, 0x92, 0, 0, 0, 0, 0, 0};
 
-const unsigned char help[] = "\
--H help\r\n\
--T set time(-T17:59:38)\r\n\
--D set date(-D21-06-2019)\r\n\
--N ntp-server default: -N2.ru.pool.ntp.org\r\n\
--Z time-zone default: -Z3\r\n\
--i get datetime from internet\r\n\
--e get datetime from ESP-COM";
-
-extern void
-dns_resolve(void);
+const unsigned char help[] =
+	"-H help\r\n"
+	"-T set time(-T17:59:38)\r\n"
+	"-D set date(-D21-06-2019)\r\n"
+	"-N ntp-server default: -N2.ru.pool.ntp.org\r\n"
+	"-Z time-zone default: -Z3\r\n"
+	"-i get datetime from internet (ZXNETUSB / ESPNET)\r\n"
+	"-e get datetime from ESP (AT-Firmware; ESPNET if currentNetwork=2)";
 
 void clearStatus(void)
 {
+}
+
+#include <../common/esp-com.c>
+#include <../common/network.c>
+#define ESPNET_HOST_MAX 128
+#define ESPNET_CLIENT_ONLY 1
+#define ESPNET_UDP 1
+#include <../common/espnet.c>
+#include <../common/espnet-net.c>
+#include <../common/ini.c>
+
+static void die(char *msg)
+{
+	puts(msg);
+	exit(1);
 }
 
 void delay(unsigned long counter)
@@ -82,28 +87,29 @@ void delay(unsigned long counter)
 	unsigned long finish;
 	counter = counter / 20;
 	if (counter < 1)
-	{
 		counter = 1;
-	}
 	finish = time() + counter;
-
 	while (time() < finish)
 	{
 	}
 }
 
-void exit(int e)
+static unsigned char read_netdriver(void)
 {
-	if (s)
-		closesocket(s, 0);
-	if (e != 0)
-	{
-		puts((char *)e);
-	}
-	((void (*)(int))0x0000)(e);
-}
+	unsigned char val[12];
+	unsigned char n;
 
-extern void dns_resolve(void);
+	n = 0;
+	OS_GETPATH(curPath);
+	OS_SETSYSDRV();
+	OS_CHDIR("/");
+	OS_CHDIR("ini");
+	if (ini_get_param((unsigned char *)"network.ini",
+			  (unsigned char *)"currentNetwork", val, sizeof(val)))
+		n = (unsigned char)ini_parse_uint(val);
+	OS_CHDIR(curPath);
+	return n;
+}
 
 unsigned char readcmos(unsigned char r)
 {
@@ -131,7 +137,7 @@ void writecmos(unsigned char r, unsigned char v)
 	disable_interrupt();
 	if (is_atm == 2 || is_atm == 3)
 	{
-		r = regaddr_ve[r] + 1; // На запись порт + 1
+		r = regaddr_ve[r] + 1;
 		if (r != 0)
 		{
 			input(0x55FE);
@@ -150,31 +156,30 @@ void writecmos(unsigned char r, unsigned char v)
 void Unix_to_GMT(void)
 {
 	unsigned char monthLength = 0;
-	// корректировка часового пояса и синхронизация
 	int days = 0;
 	secsUnix.ul = secsUnix.ul + GMT * 3600;
 
 	second = secsUnix.ul % 60;
-	secsUnix.ul /= 60; // now it is minutes
+	secsUnix.ul /= 60;
 	minute = secsUnix.ul % 60;
-	secsUnix.ul /= 60; // now it is hours
+	secsUnix.ul /= 60;
 	hour = secsUnix.ul % 24;
-	secsUnix.ul /= 24;				 // now it is days
-	weekday = (secsUnix.ul + 4) % 7; // day week, 0-sunday
+	secsUnix.ul /= 24;
+	weekday = (secsUnix.ul + 4) % 7;
 	year = 70;
 	while (days + ((year % 4) ? 365 : 366) <= secsUnix.ul)
 	{
 		days += (year % 4) ? 365 : 366;
 		year++;
 	}
-	secsUnix.ul -= days; // now it is days in this year, starting at 0
+	secsUnix.ul -= days;
 
 	days = 0;
 	month = 0;
 	for (month = 0; month < 12; month++)
 	{
 		if (month == 1)
-		{ // february
+		{
 			if (year % 4)
 				monthLength = 28;
 			else
@@ -187,62 +192,101 @@ void Unix_to_GMT(void)
 		else
 			break;
 	}
-	month++;			   // jan is month 1
-	day = secsUnix.ul + 1; // day of month
+	month++;
+	day = secsUnix.ul + 1;
 }
+
 void ntp_resolver(void)
 {
+	signed char sock;
 	unsigned char i, j;
-	signed char res;
+	unsigned int todo;
 	int len;
-	ntp_ia.sin_port = 123 << 8;
-	ntp_ia.sin_addr = *dns_resolver((void *)defntp);
-	if (!ntp_ia.sin_addr.S_un.S_addr)
-		exit((int)"error: domain name not resolved");
+
+	memset(netbuf, 0, 48);
+	memcpy(netbuf, ntpnead, sizeof(ntpnead));
+
+	if (netDriver == 2)
+	{
+		OS_ESPINIT();
+		if (!EspDnsResolve((char *)defntp))
+			die("error: domain name not resolved");
+	}
+	else
+	{
+		unsigned char dns_try;
+
+		get_dns();
+		for (dns_try = 0; dns_try < 4; dns_try++)
+		{
+			if (dnsResolve((char *)defntp))
+				break;
+			delay(500);
+		}
+		if (dns_try >= 4)
+			die("error: domain name not resolved");
+	}
+	/* iarlib sockaddr_in: port is two bytes, network order (123 = 0x007B). */
+	targetadr.family = AF_INET;
+	targetadr.porth = 0;
+	targetadr.portl = 123;
+
 	i = 200;
 inetloop:
 	YIELD();
 	i--;
 	YIELD();
 	if (i == 0)
-	{
-		exit((int)"inet error");
-	}
-	s = socket(AF_INET, SOCK_DGRAM, 0);
-	if (s < 0)
-	{
-		s = 0;
+		die("inet error");
+	if (netDriver == 2)
+		sock = EspOpenSock(AF_INET, SOCK_DGRAM);
+	else
+		sock = OpenSock(AF_INET, SOCK_DGRAM);
+	if (sock < 0)
 		goto inetloop;
-	}
-	memcpy(netbuf, ntpnead, sizeof(ntpnead));
 
-	len = sendto(s, netbuf, 48, 0, &ntp_ia, sizeof(ntp_ia));
-	if (res < 0)
+	readStruct.socket = (unsigned char)sock;
+	readStruct.BufAdr = (unsigned int)netbuf;
+	readStruct.bufsize = 48;
+	readStruct.protocol = SOCK_DGRAM;
+	if (netDriver == 2)
+		todo = OS_ESPWRITE_UDP(&readStruct, &targetadr);
+	else
+		todo = OS_WIZNETWRITE_UDP(&readStruct, &targetadr);
+	if (!OS_CALL_OK(todo))
 	{
-		closesocket(s, 0);
-		s = 0;
+		if (netDriver == 2)
+			EspShutDown(sock, 0);
+		else
+			netShutDown(sock, 0);
 		goto inetloop;
 	}
 	j = 50;
+	len = -1;
 	while (j)
 	{
 		j--;
-		len = recvfrom(s, netbuf, sizeof(netbuf), 0, &ntp_ia, sizeof(ntp_ia));
-		if (len < 0)
+		readStruct.bufsize = 48;
+		if (netDriver == 2)
+			todo = OS_ESPREAD_UDP(&readStruct, &targetadr);
+		else
+			todo = OS_WIZNETREAD_UDP(&readStruct, &targetadr);
+		if (!OS_CALL_OK(todo))
 		{
 			YIELD();
 			YIELD();
 			continue;
 		}
+		len = (int)todo;
 		break;
 	}
 
-	closesocket(s, 0);
-	s = 0;
+	if (netDriver == 2)
+		EspShutDown(sock, 0);
+	else
+		netShutDown(sock, 0);
 	if (len <= 0)
-	{
-		exit((int)"server error");
-	}
+		die("server error");
 	secsUnix.b[3] = netbuf[40];
 	secsUnix.b[2] = netbuf[41];
 	secsUnix.b[1] = netbuf[42];
@@ -250,10 +294,6 @@ inetloop:
 	secsUnix.ul -= 2208988800UL;
 	Unix_to_GMT();
 }
-
-///////////////////////////
-#include <../common/esp-com.c>
-//////////////////////////
 
 void espntp_resolver(void)
 {
@@ -271,7 +311,6 @@ void espntp_resolver(void)
 
 	writeLog("Time2 started and inited", "espntp_resolver");
 
-	// AT+CIPSNTPCFG=1,8,"cn.ntp.org.cn","ntp.sjtu.edu.cn"
 	weekday = 0;
 	month = 0;
 	day = 0;
@@ -282,7 +321,7 @@ void espntp_resolver(void)
 	retryuart = 3;
 	sprintf(cmd, "AT+CIPSNTPCFG=1,%u,\"%s\",\"time.google.com\"", GMT, defntp);
 	sendcommand(cmd);
-	if (!getAnswer3()) // OK
+	if (!getAnswer3())
 	{
 		puts("Timeout waiting 'OK' AT+CIPSNTPCFG");
 		writeLog("Timeout waiting 'OK' AT+CIPSNTPCFG", "espntp_resolver");
@@ -300,7 +339,7 @@ void espntp_resolver(void)
 
 	if (espType == 32)
 	{
-		if (!getAnswer3()) // "+TIME_UPDATED"
+		if (!getAnswer3())
 		{
 			puts("Timeout waiting '+TIME_UPDATED' Check espType may be you have 8266.");
 			writeLog("Timeout waiting '+TIME_UPDATED'", "espntp_resolver");
@@ -313,7 +352,7 @@ retryTime:
 	finish = time() + (5 * 50);
 	sendcommand("AT+CIPSNTPTIME?");
 
-	if (!getAnswer3()) // TIME......
+	if (!getAnswer3())
 	{
 		puts("Timeout waiting answer to AT+CIPSNTPTIME?");
 		writeLog("Timeout waiting answer to AT+CIPSNTPTIME?", "espntp_resolver");
@@ -332,85 +371,47 @@ retryTime:
 	cmd[3] = 0;
 
 	if (cmd[0] == 'S' && cmd[1] == 'u')
-	{
 		weekday = 1;
-	}
 	else if (cmd[0] == 'M' && cmd[1] == 'o')
-	{
 		weekday = 2;
-	}
 	else if (cmd[0] == 'T' && cmd[1] == 'u')
-	{
 		weekday = 3;
-	}
 	else if (cmd[0] == 'W' && cmd[1] == 'e')
-	{
 		weekday = 4;
-	}
 	else if (cmd[0] == 'T' && cmd[1] == 'h')
-	{
 		weekday = 5;
-	}
 	else if (cmd[0] == 'F' && cmd[1] == 'r')
-	{
 		weekday = 6;
-	}
 	else if (cmd[0] == 'S' && cmd[1] == 'a')
-	{
 		weekday = 7;
-	}
 
 	strncpy(cmd, netbuf + 4 + 13, 3);
 	cmd[3] = 0;
 
 	if (cmd[0] == 'J' && cmd[1] == 'a')
-	{
 		month = 1;
-	}
 	else if (cmd[0] == 'F' && cmd[1] == 'e')
-	{
 		month = 2;
-	}
 	else if (cmd[0] == 'M' && cmd[2] == 'r')
-	{
 		month = 3;
-	}
 	else if (cmd[0] == 'A' && cmd[1] == 'p')
-	{
 		month = 4;
-	}
 	else if (cmd[0] == 'M' && cmd[2] == 'y')
-	{
 		month = 5;
-	}
 	else if (cmd[0] == 'J' && cmd[2] == 'n')
-	{
 		month = 6;
-	}
 	else if (cmd[0] == 'J' && cmd[2] == 'l')
-	{
 		month = 7;
-	}
 	else if (cmd[0] == 'A' && cmd[1] == 'u')
-	{
 		month = 8;
-	}
 	else if (cmd[0] == 'S' && cmd[1] == 'e')
-	{
 		month = 9;
-	}
 	else if (cmd[0] == 'O' && cmd[1] == 'c')
-	{
 		month = 10;
-	}
 	else if (cmd[0] == 'N' && cmd[1] == 'o')
-	{
 		month = 11;
-	}
 	else if (cmd[0] == 'D' && cmd[1] == 'e')
-	{
 		month = 12;
-	}
 
 	strncpy(cmd, netbuf + 8 + 13, 2);
 	cmd[2] = 0;
@@ -429,9 +430,7 @@ retryTime:
 	cmd[4] = 0;
 	year = atoi(cmd) + 100;
 
-	// printf("day of week:%u Month:%u day:%u hours:%u minutes:%u seconds:%u year:%u\r\n", weekday, month, day, hour, minute, second, year);
-
-	if (!getAnswer3()) // OK
+	if (!getAnswer3())
 	{
 		puts("Timeout waiting last OK. Continue");
 		writeLog("Timeout waiting last OK. Continue", "espntp_resolver");
@@ -460,18 +459,15 @@ void set_datetime(void)
 	writecmos(0x07, day);
 	writecmos(0x08, month);
 	if (is_atm == 2 || is_atm == 3)
-	{
 		writecmos(0x09, year - 80);
-	}
 	else
-	{
 		writecmos(0x09, year - 100);
-	}
 
 	writecmos(0x00, second);
 	writecmos(0x02, minute);
 	writecmos(0x04, hour);
 }
+
 void get_datetime(void)
 {
 	writecmos(0x0b, readcmos(0x0b) | 6);
@@ -482,13 +478,15 @@ void get_datetime(void)
 	day = readcmos(0x07);
 	month = readcmos(0x08);
 	if (is_atm == 2 || is_atm == 3)
-	{
 		year = readcmos(0x09) + 80;
-	}
 	else
-	{
 		year = readcmos(0x09) + 100;
-	}
+}
+
+static void apply_net_time(void)
+{
+	set_datetime();
+	writecmos(0x06, weekday + 1);
 }
 
 C_task main(int argc, char *argv[])
@@ -497,6 +495,7 @@ C_task main(int argc, char *argv[])
 	os_initstdio();
 	printf("[TIME2 Build:%s  %s]\r\n\r\n", __DATE__, __TIME__);
 	is_atm = (unsigned char)OS_GETCONFIG();
+	netDriver = read_netdriver();
 
 	if (argc == 1)
 	{
@@ -508,7 +507,7 @@ C_task main(int argc, char *argv[])
 	{
 		char *p = argv[i];
 		if (p[0] != '-')
-			exit((int)"Wrong parameter. Use -H for help");
+			die("Wrong parameter. Use -H for help");
 		switch (p[1] & 0xdf)
 		{
 		case 'T':
@@ -531,16 +530,15 @@ C_task main(int argc, char *argv[])
 			}
 			break;
 		case 'N':
-			defntp = p + 2;
+			defntp = (unsigned char *)(p + 2);
 			break;
 		case 'Z':
 			if (sscanf(p + 2, "%d", &GMT) != 1)
-			{
 				GMT = 3;
-			}
 			break;
 		case 'H':
-			exit((int)help);
+			puts(help);
+			exit(0);
 			break;
 		case 'I':
 			inet = 1;
@@ -548,24 +546,29 @@ C_task main(int argc, char *argv[])
 		case 'E':
 			espInet = 1;
 			break;
-
 		default:
-			exit((int)"Wrong parameter. Use -H for help");
+			die("Wrong parameter. Use -H for help");
 		}
 		i++;
 	}
 	if (inet)
 	{
-		ntp_resolver();
-		set_datetime();
-		writecmos(0x06, weekday + 1);
+		if (netDriver == 1)
+			espntp_resolver();
+		else
+			ntp_resolver();
+		apply_net_time();
 	}
 	if (espInet)
 	{
-		espntp_resolver();
-		set_datetime();
-		writecmos(0x06, weekday + 1);
-		uartFlush(500);
+		if (netDriver == 2)
+			ntp_resolver();
+		else
+		{
+			espntp_resolver();
+			uartFlush(500);
+		}
+		apply_net_time();
 	}
 	puts("Now time:");
 	printf("%02u-%02u-%04u ", day, month, year + 1900);

@@ -14,7 +14,8 @@ extern struct sockaddr_in targetadr;
 extern struct sockaddr_in dnsaddress;
 extern struct readstructure readStruct;
 
-void net_init(void);
+/* 0 = WIZNET OK. 1/2 = ESP (unsupported). */
+unsigned char net_init(void);
 int net_resolve_host(const char *host);
 signed char net_connect_tcp(unsigned int port, unsigned char retry);
 

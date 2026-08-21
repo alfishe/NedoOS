@@ -20,6 +20,7 @@ void r_show_bad_host(void);
 
 void r_show_connecting(const char *host, unsigned int port);
 void r_show_net_error(const char *msg);
+void r_show_need_wiznet(unsigned char drv);
 void r_show_session_end(unsigned char user_quit, unsigned char sock_err, unsigned int rx_total);
 void r_telnet_display_prep(unsigned char cp866);
 

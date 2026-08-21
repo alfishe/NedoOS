@@ -10,7 +10,7 @@
 #define true 1
 #define false 0
 
-unsigned int RBR_THR = 0xf8ef;
+unsigned int RBR_THR = 0xffff;
 unsigned int IER = 0xf9ef;
 unsigned int IIR_FCR = 0xfaef;
 unsigned int LCR = 0xfbef;
@@ -40,7 +40,7 @@ struct fileStruct
   unsigned char authorRealName[64];
   unsigned char afn[120];
   unsigned char pfn[120];
-  unsigned char fileName[128];
+  unsigned char fileName[66];
   unsigned char hasDescription;
 } curFileStruct;
 
@@ -52,14 +52,14 @@ struct window
   unsigned char h;
   unsigned char text;
   unsigned char back;
-  unsigned char tittle[80];
+  unsigned char tittle[40];
 } curWin;
 
 struct sockaddr_in dnsaddress;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 
-unsigned char ver[] = "5.0";
+unsigned char ver[] = "5.1";
 // const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
@@ -78,9 +78,69 @@ unsigned int loaded;
 unsigned char crlf[2] = {13, 10};
 unsigned char cmd[512];
 unsigned char fileIdChar[10];
-unsigned char picture[13700];
 unsigned char netbuf[4000];
 unsigned char curPath[128];
+
+/* JSON and the downloaded SCR share the app window_3 page at C000 (16K).
+ * Do not stream HTTP into a video page while 0x86 is on: putchar/video use
+ * pgscr0, and mapping scr0/scr1 to C000 garbles the glyphs. After the SCR
+ * is complete, copy it to hidden scr1 and SETSCREEN(1). */
+#define JSON_BUF ((unsigned char *)0xC000)
+#define JSON_MAX 16383u
+#define SCR_SIZE 6912u
+#define jsonbuf JSON_BUF
+
+union APP_PAGES main_pg;
+unsigned char pg_app;
+unsigned char pg_scr1;
+unsigned char pic_shown;
+unsigned char *httpDest;
+unsigned int httpDestMax;
+
+static void map_json(void)
+{
+  SETPG32KHIGH(pg_app);
+}
+
+static void map_pic(void)
+{
+  SETPG32KHIGH(pg_scr1);
+}
+
+static void text_on(void)
+{
+  OS_SETSCREEN(0);
+  OS_SETGFX(0x86);
+  if (pic_shown)
+  {
+    OS_CLS(0);
+    pic_shown = 0;
+  }
+  map_json();
+}
+
+static void pic_on(void)
+{
+  unsigned int n;
+  unsigned int chunk;
+
+  OS_SETBORDER(0);
+  n = 0;
+  while (n < SCR_SIZE)
+  {
+    chunk = SCR_SIZE - n;
+    if (chunk > sizeof(netbuf))
+      chunk = sizeof(netbuf);
+    map_json();
+    memcpy(netbuf, (unsigned char *)0xC000 + n, chunk);
+    map_pic();
+    memcpy((unsigned char *)0xC000 + n, netbuf, chunk);
+    n += chunk;
+  }
+  OS_SETGFX(0x83);
+  OS_SETSCREEN(1);
+  pic_shown = 1;
+}
 
 void quit(void)
 {
@@ -158,7 +218,7 @@ void printHelp(void)
   printf("   'V' не выводить информацию об авторах\n\r");
   printf("   'R' переход в режим  случайная картинка с рейтингом 4+\n\r");
   printf("   'A' переход в режим  слайд-шоу\n\r");
-  printf("   'D' Переключение режима ZXNETUSB/ESP-COM\n\r");
+  printf("   'D' Переключение режима ZXNETUSB/ESP-COM/ESPNET\n\r");
   printf("   'T' Продолжительность одного слайда в int-ах \n\r");
   printf("   'M' Минимальный рейтинг для случайного воспроизведения. \n\r");
   printf("   'O' Описание картинки. \n\r");
@@ -172,13 +232,16 @@ void printHelp(void)
 ///////////////////////////
 #include <../common/esp-com.c>
 #include <../common/network.c>
+#define ESPNET_CLIENT_ONLY 1
+#include <../common/espnet.c>
+#include <../common/espnet-net.c>
 //////////////////////////
 
 int testOperation2(const char *process, int socket)
 {
   if (socket < 0)
   {
-    OS_SETGFX(0x86);
+    text_on();
     printf("%s: [ERROR:", process);
     errorPrint(-socket);
     printf("]\r\n");
@@ -195,8 +258,8 @@ int cutHeader(unsigned int todo)
   curFileStruct.httpErr = httpError();
   if (curFileStruct.httpErr != 200)
   {
-    sprintf(picture, "HTTP Error %u @ %lu(%ld)", curFileStruct.httpErr, count, curFileStruct.picId);
-    writeLog(picture, "cutHeader      ");
+    sprintf(cmd, "HTTP Error %u @ %lu(%ld)", curFileStruct.httpErr, count, curFileStruct.picId);
+    writeLog(cmd, "cutHeader      ");
     return 0;
   }
   count1 = strstr(netbuf, "Content-Length:");
@@ -260,8 +323,8 @@ char fillPictureEsp(void)
   const unsigned char *count1;
   unsigned char firstPacket = true;
   unsigned int byte;
-  strcpy(picture, netbuf);
-  sizeLink = strlen(picture);
+  strcpy(cmd, netbuf);
+  sizeLink = strlen(cmd);
 
   do
   {
@@ -275,7 +338,7 @@ char fillPictureEsp(void)
     count1 = strstr(netbuf, "CONNECT");
     if (count1 == NULL)
     {
-      OS_SETGFX(0x86);
+      text_on();
       writeLog("Error in AT+CIPSTART. Not 'CONNECT'.", "fillPictureEsp ");
       espReBoot();
 
@@ -308,7 +371,7 @@ char fillPictureEsp(void)
     // putchar(byte);
   } while (byte != '>');
 
-  sendcommand(picture);
+  sendcommand(cmd);
 
   downloaded = 0;
   firstPacket = true;
@@ -326,6 +389,7 @@ char fillPictureEsp(void)
 
     if (!getdataEsp(todo))
     {
+      text_on();
       OS_CLS(0);
       printf("[getdataEsp] Downloading timeout. Exit![%lu]\r\n", count);
       writeLog("Downloading timeout in getdataEsp. Exit!", "fillPictureEsp ");
@@ -345,16 +409,18 @@ char fillPictureEsp(void)
       }
     }
 
-    if (downloaded + todo > sizeof(picture))
+    if (downloaded + (unsigned int)todo > httpDestMax)
     {
-      printf("dataBuffer overrun... %lu reached \n\r", downloaded + todo);
-      getchar();
-      return false;
+      todo = (int)(httpDestMax - downloaded);
+      if (todo <= 0)
+        break;
     }
 
-    memcpy(picture + downloaded, netbuf + headlng, todo);
-    downloaded = downloaded + todo;
-  } while (downloaded < contLen);
+    memcpy(httpDest + downloaded, netbuf + headlng, todo);
+    downloaded = downloaded + (unsigned int)todo;
+  } while ((unsigned long)downloaded < contLen && downloaded < httpDestMax);
+  if (downloaded < httpDestMax)
+    httpDest[downloaded] = 0;
   sendcommand("AT+CIPCLOSE");
 
   if (!getAnswer3()) // CLOSED or ERROR
@@ -380,7 +446,7 @@ char fillPictureNet(void)
   unsigned int downloaded = 0;
   unsigned char firstPacket;
   char socket, retry;
-  picture[0] = 0;
+  httpDest[0] = 0;
   retry = 3;
   socket = OpenSock(AF_INET, SOCK_STREAM);
   if (testOperation2("OS_NETSOCKET", socket) != 1)
@@ -418,18 +484,87 @@ char fillPictureNet(void)
       }
     }
 
-    if (downloaded + todo > sizeof(picture))
+    if (downloaded + (unsigned int)todo > httpDestMax)
     {
-      OS_SETGFX(0x86);
-      printf("dataBuffer overrun... %u reached \n\r", downloaded + todo);
-      return false;
+      todo = (int)(httpDestMax - downloaded);
+      if (todo <= 0)
+        break;
     }
-    memcpy(picture + downloaded, netbuf + headlng, todo);
-    downloaded = downloaded + todo;
-  } while (downloaded != contLen);
+    memcpy(httpDest + downloaded, netbuf + headlng, todo);
+    downloaded = downloaded + (unsigned int)todo;
+  } while ((unsigned long)downloaded < contLen && downloaded < httpDestMax);
 
   netShutDown(socket, 0);
-  picture[downloaded + 1] = 0;
+  if (downloaded < httpDestMax)
+    httpDest[downloaded] = 0;
+  return true;
+}
+
+char fillPictureEspNet(void)
+{
+  int todo;
+  int socket;
+  unsigned int downloaded = 0;
+  unsigned char firstPacket;
+
+  httpDest[0] = 0;
+  socket = EspOpenSock(AF_INET, SOCK_STREAM);
+  if (socket < 0)
+    return false;
+
+  todo = EspConnect((signed char)socket);
+  if (todo < 0)
+  {
+    EspShutDown((signed char)socket, 0);
+    return false;
+  }
+
+  todo = EspSend((signed char)socket, (unsigned int)&netbuf, strlen(netbuf));
+  if (todo < 0)
+  {
+    EspShutDown((signed char)socket, 0);
+    return false;
+  }
+
+  firstPacket = true;
+  do
+  {
+    headlng = 0;
+    do
+    {
+      todo = EspRead((signed char)socket);
+    } while (todo == 0 - (int)ESPNET_ERR_EAGAIN);
+
+    if (todo < 1)
+    {
+      EspShutDown((signed char)socket, 0);
+      return false;
+    }
+
+    if (firstPacket)
+    {
+      todo = cutHeader((unsigned int)todo);
+      firstPacket = false;
+      if (curFileStruct.httpErr != 200)
+      {
+        EspShutDown((signed char)socket, 0);
+        return false;
+      }
+    }
+
+    if (downloaded + (unsigned int)todo > httpDestMax)
+    {
+      todo = (int)(httpDestMax - downloaded);
+      if (todo <= 0)
+        break;
+    }
+    memcpy(httpDest + downloaded, netbuf + headlng, (unsigned int)todo);
+    downloaded = downloaded + (unsigned int)todo;
+  } while ((unsigned long)downloaded < contLen && downloaded < httpDestMax);
+
+  EspShutDown((signed char)socket, 0);
+  if (downloaded < httpDestMax)
+    httpDest[downloaded] = 0;
   return true;
 }
 
@@ -671,8 +806,10 @@ unsigned char savePic(unsigned long fileId)
     getchar();
     quit();
   }
-  OS_WRITEHANDLE(picture, fp2, 6912);
+  map_pic();
+  OS_WRITEHANDLE((unsigned char *)0xC000, fp2, SCR_SIZE);
   OS_CLOSEHANDLE(fp2);
+  map_json();
   return 0;
 }
 
@@ -710,7 +847,7 @@ const char *parseJson(unsigned char *property)
   int n;
 
   netbuf[0] = 0;
-  n = pos(picture, property, 1, 0);
+  n = pos(jsonbuf, property, 1, 0);
   if (n == -1)
   {
     strcpy(netbuf, "-");
@@ -718,15 +855,15 @@ const char *parseJson(unsigned char *property)
   }
 
   lng = n - 1 + strlen(property);
-  if (picture[lng] == ':')
+  if (jsonbuf[lng] == ':')
   {
     terminator = '\0';
   }
-  if (picture[lng] == '\"')
+  if (jsonbuf[lng] == '\"')
   {
     terminator = '\"';
   }
-  if (picture[lng] == '[')
+  if (jsonbuf[lng] == '[')
   {
     terminator = ']';
   }
@@ -734,8 +871,7 @@ const char *parseJson(unsigned char *property)
   findEnd = 1;
   lngp1 = lng + 1;
 
-  /* Вычисляем предел безопасности на основе размера picture (8192 байта) */
-  maxSafeLimit = sizeof(picture) - lngp1 - 1;
+  maxSafeLimit = JSON_MAX - lngp1 - 1;
 
   while (42)
   {
@@ -745,13 +881,13 @@ const char *parseJson(unsigned char *property)
       break;
     }
 
-    if ((picture[lngp1 + findEnd] == ','))
+    if ((jsonbuf[lngp1 + findEnd] == ','))
     {
       if (terminator == '\0')
       {
         break;
       }
-      if ((picture[lng + findEnd] == terminator))
+      if ((jsonbuf[lng + findEnd] == terminator))
       {
         findEnd--;
         break;
@@ -775,7 +911,7 @@ const char *parseJson(unsigned char *property)
     {
       break;
     }
-    netbuf[listPos] = picture[w];
+    netbuf[listPos] = jsonbuf[w];
     listPos++;
   }
   netbuf[listPos] = 0;
@@ -858,6 +994,10 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   unsigned int tSize;
   const unsigned char *count1;
   unsigned char result;
+
+  map_json();
+  httpDest = jsonbuf;
+  httpDestMax = JSON_MAX;
   switch (queryNum)
   {
   case 0:
@@ -882,6 +1022,11 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   case 1:
     result = fillPictureEsp();
     break;
+  case 2:
+    result = fillPictureEspNet();
+    break;
+  default:
+    return -1;
   }
 
   if (!result)
@@ -889,13 +1034,13 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     return -1;
   }
 
-  count1 = strstr(picture, "responseStatus\":\"success");
+  count1 = strstr(jsonbuf, "responseStatus\":\"success");
   if (count1 == NULL)
   {
     return -1;
   }
 
-  count1 = strstr(picture, "\"id\":");
+  count1 = strstr(jsonbuf, "\"id\":");
   if (count1 == NULL)
   {
     parseJson("\"totalAmount\":");
@@ -1080,7 +1225,7 @@ void printData(void)
   {
     return;
   }
-  OS_SETGFX(0x86);
+  text_on();
   OS_CLS(0);
 
   idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
@@ -1465,7 +1610,7 @@ void safeKeys(unsigned char keypress)
     delayLong(500);
     break;
   case 'D':
-    netDriver = !netDriver;
+    netDriver = (unsigned char)((netDriver + 1) % 3);
     OS_SETCOLOR(70);
     if (netDriver == 1)
     {
@@ -1474,11 +1619,19 @@ void safeKeys(unsigned char keypress)
       loadEspConfig();
       OS_CHDIR(curPath);
       uart_init(divider);
-
       espReBoot();
+    }
+    else if (netDriver == 2)
+    {
+      printf("    ESPNET mode enabled...\r\n");
+      OS_ESPINIT();
+      EspGetDns();
+      EspDnsResolve("zxart.ee");
     }
     else
     {
+      get_dns();
+      dnsResolve("zxart.ee");
       if (verbose == 1)
         printf("    NedoNET mode enabled...");
       delayLong(500);
@@ -1559,6 +1712,13 @@ void init(void)
   randomPic = 0;
   userInts = 250;
   infoPressed = false;
+  main_pg.l = OS_GETMAINPAGES();
+  pg_app = main_pg.pgs.window_3;
+  pg_scr1 = (unsigned char)(OS_GETSCR1() >> 8);
+  OS_SETSCREEN(0);
+  map_json();
+  httpDest = jsonbuf;
+  httpDestMax = JSON_MAX;
   strcpy(minRating, "4.1");
   targetadr.family = AF_INET;
   targetadr.porth = 00;
@@ -1575,16 +1735,15 @@ void init(void)
 
   netDriver = readParamFromIni();
 
-  if (netDriver == 0)
+  switch (netDriver)
   {
+  case 0:
     verbose = 0;
     get_dns();
     clearStatus();
     dnsResolve("zxart.ee");
-  }
-
-  if (netDriver == 1)
-  {
+    break;
+  case 1:
     OS_GETPATH(curPath);
     loadEspConfig();
     OS_CHDIR(curPath);
@@ -1596,17 +1755,19 @@ void init(void)
       getchar();
     }
     writeLog("GetPic Started & Inited.", "main           ");
+    break;
+  case 2:
+    OS_ESPINIT();
+    EspGetDns();
+    EspDnsResolve("zxart.ee");
+    writeLog("GetPic ESPNET inited.", "main           ");
+    break;
   }
 }
 
-void viewScreen6912c(unsigned int bufAdr)
+void viewScreen6912c(void)
 {
-  OS_CLS(0);
-  OS_SETBORDER(0);
-  SETPG32KHIGH(OS_GETSCR0() >> 8);
-  memcpy((unsigned char *)(0xc000), (unsigned char *)(bufAdr), 6912);
-  OS_SETGFX(0x83);
-  return;
+  pic_on();
 }
 
 C_task main(void)
@@ -1625,6 +1786,7 @@ C_task main(void)
 
 start:
 
+  text_on();
   keypress = 0;
 
   if (count > curFileStruct.totalAmount - 1)
@@ -1648,7 +1810,7 @@ start:
   switch (iddqd)
   {
   case -3: // return 0 pictures
-    OS_SETGFX(0x86);
+    text_on();
     strcpy(minRating, "1.0");
     printf("[%u]No picture is returned in query. Minimal rating is set to %s\r\n", curFileStruct.httpErr, minRating);
     writeLog("[-3]No picture is returned in query. minRating=1.0", "main           ");
@@ -1656,14 +1818,14 @@ start:
 
     goto start;
   case -4: // return xxxx picture, but empty body.
-    OS_SETGFX(0x86);
+    text_on();
     printf("[%u]Empty body is returned. Next picture(%lu)...\r\n", curFileStruct.httpErr, count);
     writeLog("[-4]Empty body is returned. Next picture.", "main           ");
     count++;
     delayLongKey(2000);
     goto start;
   case -1: // return HTTP error != 200
-    OS_SETGFX(0x86);
+    text_on();
     printf("[%u]Error getting pic info. Next picture(%lu)...\r\n", curFileStruct.httpErr, count);
     writeLog("[-1]Error getting pic info. Next picture.", "main           ");
     count++;
@@ -1675,13 +1837,17 @@ start:
 
   if (strcmp(curFileStruct.picType, "standard") != 0)
   {
-    OS_SETGFX(0x86);
+    text_on();
     printf("[%u]Error format '%s' not supported. Next picture.\n\r", curFileStruct.httpErr, curFileStruct.picType);
     count++;
     delayLongKey(2000);
     goto start;
   }
   sprintf(netbuf, "GET /file/id:%ld%s", iddqd, userAgent);
+
+  map_json();
+  httpDest = (unsigned char *)0xC000;
+  httpDestMax = SCR_SIZE;
 
   switch (netDriver)
   {
@@ -1691,18 +1857,21 @@ start:
   case 1:
     result = fillPictureEsp();
     break;
+  case 2:
+    result = fillPictureEspNet();
+    break;
   }
 
   if (!result) // return HTTP error != 200
   {
-    OS_SETGFX(0x86);
+    text_on();
     printf("[%u]Error getting pic. Next picture. Incorrect format?\r\n", curFileStruct.httpErr);
     count++;
     delayLongKey(2000);
     goto start;
   }
 
-  viewScreen6912c((unsigned int)&picture);
+  viewScreen6912c();
 
   if (slideShowTime != 0)
   {
@@ -1724,7 +1893,7 @@ start:
   switch (keypress & 0xdf)
   {
   case 'S':
-    OS_SETGFX(0x86);
+    text_on();
     if (!verbose)
     {
       idkfa = processJson(atol(curFileStruct.authorIds), 0, 99);
@@ -1767,7 +1936,7 @@ start:
     break;
 
   default:
-    OS_SETGFX(0x86);
+    text_on();
     safeKeys(keypress);
     break;
   }

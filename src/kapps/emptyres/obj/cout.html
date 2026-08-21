@@ -1,0 +1,1839 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+<title>XLINK Map File for "emptyres"</title>
+</head>
+<body bgcolor="#dde2a0" text=black>
+<h2 align=center>XLINK Map File for "emptyres"</h2>
+<h3 align=center>IAR Universal Linker V5.0.0.2/W32</h3>
+<h4 align=center>Copyright (C) 1987-2010 IAR Systems AB.</h4>
+
+<p align=center>
+<a href="#Invocation Map">Invocation</a>
+&nbsp;&nbsp;<a href="#Program Entry">Program Entry</a>
+&nbsp;&nbsp;<a href="#Module Map">Module Map</a>
+&nbsp;&nbsp;<a href="#Module Summary">Module Summary</a>
+&nbsp;&nbsp;<a href="#Segments in Address Order">Segment Map</a>
+&nbsp;&nbsp;<a href="#Memory Summary">Memory Summary</a>
+<p><hr>
+<p><a name="Invocation Map"></a><table>
+<tr valign=top>
+  <td><font size=2><b>Link&nbsp;time</font></b>
+  <td><font size=2>02/Aug/2026  12:59:23</font>
+<tr valign=top>
+  <td><font size=2><b>Target&nbsp;CPU</font></b>
+  <td><font size=2>Z80/64180</font>
+<tr valign=top>
+  <td><font size=2><b>List&nbsp;file</font></b>
+  <td><font size=2>.\obj\cout.html</font>
+<tr valign=top>
+  <td><font size=2><b>Output&nbsp;file&nbsp;1</font></b>
+  <td><font size=2>D:\ATM\nedoOS\src\kapps\emptyres\emptyres.com</font>
+<tr valign=top>
+  <td><font size=2><b></font></b>
+  <td><font size=2>Format: raw-binary</font>
+<tr valign=top>
+  <td><font size=2><b>Command&nbsp;line</font></b>
+  <td><font size=2></font>
+<code><b>-e</b>ttygets=gets
+<b>-e</b>ttyputs=puts
+<b>-e</b>ttyputchar=putchar
+<b>-e</b>ttygetkey=_low_level_get
+./obj/main.r01
+./obj/app_bank.r01
+./obj/resident.r01
+<b>-F</b>RAW-BINARY
+<b>-S</b>
+<b>-o</b>
+emptyres.com
+<b>-l</b>
+./obj/cout.html
+<b>-x</b>ehinms
+<b>-Z</b>(CODE)DBGMON=FFFF-FFFF
+D:/ATM/nedoOS/src/kapps/iarlib/iar.lib
+<b>-C</b>
+D:/ATM/nedoOS/iar/lib/clz80.r01
+<b>-f</b>
+lnk.xcl
+( <b>-c</b>Z80
+<b>-I</b>list
+<b>-Z</b>(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-BFFF
+<b>-Z</b>(DATA)DATA0,IDATA0,ECSTR,NO_INIT,UDATA0,CSTACK+250=0100-BFFF
+<b>-Z</b>(CODE)CODE_RESIDENT=C000-FFFF
+) </code>
+</table>
+
+
+
+<p><hr><a name="Program Entry"></a><p>
+       Program entry at :           0100  Absolute, from module : CSTARTUP
+
+
+<p><hr><p>
+<h2><a name="ENTRY LIST">ENTRY LIST</a></h2>
+
+
+<table bgcolor="#d0d0d0" border=1 cellpadding=2>
+<tr>
+<th align=left valign=top><font size=2>Module</font></th>
+<th align=left valign=top><font size=2>Entry</font></th>
+<th align=left valign=top><font size=2>Address</font></th>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?FILLER_BYTES</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>main&nbsp;(&nbsp;D:\ATM\nedoOS\src\kapps\emptyres\obj\main.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>er_init_banks</font></td>
+<td valign=top><font size=2>&nbsp;0811&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>main</font></td>
+<td valign=top><font size=2>&nbsp;0A33&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>ui_mock_magic</font></td>
+<td valign=top><font size=2>&nbsp;07A2&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>ui_mock_message</font></td>
+<td valign=top><font size=2>&nbsp;07EA&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>ui_mock_transform</font></td>
+<td valign=top><font size=2>&nbsp;07C6&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>g_dataPg</font></td>
+<td valign=top><font size=2>&nbsp;2070&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>main_pg</font></td>
+<td valign=top><font size=2>&nbsp;2071&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>residentPg</font></td>
+<td valign=top><font size=2>&nbsp;206F&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>app_bank&nbsp;(&nbsp;D:\ATM\nedoOS\src\kapps\emptyres\obj\app_bank.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>bank_data_fill</font></td>
+<td valign=top><font size=2>&nbsp;0C99&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>bank_data_peek_u32</font></td>
+<td valign=top><font size=2>&nbsp;0C55&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>bank_data_peek_u8</font></td>
+<td valign=top><font size=2>&nbsp;0BF9&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>bank_data_poke_u32</font></td>
+<td valign=top><font size=2>&nbsp;0C20&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>bank_data_poke_u8</font></td>
+<td valign=top><font size=2>&nbsp;0BD3&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>bank_os_new_page</font></td>
+<td valign=top><font size=2>&nbsp;0AAC&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>bank_os_release_page</font></td>
+<td valign=top><font size=2>&nbsp;0AE2&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>bank_pop</font></td>
+<td valign=top><font size=2>&nbsp;0B12&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>bank_pop_stack</font></td>
+<td valign=top><font size=2>&nbsp;0B53&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>bank_push</font></td>
+<td valign=top><font size=2>&nbsp;0AFA&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>bank_push_slot</font></td>
+<td valign=top><font size=2>&nbsp;0BBE&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>bank_push_stack</font></td>
+<td valign=top><font size=2>&nbsp;0B23&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>bank_slot_get</font></td>
+<td valign=top><font size=2>&nbsp;0B9C&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>bank_slot_set</font></td>
+<td valign=top><font size=2>&nbsp;0B7D&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>bank_window_current</font></td>
+<td valign=top><font size=2>&nbsp;0A76&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>bank_window_map</font></td>
+<td valign=top><font size=2>&nbsp;0A9B&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>resident&nbsp;(&nbsp;D:\ATM\nedoOS\src\kapps\emptyres\obj\resident.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>r_mock_magic</font></td>
+<td valign=top><font size=2>&nbsp;C000&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>r_mock_message</font></td>
+<td valign=top><font size=2>&nbsp;C015&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>r_mock_transform</font></td>
+<td valign=top><font size=2>&nbsp;C004&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>ERRNOMOD&nbsp;(&nbsp;D:\ATM\nedoOS\src\kapps\iarlib\iar.lib&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>errno</font></td>
+<td valign=top><font size=2>&nbsp;204E&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>GETMAINPAGES&nbsp;(&nbsp;D:\ATM\nedoOS\src\kapps\iarlib\iar.lib&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>OS_GETMAINPAGES</font></td>
+<td valign=top><font size=2>&nbsp;0CDB&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>OS_GETAPPMAINPAGES</font></td>
+<td valign=top><font size=2>&nbsp;0CD7&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>SETPG32KHIGH&nbsp;(&nbsp;D:\ATM\nedoOS\src\kapps\iarlib\iar.lib&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>SETPG32KHIGH</font></td>
+<td valign=top><font size=2>&nbsp;0CF0&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>MAIN_ARGS&nbsp;(&nbsp;D:\ATM\nedoOS\src\kapps\iarlib\iar.lib&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>main_args</font></td>
+<td valign=top><font size=2>&nbsp;0CFD&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>OS_NEWPAGE&nbsp;(&nbsp;D:\ATM\nedoOS\src\kapps\iarlib\iar.lib&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>OS_NEWPAGE</font></td>
+<td valign=top><font size=2>&nbsp;0D27&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>OS_DELPAGE&nbsp;(&nbsp;D:\ATM\nedoOS\src\kapps\iarlib\iar.lib&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>OS_DELPAGE</font></td>
+<td valign=top><font size=2>&nbsp;0D39&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>CSTARTUP&nbsp;(&nbsp;D:\ATM\nedoOS\src\kapps\iarlib\iar.lib&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>dbg_mon</font></td>
+<td valign=top><font size=2>&nbsp;FFFF&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>exit&nbsp;(&nbsp;D:\ATM\nedoOS\src\kapps\iarlib\iar.lib&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>exit</font></td>
+<td valign=top><font size=2>&nbsp;0142&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?C_EXIT</font></td>
+<td valign=top><font size=2>&nbsp;0142&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>OS_STDIO&nbsp;(&nbsp;D:\ATM\nedoOS\src\kapps\iarlib\iar.lib&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>initstdio</font></td>
+<td valign=top><font size=2>&nbsp;0D4B&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>receivekey</font></td>
+<td valign=top><font size=2>&nbsp;0F19&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>sendchar</font></td>
+<td valign=top><font size=2>&nbsp;0EA6&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>sendchars</font></td>
+<td valign=top><font size=2>&nbsp;0EAF&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>yieldgetkeyloop</font></td>
+<td valign=top><font size=2>&nbsp;0D8B&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>OS_INITSTDIO&nbsp;(&nbsp;D:\ATM\nedoOS\src\kapps\iarlib\iar.lib&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>os_initstdio</font></td>
+<td valign=top><font size=2>&nbsp;1134&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>TTYPUTCHAR&nbsp;(&nbsp;D:\ATM\nedoOS\src\kapps\iarlib\iar.lib&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>ttyputchar</font></td>
+<td valign=top><font size=2>&nbsp;1144&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?LIB_VERSION_L00&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?CLZ80L_4_06_L00</font></td>
+<td valign=top><font size=2>&nbsp;0000&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?SS_DIV_L02&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?SS_DIV_L02</font></td>
+<td valign=top><font size=2>&nbsp;0145&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?SS_MOD_L02&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?SS_MOD_L02</font></td>
+<td valign=top><font size=2>&nbsp;0161&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?S_FIND_SIGN_L02&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?S_FIND_SIGN_L02</font></td>
+<td valign=top><font size=2>&nbsp;017D&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?S_DIVMOD_L02&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?S_DIVMOD_L02</font></td>
+<td valign=top><font size=2>&nbsp;0199&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?SS_CMP_L02&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?SS_CMP_L02</font></td>
+<td valign=top><font size=2>&nbsp;01AF&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?SS_DIVASG_L02&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?SS_DIVASG_L02</font></td>
+<td valign=top><font size=2>&nbsp;01C1&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?UL_DIV_L03&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?UL_DIV_L03</font></td>
+<td valign=top><font size=2>&nbsp;01CB&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?UL_MOD_L03&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?UL_MOD_L03</font></td>
+<td valign=top><font size=2>&nbsp;01F3&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?L_DIVMOD_L03&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?L_DIVMOD_L03</font></td>
+<td valign=top><font size=2>&nbsp;0218&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?SL_CMP_L03&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?SL_CMP_L03</font></td>
+<td valign=top><font size=2>&nbsp;0270&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?L_INC_L03&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?L_INC_L03</font></td>
+<td valign=top><font size=2>&nbsp;02A1&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?L_NOT_L03&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?L_NOT_L03</font></td>
+<td valign=top><font size=2>&nbsp;02A9&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?L_NEG_L03&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?L_NEG_L03</font></td>
+<td valign=top><font size=2>&nbsp;02B8&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?UL_DIVASG_L03&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?UL_DIVASG_L03</font></td>
+<td valign=top><font size=2>&nbsp;02CA&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?L_END_MULDIVASG_L03&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?L_END_MULDIVASG_L03</font></td>
+<td valign=top><font size=2>&nbsp;02DA&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?L_NEGASG_L03&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?L_NEGASG_L03</font></td>
+<td valign=top><font size=2>&nbsp;02E3&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?L_END_ASG_L03&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?L_END_ASG_L03</font></td>
+<td valign=top><font size=2>&nbsp;02F1&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?F_MUL_L04&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?F_MUL_L04</font></td>
+<td valign=top><font size=2>&nbsp;02FA&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?F_DIV_L04&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?F_DIV_L04</font></td>
+<td valign=top><font size=2>&nbsp;03D8&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?F_ADD_SUB_L04&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?F_SUB_L04</font></td>
+<td valign=top><font size=2>&nbsp;048F&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?F_ADD_L04</font></td>
+<td valign=top><font size=2>&nbsp;04A3&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?F_TO_L_L04&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?F_TO_L_L04</font></td>
+<td valign=top><font size=2>&nbsp;05B2&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?L_TO_F_L04&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?SL_TO_F_L04</font></td>
+<td valign=top><font size=2>&nbsp;0610&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?UL_TO_F_L04</font></td>
+<td valign=top><font size=2>&nbsp;0626&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?F_NEGASG_L04&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?F_NEGASG_L04</font></td>
+<td valign=top><font size=2>&nbsp;0653&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?F_MULASG_L04&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?F_MULASG_L04</font></td>
+<td valign=top><font size=2>&nbsp;0669&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?F_DIVASG_L04&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?F_DIVASG_L04</font></td>
+<td valign=top><font size=2>&nbsp;0679&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?F_SUBASG_L04&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?F_SUBASG_L04</font></td>
+<td valign=top><font size=2>&nbsp;0689&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?F_END_ASG2_L04&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?F_END_ASG2_L04</font></td>
+<td valign=top><font size=2>&nbsp;0699&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?F_ROUND_L04&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?F_ROUND_L04</font></td>
+<td valign=top><font size=2>&nbsp;06A2&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?F_UP_ROUND_L04</font></td>
+<td valign=top><font size=2>&nbsp;06B2&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?F_UNPACK_L04&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?F_UNPACK_L04</font></td>
+<td valign=top><font size=2>&nbsp;06C9&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?F_PACK_L04&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?F_PACK_L04</font></td>
+<td valign=top><font size=2>&nbsp;071E&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?F_OVERFLOW_L04</font></td>
+<td valign=top><font size=2>&nbsp;0709&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?F_UNDERFLOW2_L04</font></td>
+<td valign=top><font size=2>&nbsp;0716&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?F_UNDERFLOW_L04</font></td>
+<td valign=top><font size=2>&nbsp;0717&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?F_NO_PACK_L04</font></td>
+<td valign=top><font size=2>&nbsp;0734&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?C_V_SWITCH_L06&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?C_V_SWITCH_L06</font></td>
+<td valign=top><font size=2>&nbsp;0743&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?V_SWITCH_END_L06&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?V_SWITCH_END_L06</font></td>
+<td valign=top><font size=2>&nbsp;0755&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?ENT_PARM_DIRECT_L09&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?ENT_PARM_DIRECT_L09</font></td>
+<td valign=top><font size=2>&nbsp;075F&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?ENT_AUTO_DIRECT_L09&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?ENT_AUTO_DIRECT_L09</font></td>
+<td valign=top><font size=2>&nbsp;076B&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?LEAVE_DIRECT_L09&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?LEAVE_DIRECT_L09</font></td>
+<td valign=top><font size=2>&nbsp;077F&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>?CALL_IND_L09&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>?CALL_IND_L09</font></td>
+<td valign=top><font size=2>&nbsp;0786&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>printf&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>printf</font></td>
+<td valign=top><font size=2>&nbsp;115F&nbsp;</font></td>
+</tr>
+<tr>
+<td colspan=3 valign=top><font size=2>_formatted_write&nbsp;(&nbsp;D:\ATM\nedoOS\iar\lib\clz80.r01&nbsp;)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td valign=top><font size=2>_formatted_write</font></td>
+<td valign=top><font size=2>&nbsp;15F3&nbsp;</font></td>
+</tr>
+</table>
+<p><hr><p>
+<a name="Module Map"></a>
+<table bgcolor="#c0c0c0" border=1 cellpadding=2>
+<tr>
+  <th align=center colspan=6><font size=4><B>Module Map</B>
+</font>
+<tr>
+  <th><font size=2>File</font>
+  <th><font size=2>Module</font>
+  <th><font size=2>Segment</font>
+  <th><font size=2>Symbol</font>
+  <th><font size=2>Address</font>
+  <th><font size=2>Ref by</font>
+<tr valign=top>
+  <td rowspan=0 ><font size=2><b></b></font>
+<tr valign=top>
+  <td rowspan=10 ><font size=2><b>./obj/main.r01</b></font>
+  <td rowspan=10><font size=2><a name="MM\main"><b>main</b></a><br>Program module</font>
+  <td rowspan=5 ><font size=2><b><a name="MM\main\Segpart_0"><b>CODE</b></a></b><br>Relative segment<br> 0787 - 0A75<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\main\er_init_banks"><b>er_init_banks</b></a>
+</font>
+  <td><font size=2>0811 </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\main\main"><b>main</b></a>
+</font>
+  <td><font size=2>0A33 </font>
+  <td><font size=2><a href="#MM\CSTARTUP\Absparts">Absolute parts (CSTARTUP)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\main\ui_mock_magic"><b>ui_mock_magic</b></a>
+</font>
+  <td><font size=2>07A2 </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\main\ui_mock_message"><b>ui_mock_message</b></a>
+</font>
+  <td><font size=2>07EA </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\main\ui_mock_transform"><b>ui_mock_transform</b></a>
+</font>
+  <td><font size=2>07C6 </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2><b><a name="MM\main\Segpart_1"><b>CSTR</b></a></b><br>Relative segment<br> 1DFB - 2007<br>Segment part 1. ROOT.</font>
+  <td><font size=2>  <i><font size=2>Intra module refs</font>
+  <td><font size=2>&nbsp;  <td><font size=2><a href="#MM\main\Segpart_0">Segment part 0</a>
+<tr valign=top>
+  <td rowspan=4 ><font size=2><b><a name="MM\main\Segpart_10"><b>UDATA0</b></a></b><br>Relative segment<br> 206F - 2077<br>Segment part 10. ROOT.</font>
+  <td><font size=2>  <i><font size=2>Intra module refs</font>
+  <td><font size=2>&nbsp;  <td><font size=2><a href="#MM\main\Segpart_0">Segment part 0</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\main\g_dataPg"><b>g_dataPg</b></a>
+</font>
+  <td><font size=2>2070 </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\main\main_pg"><b>main_pg</b></a>
+</font>
+  <td><font size=2>2071 </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\main\residentPg"><b>residentPg</b></a>
+</font>
+  <td><font size=2>206F </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td rowspan=17 ><font size=2><b>./obj/app_bank.r01</b></font>
+  <td rowspan=17><font size=2><a name="MM\app_bank"><b>app_bank</b></a><br>Program module</font>
+  <td rowspan=16 ><font size=2><b><a name="MM\app_bank\Segpart_0"><b>CODE</b></a></b><br>Relative segment<br> 0A76 - 0CD6<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\app_bank\bank_data_fill"><b>bank_data_fill</b></a>
+</font>
+  <td><font size=2>0C99 </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\app_bank\bank_data_peek_u32"><b>bank_data_peek_u32</b></a>
+</font>
+  <td><font size=2>0C55 </font>
+  <td><font size=2><a href="#MM\main\Segpart_0">Segment part 0 (main)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\app_bank\bank_data_peek_u8"><b>bank_data_peek_u8</b></a>
+</font>
+  <td><font size=2>0BF9 </font>
+  <td><font size=2><a href="#MM\main\Segpart_0">Segment part 0 (main)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\app_bank\bank_data_poke_u32"><b>bank_data_poke_u32</b></a>
+</font>
+  <td><font size=2>0C20 </font>
+  <td><font size=2><a href="#MM\main\Segpart_0">Segment part 0 (main)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\app_bank\bank_data_poke_u8"><b>bank_data_poke_u8</b></a>
+</font>
+  <td><font size=2>0BD3 </font>
+  <td><font size=2><a href="#MM\main\Segpart_0">Segment part 0 (main)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\app_bank\bank_os_new_page"><b>bank_os_new_page</b></a>
+</font>
+  <td><font size=2>0AAC </font>
+  <td><font size=2><a href="#MM\main\Segpart_0">Segment part 0 (main)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\app_bank\bank_os_release_page"><b>bank_os_release_page</b></a>
+</font>
+  <td><font size=2>0AE2 </font>
+  <td><font size=2><a href="#MM\main\Segpart_0">Segment part 0 (main)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\app_bank\bank_pop"><b>bank_pop</b></a>
+</font>
+  <td><font size=2>0B12 </font>
+  <td><font size=2><a href="#MM\main\Segpart_0">Segment part 0 (main)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\app_bank\bank_pop_stack"><b>bank_pop_stack</b></a>
+</font>
+  <td><font size=2>0B53 </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\app_bank\bank_push"><b>bank_push</b></a>
+</font>
+  <td><font size=2>0AFA </font>
+  <td><font size=2><a href="#MM\main\Segpart_0">Segment part 0 (main)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\app_bank\bank_push_slot"><b>bank_push_slot</b></a>
+</font>
+  <td><font size=2>0BBE </font>
+  <td><font size=2><a href="#MM\main\Segpart_0">Segment part 0 (main)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\app_bank\bank_push_stack"><b>bank_push_stack</b></a>
+</font>
+  <td><font size=2>0B23 </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\app_bank\bank_slot_get"><b>bank_slot_get</b></a>
+</font>
+  <td><font size=2>0B9C </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\app_bank\bank_slot_set"><b>bank_slot_set</b></a>
+</font>
+  <td><font size=2>0B7D </font>
+  <td><font size=2><a href="#MM\main\Segpart_0">Segment part 0 (main)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\app_bank\bank_window_current"><b>bank_window_current</b></a>
+</font>
+  <td><font size=2>0A76 </font>
+  <td><font size=2><a href="#MM\main\Segpart_0">Segment part 0 (main)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\app_bank\bank_window_map"><b>bank_window_map</b></a>
+</font>
+  <td><font size=2>0A9B </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2><b><a name="MM\app_bank\Segpart_10"><b>UDATA0</b></a></b><br>Relative segment<br> 2078 - 2080<br>Segment part 10. ROOT.</font>
+  <td><font size=2>  <i><font size=2>Intra module refs</font>
+  <td><font size=2>&nbsp;  <td><font size=2><a href="#MM\app_bank\Segpart_0">Segment part 0</a>
+<tr valign=top>
+  <td rowspan=4 ><font size=2><b>./obj/resident.r01</b></font>
+  <td rowspan=4><font size=2><a name="MM\resident"><b>resident</b></a><br>Program module</font>
+  <td rowspan=3 ><font size=2><b><a name="MM\resident\Segpart_0"><b>CODE_RESIDENT</b></a></b><br>Relative segment<br> C000 - C0C4<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\resident\r_mock_magic"><b>r_mock_magic</b></a>
+</font>
+  <td><font size=2>C000 </font>
+  <td><font size=2><a href="#MM\main\Segpart_0">Segment part 0 (main)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\resident\r_mock_message"><b>r_mock_message</b></a>
+</font>
+  <td><font size=2>C015 </font>
+  <td><font size=2><a href="#MM\main\Segpart_0">Segment part 0 (main)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\resident\r_mock_transform"><b>r_mock_transform</b></a>
+</font>
+  <td><font size=2>C004 </font>
+  <td><font size=2><a href="#MM\main\Segpart_0">Segment part 0 (main)</a>
+<tr valign=top>
+  <td rowspan=1 ><font size=2><b><a name="MM\resident\Segpart_1"><b>CSTR</b></a></b><br>Relative segment<br> 2008 - 2018<br>Segment part 1. ROOT.</font>
+  <td><font size=2>  <i><font size=2>Intra module refs</font>
+  <td><font size=2>&nbsp;  <td><font size=2><a href="#MM\resident\Segpart_0">Segment part 0</a>
+<tr valign=top>
+  <td rowspan=31 ><font size=2><b>D:/ATM/nedoOS/src/kapps/iarlib/iar.lib</b></font>
+  <td rowspan=1><font size=2><a name="MM\ERRNOMOD"><b>ERRNOMOD</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\ERRNOMOD\Segpart_0"><b>NO_INIT</b></a></b><br>Relative segment<br> 204E - 204E<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\ERRNOMOD\errno"><b>errno</b></a>
+</font>
+  <td><font size=2>204E </font>
+  <td><font size=2><a href="#MM\GETMAINPAGES\Segpart_0">Segment part 0 (GETMAINPAGES)</a>
+<tr valign=top>
+  <td rowspan=2><font size=2><a name="MM\GETMAINPAGES"><b>GETMAINPAGES</b></a><br>Library module</font>
+  <td rowspan=2 ><font size=2><b><a name="MM\GETMAINPAGES\Segpart_0"><b>CODE</b></a></b><br>Relative segment<br> 0CD7 - 0CEF<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\GETMAINPAGES\OS_GETMAINPAGES"><b>OS_GETMAINPAGES</b></a>
+</font>
+  <td><font size=2>0CDB </font>
+  <td><font size=2><a href="#MM\app_bank\Segpart_0">Segment part 0 (app_bank)</a>
+<br><a href="#MM\main\Segpart_0">Segment part 0 (main)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\GETMAINPAGES\OS_GETAPPMAINPAGES"><b>OS_GETAPPMAINPAGES</b></a>
+</font>
+  <td><font size=2>0CD7 </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\SETPG32KHIGH"><b>SETPG32KHIGH</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\SETPG32KHIGH\Segpart_0"><b>CODE</b></a></b><br>Relative segment<br> 0CF0 - 0CFC<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\SETPG32KHIGH\SETPG32KHIGH"><b>SETPG32KHIGH</b></a>
+</font>
+  <td><font size=2>0CF0 </font>
+  <td><font size=2><a href="#MM\app_bank\Segpart_0">Segment part 0 (app_bank)</a>
+<tr valign=top>
+  <td rowspan=2><font size=2><a name="MM\MAIN_ARGS"><b>MAIN_ARGS</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\MAIN_ARGS\Segpart_0"><b>CODE</b></a></b><br>Relative segment<br> 0CFD - 0D26<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\MAIN_ARGS\main_args"><b>main_args</b></a>
+</font>
+  <td><font size=2>0CFD </font>
+  <td><font size=2><a href="#MM\CSTARTUP\Absparts">Absolute parts (CSTARTUP)</a>
+<tr valign=top>
+  <td rowspan=1 ><font size=2><b><a name="MM\MAIN_ARGS\Segpart_1"><b>NO_INIT</b></a></b><br>Relative segment<br> 204F - 206E<br>Segment part 1. ROOT.</font>
+  <td><font size=2>  <i><font size=2>Intra module refs</font>
+  <td><font size=2>&nbsp;  <td><font size=2><a href="#MM\MAIN_ARGS\Segpart_0">main_args</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\OS_NEWPAGE"><b>OS_NEWPAGE</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\OS_NEWPAGE\Segpart_0"><b>CODE</b></a></b><br>Relative segment<br> 0D27 - 0D38<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\OS_NEWPAGE\OS_NEWPAGE"><b>OS_NEWPAGE</b></a>
+</font>
+  <td><font size=2>0D27 </font>
+  <td><font size=2><a href="#MM\app_bank\Segpart_0">Segment part 0 (app_bank)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\OS_DELPAGE"><b>OS_DELPAGE</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\OS_DELPAGE\Segpart_0"><b>CODE</b></a></b><br>Relative segment<br> 0D39 - 0D4A<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\OS_DELPAGE\OS_DELPAGE"><b>OS_DELPAGE</b></a>
+</font>
+  <td><font size=2>0D39 </font>
+  <td><font size=2><a href="#MM\app_bank\Segpart_0">Segment part 0 (app_bank)</a>
+<tr valign=top>
+  <td rowspan=14><font size=2><a name="MM\CSTARTUP"><b>CSTARTUP</b></a><br>Program module</font>
+  <td rowspan=0 ><font size=2><i>Absolute parts</i></font>
+<br>0100 - 010E
+<tr valign=top>
+  <td rowspan=1 ><font size=2><b><a name="MM\CSTARTUP\Segpart_0"><b>CSTACK</b></a></b><br>Relative segment<br> 2081 <br>Segment part 0. ROOT.</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2><b><a name="MM\CSTARTUP\Segpart_1"><b>UDATA0</b></a></b><br>Relative segment<br> 2081 <br>Segment part 1. ROOT.</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2><b><a name="MM\CSTARTUP\Segpart_2"><b>IDATA0</b></a></b><br>Relative segment<br> 204E <br>Segment part 2. ROOT.</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2><b><a name="MM\CSTARTUP\Segpart_3"><b>ECSTR</b></a></b><br>Relative segment<br> 204E <br>Segment part 3. ROOT.</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2><b><a name="MM\CSTARTUP\Segpart_4"><b>TEMP</b></a></b><br>Segment part 4.<br> ROOT.</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2><b><a name="MM\CSTARTUP\Segpart_5"><b>DATA0</b></a></b><br>Segment part 5.<br> ROOT.</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2><b><a name="MM\CSTARTUP\Segpart_6"><b>WCSTR</b></a></b><br>Segment part 6.<br> ROOT.</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2><b><a name="MM\CSTARTUP\Segpart_7"><b>CDATA0</b></a></b><br>Relative segment<br> 1DFB <br>Segment part 7. ROOT.</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2><b><a name="MM\CSTARTUP\Segpart_8"><b>CCSTR</b></a></b><br>Relative segment<br> 204E <br>Segment part 8. ROOT.</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2><b><a name="MM\CSTARTUP\Segpart_9"><b>CONST</b></a></b><br>Segment part 9.<br> ROOT.</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2><b><a name="MM\CSTARTUP\Segpart_10"><b>CSTR</b></a></b><br>Segment part 10.<br> ROOT.</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2><b><a name="MM\CSTARTUP\Segpart_11"><b>DBGMON</b></a></b><br>Relative segment<br> FFFF - FFFF<br>Segment part 11. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\CSTARTUP\dbg_mon"><b>dbg_mon</b></a>
+</font>
+  <td><font size=2>FFFF </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2><b><a name="MM\CSTARTUP\Segpart_12"><b>RCODE</b></a></b><br>Relative segment<br> 010F - 0141<br>Segment part 12. ROOT.</font>
+  <td><font size=2>  <i><font size=2>Intra module refs</font>
+  <td><font size=2>&nbsp;  <td><font size=2><a href="#MM\CSTARTUP\Absparts">Absolute parts</a>
+<tr valign=top>
+  <td rowspan=1 ><font size=2><b><a name="MM\CSTARTUP\Segpart_13"><b>INTVEC</b></a></b><br>Segment part 13.<br> ROOT.</font>
+<tr valign=top>
+  <td rowspan=2><font size=2><a name="MM\exit"><b>exit</b></a><br>Library module</font>
+  <td rowspan=2 ><font size=2><b><a name="MM\exit\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 0142 - 0144<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\exit\exit"><b>exit</b></a>
+</font>
+  <td><font size=2>0142 </font>
+  <td><font size=2><a href="#MM\CSTARTUP\Absparts">Absolute parts (CSTARTUP)</a>
+<br><a href="#MM\main\Segpart_0">Segment part 0 (main)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\exit\?C_EXIT"><b>?C_EXIT</b></a>
+</font>
+  <td><font size=2>0142 </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td rowspan=5><font size=2><a name="MM\OS_STDIO"><b>OS_STDIO</b></a><br>Library module</font>
+  <td rowspan=5 ><font size=2><b><a name="MM\OS_STDIO\Segpart_0"><b>CODE</b></a></b><br>Relative segment<br> 0D4B - 1133<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\OS_STDIO\initstdio"><b>initstdio</b></a>
+</font>
+  <td><font size=2>0D4B </font>
+  <td><font size=2><a href="#MM\OS_INITSTDIO\Segpart_0">os_initstdio (OS_INITSTDIO)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\OS_STDIO\receivekey"><b>receivekey</b></a>
+</font>
+  <td><font size=2>0F19 </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\OS_STDIO\sendchar"><b>sendchar</b></a>
+</font>
+  <td><font size=2>0EA6 </font>
+  <td><font size=2><a href="#MM\TTYPUTCHAR\Segpart_0">ttyputchar (TTYPUTCHAR)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\OS_STDIO\sendchars"><b>sendchars</b></a>
+</font>
+  <td><font size=2>0EAF </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\OS_STDIO\yieldgetkeyloop"><b>yieldgetkeyloop</b></a>
+</font>
+  <td><font size=2>0D8B </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\OS_INITSTDIO"><b>OS_INITSTDIO</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\OS_INITSTDIO\Segpart_0"><b>CODE</b></a></b><br>Relative segment<br> 1134 - 1143<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\OS_INITSTDIO\os_initstdio"><b>os_initstdio</b></a>
+</font>
+  <td><font size=2>1134 </font>
+  <td><font size=2><a href="#MM\main\Segpart_0">Segment part 0 (main)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\TTYPUTCHAR"><b>TTYPUTCHAR</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\TTYPUTCHAR\Segpart_0"><b>CODE</b></a></b><br>Relative segment<br> 1144 - 1154<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\TTYPUTCHAR\ttyputchar"><b>ttyputchar</b></a>
+</font>
+  <td><font size=2>1144 </font>
+  <td><font size=2><a href="#MM\printf\Segpart_0">printf (printf)</a>
+<tr valign=top>
+  <td rowspan=47 ><font size=2><b>D:/ATM/nedoOS/iar/lib/clz80.r01</b></font>
+  <td rowspan=1><font size=2><a name="MM\?LIB_VERSION_L00"><b>?LIB_VERSION_L00</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><i>Absolute parts</i></font>
+  <td nowrap><font size=2><a name="MM\?LIB_VERSION_L00\?CLZ80L_4_06_L00"><b>?CLZ80L_4_06_L00</b></a>
+</font>
+  <td><font size=2>0000 </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?SS_DIV_L02"><b>?SS_DIV_L02</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?SS_DIV_L02\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 0145 - 0160<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?SS_DIV_L02\?SS_DIV_L02"><b>?SS_DIV_L02</b></a>
+</font>
+  <td><font size=2>0145 </font>
+  <td><font size=2><a href="#MM\?SS_DIVASG_L02\Segpart_0">?SS_DIVASG_L02 (?SS_DIVASG_L02)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?SS_MOD_L02"><b>?SS_MOD_L02</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?SS_MOD_L02\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 0161 - 017C<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?SS_MOD_L02\?SS_MOD_L02"><b>?SS_MOD_L02</b></a>
+</font>
+  <td><font size=2>0161 </font>
+  <td><font size=2><a href="#MM\_formatted_write\Segpart_0">_formatted_write (_formatted_write)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?S_FIND_SIGN_L02"><b>?S_FIND_SIGN_L02</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?S_FIND_SIGN_L02\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 017D - 0198<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?S_FIND_SIGN_L02\?S_FIND_SIGN_L02"><b>?S_FIND_SIGN_L02</b></a>
+</font>
+  <td><font size=2>017D </font>
+  <td><font size=2><a href="#MM\?SS_DIV_L02\Segpart_0">?SS_DIV_L02 (?SS_DIV_L02)</a>
+<br><a href="#MM\?SS_MOD_L02\Segpart_0">?SS_MOD_L02 (?SS_MOD_L02)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?S_DIVMOD_L02"><b>?S_DIVMOD_L02</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?S_DIVMOD_L02\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 0199 - 01AE<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?S_DIVMOD_L02\?S_DIVMOD_L02"><b>?S_DIVMOD_L02</b></a>
+</font>
+  <td><font size=2>0199 </font>
+  <td><font size=2><a href="#MM\?SS_DIV_L02\Segpart_0">?SS_DIV_L02 (?SS_DIV_L02)</a>
+<br><a href="#MM\?SS_MOD_L02\Segpart_0">?SS_MOD_L02 (?SS_MOD_L02)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?SS_CMP_L02"><b>?SS_CMP_L02</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?SS_CMP_L02\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 01AF - 01C0<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?SS_CMP_L02\?SS_CMP_L02"><b>?SS_CMP_L02</b></a>
+</font>
+  <td><font size=2>01AF </font>
+  <td><font size=2><a href="#MM\_formatted_write\Segpart_0">_formatted_write (_formatted_write)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?SS_DIVASG_L02"><b>?SS_DIVASG_L02</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?SS_DIVASG_L02\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 01C1 - 01CA<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?SS_DIVASG_L02\?SS_DIVASG_L02"><b>?SS_DIVASG_L02</b></a>
+</font>
+  <td><font size=2>01C1 </font>
+  <td><font size=2><a href="#MM\_formatted_write\Segpart_0">_formatted_write (_formatted_write)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?UL_DIV_L03"><b>?UL_DIV_L03</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?UL_DIV_L03\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 01CB - 01F2<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?UL_DIV_L03\?UL_DIV_L03"><b>?UL_DIV_L03</b></a>
+</font>
+  <td><font size=2>01CB </font>
+  <td><font size=2><a href="#MM\?UL_DIVASG_L03\Segpart_0">?UL_DIVASG_L03 (?UL_DIVASG_L03)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?UL_MOD_L03"><b>?UL_MOD_L03</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?UL_MOD_L03\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 01F3 - 0217<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?UL_MOD_L03\?UL_MOD_L03"><b>?UL_MOD_L03</b></a>
+</font>
+  <td><font size=2>01F3 </font>
+  <td><font size=2><a href="#MM\_formatted_write\Segpart_0">_formatted_write (_formatted_write)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?L_DIVMOD_L03"><b>?L_DIVMOD_L03</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?L_DIVMOD_L03\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 0218 - 026F<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?L_DIVMOD_L03\?L_DIVMOD_L03"><b>?L_DIVMOD_L03</b></a>
+</font>
+  <td><font size=2>0218 </font>
+  <td><font size=2><a href="#MM\?UL_DIV_L03\Segpart_0">?UL_DIV_L03 (?UL_DIV_L03)</a>
+<br><a href="#MM\?UL_MOD_L03\Segpart_0">?UL_MOD_L03 (?UL_MOD_L03)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?SL_CMP_L03"><b>?SL_CMP_L03</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?SL_CMP_L03\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 0270 - 02A0<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?SL_CMP_L03\?SL_CMP_L03"><b>?SL_CMP_L03</b></a>
+</font>
+  <td><font size=2>0270 </font>
+  <td><font size=2><a href="#MM\_formatted_write\Segpart_0">_formatted_write (_formatted_write)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?L_INC_L03"><b>?L_INC_L03</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?L_INC_L03\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 02A1 - 02A8<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?L_INC_L03\?L_INC_L03"><b>?L_INC_L03</b></a>
+</font>
+  <td><font size=2>02A1 </font>
+  <td><font size=2><a href="#MM\?F_TO_L_L04\Segpart_0">?F_TO_L_L04 (?F_TO_L_L04)</a>
+<br><a href="#MM\?L_TO_F_L04\Segpart_0">Segment part 0 (?L_TO_F_L04)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?L_NOT_L03"><b>?L_NOT_L03</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?L_NOT_L03\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 02A9 - 02B7<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?L_NOT_L03\?L_NOT_L03"><b>?L_NOT_L03</b></a>
+</font>
+  <td><font size=2>02A9 </font>
+  <td><font size=2><a href="#MM\?F_TO_L_L04\Segpart_0">?F_TO_L_L04 (?F_TO_L_L04)</a>
+<br><a href="#MM\?UL_DIV_L03\Segpart_0">?UL_DIV_L03 (?UL_DIV_L03)</a>
+<br><a href="#MM\?L_TO_F_L04\Segpart_0">Segment part 0 (?L_TO_F_L04)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?L_NEG_L03"><b>?L_NEG_L03</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?L_NEG_L03\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 02B8 - 02C9<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?L_NEG_L03\?L_NEG_L03"><b>?L_NEG_L03</b></a>
+</font>
+  <td><font size=2>02B8 </font>
+  <td><font size=2><a href="#MM\?L_NEGASG_L03\Segpart_0">?L_NEGASG_L03 (?L_NEGASG_L03)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?UL_DIVASG_L03"><b>?UL_DIVASG_L03</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?UL_DIVASG_L03\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 02CA - 02D9<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?UL_DIVASG_L03\?UL_DIVASG_L03"><b>?UL_DIVASG_L03</b></a>
+</font>
+  <td><font size=2>02CA </font>
+  <td><font size=2><a href="#MM\_formatted_write\Segpart_0">_formatted_write (_formatted_write)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?L_END_MULDIVASG_L03"><b>?L_END_MULDIVASG_L03</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?L_END_MULDIVASG_L03\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 02DA - 02E2<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?L_END_MULDIVASG_L03\?L_END_MULDIVASG_L03"><b>?L_END_MULDIVASG_L03</b></a>
+</font>
+  <td><font size=2>02DA </font>
+  <td><font size=2><a href="#MM\?UL_DIVASG_L03\Segpart_0">?UL_DIVASG_L03 (?UL_DIVASG_L03)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?L_NEGASG_L03"><b>?L_NEGASG_L03</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?L_NEGASG_L03\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 02E3 - 02F0<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?L_NEGASG_L03\?L_NEGASG_L03"><b>?L_NEGASG_L03</b></a>
+</font>
+  <td><font size=2>02E3 </font>
+  <td><font size=2><a href="#MM\_formatted_write\Segpart_0">_formatted_write (_formatted_write)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?L_END_ASG_L03"><b>?L_END_ASG_L03</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?L_END_ASG_L03\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 02F1 - 02F9<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?L_END_ASG_L03\?L_END_ASG_L03"><b>?L_END_ASG_L03</b></a>
+</font>
+  <td><font size=2>02F1 </font>
+  <td><font size=2><a href="#MM\?L_NEGASG_L03\Segpart_0">?L_NEGASG_L03 (?L_NEGASG_L03)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?F_MUL_L04"><b>?F_MUL_L04</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?F_MUL_L04\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 02FA - 03D7<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?F_MUL_L04\?F_MUL_L04"><b>?F_MUL_L04</b></a>
+</font>
+  <td><font size=2>02FA </font>
+  <td><font size=2><a href="#MM\?F_MULASG_L04\Segpart_0">?F_MULASG_L04 (?F_MULASG_L04)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?F_DIV_L04"><b>?F_DIV_L04</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?F_DIV_L04\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 03D8 - 048E<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?F_DIV_L04\?F_DIV_L04"><b>?F_DIV_L04</b></a>
+</font>
+  <td><font size=2>03D8 </font>
+  <td><font size=2><a href="#MM\?F_DIVASG_L04\Segpart_0">?F_DIVASG_L04 (?F_DIVASG_L04)</a>
+<tr valign=top>
+  <td rowspan=2><font size=2><a name="MM\?F_ADD_SUB_L04"><b>?F_ADD_SUB_L04</b></a><br>Library module</font>
+  <td rowspan=2 ><font size=2><b><a name="MM\?F_ADD_SUB_L04\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 048F - 05B1<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?F_ADD_SUB_L04\?F_SUB_L04"><b>?F_SUB_L04</b></a>
+</font>
+  <td><font size=2>048F </font>
+  <td><font size=2><a href="#MM\?F_SUBASG_L04\Segpart_0">?F_SUBASG_L04 (?F_SUBASG_L04)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\?F_ADD_SUB_L04\?F_ADD_L04"><b>?F_ADD_L04</b></a>
+</font>
+  <td><font size=2>04A3 </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?F_TO_L_L04"><b>?F_TO_L_L04</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?F_TO_L_L04\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 05B2 - 060F<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?F_TO_L_L04\?F_TO_L_L04"><b>?F_TO_L_L04</b></a>
+</font>
+  <td><font size=2>05B2 </font>
+  <td><font size=2><a href="#MM\_formatted_write\Segpart_0">_formatted_write (_formatted_write)</a>
+<tr valign=top>
+  <td rowspan=2><font size=2><a name="MM\?L_TO_F_L04"><b>?L_TO_F_L04</b></a><br>Library module</font>
+  <td rowspan=2 ><font size=2><b><a name="MM\?L_TO_F_L04\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 0610 - 0652<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?L_TO_F_L04\?SL_TO_F_L04"><b>?SL_TO_F_L04</b></a>
+</font>
+  <td><font size=2>0610 </font>
+  <td><font size=2><a href="#MM\_formatted_write\Segpart_0">_formatted_write (_formatted_write)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\?L_TO_F_L04\?UL_TO_F_L04"><b>?UL_TO_F_L04</b></a>
+</font>
+  <td><font size=2>0626 </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?F_NEGASG_L04"><b>?F_NEGASG_L04</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?F_NEGASG_L04\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 0653 - 0668<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?F_NEGASG_L04\?F_NEGASG_L04"><b>?F_NEGASG_L04</b></a>
+</font>
+  <td><font size=2>0653 </font>
+  <td><font size=2><a href="#MM\_formatted_write\Segpart_0">_formatted_write (_formatted_write)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?F_MULASG_L04"><b>?F_MULASG_L04</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?F_MULASG_L04\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 0669 - 0678<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?F_MULASG_L04\?F_MULASG_L04"><b>?F_MULASG_L04</b></a>
+</font>
+  <td><font size=2>0669 </font>
+  <td><font size=2><a href="#MM\_formatted_write\Segpart_0">_formatted_write (_formatted_write)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?F_DIVASG_L04"><b>?F_DIVASG_L04</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?F_DIVASG_L04\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 0679 - 0688<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?F_DIVASG_L04\?F_DIVASG_L04"><b>?F_DIVASG_L04</b></a>
+</font>
+  <td><font size=2>0679 </font>
+  <td><font size=2><a href="#MM\_formatted_write\Segpart_0">_formatted_write (_formatted_write)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?F_SUBASG_L04"><b>?F_SUBASG_L04</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?F_SUBASG_L04\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 0689 - 0698<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?F_SUBASG_L04\?F_SUBASG_L04"><b>?F_SUBASG_L04</b></a>
+</font>
+  <td><font size=2>0689 </font>
+  <td><font size=2><a href="#MM\_formatted_write\Segpart_0">_formatted_write (_formatted_write)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?F_END_ASG2_L04"><b>?F_END_ASG2_L04</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?F_END_ASG2_L04\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 0699 - 06A1<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?F_END_ASG2_L04\?F_END_ASG2_L04"><b>?F_END_ASG2_L04</b></a>
+</font>
+  <td><font size=2>0699 </font>
+  <td><font size=2><a href="#MM\?F_DIVASG_L04\Segpart_0">?F_DIVASG_L04 (?F_DIVASG_L04)</a>
+<br><a href="#MM\?F_MULASG_L04\Segpart_0">?F_MULASG_L04 (?F_MULASG_L04)</a>
+<br><a href="#MM\?F_SUBASG_L04\Segpart_0">?F_SUBASG_L04 (?F_SUBASG_L04)</a>
+<tr valign=top>
+  <td rowspan=2><font size=2><a name="MM\?F_ROUND_L04"><b>?F_ROUND_L04</b></a><br>Library module</font>
+  <td rowspan=2 ><font size=2><b><a name="MM\?F_ROUND_L04\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 06A2 - 06C8<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?F_ROUND_L04\?F_ROUND_L04"><b>?F_ROUND_L04</b></a>
+</font>
+  <td><font size=2>06A2 </font>
+  <td><font size=2><a href="#MM\?F_MUL_L04\Segpart_0">?F_MUL_L04 (?F_MUL_L04)</a>
+<br><a href="#MM\?F_ADD_SUB_L04\Segpart_0">Segment part 0 (?F_ADD_SUB_L04)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\?F_ROUND_L04\?F_UP_ROUND_L04"><b>?F_UP_ROUND_L04</b></a>
+</font>
+  <td><font size=2>06B2 </font>
+  <td><font size=2><a href="#MM\?F_DIV_L04\Segpart_0">?F_DIV_L04 (?F_DIV_L04)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?F_UNPACK_L04"><b>?F_UNPACK_L04</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?F_UNPACK_L04\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 06C9 - 0708<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?F_UNPACK_L04\?F_UNPACK_L04"><b>?F_UNPACK_L04</b></a>
+</font>
+  <td><font size=2>06C9 </font>
+  <td><font size=2><a href="#MM\?F_DIV_L04\Segpart_0">?F_DIV_L04 (?F_DIV_L04)</a>
+<br><a href="#MM\?F_MUL_L04\Segpart_0">?F_MUL_L04 (?F_MUL_L04)</a>
+<br><a href="#MM\?F_ADD_SUB_L04\Segpart_0">Segment part 0 (?F_ADD_SUB_L04)</a>
+<tr valign=top>
+  <td rowspan=5><font size=2><a name="MM\?F_PACK_L04"><b>?F_PACK_L04</b></a><br>Library module</font>
+  <td rowspan=5 ><font size=2><b><a name="MM\?F_PACK_L04\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 0709 - 0742<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?F_PACK_L04\?F_PACK_L04"><b>?F_PACK_L04</b></a>
+</font>
+  <td><font size=2>071E </font>
+  <td><font size=2><a href="#MM\?F_DIV_L04\Segpart_0">?F_DIV_L04 (?F_DIV_L04)</a>
+<br><a href="#MM\?F_ADD_SUB_L04\Segpart_0">Segment part 0 (?F_ADD_SUB_L04)</a>
+<br><a href="#MM\?F_ROUND_L04\Segpart_0">Segment part 0 (?F_ROUND_L04)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\?F_PACK_L04\?F_OVERFLOW_L04"><b>?F_OVERFLOW_L04</b></a>
+</font>
+  <td><font size=2>0709 </font>
+  <td><font size=2><a href="#MM\?F_DIV_L04\Segpart_0">?F_DIV_L04 (?F_DIV_L04)</a>
+<br><a href="#MM\?F_MUL_L04\Segpart_0">?F_MUL_L04 (?F_MUL_L04)</a>
+<br><a href="#MM\?F_ADD_SUB_L04\Segpart_0">Segment part 0 (?F_ADD_SUB_L04)</a>
+<br><a href="#MM\?F_ROUND_L04\Segpart_0">Segment part 0 (?F_ROUND_L04)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\?F_PACK_L04\?F_UNDERFLOW2_L04"><b>?F_UNDERFLOW2_L04</b></a>
+</font>
+  <td><font size=2>0716 </font>
+  <td><font size=2><a href="#MM\?F_DIV_L04\Segpart_0">?F_DIV_L04 (?F_DIV_L04)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\?F_PACK_L04\?F_UNDERFLOW_L04"><b>?F_UNDERFLOW_L04</b></a>
+</font>
+  <td><font size=2>0717 </font>
+  <td><font size=2><a href="#MM\?F_DIV_L04\Segpart_0">?F_DIV_L04 (?F_DIV_L04)</a>
+<br><a href="#MM\?F_MUL_L04\Segpart_0">?F_MUL_L04 (?F_MUL_L04)</a>
+<br><a href="#MM\?F_ADD_SUB_L04\Segpart_0">Segment part 0 (?F_ADD_SUB_L04)</a>
+<br><a href="#MM\?F_ROUND_L04\Segpart_0">Segment part 0 (?F_ROUND_L04)</a>
+<tr valign=top>
+  <td nowrap><font size=2><a name="MM\?F_PACK_L04\?F_NO_PACK_L04"><b>?F_NO_PACK_L04</b></a>
+</font>
+  <td><font size=2>0734 </font>
+  <td><font size=2><a href="#MM\?F_ADD_SUB_L04\Segpart_0">Segment part 0 (?F_ADD_SUB_L04)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?C_V_SWITCH_L06"><b>?C_V_SWITCH_L06</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?C_V_SWITCH_L06\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 0743 - 0754<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?C_V_SWITCH_L06\?C_V_SWITCH_L06"><b>?C_V_SWITCH_L06</b></a>
+</font>
+  <td><font size=2>0743 </font>
+  <td><font size=2><a href="#MM\_formatted_write\Segpart_0">_formatted_write (_formatted_write)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?V_SWITCH_END_L06"><b>?V_SWITCH_END_L06</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?V_SWITCH_END_L06\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 0755 - 075E<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?V_SWITCH_END_L06\?V_SWITCH_END_L06"><b>?V_SWITCH_END_L06</b></a>
+</font>
+  <td><font size=2>0755 </font>
+  <td><font size=2><a href="#MM\?C_V_SWITCH_L06\Segpart_0">?C_V_SWITCH_L06 (?C_V_SWITCH_L06)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?ENT_PARM_DIRECT_L09"><b>?ENT_PARM_DIRECT_L09</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?ENT_PARM_DIRECT_L09\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 075F - 076A<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?ENT_PARM_DIRECT_L09\?ENT_PARM_DIRECT_L09"><b>?ENT_PARM_DIRECT_L09</b></a>
+</font>
+  <td><font size=2>075F </font>
+  <td align=center><font size=2>-</font>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?ENT_AUTO_DIRECT_L09"><b>?ENT_AUTO_DIRECT_L09</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?ENT_AUTO_DIRECT_L09\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 076B - 077E<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?ENT_AUTO_DIRECT_L09\?ENT_AUTO_DIRECT_L09"><b>?ENT_AUTO_DIRECT_L09</b></a>
+</font>
+  <td><font size=2>076B </font>
+  <td><font size=2><a href="#MM\_formatted_write\Segpart_0">_formatted_write (_formatted_write)</a>
+<br><a href="#MM\printf\Segpart_0">printf (printf)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?LEAVE_DIRECT_L09"><b>?LEAVE_DIRECT_L09</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?LEAVE_DIRECT_L09\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 077F - 0785<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?LEAVE_DIRECT_L09\?LEAVE_DIRECT_L09"><b>?LEAVE_DIRECT_L09</b></a>
+</font>
+  <td><font size=2>077F </font>
+  <td><font size=2><a href="#MM\_formatted_write\Segpart_0">_formatted_write (_formatted_write)</a>
+<br><a href="#MM\printf\Segpart_0">printf (printf)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\?CALL_IND_L09"><b>?CALL_IND_L09</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\?CALL_IND_L09\Segpart_0"><b>RCODE</b></a></b><br>Relative segment<br> 0786 - 0786<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\?CALL_IND_L09\?CALL_IND_L09"><b>?CALL_IND_L09</b></a>
+</font>
+  <td><font size=2>0786 </font>
+  <td><font size=2><a href="#MM\_formatted_write\Segpart_0">_formatted_write (_formatted_write)</a>
+<tr valign=top>
+  <td rowspan=1><font size=2><a name="MM\printf"><b>printf</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\printf\Segpart_0"><b>CODE</b></a></b><br>Relative segment<br> 1155 - 118D<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\printf\printf"><b>printf</b></a>
+</font>
+  <td><font size=2>115F </font>
+  <td><font size=2><a href="#MM\main\Segpart_0">Segment part 0 (main)</a>
+<tr valign=top>
+  <td rowspan=2><font size=2><a name="MM\_formatted_write"><b>_formatted_write</b></a><br>Library module</font>
+  <td rowspan=1 ><font size=2><b><a name="MM\_formatted_write\Segpart_0"><b>CODE</b></a></b><br>Relative segment<br> 118E - 1DFA<br>Segment part 0. ROOT.</font>
+  <td nowrap><font size=2><a name="MM\_formatted_write\_formatted_write"><b>_formatted_write</b></a>
+</font>
+  <td><font size=2>15F3 </font>
+  <td><font size=2><a href="#MM\printf\Segpart_0">printf (printf)</a>
+<tr valign=top>
+  <td rowspan=1 ><font size=2><b><a name="MM\_formatted_write\Segpart_1"><b>CSTR</b></a></b><br>Relative segment<br> 2019 - 204D<br>Segment part 1. ROOT.</font>
+  <td><font size=2>  <i><font size=2>Intra module refs</font>
+  <td><font size=2>&nbsp;  <td><font size=2><a href="#MM\_formatted_write\Segpart_0">_formatted_write</a>
+</table>
+
+
+<p><hr><p>
+<h2><a name="Module Summary">Module Summary</a></h2>
+
+
+<table bgcolor="#d0d0d0" border=1 cellpadding=2>
+<tr>
+<th align=left valign=top><font size=2>Module</font></th>
+<th colspan=2 valign=top><font size=2>CODE</font></th>
+<th align=right valign=top><font size=2>DATA</font></th>
+</tr>
+<tr>
+<td valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>(Rel)</font></td>
+<td align=right valign=top><font size=2>(Abs)</font></td>
+<td align=right valign=top><font size=2>(Rel)</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?CALL_IND_L09</font></td>
+<td align=right valign=top><font size=2>1</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?C_V_SWITCH_L06</font></td>
+<td align=right valign=top><font size=2>18</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?ENT_AUTO_DIRECT_L09</font></td>
+<td align=right valign=top><font size=2>20</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?ENT_PARM_DIRECT_L09</font></td>
+<td align=right valign=top><font size=2>12</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?F_ADD_SUB_L04</font></td>
+<td align=right valign=top><font size=2>291</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?F_DIVASG_L04</font></td>
+<td align=right valign=top><font size=2>16</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?F_DIV_L04</font></td>
+<td align=right valign=top><font size=2>183</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?F_END_ASG2_L04</font></td>
+<td align=right valign=top><font size=2>9</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?F_MULASG_L04</font></td>
+<td align=right valign=top><font size=2>16</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?F_MUL_L04</font></td>
+<td align=right valign=top><font size=2>222</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?F_NEGASG_L04</font></td>
+<td align=right valign=top><font size=2>22</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?F_PACK_L04</font></td>
+<td align=right valign=top><font size=2>58</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?F_ROUND_L04</font></td>
+<td align=right valign=top><font size=2>39</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?F_SUBASG_L04</font></td>
+<td align=right valign=top><font size=2>16</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?F_TO_L_L04</font></td>
+<td align=right valign=top><font size=2>94</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?F_UNPACK_L04</font></td>
+<td align=right valign=top><font size=2>64</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?LEAVE_DIRECT_L09</font></td>
+<td align=right valign=top><font size=2>7</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?L_DIVMOD_L03</font></td>
+<td align=right valign=top><font size=2>88</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?L_END_ASG_L03</font></td>
+<td align=right valign=top><font size=2>9</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?L_END_MULDIVASG_L03</font></td>
+<td align=right valign=top><font size=2>9</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?L_INC_L03</font></td>
+<td align=right valign=top><font size=2>8</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?L_NEGASG_L03</font></td>
+<td align=right valign=top><font size=2>14</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?L_NEG_L03</font></td>
+<td align=right valign=top><font size=2>18</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?L_NOT_L03</font></td>
+<td align=right valign=top><font size=2>15</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?L_TO_F_L04</font></td>
+<td align=right valign=top><font size=2>67</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?SL_CMP_L03</font></td>
+<td align=right valign=top><font size=2>49</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?SS_CMP_L02</font></td>
+<td align=right valign=top><font size=2>18</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?SS_DIVASG_L02</font></td>
+<td align=right valign=top><font size=2>10</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?SS_DIV_L02</font></td>
+<td align=right valign=top><font size=2>28</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?SS_MOD_L02</font></td>
+<td align=right valign=top><font size=2>28</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?S_DIVMOD_L02</font></td>
+<td align=right valign=top><font size=2>22</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?S_FIND_SIGN_L02</font></td>
+<td align=right valign=top><font size=2>28</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?UL_DIVASG_L03</font></td>
+<td align=right valign=top><font size=2>16</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?UL_DIV_L03</font></td>
+<td align=right valign=top><font size=2>40</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?UL_MOD_L03</font></td>
+<td align=right valign=top><font size=2>37</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>?V_SWITCH_END_L06</font></td>
+<td align=right valign=top><font size=2>10</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>CSTARTUP</font></td>
+<td align=right valign=top><font size=2>52</font></td>
+<td align=right valign=top><font size=2>15</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>ERRNOMOD</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>1</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>GETMAINPAGES</font></td>
+<td align=right valign=top><font size=2>25</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>MAIN_ARGS</font></td>
+<td align=right valign=top><font size=2>42</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>32</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>OS_DELPAGE</font></td>
+<td align=right valign=top><font size=2>18</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>OS_INITSTDIO</font></td>
+<td align=right valign=top><font size=2>16</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>OS_NEWPAGE</font></td>
+<td align=right valign=top><font size=2>18</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>OS_STDIO</font></td>
+<td align=right valign=top><font size=2>1&nbsp;001</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>SETPG32KHIGH</font></td>
+<td align=right valign=top><font size=2>13</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>TTYPUTCHAR</font></td>
+<td align=right valign=top><font size=2>17</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>_formatted_write</font></td>
+<td align=right valign=top><font size=2>3&nbsp;234</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>app_bank</font></td>
+<td align=right valign=top><font size=2>609</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>9</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>exit</font></td>
+<td align=right valign=top><font size=2>3</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>main</font></td>
+<td align=right valign=top><font size=2>1&nbsp;276</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>9</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>printf</font></td>
+<td align=right valign=top><font size=2>57</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>resident</font></td>
+<td align=right valign=top><font size=2>214</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+</tr>
+<tr>
+<td valign=top><font size=2>N/A&nbsp;(command&nbsp;line)</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>&nbsp;</font></td>
+<td align=right valign=top><font size=2>592</font></td>
+</tr>
+<tr>
+<th align=left valign=top><font size=2>Total:</font></th>
+<th align=right valign=top><font size=2>8&nbsp;197</font></th>
+<th align=right valign=top><font size=2>15</font></th>
+<th align=right valign=top><font size=2>643</font></th>
+</tr>
+</table>
+<p><hr><p>
+<a name="Segments in Address Order"></a>
+<table bgcolor="#bbbb00" border=1 cellpadding=2>
+<tr>
+  <th align=center colspan=7><font size=4><B>Segments in Address Order</B>
+</font>
+<tr>
+  <th><font size=2>Segment</font>
+  <th><font size=2>Space</font>
+  <th><font size=2>Start</font>
+  <th><font size=2>End</font>
+  <th><font size=2>Size</font>
+  <th><font size=2>Kind</font>
+  <th><font size=2>Align</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2>RCODE</font>
+  <td rowspan=1 ><font size=2></font>
+  <td align=center colspan=2><font size=2>010F - 0786</font>
+  <td align=right><font size=2>678</font>
+  <td rowspan=1 ><font size=2>Relative</font>
+  <td align=center><font size=2>0</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2>CODE</font>
+  <td rowspan=1 ><font size=2></font>
+  <td align=center colspan=2><font size=2>0787 - 1DFA</font>
+  <td align=right><font size=2>1674</font>
+  <td rowspan=1 ><font size=2>Relative</font>
+  <td align=center><font size=2>0</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2>CDATA0</font>
+  <td rowspan=1 ><font size=2></font>
+  <td align=center colspan=2><font size=2>1DFB </font>
+  <td align=right><font size=2></font>
+  <td rowspan=1 ><font size=2>Relative</font>
+  <td align=center><font size=2>0</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2>CONST</font>
+  <td rowspan=1 ><font size=2></font>
+  <td align=center colspan=2><font size=2>1DFB </font>
+  <td align=right><font size=2></font>
+  <td rowspan=1 ><font size=2>Predefined</font>
+  <td align=center><font size=2>0</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2>CSTR</font>
+  <td rowspan=1 ><font size=2></font>
+  <td align=center colspan=2><font size=2>1DFB - 204D</font>
+  <td align=right><font size=2>253</font>
+  <td rowspan=1 ><font size=2>Relative</font>
+  <td align=center><font size=2>0</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2>DATA0</font>
+  <td rowspan=1 ><font size=2></font>
+  <td align=center colspan=2><font size=2>204E </font>
+  <td align=right><font size=2></font>
+  <td rowspan=1 ><font size=2>Predefined</font>
+  <td align=center><font size=2>0</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2>CCSTR</font>
+  <td rowspan=1 ><font size=2></font>
+  <td align=center colspan=2><font size=2>204E </font>
+  <td align=right><font size=2></font>
+  <td rowspan=1 ><font size=2>Relative</font>
+  <td align=center><font size=2>0</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2>ECSTR</font>
+  <td rowspan=1 ><font size=2></font>
+  <td align=center colspan=2><font size=2>204E </font>
+  <td align=right><font size=2></font>
+  <td rowspan=1 ><font size=2>Relative</font>
+  <td align=center><font size=2>0</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2>IDATA0</font>
+  <td rowspan=1 ><font size=2></font>
+  <td align=center colspan=2><font size=2>204E </font>
+  <td align=right><font size=2></font>
+  <td rowspan=1 ><font size=2>Relative</font>
+  <td align=center><font size=2>0</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2>NO_INIT</font>
+  <td rowspan=1 ><font size=2></font>
+  <td align=center colspan=2><font size=2>204E - 206E</font>
+  <td align=right><font size=2>21</font>
+  <td rowspan=1 ><font size=2>Relative</font>
+  <td align=center><font size=2>0</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2>UDATA0</font>
+  <td rowspan=1 ><font size=2></font>
+  <td align=center colspan=2><font size=2>206F - 2080</font>
+  <td align=right><font size=2>12</font>
+  <td rowspan=1 ><font size=2>Relative</font>
+  <td align=center><font size=2>0</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2>CSTACK</font>
+  <td rowspan=1 ><font size=2></font>
+  <td align=center colspan=2><font size=2>2081 - 22D0</font>
+  <td align=right><font size=2>250</font>
+  <td rowspan=1 ><font size=2>Relative</font>
+  <td align=center><font size=2>0</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2>CODE_RESIDENT</font>
+  <td rowspan=1 ><font size=2></font>
+  <td align=center colspan=2><font size=2>C000 - C0C4</font>
+  <td align=right><font size=2>C5</font>
+  <td rowspan=1 ><font size=2>Relative</font>
+  <td align=center><font size=2>0</font>
+<tr valign=top>
+  <td rowspan=1 ><font size=2>DBGMON</font>
+  <td rowspan=1 ><font size=2></font>
+  <td align=center colspan=2><font size=2>FFFF - FFFF</font>
+  <td align=right><font size=2>1</font>
+  <td rowspan=1 ><font size=2>Relative</font>
+  <td align=center><font size=2>0</font>
+<tr valign=top>
+  <td><font size=2><i>Absolute</i></font>
+  <td><font size=2></font>
+  <td align=center colspan=2><font size=2>0100 - 010E</font>
+  <td align=right><font size=2>F</font>
+</table>
+
+<hr>
+
+<p><a name="Memory Summary"></a><table>
+
+<table >
+<tr>
+<td align=right valign=top>8&nbsp;197</td>
+<td valign=top>bytes</td>
+<td valign=top>of</td>
+<td valign=top>CODE</td>
+<td valign=top>memory</td>
+<td valign=top>(+</td>
+<td align=right valign=top>15</td>
+<td valign=top>absolute</td>
+<td valign=top>)</td>
+</tr>
+<tr>
+<td align=right valign=top>643</td>
+<td valign=top>bytes</td>
+<td valign=top>of</td>
+<td valign=top>DATA</td>
+<td valign=top>memory</td>
+</tr>
+</table>
+
+Errors: none
+Warnings: none
+

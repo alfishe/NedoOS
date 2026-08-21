@@ -20,7 +20,16 @@ C_task main(int argc, char *argv[])
   OS_SETGFX(6u);
   term_init();
   at_init_banks();
-  net_init();
+  {
+    unsigned char drv;
+
+    drv = net_init();
+    if (drv == 1u || drv == 2u)
+    {
+      r_show_need_wiznet(drv);
+      return 0;
+    }
+  }
 
   debug = 0u;
   cp866 = 0u;

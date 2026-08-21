@@ -1,8 +1,11 @@
 #pragma language=extended
 #pragma codeseg(CODE_RESIDENT)
 
+#include <stdlib.h>
 #include <string.h>
 #include <oscalls.h>
+#include <osfs.h>
+#include "atelnet_plug.h"
 #include "netglue.h"
 
 static unsigned char dnsPkt[512];
@@ -248,8 +251,58 @@ static void get_dns(void)
   dnsaddress.b4 = ipaddress[3];
 }
 
-void net_init(void)
+static unsigned char read_netdriver(void)
 {
+  FILE *fp;
+  unsigned int n;
+  unsigned char drv;
+  char *p;
+  static unsigned char saved[80];
+
+  drv = 0u;
+  at_path_to_ini(saved);
+  fp = OS_OPENHANDLE((unsigned char *)"network.ini", 0x80u);
+  if ((((int)fp) & 0xff) == 0)
+  {
+    n = OS_READHANDLE(netbuf, fp, (unsigned int)(sizeof(netbuf) - 1u));
+    OS_CLOSEHANDLE(fp);
+    if (n >= sizeof(netbuf))
+    {
+      n = (unsigned int)(sizeof(netbuf) - 1u);
+    }
+    netbuf[n] = 0;
+    p = strstr((char *)netbuf, "currentNetwork");
+    if (p != 0)
+    {
+      while (*p != 0 && *p != '=' && *p != '\r' && *p != '\n')
+      {
+        p++;
+      }
+      if (*p == '=')
+      {
+        p++;
+        while (*p == ' ' || *p == '\t')
+        {
+          p++;
+        }
+        drv = (unsigned char)atoi(p);
+      }
+    }
+  }
+  OS_CHDIR(saved);
+  return drv;
+}
+
+unsigned char net_init(void)
+{
+  unsigned char drv;
+
+  drv = read_netdriver();
+  if (drv == 1u || drv == 2u)
+  {
+    return drv;
+  }
+
   get_dns();
   targetadr.family = AF_INET;
   targetadr.porth = 0u;
@@ -258,6 +311,7 @@ void net_init(void)
   targetadr.b2 = 0u;
   targetadr.b3 = 0u;
   targetadr.b4 = 0u;
+  return 0u;
 }
 
 static int net_parse_ipv4(const char *host, unsigned char *out4)

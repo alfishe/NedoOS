@@ -995,7 +995,9 @@ OS_GETFILETIME:
 	ENDMOD
 
 	; unsigned char OS_SETFILETIME(char *path, unsigned int date, unsigned int time)
-	; IAR: DE=path, BC=date, time на стеке (sp+2)
+	; IAR: DE=path, BC=date, time on stack at entry SP+2
+	; After PUSH IX,IY and date->IX: [IY][IXsave][ret][time] => time at SP+6
+	; (Do not use SP+8: that only matched an old redundant PUSH DE.)
 	; BDOS: DE=path, IX=date, HL=time
 	MODULE OS_SETFILETIME
 	PUBLIC OS_SETFILETIME
@@ -1005,16 +1007,14 @@ OS_GETFILETIME:
 OS_SETFILETIME:
 	PUSH	IX
 	PUSH	IY
-	PUSH	DE
 	PUSH	BC
 	POP	IX
-	LD	HL,8
+	LD	HL,6
 	ADD	HL,SP
 	LD	A,(HL)
 	INC	HL
 	LD	H,(HL)
 	LD	L,A
-	POP	DE
 	LD	C,CMD_SETFILETIME
 	CALL	BDOS
 	LD	(errno),A

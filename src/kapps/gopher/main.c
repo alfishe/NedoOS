@@ -5,6 +5,7 @@
 #include <oscalls.h>
 #include <../common/terminal.c>
 #include <tcp.h>
+#include <espnet.h>
 #include <osfs.h>
 #include <graphic.h>
 #include <ctype.h>
@@ -15,8 +16,8 @@
 #define false 0
 #define screenHeight 23
 #define SCREEN_WIDTH 80
-#define MAX_PAGES_TOTAL 200
-#define NETBUF_SIZE 30000
+#define MAX_PAGES_TOTAL 150
+#define NETBUF_SIZE 19000
 
 unsigned int RBR_THR = 0xf8ef;
 unsigned int IER = 0xf9ef;
@@ -155,45 +156,12 @@ void clearStatus(void)
 	putchar('\r');
 }
 
-void printTable(void)
-{
-	unsigned int cycle;
-
-	for (cycle = 1; cycle < 256; cycle++)
-	{
-		OS_SETCOLOR(7);
-		printf("%03u:", cycle);
-		OS_SETCOLOR(71);
-		putchar(cycle);
-		OS_SETCOLOR(7);
-		printf(" ");
-		if (cycle % 12 == 0)
-		{
-			printf("\r\n");
-		}
-	}
-}
-
-void delay(unsigned long counter)
-{
-	unsigned long start, finish;
-	counter = counter / 20;
-	if (counter < 1)
-	{
-		counter = 1;
-	}
-	start = time();
-	finish = start + counter;
-
-	while (start < finish)
-	{
-		start = time();
-	}
-}
-
 ///////////////////////////
 #include <../common/esp-com.c>
 #include <../common/network.c>
+#define ESPNET_CLIENT_ONLY 1
+#include <../common/espnet.c>
+#include <../common/espnet-net.c>
 //////////////////////////
 
 char readParamFromIni(void)
@@ -298,14 +266,12 @@ void mainWinDraw(void)
 
 	OS_SETXY(55, 0);
 
-	if (netDriver)
-	{
+	if (netDriver == 2)
+		printf("[ESPNET]");
+	else if (netDriver == 1)
 		printf("[ESP-COM]");
-	}
 	else
-	{
 		printf("[NEDONET]");
-	}
 	OS_SETXY(64, 0);
 	if (navi.saveAs)
 	{
@@ -485,6 +451,23 @@ void loadNVext(void)
 	nvext[loop + 1] = 0;
 }
 
+void applyNetDriver(void)
+{
+	if (netDriver == 1)
+	{
+		loadEspConfig();
+		uart_init((unsigned char)divider);
+		espReBoot();
+	}
+	else if (netDriver == 2)
+	{
+		OS_ESPINIT();
+		EspGetDns();
+	}
+	else
+		get_dns();
+}
+
 void init(void)
 {
 	targetadr.family = AF_INET;
@@ -516,16 +499,10 @@ void init(void)
 	link.port = 70;
 	OS_SETSYSDRV();
 	OS_DELETE("browser/ng_hist.dat");
-	get_dns();
 	loadNVext();
-	loadEspConfig();
 
 	netDriver = readParamFromIni();
-	if (netDriver == 1)
-	{
-		uart_init(divider);
-		espReBoot();
-	}
+	applyNetDriver();
 
 	initMouse();
 	clock.oldMinutes = 255;
@@ -1274,6 +1251,17 @@ void errNoConnect(void)
 	}
 }
 
+unsigned char quitDownload(void)
+{
+	unsigned char key;
+	key = OS_GETKEY();
+	if (key == 0)
+	{
+		return false;
+	}
+	return true;
+}
+
 char getFileEsp(unsigned char *fileNamePtr)
 {
 	int todo;
@@ -1308,7 +1296,7 @@ char getFileEsp(unsigned char *fileNamePtr)
 			}
 		}
 	}
-	getAnswer3(); // OK
+	getAnswer3();									  // OK
 	sprintf(cmd, "AT+CIPSEND=%u", strlen(link.path)); // second CRLF in send command
 	sendcommand(cmd);
 	getAnswer3();
@@ -1329,14 +1317,22 @@ char getFileEsp(unsigned char *fileNamePtr)
 		downloaded = downloaded + todo;
 		if (downloaded == 0)
 		{
-			return false;
+			saveBuf(fileNamePtr, 02, 00);
+			return true;
 		}
 		getdataEsp(todo);
 		saveBuf(fileNamePtr, 01, todo);
 		printf("%lu kb  \r", downloaded / 1024);
+		if (quitDownload())
+		{
+			saveBuf(fileNamePtr, 02, 00);
+			return false;
+		}
 	} while (todo != 0);
 	link.size = downloaded;
 	saveBuf(fileNamePtr, 02, 00);
+	/* Must return true: getFile() retries while result==0, and CLOSED
+	 * ends the loop with todo==0 ? old "result=false" re-fetched forever. */
 	return true;
 }
 
@@ -1387,8 +1383,11 @@ char getFileNet(unsigned char *fileNamePtr)
 	clearStatus();
 	for (;;)
 	{
-		todo = tcpRead(socket, 3);
-		if (todo < 1)
+		do
+		{
+			todo = tcpRead(socket, 3);
+		} while (todo == 0 - ERR_EAGAIN);
+		if (todo < 1 || quitDownload())
 		{
 			break;
 		}
@@ -1400,6 +1399,79 @@ char getFileNet(unsigned char *fileNamePtr)
 	saveBuf(fileNamePtr, 02, 00);
 	clearStatus();
 	netShutDown(socket, 0);
+	link.size = downloaded;
+	if (downloaded == 0)
+	{
+		clearStatus();
+		printf("Ошибка получения данных от '%s' (%u.%u.%u.%u:%u)", link.host, targetadr.b1, targetadr.b2, targetadr.b3, targetadr.b4, targetadr.porth * 256 + targetadr.portl);
+		return false;
+	}
+	return true;
+}
+
+char getFileEspnet(unsigned char *fileNamePtr)
+{
+	int todo;
+	int socket;
+	unsigned long downloaded = 0;
+
+	if (!EspDnsResolve((char *)link.host))
+	{
+		clearStatus();
+		printf("Ошибка определения адреса '%s'", link.host);
+		return false;
+	}
+	targetadr.porth = 00;
+	targetadr.portl = link.port;
+
+	if ((strlen(link.path) == 1 && link.path[0] == '/') || strlen(link.path) == 0)
+		strcpy(link.path, crlf);
+	else
+		strcat(link.path, crlf);
+
+	socket = EspOpenSock(AF_INET, SOCK_STREAM);
+	if (socket < 0)
+		return false;
+	todo = EspConnect((signed char)socket);
+	if (todo < 0)
+	{
+		EspShutDown((signed char)socket, 0);
+		return false;
+	}
+	todo = EspSend((signed char)socket, (unsigned int)&link.path, strlen(link.path));
+	if (todo < 0)
+	{
+		EspShutDown((signed char)socket, 0);
+		return false;
+	}
+	saveBuf(fileNamePtr, 00, 0);
+	clearStatus();
+	for (;;)
+	{
+		do
+		{
+			todo = EspRead(socket);
+		} while (todo == 0 - ESPNET_ERR_EAGAIN);
+		if (todo < 1 || quitDownload())
+		{
+			if (todo == 0 - (int)ESPNET_ERR_HOSTUNREACH ||
+				todo == 0 - (int)ESPNET_ERR_INTR)
+			{
+				EspShutDown((signed char)socket, 0);
+				clearStatus();
+				printf("ESPNET link lost after %lu kb", downloaded / 1024);
+				return false;
+			}
+			break;
+		}
+		downloaded = downloaded + todo;
+		if ((downloaded & 8191) < (unsigned int)todo)
+			printf("%lu kb    \r", downloaded / 1024);
+		saveBuf(fileNamePtr, 01, todo);
+	}
+	saveBuf(fileNamePtr, 02, 00);
+	clearStatus();
+	EspShutDown((signed char)socket, 0);
 	link.size = downloaded;
 	if (downloaded == 0)
 	{
@@ -1424,7 +1496,9 @@ char getFile(unsigned char *fileNamePtr)
 			result = getFileEsp(fileNamePtr);
 		} while (result == 0);
 		break;
-
+	case 2:
+		result = getFileEspnet(fileNamePtr);
+		break;
 	default:
 		break;
 	}
@@ -2013,13 +2087,11 @@ void navigationPage(char keypress)
 		break;
 	case 'i':
 	case 'I':
-		netDriver = !netDriver;
+		netDriver++;
+		if (netDriver > 2)
+			netDriver = 0;
 		mainWinDraw();
-		if (netDriver)
-		{
-			uart_init(divider);
-			espReBoot();
-		}
+		applyNetDriver();
 		break;
 	case 'm':
 	case 'M':
@@ -2142,13 +2214,11 @@ void navigationPlain(char keypress)
 
 	case 'i':
 	case 'I':
-		netDriver = !netDriver;
+		netDriver++;
+		if (netDriver > 2)
+			netDriver = 0;
 		mainWinDraw();
-		if (netDriver)
-		{
-			uart_init(divider);
-			espReBoot();
-		}
+		applyNetDriver();
 		break;
 
 	case 'm':
@@ -2288,7 +2358,7 @@ unsigned char getMouse(void)
 	return (unsigned char)(mouseButtons >> 8);
 }
 
-C_task main(int argc, const char *argv[])
+C_task main(void)
 {
 	unsigned char keypress;
 

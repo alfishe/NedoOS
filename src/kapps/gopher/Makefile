@@ -10,7 +10,7 @@ CONSOLE := BDOS
 #файлы .с
 SRCC	:= main.c
 #файлы .h
-SRCH	:=
+SRCH	:= ../iarlib/espnet.h ../common/espnet/protocol.h ../common/espnet.c ../common/espnet-net.c ../common/esp-com.c ../common/ini.c
 #файлы .asm
 SRCA	:=
 #линковочный файл-скрипт. можно не указывать, тогда будет использоватся стандартный

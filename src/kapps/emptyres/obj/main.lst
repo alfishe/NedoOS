@@ -1,0 +1,173 @@
+##############################################################################
+#                                                                            #
+# IAR Z80/64180 C-Compiler V4.06A/W32                                        #
+#                                                                            #
+#       Compile time  =  02/Aug/2026  12:59:23                               #
+#       Target option =  Z80                                                 #
+#       Memory model  =  large                                               #
+#       Source file   =  main.c                                              #
+#       List file     =  ./obj/main.lst                                      #
+#       Object file   =  ./obj/main.r01                                      #
+#       ASM file      =  ./obj/main.s01                                      #
+#       Command line  =  -C -v0 -ml -s7 -S -uu -e -K -gA -O./obj/ -L./obj/   #
+#                        -A./obj/ -ID:/ATM/nedoOS/iar/inc/                   #
+#                        -ID:/ATM/nedoOS/src/kapps/iarlib/ main.c            #
+#                                                                            #
+#                           Copyright 2001 IAR Systems. All rights reserved. #
+##############################################################################
+
+      1            #include "emptyres_inc.h"
+      2            #include "emptyres_plug.h"
+      3            #include "app_bank.h"
+      4            
+      5            unsigned char residentPg;
+      6            unsigned char g_dataPg;
+      7            union APP_PAGES main_pg;
+      8            
+      9            static unsigned char resident_call_push(void)
+     10            {
+     11                    return bank_push(residentPg);
+     12            }
+     13            
+     14            static void resident_call_pop(unsigned char saved)
+     15            {
+     16                    bank_pop(saved);
+     17            }
+     18            
+     19            unsigned short ui_mock_magic(void)
+     20            {
+     21                    unsigned char saved;
+     22                    unsigned short v;
+     23            
+     24                    saved = resident_call_push();
+     25                    v = r_mock_magic();
+     26                    resident_call_pop(saved);
+     27                    return v;
+     28            }
+     29            
+     30            unsigned char ui_mock_transform(unsigned char tag)
+     31            {
+     32                    unsigned char saved;
+     33                    unsigned char v;
+     34            
+     35                    saved = resident_call_push();
+     36                    v = r_mock_transform(tag);
+     37                    resident_call_pop(saved);
+     38                    return v;
+     39            }
+     40            
+     41            void ui_mock_message(char *buf, unsigned char buf_sz, const char *prefix)
+     42            {
+     43                    unsigned char saved;
+     44            
+     45                    saved = resident_call_push();
+     46                    r_mock_message(buf, buf_sz, prefix);
+     47                    resident_call_pop(saved);
+     48            }
+     49            
+     50            void er_init_banks(void)
+     51            {
+     52                    main_pg.l = OS_GETMAINPAGES();
+     53                    residentPg = main_pg.pgs.window_3;
+     54                    bank_slot_set(ER_BANK_SLOT_RESIDENT, residentPg);
+     55            
+     56                    g_dataPg = 0u;
+     57                    if (bank_os_new_page(&g_dataPg))
+     58                    {
+     59                            bank_slot_set(ER_BANK_SLOT_DATA, g_dataPg);
+     60                            bank_data_poke_u32(g_dataPg, ER_DATA_SIG_OFF, ER_DATA_SIG_MAGIC);
+     61                            bank_data_poke_u32(g_dataPg, ER_DATA_COUNTER_OFF, 1ul);
+     62                            bank_data_poke_u8(g_dataPg, ER_DATA_PAYLOAD_OFF, 0xBEu);
+     63                    }
+     64            }
+     65            
+     66            static void demo_data_bank(void)
+     67            {
+     68                    unsigned long sig;
+     69                    unsigned char payload;
+     70                    unsigned char map_now;
+     71            
+     72                    printf("--- data bank (page %u @ C000) ---\r\n", (unsigned int)g_dataPg);
+     73                    if (g_dataPg == 0u)
+     74                    {
+     75                            printf("  OS_NEWPAGE failed\r\n");
+     76                            return;
+     77                    }
+     78            
+     79                    sig = bank_data_peek_u32(g_dataPg, ER_DATA_SIG_OFF);
+     80                    payload = bank_data_peek_u8(g_dataPg, ER_DATA_PAYLOAD_OFF);
+     81                    printf("  sig=0x%lX payload=0x%02X\r\n", sig, payload);
+     82            
+     83                    bank_data_poke_u8(g_dataPg, ER_DATA_PAYLOAD_OFF, 0xEFu);
+     84                    payload = bank_data_peek_u8(g_dataPg, ER_DATA_PAYLOAD_OFF);
+     85                    printf("  after poke payload=0x%02X\r\n", payload);
+     86            
+     87                    map_now = bank_window_current();
+     88                    printf("  C000 maps page %u (resident=%u data=%u)\r\n",
+     89                               (unsigned int)map_now, (unsigned int)residentPg, (unsigned int)g_dataPg);
+     90            }
+     91            
+     92            static void demo_resident_bank(void)
+     93            {
+     94                    unsigned short magic;
+     95                    unsigned char tag;
+     96                    unsigned char out;
+     97                    char msg[48];
+     98            
+     99                    printf("--- resident bank (page %u @ C000) ---\r\n", (unsigned int)residentPg);
+    100            
+    101                    magic = ui_mock_magic();
+    102                    printf("  r_mock_magic()=0x%04X (expect 0x%04X)\r\n", magic, ER_R_MOCK_MAGIC);
+    103            
+    104                    tag = 0x42u;
+    105                    out = ui_mock_transform(tag);
+    106                    printf("  r_mock_transform(0x%02X)=0x%02X (expect 0x%02X)\r\n", tag, out, (unsigned char)(tag ^ 0xA5u));
+    107            
+    108                    ui_mock_message(msg, (unsigned char)sizeof(msg), "hello");
+    109                    printf("  r_mock_message: %s\r\n", msg);
+    110            }
+    111            
+    112            static void demo_nested_map(void)
+    113            {
+    114                    unsigned char saved;
+    115                    unsigned long sig;
+    116            
+    117                    printf("--- nested map: resident -> data ---\r\n");
+    118                    saved = bank_push_slot(ER_BANK_SLOT_RESIDENT);
+    119                    (void)ui_mock_magic();
+    120                    sig = bank_data_peek_u32(g_dataPg, ER_DATA_SIG_OFF);
+    121                    printf("  read data sig while resident mapped: 0x%lX\r\n", sig);
+    122                    bank_pop(saved);
+    123                    sig = bank_data_peek_u32(g_dataPg, ER_DATA_SIG_OFF);
+    124                    printf("  read data sig after restore: 0x%lX\r\n", sig);
+    125            }
+    126            
+    127            C_task main(void)
+    128            {
+    129                    os_initstdio();
+    130            
+    131                    /* Bank init can take a while (OS_NEWPAGE, fill @ C000). Do it before any
+    132                     * printf ? otherwise cmd redraws "M:/path>" on the idle line and the next
+    133                     * print appends to that prompt. */
+    134                    er_init_banks();
+    135            
+    136                    printf("emptyres: bank window toolkit demo\r\n");
+    137                    printf("main @ 0100-BFFF, bank @ C000\r\n\r\n");
+    138            
+    139                    demo_data_bank();
+    140                    printf("\r\n");
+    141                    demo_resident_bank();
+    142                    printf("\r\n");
+    143                    demo_nested_map();
+    144                    
+    145                    if (g_dataPg != 0u)
+    146                            bank_os_release_page(g_dataPg);
+    147                    exit(0);
+    148            }
+
+Errors: none
+Warnings: none
+Code size: 751
+Constant size: 525
+Static variable size: Data(9) Iram(0)
+

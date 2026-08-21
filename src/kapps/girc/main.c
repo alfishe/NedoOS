@@ -10,6 +10,7 @@
 #include <oscalls.h>
 #include <osfs.h>
 #include <tcp.h>
+#include <espnet.h>
 #include <intrz80.h>
 
 #define true 1
@@ -126,7 +127,7 @@ unsigned char netbuf[NETBUF_SIZE];
 unsigned char curPath[128];
 unsigned char crlf[2] = {13, 10};
 const unsigned char gotWiFi[] = "WIFI GOT IP";
-unsigned char uVer[] = "0.5";
+unsigned char uVer[] = "0.6";
 unsigned char netDriver = 0;
 
 struct sockaddr_in targetadr;
@@ -276,6 +277,9 @@ void clearStatus(void)
 #include <../common/esp-com.c>
 #include <../common/esp-com2.c>
 #include <../common/network.c>
+#define ESPNET_CLIENT_ONLY 1
+#include <../common/espnet.c>
+#include <../common/espnet-net.c>
 
 /* Invert ink/paper (keep bright bits) ? text caret like term.com */
 static unsigned char inv_attr(unsigned char a)
@@ -1014,7 +1018,7 @@ static void net_init_driver(void)
 		espReBoot();
 		set_status("ESP-COM ready");
 	}
-	else
+	else if (netDriver == 0)
 	{
 		get_dns();
 		targetadr.family = AF_INET;
@@ -1022,6 +1026,17 @@ static void net_init_driver(void)
 		targetadr.portl = 0;
 		targetadr.b1 = targetadr.b2 = targetadr.b3 = targetadr.b4 = 0;
 		set_status("ZXNETUSB ready");
+	}
+	else if (netDriver == 2)
+	{
+		/* UART + seq; without this OS_ESPDNSRESOLVE returns NOTCONN. */
+		OS_ESPINIT();
+		EspGetDns();
+		targetadr.family = AF_INET;
+		targetadr.porth = 0;
+		targetadr.portl = 0;
+		targetadr.b1 = targetadr.b2 = targetadr.b3 = targetadr.b4 = 0;
+		set_status("ESPNET ready");
 	}
 }
 
@@ -1129,6 +1144,9 @@ static int irc_send_line(const char *line)
 	case 1:
 		result = esp_cipsend((unsigned int)g_sendline, n);
 		break;
+	case 2:
+		result = EspSend(g_sock, (unsigned int)g_sendline, n);
+		break;
 	}
 
 	return result;
@@ -1144,6 +1162,9 @@ static void net_close(void)
 	case 1:
 		sendcommand("AT+CIPCLOSE");
 		getAnswer3();
+		break;
+	case 2:
+		EspShutDown(g_sock, 0);
 		break;
 	}
 	g_sock = -1;
@@ -1167,7 +1188,7 @@ static int net_connect_host(void)
 	switch (netDriver)
 	{
 	case 0:
-
+	case 2:
 		sprintf(tmp, "DNS %s ...", g_host);
 		set_status(tmp);
 		draw_status();
@@ -1179,12 +1200,26 @@ static int net_connect_host(void)
 			targetadr.b3 = ip4[2];
 			targetadr.b4 = ip4[3];
 		}
-		else if (!dnsResolve(g_host))
+		else
 		{
-			set_status("DNS failed");
-			return 0;
+			switch (netDriver)
+			{
+			case 0:
+				if (!dnsResolve(g_host))
+				{
+					set_status("DNS failed");
+					return 0;
+				}
+				break;
+			case 2:
+				if (!EspDnsResolve(g_host))
+				{
+					set_status("DNS failed");
+					return 0;
+				}
+				break;
+			}
 		}
-
 		targetadr.family = AF_INET;
 		targetadr.porth = (unsigned char)((g_port >> 8) & 0xFF);
 		targetadr.portl = (unsigned char)(g_port & 0xFF);
@@ -1195,17 +1230,35 @@ static int net_connect_host(void)
 		set_status(tmp);
 		draw_status();
 
-		s = OpenSock(AF_INET, SOCK_STREAM);
-		if (s < 0)
+		if (netDriver == 0)
 		{
-			set_status("socket error");
-			return 0;
+			s = OpenSock(AF_INET, SOCK_STREAM);
+			if (s < 0)
+			{
+				set_status("socket error");
+				return 0;
+			}
+			s = netConnect(s, 2);
+			if (s < 0)
+			{
+				set_status("connect failed");
+				return 0;
+			}
 		}
-		s = netConnect(s, 2);
-		if (s < 0)
+		else
 		{
-			set_status("connect failed");
-			return 0;
+			s = EspOpenSock(AF_INET, SOCK_STREAM);
+			if (s < 0)
+			{
+				set_status("socket error");
+				return 0;
+			}
+			if (EspConnect(s) != 0)
+			{
+				EspShutDown(s, 0);
+				set_status("connect failed");
+				return 0;
+			}
 		}
 		break;
 	case 1:
@@ -1264,6 +1317,9 @@ static int irc_register(void)
 		break;
 	case 1:
 		r = esp_cipsend((unsigned int)g_sendline, n);
+		break;
+	case 2:
+		r = EspSend(g_sock, (unsigned int)g_sendline, n);
 		break;
 	}
 	if (r < 0)
@@ -2460,7 +2516,18 @@ static void connect_draw_help(void)
 static void draw_connect(void)
 {
 	OS_CLS(0);
-	draw_title(netDriver == 1 ? "[ESP-COM]" : "[ZXNETUSB]");
+	switch (netDriver)
+	{
+	case 0:
+		draw_title("[ZXNETUSB]");
+		break;
+	case 1:
+		draw_title("[ESP-COM]");
+		break;
+	case 2:
+		draw_title("[ESPNET]");
+		break;
+	}
 	draw_frm(CONN_FRAME_X, CONN_FRAME_Y, CONN_FRAME_W, CONN_FRAME_H, COL_FRAME);
 	OS_SETCOLOR(COL_SYS);
 	OS_SETXY(3, 2);
@@ -3030,7 +3097,6 @@ void main(void)
 	int n;
 
 	OS_HIDEFROMPARENT();
-	os_initstdio();
 	OS_SETGFX(0x86);
 	OS_CLS(0);
 
@@ -3096,11 +3162,16 @@ void main(void)
 						mouse_show();
 					}
 					break;
+				case 2:
+					n = EspRead(g_sock);
+					if (n == 0 - (int)ESPNET_ERR_EAGAIN)
+						n = 0;
+					break;
 				}
 
 				if (n > 0)
 				{
-					if (netDriver == 0)
+					if (netDriver == 0 || netDriver == 2)
 					{
 						mouse_hide();
 						irc_feed(netbuf, (unsigned int)n);

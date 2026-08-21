@@ -36,15 +36,19 @@ const unsigned char cmdlist1[] = "GET /file/id:";
 unsigned char userQuery[256] = "/export:zxMusic/filter:zxMusicId=44816";
 unsigned char defQuery[] = "/export:zxMusic/filter:zxMusicId=44816";
 unsigned char appCmd[128] = "player.com ";
-unsigned char curPath[128];
-unsigned char ver[] = "4.2";
+unsigned char curPath[256];
+unsigned char ver[] = "4.3";
 
 unsigned char queryType[50];
+/* RX / AT / GET. JSON lives in window_3 at C000 (16K). */
 unsigned char netbuf[4096];
-unsigned char dataBuffer[8192];
+#define JSON_BUF ((unsigned char *)0xC000)
+#define JSON_MAX 16383u
+#define jsonbuf JSON_BUF
+#define NETBUF_BYTES sizeof(netbuf)
 unsigned char crlf[2] = {13, 10};
 unsigned char formats[4][4] = {"pt3", "pt2", "tfc", "ts"};
-unsigned char interfaces[2][8] = {"NedoNET", "ESP-COM"};
+unsigned char interfaces[3][8] = {"NedoNET", "ESP-COM", "ESPNET"};
 unsigned char cmd[256];
 unsigned char link[512];
 unsigned char queryNum;
@@ -65,6 +69,12 @@ unsigned char saveFlag, saveBak, rptFlag, netDriver, changedFormat, showDesc;
 unsigned char status, key, curFormat;
 union APP_PAGES main_pg;
 union APP_PAGES player_pg;
+unsigned char pg_app;
+
+static void map_json(void)
+{
+  SETPG32KHIGH(pg_app);
+}
 unsigned int headlng;
 unsigned char cutOff = 1;
 int remainTime;
@@ -103,44 +113,6 @@ struct window
   unsigned char back;
   unsigned char tittle[80];
 } curWin;
-
-/*
-void writeLog(char *logline)
-{
-  FILE *LogFile;
-  unsigned long fileSize;
-
-  LogFile = OS_OPENHANDLE("m:/bin/radio/radio.log", 0x80);
-  if (((int)LogFile) & 0xff)
-  {
-    LogFile = OS_CREATEHANDLE("m:/bin/radio/radio.log", 0x80);
-    OS_CLOSEHANDLE(LogFile);
-    LogFile = OS_OPENHANDLE("m:/bin/radio/radio.log", 0x80);
-  }
-
-  fileSize = OS_GETFILESIZE(LogFile);
-  OS_SEEKHANDLE(LogFile, fileSize);
-  OS_WRITEHANDLE(logline, LogFile, strlen(logline));
-  OS_CLOSEHANDLE(LogFile);
-}
-*/
-
-void delay(unsigned long counter)
-{
-  unsigned long start, finish;
-  counter = counter / 20;
-  if (counter < 1)
-  {
-    counter = 1;
-  }
-  start = time();
-  finish = start + counter;
-
-  while (start < finish)
-  {
-    start = time();
-  }
-}
 
 unsigned char delayLongKey(unsigned long counter)
 {
@@ -294,7 +266,7 @@ void printHelp(void)
   printf(" [S]  Stop player                 [R]  Repeat track mode   \r\n");
   printf(" [K]  Toggle saving tracks        [D]  Download track      \r\n");
   printf(" [Q]  Select Query type           [F]  Select tracks format\r\n");
-  printf(" [I]  Interface ZXNETUSB/ESP32    [J]  Jump to NNNN file   \r\n");
+  printf(" [I]  ZXNETUSB/ESP-COM/ESPNET     [J]  Jump to NNNN file   \r\n");
   printf(" [O]  Show description            [M]  Minimal Rating(Q:2,3)\r\n");
 }
 
@@ -358,6 +330,9 @@ int pos(unsigned char *s, unsigned char *c, unsigned int n, unsigned int startPo
 ///////////////////////////
 #include <../common/esp-com.c>
 #include <../common/network.c>
+#define ESPNET_CLIENT_ONLY 1
+#include <../common/espnet.c>
+#include <../common/espnet-net.c>
 //////////////////////////
 
 int cutHeader(unsigned int todo)
@@ -626,7 +601,7 @@ const char *parseJson(unsigned char *property)
   int n;
 
   netbuf[0] = 0;
-  n = pos(dataBuffer, property, 1, 0);
+  n = pos(jsonbuf, property, 1, 0);
   if (n == -1)
   {
     strcpy(netbuf, "-");
@@ -634,15 +609,15 @@ const char *parseJson(unsigned char *property)
   }
 
   lng = n - 1 + strlen(property);
-  if (dataBuffer[lng] == ':')
+  if (jsonbuf[lng] == ':')
   {
     terminator = '\0';
   }
-  if (dataBuffer[lng] == '\"')
+  if (jsonbuf[lng] == '\"')
   {
     terminator = '\"';
   }
-  if (dataBuffer[lng] == '[')
+  if (jsonbuf[lng] == '[')
   {
     terminator = ']';
   }
@@ -650,24 +625,22 @@ const char *parseJson(unsigned char *property)
   findEnd = 1;
   lngp1 = lng + 1;
 
-  /* Вычисляем предел безопасности на основе размера dataBuffer (8192 байта) */
-  maxSafeLimit = sizeof(dataBuffer) - lngp1 - 1;
+  maxSafeLimit = JSON_MAX - lngp1 - 1;
 
   while (42)
   {
-    /* Защитный барьер: если буфер битый или усечен, выходим до зависания */
     if (findEnd >= maxSafeLimit)
     {
       break;
     }
 
-    if ((dataBuffer[lngp1 + findEnd] == ','))
+    if ((jsonbuf[lngp1 + findEnd] == ','))
     {
       if (terminator == '\0')
       {
         break;
       }
-      if ((dataBuffer[lng + findEnd] == terminator))
+      if ((jsonbuf[lng + findEnd] == terminator))
       {
         findEnd--;
         break;
@@ -676,7 +649,6 @@ const char *parseJson(unsigned char *property)
     findEnd++;
   }
 
-  /* Если вышли по аварийному лимиту ? отдаем маркер ошибки */
   if (findEnd >= maxSafeLimit)
   {
     strcpy(netbuf, "-");
@@ -686,12 +658,11 @@ const char *parseJson(unsigned char *property)
   listPos = 0;
   for (w = lngp1; w < findEnd + lngp1; w++)
   {
-    /* Защищаем netbuf (4096 байт) от случайного переполнения */
     if (listPos >= sizeof(netbuf) - 1)
     {
       break;
     }
-    netbuf[listPos] = dataBuffer[w];
+    netbuf[listPos] = jsonbuf[w];
     listPos++;
   }
   netbuf[listPos] = 0;
@@ -1086,16 +1057,20 @@ char getFileNet(void)
       }
     }
 
-    if ((downloaded + todo) > (sizeof(dataBuffer) - 1))
+    if ((downloaded + todo) > JSON_MAX)
     {
       clearStatus();
-      printf("dataBuffer overrun...");
+      printf("JSON overrun...");
       getchar();
       break;
     }
-    memcpy(dataBuffer + downloaded, netbuf + headlng, todo);
+    memcpy(jsonbuf + downloaded, netbuf + headlng, todo);
     downloaded = downloaded + todo;
   } while (downloaded < contLen);
+  if (downloaded < JSON_MAX)
+    jsonbuf[downloaded] = 0;
+  else
+    jsonbuf[JSON_MAX - 1] = 0;
   netShutDown(socket, 1);
   return true;
 }
@@ -1169,12 +1144,94 @@ unsigned int getFileEsp(void)
         return false;
       }
     }
-    memcpy(dataBuffer + downloaded, netbuf + headlng, todo);
+    if ((downloaded + todo) > JSON_MAX)
+    {
+      clearStatus();
+      printf("JSON overrun...");
+      getchar();
+      break;
+    }
+    memmove(jsonbuf + downloaded, netbuf + headlng, todo);
     downloaded = downloaded + todo;
   } while (downloaded < contLen);
+  if (downloaded < JSON_MAX)
+    jsonbuf[downloaded] = 0;
+  else
+    jsonbuf[JSON_MAX - 1] = 0;
   sendcommand("AT+CIPCLOSE");
   getAnswer3(); // CLOSED
   getAnswer3(); // OK
+  return true;
+}
+
+char getFileEspNet(void)
+{
+  int todo;
+  int socket;
+  unsigned int downloaded;
+  unsigned char firstPacket;
+
+  jsonbuf[0] = 0;
+  downloaded = 0;
+  socket = EspOpenSock(AF_INET, SOCK_STREAM);
+  if (socket < 0)
+    return false;
+
+  todo = EspConnect((signed char)socket);
+  if (todo < 0)
+  {
+    EspShutDown((signed char)socket, 0);
+    return false;
+  }
+
+  todo = EspSend((signed char)socket, (unsigned int)&netbuf, strlen(netbuf));
+  if (todo < 0)
+  {
+    EspShutDown((signed char)socket, 0);
+    return false;
+  }
+
+  firstPacket = true;
+  do
+  {
+    headlng = 0;
+    do
+    {
+      todo = EspRead((signed char)socket);
+    } while (todo == 0 - (int)ESPNET_ERR_EAGAIN);
+
+    if (todo < 1)
+    {
+      EspShutDown((signed char)socket, 0);
+      return false;
+    }
+
+    if (firstPacket)
+    {
+      todo = cutHeader((unsigned int)todo);
+      firstPacket = false;
+      if (curFileStruct.httpErr != 200)
+      {
+        EspShutDown((signed char)socket, 0);
+        return false;
+      }
+    }
+
+    if ((downloaded + (unsigned int)todo) > JSON_MAX)
+    {
+      todo = (int)(JSON_MAX - downloaded);
+      if (todo <= 0)
+        break;
+    }
+    memcpy(jsonbuf + downloaded, netbuf + headlng, (unsigned int)todo);
+    downloaded = downloaded + (unsigned int)todo;
+  } while ((unsigned long)downloaded < contLen && downloaded < JSON_MAX);
+
+  EspShutDown((signed char)socket, 0);
+  if (downloaded < JSON_MAX)
+    jsonbuf[downloaded] = 0;
+  else
+    jsonbuf[JSON_MAX - 1] = 0;
   return true;
 }
 
@@ -1183,6 +1240,9 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   unsigned int tSize;
   const unsigned char *countl;
   unsigned char result;
+
+  result = 0;
+  map_json();
   clearStatus();
   printf("Getting data(%u)...", queryNum);
 
@@ -1219,6 +1279,9 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   case 1:
     result = getFileEsp();
     break;
+  case 2:
+    result = getFileEspNet();
+    break;
   }
 
   if (!result)
@@ -1229,20 +1292,20 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
   clearStatus();
   printf("Processing data (%u)...", queryNum);
 
-  countl = strstr(dataBuffer, "responseStatus\":\"success");
+  countl = strstr(jsonbuf, "responseStatus\":\"success");
   if (countl == NULL)
   {
     OS_CLS(0);
     OS_SETCOLOR(66);
-    puts("Bad responseStatus - dataBuffer[]:");
-    puts(dataBuffer);
+    puts("Bad responseStatus - JSON:");
+    puts(jsonbuf);
     puts("---------------");
     printf("PROCESS JSON: [ERROR: Bad responseStatus.] [Query:%u] [Track:%lu]\r\n", queryNum, startPos);
     YIELD();
     getchar();
     return -1;
   }
-  countl = strstr(dataBuffer, "\"id\":");
+  countl = strstr(jsonbuf, "\"id\":");
   if (countl == NULL)
   {
     parseJson("\"totalAmount\":");
@@ -1259,8 +1322,8 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
 
     OS_CLS(0);
     OS_SETCOLOR(66);
-    puts("ID not found - dataBuffer[]:");
-    puts(dataBuffer);
+    puts("ID not found - JSON:");
+    puts(jsonbuf);
     puts("---------------");
     printf("PROCESS JSON: [ERROR: ID not found] [Query:%u] [Track:%lu]", queryNum, startPos);
     YIELD();
@@ -1345,8 +1408,7 @@ void showDescription(unsigned long counter, int atLine, unsigned char showLines)
     OS_SETCOLOR(71);
   }
 
-  /* Читаем netbuf (4096 байт) */
-  while (position < 4096)
+  while (position < sizeof(netbuf))
   {
     byte = netbuf[position];
     if (byte == 0x00)
@@ -1376,7 +1438,7 @@ void showDescription(unsigned long counter, int atLine, unsigned char showLines)
     if (byte == '\\')
     {
       position++;
-      if (position >= 4096)
+      if (position >= sizeof(netbuf))
         return;
 
       byte = netbuf[position];
@@ -1623,6 +1685,68 @@ unsigned char getTrack2Esp(unsigned long fileId)
   return true;
 }
 
+unsigned char getTrack2EspNet(unsigned long fileId)
+{
+  int todo;
+  int socket;
+  unsigned long downloaded;
+  unsigned char firstPacket;
+
+  clearStatus();
+  printf("Getting track...");
+  sprintf(netbuf, "GET /file/id:%lu%s", fileId, userAgent);
+
+  socket = EspOpenSock(AF_INET, SOCK_STREAM);
+  if (socket < 0)
+    return false;
+
+  todo = EspConnect((signed char)socket);
+  if (todo < 0)
+  {
+    EspShutDown((signed char)socket, 0);
+    return false;
+  }
+
+  todo = EspSend((signed char)socket, (unsigned int)&netbuf, strlen(netbuf));
+  if (todo < 0)
+  {
+    EspShutDown((signed char)socket, 0);
+    return false;
+  }
+
+  saveBuf(curFileStruct.picId, 00, 0);
+  downloaded = 0;
+  firstPacket = true;
+  do
+  {
+    headlng = 0;
+    do
+    {
+      todo = EspRead((signed char)socket);
+    } while (todo == 0 - (int)ESPNET_ERR_EAGAIN);
+
+    if (todo < 1)
+      break;
+
+    if (firstPacket)
+    {
+      todo = cutHeader((unsigned int)todo);
+      firstPacket = false;
+      if (curFileStruct.httpErr != 200)
+      {
+        EspShutDown((signed char)socket, 0);
+        return false;
+      }
+    }
+    saveBuf(curFileStruct.picId, 01, (unsigned int)todo);
+    downloaded = downloaded + (unsigned long)todo;
+  } while (downloaded < contLen);
+
+  EspShutDown((signed char)socket, 0);
+  saveBuf(curFileStruct.picId, 02, 0);
+  return true;
+}
+
 int getTrack3(long iddqd)
 {
   int errn;
@@ -1633,6 +1757,12 @@ int getTrack3(long iddqd)
     break;
   case 1:
     errn = getTrack2Esp(iddqd);
+    break;
+  case 2:
+    errn = getTrack2EspNet(iddqd);
+    break;
+  default:
+    errn = 0;
     break;
   }
 
@@ -1651,7 +1781,6 @@ unsigned char runPlayer(void)
   unsigned int loaded;
   unsigned int to_read;
   unsigned long playerSize;
-  unsigned char pgbak;
   unsigned char fileName[] = "player.ovl";
   clearStatus();
   printf("Running player...");
@@ -1661,7 +1790,6 @@ unsigned char runPlayer(void)
   sprintf(appCmd, "player.com %.116s", curFileStruct.fileName);
 
   player_pg.l = OS_GETMAINPAGES();
-  pgbak = main_pg.pgs.window_3;
 
   OS_GETPATH(curPath);
   OS_SETSYSDRV();
@@ -1688,20 +1816,20 @@ unsigned char runPlayer(void)
   do
   {
     /* 16-битная арифметика для Z80 вместо тяжелой 32-битной */
-    to_read = ((playerSize - loop) > sizeof(dataBuffer)) ? sizeof(dataBuffer) : (unsigned int)(playerSize - loop);
+    to_read = ((playerSize - loop) > sizeof(netbuf)) ? sizeof(netbuf) : (unsigned int)(playerSize - loop);
 
-    loaded = OS_READHANDLE(dataBuffer, fp2, to_read);
+    loaded = OS_READHANDLE(netbuf, fp2, to_read);
     if (loaded == 0)
     {
-      break; /* Предотвращаем вечный цикл, если FAT32 вернет ошибку */
+      break;
     }
 
-    memcpy((char *)(0xC100 + loop), dataBuffer, loaded);
+    memcpy((char *)(0xC100 + loop), netbuf, loaded);
     loop += loaded;
   } while (loop < playerSize);
 
   OS_CLOSEHANDLE(fp2);
-  SETPG32KHIGH(pgbak);
+  map_json();
   OS_RUNAPP(player_pg.pgs.pId);
 
   return player_pg.pgs.pId;
@@ -1786,56 +1914,43 @@ void initQueryMenu(void)
 {
   FILE *fp3;
   unsigned int i, j, bytesRead;
-  unsigned char fileBuf[256]; /* Временный буфер для чтения всего файла */
 
-  /* 1. Заполняем первые 3 захардкоженных имени */
   strcpy((char *)menuQueries[0], "From newest to oldest");
   strcpy((char *)menuQueries[1], "Random most voted tracks");
   strcpy((char *)menuQueries[2], "Random play");
 
-  /* По умолчанию доступно только 3 системных пункта */
   totalMenuLines = 3;
 
-  /* 2. Работа с файловой системой NedoOS по вашему паттерну */
   fp3 = OS_OPENHANDLE("../ini/user.que", 0x80);
 
-  /* Проверка ошибки открытия в стиле NedoOS */
   if (((int)fp3) & 0xff)
   {
-    /* Если файла нет, создаем его и записываем дефолтный запрос */
     fp3 = OS_CREATEHANDLE("../ini/user.que", 0x80);
 
-    /* Записываем дефолтную строку. Добавим \r\n, чтобы файл был готов к многострочности */
-    strcpy((char *)fileBuf, defQuery);
-    OS_WRITEHANDLE(fileBuf, fp3, strlen((const char *)fileBuf));
+    strcpy((char *)netbuf, defQuery);
+    OS_WRITEHANDLE(netbuf, fp3, strlen((const char *)netbuf));
     OS_CLOSEHANDLE(fp3);
-    /* Переоткрываем для последующего чтения */
     fp3 = OS_OPENHANDLE("../ini/user.que", 0x80);
   }
 
-  /* Обнуляем буфер перед чтением */
-  memset(fileBuf, 0, sizeof(fileBuf));
+  memset(netbuf, 0, 256);
 
-  /* Читаем содержимое файла в буфер */
-  bytesRead = OS_READHANDLE(fileBuf, fp3, sizeof(fileBuf) - 1);
+  bytesRead = OS_READHANDLE(netbuf, fp3, 255);
   OS_CLOSEHANDLE(fp3);
 
-  /* 3. Парсим буфер файла на отдельные строки */
   i = 0;
   while (i < bytesRead && totalMenuLines < 6)
   {
-    /* Пропускаем пустые символы и мусор между строками */
-    if (fileBuf[i] == '\r' || fileBuf[i] == '\n' || fileBuf[i] == ' ')
+    if (netbuf[i] == '\r' || netbuf[i] == '\n' || netbuf[i] == ' ')
     {
       i++;
       continue;
     }
 
-    /* Копируем очередную строку в массив menuQueries */
     j = 0;
-    while (i < bytesRead && fileBuf[i] != '\r' && fileBuf[i] != '\n' && j < 63)
+    while (i < bytesRead && netbuf[i] != '\r' && netbuf[i] != '\n' && j < 63)
     {
-      menuQueries[totalMenuLines][j] = fileBuf[i];
+      menuQueries[totalMenuLines][j] = netbuf[i];
       i++;
       j++;
     }
@@ -1969,6 +2084,10 @@ C_task main(int argc, const char *argv[])
   OS_SETGFX(0x86);
   OS_CLS(0);
 
+  main_pg.l = OS_GETMAINPAGES();
+  pg_app = main_pg.pgs.window_3;
+  map_json();
+
   count = 0;
   saveFlag = 0;
   queryNum = 0;
@@ -2012,6 +2131,12 @@ C_task main(int argc, const char *argv[])
     loadEspConfig();
     uart_init(divider);
     espReBoot();
+  }
+  else if (netDriver == 2)
+  {
+    OS_ESPINIT();
+    EspGetDns();
+    EspDnsResolve("zxart.ee");
   }
 
   OS_HIDEFROMPARENT();
@@ -2326,7 +2451,7 @@ rekey:
     goto rekey;
   case 'i':
   case 'I':
-    netDriver = !netDriver;
+    netDriver = (unsigned char)((netDriver + 1) % 3);
     if (netDriver == 1)
     {
       unsigned char q;
@@ -2346,10 +2471,20 @@ rekey:
 
       printHelp();
     }
+    else if (netDriver == 2)
+    {
+      clearStatus();
+      printf("    ESPNET mode enabled...");
+      OS_ESPINIT();
+      EspGetDns();
+      EspDnsResolve("zxart.ee");
+    }
     else
     {
       clearStatus();
       printf("    ZXNETUSB mode enabled...");
+      get_dns();
+      dnsResolve("zxart.ee");
     }
     OS_SETXY(0, 0);
     OS_SETCOLOR(71);

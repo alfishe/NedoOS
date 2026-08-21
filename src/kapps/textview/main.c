@@ -126,8 +126,6 @@ static unsigned long g_raw_max;    /* cached max top ofs for End */
 static unsigned char g_raw_max_ok;
 static unsigned long g_raw_row[VIEW_ROWS]; /* line starts on screen */
 static unsigned long g_raw_end[VIEW_ROWS]; /* exclusive ends */
-static unsigned long g_raw_vis[VIEW_ROWS]; /* ofs of first visible glyph */
-static unsigned long g_raw_vis_col;        /* view_col that g_raw_vis matches */
 
 static unsigned char g_pg_file[MAX_FILE_PAGES];
 static unsigned char g_npg_file;
@@ -1680,7 +1678,6 @@ static void paint_view(void)
 	{
 		unsigned long ofs;
 		unsigned long end;
-		unsigned long vis;
 
 		ofs = g_view_ofs;
 		for (row = 0; row < VIEW_ROWS; row++)
@@ -1689,7 +1686,6 @@ static void paint_view(void)
 			{
 				g_raw_row[row] = g_fsize;
 				g_raw_end[row] = g_fsize;
-				g_raw_vis[row] = g_fsize;
 				fill_spaces(g_rowbuf, COLS);
 			}
 			else
@@ -1698,17 +1694,11 @@ static void paint_view(void)
 				g_raw_row[row] = ofs;
 				g_raw_end[row] = end;
 				g_raw_bot = ofs;
-				if (g_view_col > 0UL)
-					vis = text_skip_cols(ofs, end, g_view_col, 0u);
-				else
-					vis = ofs;
-				g_raw_vis[row] = vis;
-				text_fill_row_mem(vis, end, 0UL);
+				text_fill_row_mem(ofs, end, g_view_col);
 				ofs = end;
 			}
 			paint_row((unsigned char)(ROW_TEXT0 + row), color, g_rowbuf);
 		}
-		g_raw_vis_col = g_view_col;
 		flush_view();
 		return;
 	}
@@ -1746,7 +1736,6 @@ static void scroll_down_one(void)
 	if (g_mode == MODE_TEXT && g_wrapmode == WRAP_NOLF)
 	{
 		unsigned char i;
-		unsigned long vis;
 
 		/* Only look forward from bottom row ? never scan whole file. */
 		next = raw_next_line(g_raw_bot);
@@ -1758,20 +1747,14 @@ static void scroll_down_one(void)
 		{
 			g_raw_row[i] = g_raw_row[i + 1u];
 			g_raw_end[i] = g_raw_end[i + 1u];
-			g_raw_vis[i] = g_raw_vis[i + 1u];
 		}
 		end = raw_next_line(g_raw_bot);
 		g_raw_row[VIEW_ROWS - 1u] = g_raw_bot;
 		g_raw_end[VIEW_ROWS - 1u] = end;
-		if (g_view_col > 0UL)
-			vis = text_skip_cols(g_raw_bot, end, g_view_col, 0u);
-		else
-			vis = g_raw_bot;
-		g_raw_vis[VIEW_ROWS - 1u] = vis;
 		restore_doc();
 		OS_SCROLLUP(OS_SCROLL_XY(ROW_TEXT0, 0), OS_SCROLL_WH(VIEW_ROWS, COLS));
 		color = COL_TEXT;
-		text_fill_row_mem(vis, end, 0UL);
+		text_fill_row_mem(g_raw_bot, end, g_view_col);
 		paint_row((unsigned char)(ROW_TEXT0 + VIEW_ROWS - 1u), color, g_rowbuf);
 		flush_row((unsigned char)(ROW_TEXT0 + VIEW_ROWS - 1u));
 		update_title();
@@ -1804,7 +1787,6 @@ static void scroll_up_one(void)
 	if (g_mode == MODE_TEXT && g_wrapmode == WRAP_NOLF)
 	{
 		unsigned char i;
-		unsigned long vis;
 		unsigned long end;
 
 		if (g_view_ofs == 0UL)
@@ -1815,20 +1797,14 @@ static void scroll_up_one(void)
 		{
 			g_raw_row[i] = g_raw_row[i - 1u];
 			g_raw_end[i] = g_raw_end[i - 1u];
-			g_raw_vis[i] = g_raw_vis[i - 1u];
 		}
 		end = raw_next_line(g_view_ofs);
 		g_raw_row[0] = g_view_ofs;
 		g_raw_end[0] = end;
-		if (g_view_col > 0UL)
-			vis = text_skip_cols(g_view_ofs, end, g_view_col, 0u);
-		else
-			vis = g_view_ofs;
-		g_raw_vis[0] = vis;
 		restore_doc();
 		OS_SCROLLDOWN(OS_SCROLL_XY(ROW_TEXT0, 0), OS_SCROLL_WH(VIEW_ROWS, COLS));
 		color = COL_TEXT;
-		text_fill_row_mem(vis, end, 0UL);
+		text_fill_row_mem(g_view_ofs, end, g_view_col);
 		paint_row(ROW_TEXT0, color, g_rowbuf);
 		flush_row(ROW_TEXT0);
 		update_title();
@@ -1920,75 +1896,22 @@ static void goto_end(void)
 	paint_content();
 }
 
-static void paint_raw_horiz(void)
-{
-	unsigned char row;
-	unsigned long delta;
-
-	/* Advance vis cache when scrolling right from a known column. */
-	if (g_view_col > g_raw_vis_col && g_raw_vis_col != 0xFFFFFFFFUL)
-	{
-		delta = g_view_col - g_raw_vis_col;
-		for (row = 0; row < VIEW_ROWS; row++)
-		{
-			if (g_raw_row[row] >= g_fsize)
-				continue;
-			g_raw_vis[row] = text_skip_cols(g_raw_vis[row], g_raw_end[row], delta,
-				(unsigned int)g_raw_vis_col);
-		}
-		g_raw_vis_col = g_view_col;
-	}
-	else if (g_view_col != g_raw_vis_col)
-	{
-		/* Left / jumped: recompute skip from line starts. */
-		for (row = 0; row < VIEW_ROWS; row++)
-		{
-			if (g_raw_row[row] >= g_fsize)
-			{
-				g_raw_vis[row] = g_fsize;
-				continue;
-			}
-			if (g_view_col > 0UL)
-				g_raw_vis[row] = text_skip_cols(g_raw_row[row], g_raw_end[row],
-					g_view_col, 0u);
-			else
-				g_raw_vis[row] = g_raw_row[row];
-		}
-		g_raw_vis_col = g_view_col;
-	}
-
-	for (row = 0; row < VIEW_ROWS; row++)
-	{
-		if (g_raw_row[row] >= g_fsize)
-			fill_spaces(g_rowbuf, COLS);
-		else
-			text_fill_row_mem(g_raw_vis[row], g_raw_end[row], 0UL);
-		paint_row((unsigned char)(ROW_TEXT0 + row), COL_TEXT, g_rowbuf);
-	}
-	flush_view();
-	draw_title();
-	flush_row(ROW_TITLE);
-}
-
 static void scroll_left(void)
 {
 	if (g_mode != MODE_TEXT || g_wrapmode != WRAP_NOLF)
 		return;
-	if (g_view_col >= 4UL)
-		g_view_col -= 4UL;
-	else
-		g_view_col = 0UL;
-	paint_raw_horiz();
-	update_title();
+	if (g_view_col == 0UL)
+		return;
+	g_view_col--;
+	paint_content();
 }
 
 static void scroll_right(void)
 {
 	if (g_mode != MODE_TEXT || g_wrapmode != WRAP_NOLF)
 		return;
-	g_view_col += 4UL;
-	paint_raw_horiz();
-	update_title();
+	g_view_col++;
+	paint_content();
 }
 
 static void rebuild_wrap(void)
@@ -2700,7 +2623,6 @@ C_task main(int argc, char *argv[])
 	g_view_ofs = 0UL;
 	g_raw_bot = 0UL;
 	g_raw_max_ok = 0;
-	g_raw_vis_col = 0xFFFFFFFFUL;
 	g_view_col = 0UL;
 	g_have_find = 0;
 	g_find_cp866[0] = 0;

@@ -1,0 +1,259 @@
+##############################################################################
+#                                                                            #
+# IAR Z80/64180 C-Compiler V4.06A/W32                                        #
+#                                                                            #
+#       Compile time  =  05/Aug/2026  19:21:54                               #
+#       Target option =  Z80                                                 #
+#       Memory model  =  large                                               #
+#       Source file   =  mb_core.c                                           #
+#       List file     =  ./obj/mb_core.lst                                   #
+#       Object file   =  ./obj/mb_core.r01                                   #
+#       ASM file      =  ./obj/mb_core.s01                                   #
+#       Command line  =  -C -v0 -ml -s7 -S -uu -e -K -gA -O./obj/ -L./obj/   #
+#                        -A./obj/ -ID:/ATM/nedoOS/iar/inc/                   #
+#                        -ID:/ATM/nedoOS/src/kapps/iarlib/ mb_core.c         #
+#                                                                            #
+#                           Copyright 2001 IAR Systems. All rights reserved. #
+##############################################################################
+
+      1            #include "mb_inc.h"
+      2            #include "mb_plug.h"
+      3            
+      4            unsigned char g_bankPg[MB_BANK_COUNT];
+      5            unsigned char g_dataPg;
+      6            union APP_PAGES g_main_pg;
+      7            unsigned char *netbuf;
+      8            
+      9            extern void force_helpers(void);
+     10            
+     11            static const char g_bank_fmt[] = "JT slot0 from codebank %u\r\n";
+     12            
+     13            /* ---- CODE / DATA window ---- */
+     14            
+     15            unsigned char mb_code_current(void)
+     16            {
+     17                    union APP_PAGES cur;
+     18            
+     19                    cur.l = OS_GETMAINPAGES();
+     20                    return cur.pgs.window_2;
+     21            }
+     22            
+     23            void mb_code_map(unsigned char page)
+     24            {
+     25                    OS_SETPG8000(page);
+     26            }
+     27            
+     28            unsigned char mb_data_current(void)
+     29            {
+     30                    union APP_PAGES cur;
+     31            
+     32                    cur.l = OS_GETMAINPAGES();
+     33                    return cur.pgs.window_3;
+     34            }
+     35            
+     36            void mb_data_map(unsigned char page)
+     37            {
+     38                    OS_SETPGC000(page);
+     39            }
+     40            
+     41            unsigned char mb_os_new_page(unsigned char *page_out)
+     42            {
+     43                    unsigned int pg;
+     44            
+     45                    pg = OS_NEWPAGE();
+     46                    if (pg > 255u)
+     47                            return 0u;
+     48                    *page_out = (unsigned char)pg;
+     49                    return 1u;
+     50            }
+     51            
+     52            void mb_os_release_page(unsigned char page)
+     53            {
+     54                    if (page != 0u)
+     55                            OS_DELPAGE(page);
+     56            }
+     57            
+     58            unsigned char mb_code_push(unsigned char page)
+     59            {
+     60                    unsigned char saved;
+     61            
+     62                    saved = mb_code_current();
+     63                    mb_code_map(page);
+     64                    return saved;
+     65            }
+     66            
+     67            void mb_code_pop(unsigned char saved)
+     68            {
+     69                    mb_code_map(saved);
+     70            }
+     71            
+     72            unsigned char mb_data_push(unsigned char page)
+     73            {
+     74                    unsigned char saved;
+     75            
+     76                    saved = mb_data_current();
+     77                    mb_data_map(page);
+     78                    return saved;
+     79            }
+     80            
+     81            void mb_data_pop(unsigned char saved)
+     82            {
+     83                    mb_data_map(saved);
+     84            }
+     85            
+     86            void mb_data_poke_u32(unsigned char page, unsigned int off, unsigned long val)
+     87            {
+     88                    unsigned char saved;
+     89            
+     90                    saved = mb_data_push(page);
+     91                    *(unsigned long *)(MB_DATA_ADDR + off) = val;
+     92                    mb_data_pop(saved);
+     93            }
+     94            
+     95            unsigned long mb_data_peek_u32(unsigned char page, unsigned int off)
+     96            {
+     97                    unsigned char saved;
+     98                    unsigned long v;
+     99            
+    100                    saved = mb_data_push(page);
+    101                    v = *(unsigned long *)(MB_DATA_ADDR + off);
+    102                    mb_data_pop(saved);
+    103                    return v;
+    104            }
+    105            
+    106            void mb_data_fill(unsigned char page, unsigned char fill_byte)
+    107            {
+    108                    unsigned char saved;
+    109                    unsigned int i;
+    110            
+    111                    saved = mb_data_push(page);
+    112                    for (i = 0u; i < MB_PAGE_SIZE; i++)
+    113                            ((unsigned char *)MB_DATA_ADDR)[i] = fill_byte;
+    114                    mb_data_pop(saved);
+    115            }
+    116            
+    117            /* ---- lifecycle ---- */
+    118            
+    119            void mb_report_bank(unsigned int bank_nr)
+    120            {
+    121                    printf(g_bank_fmt, bank_nr);
+    122            }
+    123            
+    124            void mb_data_select(void)
+    125            {
+    126                    if (g_dataPg != 0u)
+    127                    {
+    128                            mb_data_map(g_dataPg);
+    129                            netbuf = (unsigned char *)(MB_DATA_ADDR + MB_NETBUF_OFF);
+    130                    }
+    131                    else
+    132                            netbuf = 0;
+    133            }
+    134            
+    135            void mb_init(void)
+    136            {
+    137                    unsigned char i;
+    138            
+    139                    g_main_pg.l = OS_GETMAINPAGES();
+    140            
+    141                    /* Force-link symbols banks CALL by absolute address. */
+    142                    puts("");
+    143                    printf("");
+    144                    force_helpers();
+    145            
+    146                    for (i = 0u; i < MB_BANK_COUNT; i++)
+    147                            g_bankPg[i] = 0u;
+    148            
+    149                    g_dataPg = 0u;
+    150                    netbuf = 0;
+    151                    if (mb_os_new_page(&g_dataPg))
+    152                    {
+    153                            mb_data_fill(g_dataPg, 0u);
+    154                            mb_data_select();
+    155                            mb_data_poke_u32(g_dataPg, MB_DATA_SIG_OFF, MB_DATA_SIG_MAGIC);
+    156                            mb_data_select();
+    157                    }
+    158            }
+    159            
+    160            void mb_shutdown(void)
+    161            {
+    162                    unsigned char i;
+    163            
+    164                    for (i = 0u; i < MB_BANK_COUNT; i++)
+    165                    {
+    166                            if (g_bankPg[i] != 0u)
+    167                            {
+    168                                    mb_os_release_page(g_bankPg[i]);
+    169                                    g_bankPg[i] = 0u;
+    170                            }
+    171                    }
+    172                    if (g_dataPg != 0u)
+    173                    {
+    174                            mb_os_release_page(g_dataPg);
+    175                            g_dataPg = 0u;
+    176                            netbuf = 0;
+    177                    }
+    178            }
+    179            
+    180            /* ---- overlay load (NedoOS: never test fp==0) ---- */
+    181            
+    182            static unsigned char mb_open_ok(FILE *fp)
+    183            {
+    184                    return (((unsigned int)fp) & 0xffu) == 0u;
+    185            }
+    186            
+    187            unsigned char mb_load_bank_bin(const char *path, unsigned char *page_out)
+    188            {
+    189                    FILE *fp;
+    190                    unsigned char page;
+    191                    unsigned char saved;
+    192                    unsigned long sz;
+    193                    unsigned int nread;
+    194                    unsigned int i;
+    195            
+    196                    if (page_out == 0 || path == 0)
+    197                            return 0u;
+    198            
+    199                    if (!mb_os_new_page(&page))
+    200                            return 0u;
+    201            
+    202                    fp = OS_OPENHANDLE((unsigned char *)path, 0x80u);
+    203                    if (!mb_open_ok(fp))
+    204                    {
+    205                            mb_os_release_page(page);
+    206                            return 0u;
+    207                    }
+    208            
+    209                    sz = OS_GETFILESIZE(fp);
+    210                    if (sz == 0ul || sz > (unsigned long)MB_PAGE_SIZE)
+    211                    {
+    212                            OS_CLOSEHANDLE(fp);
+    213                            mb_os_release_page(page);
+    214                            return 0u;
+    215                    }
+    216            
+    217                    saved = mb_code_push(page);
+    218            
+    219                    for (i = 0u; i < MB_PAGE_SIZE; i++)
+    220                            ((unsigned char *)MB_CODE_ADDR)[i] = 0u;
+    221            
+    222                    nread = OS_READHANDLE((unsigned char *)MB_CODE_ADDR, fp, (unsigned int)sz);
+    223                    OS_CLOSEHANDLE(fp);
+    224                    mb_code_pop(saved);
+    225            
+    226                    if (nread != (unsigned int)sz)
+    227                    {
+    228                            mb_os_release_page(page);
+    229                            return 0u;
+    230                    }
+    231            
+    232                    *page_out = page;
+    233                    return 1u;
+    234            }
+
+Errors: none
+Warnings: none
+Code size: 1017
+Constant size: 29
+Static variable size: Data(13) Iram(0)
+

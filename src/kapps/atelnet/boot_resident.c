@@ -28,6 +28,18 @@ void r_show_net_error(const char *msg)
   r_wait_key();
 }
 
+void r_show_need_wiznet(unsigned char drv)
+{
+  term_cls(0x4Fu);
+  term_set_xy(0u, 0u);
+  printf("atelnet: WIZNET only (driver %u)\r\n", (unsigned int)drv);
+  term_set_xy(0u, 2u);
+  printf("Set currentNetwork=0 in /ini/network.ini\r\n");
+  term_set_xy(0u, 4u);
+  printf("Press any key...");
+  r_wait_key();
+}
+
 void r_show_session_end(unsigned char user_quit, unsigned char sock_err, unsigned int rx_total)
 {
   if (sock_err != 0u)

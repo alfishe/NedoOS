@@ -3,7 +3,7 @@ INSTDIR := bin
 CONSOLE := BDOS
 SRCC	:= main.c
 # #include'd .c are not tracked via main.c mtime ? list them here (iar.mk uses SRCH).
-SRCH	:= ../common/esp-com.c ../common/esp-com2.c ../common/network.c
+SRCH	:= ../common/esp-com.c ../common/esp-com2.c ../common/network.c ../common/espnet.c ../common/espnet-net.c ../iarlib/espnet.h
 SRCA	:=
 XCLFILE	:= lnk.xcl
 include ../iarlib/iar.mk

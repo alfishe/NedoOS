@@ -1,10 +1,25 @@
 ////////////////////////ESP32 PROCEDURES//////////////////////
+/*
+ * UDP/DNS for WIZNET lives in network.c, not here.
+ *   #define NET_NO_UDP   before including network.c ? skip dnsResolve
+ *     (ESPNET apps that only call EspDnsResolve).
+ * Radio / zxdb / gopher keep the default (WIZNET DNS on).
+ */
 
+/* 1 = loadEspConfig / uartBench do not print (GUI apps). */
+#ifdef ESPCOM_NO_AT
+unsigned char espcom_silent = 1;
+#else
+unsigned char espcom_silent;
+#endif
+
+#ifndef ESPCOM_NO_AT
 void writeLog(const char *logline, char *place)
 {
 	FILE *LogFile;
 	unsigned long fileSize;
-	unsigned char toLog[256];
+	unsigned char prefix[16];
+
 	OS_GETPATH(curPath);
 	OS_SETSYSDRV();
 	LogFile = OS_OPENHANDLE("../espcom.log", 0x80);
@@ -16,13 +31,17 @@ void writeLog(const char *logline, char *place)
 	}
 	fileSize = OS_GETFILESIZE(LogFile);
 	OS_SEEKHANDLE(LogFile, fileSize);
-	sprintf(toLog, "%7lu : %s : ", time(), place);
-	strncat(toLog, logline, 200);
-	strcat(toLog, "\r\n");
-	OS_WRITEHANDLE(toLog, LogFile, strlen(toLog));
+	sprintf((char *)prefix, "%7lu : ", time());
+	OS_WRITEHANDLE(prefix, LogFile, strlen((char *)prefix));
+	OS_WRITEHANDLE(place, LogFile, strlen(place));
+	OS_WRITEHANDLE(" : ", LogFile, 3);
+	OS_WRITEHANDLE((unsigned char *)logline, LogFile, strlen(logline));
+	OS_WRITEHANDLE("\r\n", LogFile, 2);
 	OS_CLOSEHANDLE(LogFile);
 	OS_CHDIR(curPath);
 }
+
+#endif
 
 void portOutput(char port, char data)
 {
@@ -242,6 +261,7 @@ unsigned char uart_read(void)
 	return 255;
 }
 
+#ifndef ESPCOM_NO_AT
 void uartFlush(unsigned int millis)
 {
 	unsigned long finish;
@@ -279,7 +299,7 @@ void uartFlush(unsigned int millis)
 		}
 		uart_setrts(0);
 	}
-	//writeLog("Flushed data", "uartFlush      ");
+	// writeLog("Flushed data", "uartFlush      ");
 }
 
 unsigned int uartReadBlock(void)
@@ -375,60 +395,61 @@ char getdataEsp(unsigned int counted)
 	switch (comType)
 	{
 	case 0: // Kondratyev  NO AFC
+		disable_interrupt();
 		for (counter = 0; counter < counted; counter++)
 		{
 			timerok = factor;
-
 			while ((1 & input(LSR)) == 0)
 			{
 				if (timerok == 0)
 				{
+					enable_interrupt();
 					writeLog("[NO AFC]Timeout.", "getDataEsp     ");
 					return false;
 				}
 				timerok = timerok - 1;
-				disable_interrupt();
 				output(MCR, 2);
 				output(MCR, 0);
-				enable_interrupt();
 			};
 			netbuf[counter] = input(RBR_THR);
 		}
+		enable_interrupt();
 		return true;
 	case 1: // ATM2 COM port
+		disable_interrupt();
 		for (counter = 0; counter < counted; counter++)
 		{
 			timerok = factor;
 			for (;;)
 			{
-				disable_interrupt();
-				input(0x55fe);			// Переход в режим команд
-				if (input(0xc2fe) != 0) // Получаем количество байт в приемном буфере
+				input(0x55fe);
+				if (input(0xc2fe) != 0)
 				{
-					input(0x55fe);					 // Переход в режим команд
-					netbuf[counter] = input(0x02fe); // Команда прочесть из порта
-					enable_interrupt();
+					input(0x55fe);
+					netbuf[counter] = input(0x02fe);
 					break;
 				}
-				enable_interrupt();
+
 				if (timerok == 0)
 				{
+					enable_interrupt();
 					writeLog("[ATM2 COM]Timeout.", "getDataEsp     ");
 					return false;
 				}
 				timerok = timerok - 1;
-				disable_interrupt();
-				input(0x55fe); // Переход в режим команд
-				input(0x43fe); // Команда установить статус
-				input(0x03fe); // Устанавливаем готовность DTR и RTS
-				input(0x55fe); // Переход в режим команд
-				input(0x43fe); // Команда установить статус
-				input(0x00fe); // Снимаем готовность DTR и RTS
-				enable_interrupt();
+				input(0x55fe); // Up RTS
+				input(0x43fe);
+				input(0x03fe);
+
+				input(0x55fe); // Down RTS
+				input(0x43fe);
+				input(0x00fe);
 			}
 		}
+		enable_interrupt();
 		return true;
 	case 2: // Kondratyev AFC
+		disable_interrupt();
 		for (counter = 0; counter < counted; counter++)
 		{
 			timerok = factor;
@@ -445,13 +466,15 @@ char getdataEsp(unsigned int counted)
 		}
 		return true;
 	case 3: // ATM2IOESP
+		disable_interrupt();
 		for (counter = 0; counter < counted; counter++)
 		{
 			timerok = factor;
-			while (42)
+			for (;;)
 			{
 				if (timerok == 0)
 				{
+					enable_interrupt();
 					writeLog("[ATM2IOESP]Timeout.", "getDataEsp     ");
 					return false;
 				}
@@ -467,12 +490,12 @@ char getdataEsp(unsigned int counted)
 				output(0xfb, MCR);
 				output(0xfa, 2);
 				output(0xfa, 0);
-				enable_interrupt();
 			}
 			output(0xfb, RBR_THR);
 			netbuf[counter] = input(0xfa);
 		}
 	}
+	enable_interrupt();
 	return true;
 }
 
@@ -526,7 +549,7 @@ void sendcommand(const char *commandline)
 		uart_write('\n');
 	}
 	YIELD();
-	//writeLog(commandline, "sendcommand    ");
+	// writeLog(commandline, "sendcommand    ");
 }
 
 void sendcommandNrn(const char *commandline)
@@ -557,7 +580,7 @@ void sendcommandNrn(const char *commandline)
 			uart_write(commandline[count]);
 		}
 	}
-	//writeLog(commandline, "sendcommandNrn ");
+	// writeLog(commandline, "sendcommandNrn ");
 	YIELD();
 }
 
@@ -597,10 +620,11 @@ unsigned char getAnswer3(void)
 		return false;
 	}
 
-	//writeLog(netbuf, "getAnswer3     ");
+	// writeLog(netbuf, "getAnswer3     ");
 	YIELD();
 	return true;
 }
+#endif
 
 unsigned long uartBench(void)
 {
@@ -672,10 +696,12 @@ unsigned long uartBench(void)
 	}
 	takes = time() - start + 1;
 	factor = (magic * cycles / takes) * espRetry * 50 / 10;
-	printf(". Factor = %lu.", factor);
+	if (!espcom_silent)
+		printf("Factor = %lu.", factor);
 	return factor;
 }
 
+#ifndef ESPCOM_NO_AT
 char espReBoot(void)
 {
 	unsigned char count;
@@ -827,28 +853,73 @@ int recvHead(void)
 	// <actual_len>
 	// printf("recvHead(); todo = %d  ", todo);
 	// sprintf(cmd, "In header[todo=%d]", todo);
-	//writeLog("+IPD processing.", "recvHead       ");
+	// writeLog("+IPD processing.", "recvHead       ");
 	return todo;
+}
+#endif
+
+#include "../common/ini.c"
+
+static unsigned char espcom_ini_val[32];
+
+static unsigned char espcom_ini_u16(unsigned char *key, unsigned int *dst)
+{
+	if (!ini_get_param((unsigned char *)"espcom.ini", key, espcom_ini_val, sizeof(espcom_ini_val)))
+		return 0;
+	*dst = ini_parse_uint(espcom_ini_val);
+	return 1;
 }
 
 void loadEspConfig(void)
 {
-	unsigned char curParam[256];
 	FILE *espcom;
+	static unsigned int leg[12];
 
 	OS_SETSYSDRV();
 	OS_CHDIR("../ini");
 	espcom = OS_OPENHANDLE("espcom.ini", 0x80);
 	if (((int)espcom) & 0xff)
 	{
+#ifndef ESPCOM_NO_AT
 		clearStatus();
 		printf("espcom.ini opening error");
+#endif
 		return;
 	}
-	OS_READHANDLE(curParam, espcom, 250);
 	OS_CLOSEHANDLE(espcom);
 
-	sscanf(curParam, "%x %x %x %x %x %x %x %x %u %u %u %u", &RBR_THR, &IER, &IIR_FCR, &LCR, &MCR, &LSR, &MSR, &SR, &divider, &comType, &espType, &espRetry);
+	if (espcom_ini_u16((unsigned char *)"RBR_THR", &RBR_THR))
+	{
+		espcom_ini_u16((unsigned char *)"IER", &IER);
+		espcom_ini_u16((unsigned char *)"IIR_FCR", &IIR_FCR);
+		espcom_ini_u16((unsigned char *)"LCR", &LCR);
+		espcom_ini_u16((unsigned char *)"MCR", &MCR);
+		espcom_ini_u16((unsigned char *)"LSR", &LSR);
+		espcom_ini_u16((unsigned char *)"MSR", &MSR);
+		espcom_ini_u16((unsigned char *)"SR", &SR);
+		espcom_ini_u16((unsigned char *)"divider", &divider);
+		espcom_ini_u16((unsigned char *)"comType", &comType);
+		espcom_ini_u16((unsigned char *)"espType", &espType);
+		espcom_ini_u16((unsigned char *)"espRetry", &espRetry);
+	}
+	else if (ini_legacy_u16s((unsigned char *)"espcom.ini", leg, 12))
+	{
+		RBR_THR = leg[0];
+		IER = leg[1];
+		IIR_FCR = leg[2];
+		LCR = leg[3];
+		MCR = leg[4];
+		LSR = leg[5];
+		MSR = leg[6];
+		SR = leg[7];
+		divider = leg[8];
+		comType = leg[9];
+		espType = leg[10];
+		espRetry = leg[11];
+	}
+
+	if (espcom_silent)
+		return;
 
 	puts("Config loaded:");
 

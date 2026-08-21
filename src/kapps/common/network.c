@@ -6,7 +6,15 @@
 #define NETBUF_BYTES sizeof(netbuf)
 #endif
 
-static unsigned char dnsPkt[512];
+#ifndef NET_NO_UDP
+/* WIZNET DNS. Packet built in netbuf[0..]; labels at netbuf[256..].
+ * #define NET_NO_UDP before include to drop dnsResolve (EspDnsResolve-only apps).
+ * Do not gate this on ESPNET_NO_UDP: dual-stack apps still need WIZNET DNS. */
+#define DNS_PKT_MAX 512
+static const unsigned char dns_query_hdr[12] =
+    {0x11, 0x22, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+static const unsigned char dns_query_tail[5] = {0x00, 0x00, 0x01, 0x00, 0x01};
+#endif
 
 void delayLong(unsigned long counter)
 {
@@ -29,6 +37,8 @@ int httpError(void)
   const char *httpRes;
   unsigned int httpErr;
   httpRes = strstr(netbuf, "HTTP/1.1 ");
+  if (httpRes == NULL)
+    httpRes = strstr(netbuf, "HTTP/1.0 ");
 
   if (httpRes != NULL)
   {
@@ -167,50 +177,26 @@ char OpenSock(unsigned char family, unsigned char protocol)
 char netShutDown(signed char socket, unsigned char type)
 {
   unsigned int todo;
-  unsigned char err;
-
-  if (socket < 0)
+  todo = OS_NETSHUTDOWN(socket, type);
+  if (OS_CALL_OK(todo))
   {
+    // printf("Socket #%d closed.\n\r", socket);
     return socket;
   }
-
-  for (;;)
-  {
-    todo = OS_NETSHUTDOWN(socket, type);
-    if (OS_CALL_OK(todo))
-    {
-      return socket;
-    }
-
-    err = OS_CALL_ERR(todo);
-    if (type == 1 && err == ERR_EAGAIN)
-    {
-      YIELD();
-      continue;
-    }
-    return 0 - err;
-  }
+  return 0 - OS_CALL_ERR(todo);
 }
 
 char netConnect(signed char socket, unsigned char retry)
 {
   unsigned int todo = 0;
-
   while (retry != 0)
   {
+    retry--;
     todo = OS_NETCONNECT(socket, &targetadr);
-
     if (OS_CALL_OK(todo))
     {
       return socket;
     }
-
-    retry--;
-    if (retry == 0)
-    {
-      break;
-    }
-
     delayLong(150);
     netShutDown(socket, 0);
     socket = OpenSock(AF_INET, SOCK_STREAM);
@@ -297,15 +283,14 @@ int tcpRead(signed char socket, unsigned char retry)
   return 0 - OS_CALL_ERR(todo);
 }
 
+#ifndef NET_NO_UDP
 unsigned char dnsResolve(const char *domainName)
 {
   int socket;
   unsigned char retry;
   unsigned int todo, queryPos, queryType, domainLng, comaCount, reqSize;
   unsigned int loop;
-  unsigned char buf[128];
-  unsigned char dnsQuery1[] = {0x11, 0x22, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-  unsigned char dnsQuery2[] = {0x00, 0x00, 0x01, 0x00, 0x01};
+  unsigned char *enc;
 
   domainLng = strlen(domainName);
   if (domainLng == 0 || domainLng > 126)
@@ -313,30 +298,32 @@ unsigned char dnsResolve(const char *domainName)
     return 0;
   }
 
+  enc = netbuf + 256;
   comaCount = 0;
   loop = domainLng;
-  buf[loop + 1] = 0;
+  enc[loop + 1] = 0;
 
   do
   {
     if (domainName[loop - 1] == '.')
     {
-      buf[loop] = comaCount;
+      enc[loop] = comaCount;
       comaCount = 0;
     }
     else
     {
-      buf[loop] = domainName[loop - 1];
+      enc[loop] = domainName[loop - 1];
       comaCount++;
     }
     loop--;
   } while (loop != 0);
-  buf[0] = comaCount;
+  enc[0] = comaCount;
 
-  memcpy(dnsPkt, dnsQuery1, sizeof(dnsQuery1));
-  memcpy(dnsPkt + sizeof(dnsQuery1), buf, domainLng + 1);
-  memcpy(dnsPkt + domainLng + sizeof(dnsQuery1) + 1, dnsQuery2, sizeof(dnsQuery2));
-  reqSize = sizeof(dnsQuery1) + sizeof(dnsQuery2) + domainLng + 1;
+  memcpy(netbuf, dns_query_hdr, sizeof(dns_query_hdr));
+  memcpy(netbuf + sizeof(dns_query_hdr), enc, domainLng + 1);
+  memcpy(netbuf + domainLng + sizeof(dns_query_hdr) + 1, dns_query_tail,
+         sizeof(dns_query_tail));
+  reqSize = sizeof(dns_query_hdr) + sizeof(dns_query_tail) + domainLng + 1;
 
   socket = OpenSock(AF_INET, SOCK_DGRAM);
   if (socket < 0)
@@ -345,7 +332,7 @@ unsigned char dnsResolve(const char *domainName)
   }
 
   readStruct.socket = socket;
-  readStruct.BufAdr = (unsigned int)&dnsPkt;
+  readStruct.BufAdr = (unsigned int)netbuf;
   readStruct.bufsize = (unsigned int)reqSize;
   readStruct.protocol = SOCK_DGRAM;
 
@@ -358,8 +345,8 @@ unsigned char dnsResolve(const char *domainName)
     return 0;
   }
 
-  readStruct.BufAdr = (unsigned int)&dnsPkt;
-  readStruct.bufsize = (unsigned int)sizeof(dnsPkt);
+  readStruct.BufAdr = (unsigned int)netbuf;
+  readStruct.bufsize = DNS_PKT_MAX;
   retry = 10;
   do
   {
@@ -378,7 +365,7 @@ unsigned char dnsResolve(const char *domainName)
 
   netShutDown(socket, 0);
 
-  if ((dnsPkt[2] & 0x80) == 0 || (dnsPkt[3] & 0x0f) != 0)
+  if ((netbuf[2] & 0x80) == 0 || (netbuf[3] & 0x0f) != 0)
   {
     return 0;
   }
@@ -387,31 +374,32 @@ unsigned char dnsResolve(const char *domainName)
   do
   {
     queryPos++;
-  } while (dnsPkt[queryPos] != 0);
+  } while (netbuf[queryPos] != 0);
 
   queryPos = queryPos + 7;
   do
   {
     unsigned int queryLng;
-    if (queryPos > sizeof(dnsPkt) - 11)
+    if (queryPos > DNS_PKT_MAX - 11)
     {
       return 0;
     }
-    queryType = dnsPkt[queryPos] * 256 + dnsPkt[queryPos + 1];
+    queryType = netbuf[queryPos] * 256 + netbuf[queryPos + 1];
 
     queryPos = queryPos + 8;
 
-    queryLng = dnsPkt[queryPos] * 256 + dnsPkt[queryPos + 1];
+    queryLng = netbuf[queryPos] * 256 + netbuf[queryPos + 1];
     queryPos = queryPos + queryLng + 4;
   } while (queryType != 1);
 
-  targetadr.b1 = dnsPkt[queryPos - 6];
-  targetadr.b2 = dnsPkt[queryPos - 5];
-  targetadr.b3 = dnsPkt[queryPos - 4];
-  targetadr.b4 = dnsPkt[queryPos - 3];
+  targetadr.b1 = netbuf[queryPos - 6];
+  targetadr.b2 = netbuf[queryPos - 5];
+  targetadr.b3 = netbuf[queryPos - 4];
+  targetadr.b4 = netbuf[queryPos - 3];
 
   return 1;
 }
+#endif
 
 void get_dns(void)
 {

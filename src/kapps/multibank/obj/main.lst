@@ -1,0 +1,109 @@
+##############################################################################
+#                                                                            #
+# IAR Z80/64180 C-Compiler V4.06A/W32                                        #
+#                                                                            #
+#       Compile time  =  05/Aug/2026  19:21:54                               #
+#       Target option =  Z80                                                 #
+#       Memory model  =  large                                               #
+#       Source file   =  main.c                                              #
+#       List file     =  ./obj/main.lst                                      #
+#       Object file   =  ./obj/main.r01                                      #
+#       ASM file      =  ./obj/main.s01                                      #
+#       Command line  =  -C -v0 -ml -s7 -S -uu -e -K -gA -O./obj/ -L./obj/   #
+#                        -A./obj/ -ID:/ATM/nedoOS/iar/inc/                   #
+#                        -ID:/ATM/nedoOS/src/kapps/iarlib/ main.c            #
+#                                                                            #
+#                           Copyright 2001 IAR Systems. All rights reserved. #
+##############################################################################
+
+      1            #include "mb_inc.h"
+      2            #include "mb_plug.h"
+      3            
+      4            /*
+      5             * Multibank demo: load codeB_01..NN, call via Plan JT (bank1/2/3).
+      6             * Banking core lives in mb_core.c; JT wrappers in bank_call.c.
+      7             */
+      8            
+      9            static void mb_fmt_bank_name(unsigned char idx0, char *name)
+     10            {
+     11                    sprintf(name, "codeB_%02u.bin", (unsigned int)(idx0 + 1u));
+     12            }
+     13            
+     14            static unsigned char mb_try_load(unsigned char idx, unsigned char *page_out)
+     15            {
+     16                    char path[40];
+     17                    char name[16];
+     18            
+     19                    mb_fmt_bank_name(idx, name);
+     20            
+     21                    strcpy(path, "multibank/");
+     22                    strcat(path, name);
+     23                    if (mb_load_bank_bin(path, page_out))
+     24                            return 1u;
+     25            
+     26                    strcpy(path, "bin/multibank/");
+     27                    strcat(path, name);
+     28                    return mb_load_bank_bin(path, page_out);
+     29            }
+     30            
+     31            static unsigned char demo_load_banks(void)
+     32            {
+     33                    unsigned char i;
+     34                    unsigned char ok;
+     35                    char name[16];
+     36            
+     37                    ok = 1u;
+     38                    printf("--- load overlays ---\r\n");
+     39                    for (i = 0u; i < MB_BANK_COUNT; i++)
+     40                    {
+     41                            mb_fmt_bank_name(i, name);
+     42                            if (!mb_try_load(i, &g_bankPg[i]))
+     43                            {
+     44                                    printf("  FAIL %s\r\n", name);
+     45                                    ok = 0u;
+     46                            }
+     47                            else
+     48                                    printf("  OK   %s -> page %u\r\n",
+     49                                               name, (unsigned int)g_bankPg[i]);
+     50                    }
+     51                    return ok;
+     52            }
+     53            
+     54            static void demo_run_banks(void)
+     55            {
+     56                    printf("--- JT call bank1/2/3 ---\r\n");
+     57                    bank1();
+     58                    bank2();
+     59                    bank3();
+     60            }
+     61            
+     62            C_task main(void)
+     63            {
+     64                    os_initstdio();
+     65                    mb_init();
+     66            
+     67                    printf("multibank JT: root 0100-7FFF, code @8000, data @C000\r\n");
+     68                    printf("  data pg %u, cold window_2=%u\r\n",
+     69                               (unsigned int)g_dataPg, (unsigned int)g_main_pg.pgs.window_2);
+     70            
+     71                    if (!demo_load_banks())
+     72                    {
+     73                            printf("Load failed. Need /bin/multibank/codeB_0N.bin\r\n");
+     74                            mb_shutdown();
+     75                            exit(1);
+     76                    }
+     77            
+     78                    printf("\r\n");
+     79                    demo_run_banks();
+     80            
+     81                    mb_shutdown();
+     82                    getchar();
+     83                    exit(0);
+     84            }
+
+Errors: none
+Warnings: none
+Code size: 372
+Constant size: 267
+Static variable size: Data(0) Iram(0)
+

@@ -5,6 +5,7 @@
 #include <oscalls.h>
 #include <../common/terminal.c>
 #include <tcp.h>
+#include <espnet.h>
 #include <osfs.h>
 #include <graphic.h>
 #include <ctype.h>
@@ -34,17 +35,17 @@ unsigned char curHost;
 unsigned long contLen;
 unsigned int httpErr;
 
-unsigned char uVer[] = "0.4";
+unsigned char uVer[] = "1.0";
 unsigned char curPath[128];
 unsigned char cmd[256];
-unsigned char search[256];
+unsigned char search[128];
 unsigned char crlf[2] = {13, 10};
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 char hosts[3][32] = {"next.zxart.ee", "zxdb.remysharp.com", "hood.speccy.cz"};
 unsigned char userAgent1[] = " HTTP/1.1\r\nHost: ";
 unsigned char userAgent2[] = "\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE5.01; NedoOS; ZXDB)\r\n\r\n\0";
 unsigned char netbuf[4096];
-unsigned char buf[16384];
+unsigned char buf[10000];
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 struct sockaddr_in dnsaddress;
@@ -57,7 +58,7 @@ struct window
 	unsigned char h;
 	unsigned char text;
 	unsigned char back;
-	unsigned char tittle[80];
+	unsigned char tittle[60];
 } curWin;
 
 struct time
@@ -68,20 +69,23 @@ struct time
 
 } clock;
 
+/* makeRequest search-string scratch (was 256 B on CSTACK). */
+static char g_mkreq[256];
+
 struct linkStruct
 {
-	unsigned char host[128];
+	unsigned char host[64];
 	unsigned char path[512];
 	unsigned int port;
 	unsigned char hasName;
-	unsigned char fname[256];
+	unsigned char fname[128];
 } link;
 
 struct line
 {
 	unsigned long id;
-	unsigned char name[512];
-	unsigned char file[512];
+	unsigned char name[300];
+	unsigned char file[300];
 	unsigned char ext[5];
 	unsigned long size;
 	unsigned char option;
@@ -195,16 +199,12 @@ unsigned char delayLongKey(unsigned long counter)
 ///////////////////////////
 #include <../common/esp-com.c>
 #include <../common/network.c>
+/* 2048 UART payload: ~25 frames for 50KB. 512 was ~4x more round-trips. */
+#define ESPNET_HOST_MAX 2048
+#define ESPNET_CLIENT_ONLY 1
+#include <../common/espnet.c>
+#include <../common/espnet-net.c>
 //////////////////////////
-
-void clearNetbuf(void)
-{
-	unsigned int counter;
-	for (counter = 0; counter < sizeof(netbuf); counter++)
-	{
-		netbuf[counter] = 0;
-	}
-}
 
 int testOperation2(const char *process, int socket)
 {
@@ -219,6 +219,75 @@ int testOperation2(const char *process, int socket)
 	return 1;
 }
 
+/* ESPNET helpers return 0 / socket id / byte count, or negative errno. */
+static unsigned char espnet_check(const char *op, int r);
+int cutHeader(void);
+
+static unsigned char espnet_check(const char *op, int r)
+{
+	if (r >= 0)
+		return 1;
+	clearStatus();
+	OS_SETCOLOR(206);
+	OS_SETXY(0, 24);
+	printf("%s: [ERROR:", op);
+	errorPrint((unsigned int)(0 - r));
+	printf("]     ");
+	writeLog(op, "espnet_check   ");
+	delayLong(2000);
+	return 0;
+}
+
+/*
+ * EspRead overwrites netbuf each call and is capped at ESPNET_HOST_MAX.
+ * Collect into buf until HTTP header is complete, then cutHeader().
+ * Returns body bytes already in buf[], 0 if HTTP is not 200, or <0 on net error.
+ */
+static int espnet_read_header(int socket)
+{
+	int todo;
+	unsigned int got;
+	unsigned int n;
+
+	got = 0;
+	for (;;)
+	{
+		todo = EspRead((signed char)socket);
+		if (todo == 0 - (int)ESPNET_ERR_EAGAIN)
+		{
+			YIELD();
+			continue;
+		}
+		if (todo <= 0)
+			return (todo < 0) ? todo : (0 - (int)ESPNET_ERR_CONNRESET);
+		if (got + (unsigned int)todo >= sizeof(buf))
+			return 0 - (int)ESPNET_ERR_EMSGSIZE;
+		memcpy(buf + got, netbuf, (unsigned int)todo);
+		got += (unsigned int)todo;
+		buf[got] = 0;
+		if (strstr(buf, "\r\n\r\n") == 0)
+			continue;
+		n = got;
+		if (n > sizeof(netbuf) - 1)
+			n = sizeof(netbuf) - 1;
+		memcpy(netbuf, buf, n);
+		netbuf[n] = 0;
+		limiter.headLng = cutHeader();
+		if (httpErr != 200)
+			return 0;
+		if (limiter.headLng < 0 || (unsigned int)limiter.headLng > got)
+			return 0;
+		got -= (unsigned int)limiter.headLng;
+		if (got != 0)
+			memmove(buf, buf + limiter.headLng, got);
+		buf[got] = 0;
+		return (int)got;
+	}
+}
+
+static FILE *g_save_fp;
+static unsigned char g_save_ok; /* 1 = g_save_fp is open; low byte of FILE* is not a sentinel */
+
 unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsigned int sizeOfBuf)
 {
 	FILE *fp2;
@@ -226,6 +295,11 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 	switch (operation)
 	{
 	case 00:
+		if (g_save_ok)
+		{
+			OS_CLOSEHANDLE(g_save_fp);
+			g_save_ok = 0;
+		}
 		fp2 = OS_CREATEHANDLE(fileNamePtr, 0x80);
 		if (((int)fp2) & 0xff)
 		{
@@ -234,23 +308,32 @@ unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsig
 			getchar();
 			exit(0);
 		}
-		OS_CLOSEHANDLE(fp2);
+		g_save_fp = fp2;
+		g_save_ok = 1;
 		break;
 	case 01:
-		fp2 = OS_OPENHANDLE(fileNamePtr, 0x80);
-		if (((int)fp2) & 0xff)
+		if (!g_save_ok)
 		{
-			clearStatus();
-			printf("%s opening error.\r\n ", fileNamePtr);
-			getchar();
-			exit(0);
+			fp2 = OS_OPENHANDLE(fileNamePtr, 0x80);
+			if (((int)fp2) & 0xff)
+			{
+				clearStatus();
+				printf("%s opening error.\r\n ", fileNamePtr);
+				getchar();
+				exit(0);
+			}
+			OS_SEEKHANDLE(fp2, OS_GETFILESIZE(fp2));
+			g_save_fp = fp2;
+			g_save_ok = 1;
 		}
-		OS_SEEKHANDLE(fp2, OS_GETFILESIZE(fp2));
-		OS_WRITEHANDLE(netbuf + limiter.headLng, fp2, sizeOfBuf);
-		OS_CLOSEHANDLE(fp2);
+		OS_WRITEHANDLE(netbuf + limiter.headLng, g_save_fp, sizeOfBuf);
 		break;
 	case 02:
-		OS_CLOSEHANDLE(fp2);
+		if (g_save_ok)
+		{
+			OS_CLOSEHANDLE(g_save_fp);
+			g_save_ok = 0;
+		}
 		break;
 	default:
 		break;
@@ -330,14 +413,28 @@ void init(void)
 	link.hasName = false;
 	limiter.curOpt = 1;
 	limiter.curPage = 0;
-	get_dns();
 	netDriver = readParamFromIni();
-	if (netDriver == 1)
+
+	switch (netDriver)
 	{
+	case 0:
+		get_dns();
+		break;
+	case 1:
 		loadEspConfig();
 		uart_init(divider);
 		espReBoot();
+		break;
+	case 2:
+		/* UART + seq; without this OS_ESPDNSRESOLVE returns NOTCONN. */
+		OS_ESPINIT();
+		targetadr.family = AF_INET;
+		targetadr.porth = 0;
+		targetadr.portl = 0;
+		targetadr.b1 = targetadr.b2 = targetadr.b3 = targetadr.b4 = 0;
+		break;
 	}
+
 	OS_SETSYSDRV();
 	OS_MKDIR("../downloads");	   // Create if not exist
 	OS_MKDIR("../downloads/zxdb"); // Create if not exist
@@ -347,84 +444,52 @@ void init(void)
 	clock.oldMinutes = 255;
 }
 
-void errorBox(struct window w, const char *message)
-{
-	unsigned char wcount, tempx, tittleStart;
-
-	w.h++;
-	OS_SETXY(w.x, w.y - 1);
-	BDBOX(w.x, w.y, w.w + 1, w.h, w.back, 32);
-	OS_SETXY(w.x, w.y);
-	OS_SETCOLOR(w.text);
-	putchar(201);
-	for (wcount = 0; wcount < w.w; wcount++)
-	{
-		putchar(205);
-	}
-	putchar(187);
-	OS_SETXY(w.x, w.y + w.h);
-	putchar(200);
-	for (wcount = 0; wcount < w.w; wcount++)
-	{
-		putchar(205);
-	}
-	putchar(188);
-
-	tempx = w.x + w.w + 1;
-	for (wcount = 1; wcount < w.h; wcount++)
-	{
-		OS_SETXY(w.x, w.y + wcount);
-		putchar(186);
-		OS_SETXY(tempx, w.y + wcount);
-		putchar(186);
-	}
-	tittleStart = w.x + (w.w / 2) - (strlen(w.tittle) / 2);
-	OS_SETXY(tittleStart, w.y);
-	printf("[%s]", w.tittle);
-	OS_SETXY(w.x + 1, w.y + 1);
-	OS_SETCOLOR(w.back);
-	tittleStart = w.x + (w.w / 2) - (strlen(message) / 2);
-	OS_SETXY(tittleStart, w.y + 1);
-	printf("%s", message);
-}
-
-void simpleBox(struct window w)
+void simpleBox(const struct window *wp)
 {
 	unsigned char wcount, tempx;
-	w.h = w.h - 2;
-	OS_SETXY(w.x, w.y);
-	BDBOX(w.x, w.y + 1, w.w, w.h, w.back, 32);
-	w.w = w.w - 2;
-	OS_SETXY(w.x, w.y);
-	OS_SETCOLOR(w.text);
+	unsigned char x, y, w, h, back;
+
+	x = wp->x;
+	y = wp->y;
+	w = wp->w;
+	h = wp->h;
+	back = wp->back;
+	h = (unsigned char)(h - 2);
+	OS_SETXY(x, y);
+	/* Fill uses full window width; frame lines then use w-2. */
+	BDBOX(x, (unsigned char)(y + 1), w, h, back, 32);
+	w = (unsigned char)(w - 2);
+	OS_SETXY(x, y);
+	OS_SETCOLOR(wp->text);
 	putchar(201);
-	for (wcount = 0; wcount < w.w; wcount++)
+	for (wcount = 0; wcount < w; wcount++)
 	{
 		putchar(205);
 	}
 	putchar(187);
 
-	OS_SETXY(w.x, w.y + w.h);
+	OS_SETXY(x, (unsigned char)(y + h));
 	putchar(200);
-	for (wcount = 0; wcount < w.w; wcount++)
+	for (wcount = 0; wcount < w; wcount++)
 	{
 		putchar(205);
 	}
 	putchar(188);
-	tempx = w.x + w.w + 1;
-	for (wcount = 1; wcount < w.h; wcount++)
+	tempx = (unsigned char)(x + w + 1);
+	for (wcount = 1; wcount < h; wcount++)
 	{
-		OS_SETXY(w.x, w.y + wcount);
+		OS_SETXY(x, (unsigned char)(y + wcount));
 		putchar(186);
-		OS_SETXY(tempx, w.y + wcount);
+		OS_SETXY(tempx, (unsigned char)(y + wcount));
 		putchar(186);
 	}
 }
 
-unsigned char inputBox(struct window w, const char *prefilled)
+unsigned char inputBox(const struct window *wp, const char *prefilled)
 {
 	unsigned char wcount, tempx, tittleStart;
 	unsigned char byte;
+	unsigned char box_h;
 
 	// Переменные редактора (объявлены строго в начале функции для IAR)
 	unsigned char cmdLen;	  // Полная текущая длина строки cmd
@@ -434,36 +499,36 @@ unsigned char inputBox(struct window w, const char *prefilled)
 	unsigned char i;		  // Индекс для циклов отрисовки
 	unsigned char printPos;	  // Текущий индекс символа для вывода на экран
 
-	w.h++;
-	OS_SETXY(w.x, w.y - 1);
-	BDBOX(w.x, w.y, w.w + 1, w.h, w.back, 32);
-	OS_SETXY(w.x, w.y);
-	OS_SETCOLOR(w.text);
+	box_h = (unsigned char)(wp->h + 1);
+	OS_SETXY(wp->x, (unsigned char)(wp->y - 1));
+	BDBOX(wp->x, wp->y, (unsigned char)(wp->w + 1), box_h, wp->back, 32);
+	OS_SETXY(wp->x, wp->y);
+	OS_SETCOLOR(wp->text);
 	putchar(201);
-	for (wcount = 0; wcount < w.w; wcount++)
+	for (wcount = 0; wcount < wp->w; wcount++)
 	{
 		putchar(205);
 	}
 	putchar(187);
-	OS_SETXY(w.x, w.y + w.h);
+	OS_SETXY(wp->x, (unsigned char)(wp->y + box_h));
 	putchar(200);
-	for (wcount = 0; wcount < w.w; wcount++)
+	for (wcount = 0; wcount < wp->w; wcount++)
 	{
 		putchar(205);
 	}
 	putchar(188);
 
-	tempx = w.x + w.w + 1;
-	for (wcount = 1; wcount < w.h; wcount++)
+	tempx = (unsigned char)(wp->x + wp->w + 1);
+	for (wcount = 1; wcount < box_h; wcount++)
 	{
-		OS_SETXY(w.x, w.y + wcount);
+		OS_SETXY(wp->x, (unsigned char)(wp->y + wcount));
 		putchar(186);
-		OS_SETXY(tempx, w.y + wcount);
+		OS_SETXY(tempx, (unsigned char)(wp->y + wcount));
 		putchar(186);
 	}
-	tittleStart = w.x + (w.w / 2) - (strlen(w.tittle) / 2);
-	OS_SETXY(tittleStart, w.y);
-	printf("[%s]", w.tittle);
+	tittleStart = (unsigned char)(wp->x + (wp->w / 2) - (strlen((char *)wp->tittle) / 2));
+	OS_SETXY(tittleStart, wp->y);
+	printf("[%s]", wp->tittle);
 
 	// Инициализация строки cmd
 	cmd[0] = 0;
@@ -477,7 +542,7 @@ unsigned char inputBox(struct window w, const char *prefilled)
 	// Настройка начального состояния курсора и скроллинга
 	cursorPos = cmdLen;
 	viewOffset = 0;
-	visibleLen = w.w - 1; // Доступная ширина внутри рамки под текст и курсор
+	visibleLen = (unsigned char)(wp->w - 1); // Доступная ширина внутри рамки под текст и курсор
 
 	for (;;)
 	{
@@ -488,32 +553,32 @@ unsigned char inputBox(struct window w, const char *prefilled)
 		}
 		else if (cursorPos - viewOffset >= visibleLen)
 		{
-			viewOffset = cursorPos - visibleLen + 1;
+			viewOffset = (unsigned char)(cursorPos - visibleLen + 1);
 		}
 
 		// 2. ОТРИСОВКА СТРОКИ С ПОБИТОВОЙ ИНВЕРСИЕЙ ЦВЕТА КУРСOРА (Для NedoOS)
-		OS_SETXY(w.x + 1, w.y + 1);
+		OS_SETXY((unsigned char)(wp->x + 1), (unsigned char)(wp->y + 1));
 
 		for (i = 0; i < visibleLen; i++)
 		{
-			printPos = viewOffset + i;
+			printPos = (unsigned char)(viewOffset + i);
 
 			// Если в этой позиции находится курсор ? считаем инверсный байт атрибута
 			if (printPos == cursorPos)
 			{
 				OS_SETCOLOR((unsigned char)(
 					// 1. Формируем новый PAPER (из старого INK)
-					((w.text & 0x40) << 1) | // Старый BRIGHT_INK (6) двигаем на место BRIGHT_PAPER (7)
-					((w.text & 0x07) << 3) | // Старый INK (2-0) двигаем на место PAPER (5-3)
+					((wp->text & 0x40) << 1) | // Старый BRIGHT_INK (6) двигаем на место BRIGHT_PAPER (7)
+					((wp->text & 0x07) << 3) | // Старый INK (2-0) двигаем на место PAPER (5-3)
 
 					// 2. Формируем новый INK (из старого PAPER)
-					((w.text & 0x80) >> 1) | // Старый BRIGHT_PAPER (7) двигаем на место BRIGHT_INK (6)
-					((w.text & 0x38) >> 3)	 // Старый PAPER (5-3) двигаем на место INK (2-0)
+					((wp->text & 0x80) >> 1) | // Старый BRIGHT_PAPER (7) двигаем на место BRIGHT_INK (6)
+					((wp->text & 0x38) >> 3)	 // Старый PAPER (5-3) двигаем на место INK (2-0)
 					));
 			}
 			else
 			{
-				OS_SETCOLOR(w.text); // Стандартный цвет окна (например, тот самый 207)
+				OS_SETCOLOR(wp->text); // Стандартный цвет окна (например, тот самый 207)
 			}
 
 			// Выводим символ или пробел на месте курсора
@@ -527,7 +592,7 @@ unsigned char inputBox(struct window w, const char *prefilled)
 			}
 		}
 		// Восстанавливаем цвет по умолчанию после завершения строки
-		OS_SETCOLOR(w.text);
+		OS_SETCOLOR(wp->text);
 
 		YIELD(); // Обязательно уступаем квант времени ОС NedoOS
 
@@ -554,7 +619,7 @@ unsigned char inputBox(struct window w, const char *prefilled)
 				if (cursorPos > 0 && cmdLen > 0)
 				{
 					// Сдвигаем хвост строки влево на 1 символ
-					for (i = cursorPos - 1; i < cmdLen; i++)
+					for (i = (unsigned char)(cursorPos - 1); i < cmdLen; i++)
 					{
 						cmd[i] = cmd[i + 1];
 					}
@@ -620,7 +685,7 @@ void sendReqdialog(void)
 	curWin.h = 4;
 	curWin.text = 223;
 	curWin.back = 223;
-	simpleBox(curWin);
+	simpleBox(&curWin);
 	OS_SETXY(30, curWin.y + 1);
 	printf("Sending request...");
 }
@@ -684,7 +749,7 @@ void mainWinDraw(void)
 	curWin.h = 23;
 	curWin.text = 207;
 	curWin.back = 207;
-	simpleBox(curWin);
+	simpleBox(&curWin);
 	drawSearch();
 	clearStatus();
 }
@@ -723,31 +788,6 @@ void squeeze(char s[], int c)
 		if (s[i] != c)
 			s[j++] = s[i];
 	s[j] = '\0';
-}
-
-char *insert_string(const char *original, const char *to_insert, unsigned int position)
-{
-	unsigned int original_len = strlen(original);
-	unsigned int insert_len = strlen(to_insert);
-	unsigned int new_len = original_len + insert_len;
-
-	char *new_string = (char *)malloc(new_len + 1); // +1 для \0
-	if (new_string == NULL)
-	{
-		return NULL; // Обработка ошибки выделения памяти
-	}
-
-	// Копирование части исходной строки до позиции вставки
-	strncpy(new_string, original, position);
-	new_string[position] = '\0';
-
-	// Вставка строки
-	strcat(new_string, to_insert);
-
-	// Добавление оставшейся части исходной строки
-	strcat(new_string, original + position);
-
-	return new_string;
 }
 
 // Функция вставки без использования malloc (безопасно для Z80)
@@ -852,7 +892,7 @@ void downDialog(void)
 	curWin.h = 6;
 	curWin.text = 223;
 	curWin.back = 223;
-	simpleBox(curWin);
+	simpleBox(&curWin);
 
 	// Красиво центрируем заголовок в рамке окошка (строка 10)
 	OS_SETXY(curWin.x + (curWin.w / 2) - ((nameLong + 2) / 2), curWin.y);
@@ -981,7 +1021,7 @@ char getFileEsp(void)
 				curWin.back = 103;
 
 				strcpy(curWin.tittle, "Введите имя файла");
-				if (inputBox(curWin, link.fname))
+				if (inputBox(&curWin, link.fname))
 				{
 					strncpy(link.fname, cmd, 64);
 					strcat(link.fname, "\0");
@@ -1009,9 +1049,111 @@ char getFileEsp(void)
 		saveBuf(link.fname, 01, todo);
 		drawClock();
 	} while (downloaded < contLen);
+	saveBuf(link.fname, 02, 0);
 	sendcommand("AT+CIPCLOSE");
 	getAnswer3(); // CLOSED
 	getAnswer3(); // OK
+	return true;
+}
+
+char getFileEspNet(void)
+{
+	int todo, socket;
+
+	unsigned int fileSize1;
+	unsigned long downloaded = 0;
+	unsigned int down;
+
+	socket = EspOpenSock(AF_INET, SOCK_STREAM);
+	if (!espnet_check("OS_ESPSOCKET", socket))
+		return false;
+
+	todo = EspConnect((signed char)socket);
+	if (!espnet_check("OS_ESPCONNECT", todo))
+	{
+		EspShutDown((signed char)socket, 0);
+		return false;
+	}
+
+	todo = EspSend((signed char)socket, (unsigned int)&link.path, strlen(link.path));
+	if (!espnet_check("OS_ESPWRITE", todo))
+	{
+		EspShutDown((signed char)socket, 0);
+		return false;
+	}
+
+	todo = espnet_read_header(socket);
+	if (todo < 0)
+	{
+		espnet_check("OS_ESPREAD", todo);
+		EspShutDown((signed char)socket, 0);
+		return false;
+	}
+	if (httpErr != 200)
+	{
+		EspShutDown((signed char)socket, 0);
+		mainWinDraw();
+		return false;
+	}
+
+	fileSize1 = contLen / 1024;
+	if (!link.hasName)
+	{
+		curWin.w = 66;
+		curWin.x = 39 - curWin.w / 2;
+		curWin.y = 9;
+		curWin.h = 1;
+		curWin.text = 103;
+		curWin.back = 103;
+
+		strcpy(curWin.tittle, "Введите имя файла");
+		if (inputBox(&curWin, link.fname))
+		{
+			strncpy(link.fname, cmd, 64);
+			strcat(link.fname, "\0");
+		}
+	}
+	downDialog();
+	saveBuf(link.fname, 00, 0);
+	limiter.headLng = 0;
+	if (todo > 0)
+	{
+		memcpy(netbuf, buf, (unsigned int)todo);
+		saveBuf(link.fname, 01, (unsigned int)todo);
+		downloaded = (unsigned long)todo;
+		drawProgressBar(downloaded, contLen);
+	}
+
+	while (downloaded < contLen)
+	{
+		todo = EspRead((signed char)socket);
+		if (todo == 0 - (int)ESPNET_ERR_EAGAIN)
+		{
+			YIELD();
+			continue;
+		}
+		if (todo <= 0)
+			break;
+		downloaded = downloaded + (unsigned long)todo;
+		down = downloaded / 1024;
+		OS_SETCOLOR(223);
+		drawProgressBar(downloaded, contLen);
+		limiter.headLng = 0;
+		saveBuf(link.fname, 01, (unsigned int)todo);
+		drawClock();
+	}
+
+	saveBuf(link.fname, 02, 0);
+	EspShutDown((signed char)socket, 0);
+
+	if (downloaded != contLen)
+	{
+		puts("File download error!");
+		puts("File download error!");
+		puts("File download error!");
+		puts("File download error!");
+		waitKey();
+	}
 	return true;
 }
 
@@ -1072,7 +1214,7 @@ char getFileNet(void)
 				curWin.back = 103;
 
 				strcpy(curWin.tittle, "Введите имя файла");
-				if (inputBox(curWin, link.fname))
+				if (inputBox(&curWin, link.fname))
 				{
 					strncpy(link.fname, cmd, 64);
 					strcat(link.fname, "\0");
@@ -1098,6 +1240,7 @@ char getFileNet(void)
 		drawClock();
 	} while (downloaded < contLen);
 
+	saveBuf(link.fname, 02, 0);
 	netShutDown(socket, 0);
 
 	if (downloaded != contLen)
@@ -1177,6 +1320,9 @@ char getFile(unsigned char number)
 			break;
 		case 1:
 			result = getFileEsp();
+			break;
+		case 2:
+			result = getFileEspNet();
 			break;
 		default:
 			break;
@@ -1298,7 +1444,98 @@ char makeRequestEsp(void)
 	getAnswer3(); // CLOSED
 	getAnswer3(); // OK
 	buf[downloaded + 1] = 0;
-	return downloaded;
+	if (downloaded < 2)
+		return 0;
+	return 2;
+}
+
+char makeRequestEspNet(void)
+{
+	int socket, todo;
+	unsigned long downloaded = 0;
+
+	{
+		unsigned char ip[4];
+		unsigned int r;
+
+		r = OS_ESPDNSRESOLVE((unsigned char *)link.host, ip);
+		if (!ESPNET_C_OK(r))
+		{
+			espnet_check("OS_ESPDNSRESOLVE", 0 - (int)ESPNET_C_ERR(r));
+			clearStatus();
+			printf("Ошибка определения адреса '%s'", link.host);
+			return false;
+		}
+		targetadr.family = AF_INET;
+		targetadr.b1 = ip[0];
+		targetadr.b2 = ip[1];
+		targetadr.b3 = ip[2];
+		targetadr.b4 = ip[3];
+	}
+
+	targetadr.porth = link.port >> 8;
+	targetadr.portl = link.port;
+
+	socket = EspOpenSock(AF_INET, SOCK_STREAM);
+	if (!espnet_check("OS_ESPSOCKET", socket))
+		return false;
+
+	todo = EspConnect((signed char)socket);
+	if (!espnet_check("OS_ESPCONNECT", todo))
+	{
+		EspShutDown((signed char)socket, 0);
+		return false;
+	}
+	todo = EspSend((signed char)socket, (unsigned int)&link.path, strlen(link.path));
+	if (!espnet_check("OS_ESPWRITE", todo))
+	{
+		EspShutDown((signed char)socket, 0);
+		return false;
+	}
+
+	todo = espnet_read_header(socket);
+	if (todo < 0)
+	{
+		espnet_check("OS_ESPREAD", todo);
+		EspShutDown((signed char)socket, 0);
+		return false;
+	}
+	if (httpErr != 200)
+	{
+		EspShutDown((signed char)socket, 0);
+		return false;
+	}
+	downloaded = (unsigned long)todo;
+
+	while (downloaded < contLen)
+	{
+		todo = EspRead((signed char)socket);
+		if (todo == 0 - (int)ESPNET_ERR_EAGAIN)
+		{
+			YIELD();
+			continue;
+		}
+		if (todo <= 0)
+		{
+			EspShutDown((signed char)socket, 0);
+			return false;
+		}
+		if (downloaded + (unsigned long)todo > sizeof(buf))
+		{
+			printf("dataBuffer overrun... %lu reached \n\r", downloaded + todo);
+			EspShutDown((signed char)socket, 0);
+			return false;
+		}
+		memcpy(buf + downloaded, netbuf, (unsigned int)todo);
+		downloaded = downloaded + (unsigned long)todo;
+	}
+
+	EspShutDown((signed char)socket, 0);
+	if (downloaded < sizeof(buf))
+		buf[downloaded] = 0;
+	if (downloaded < 2)
+		return 0;
+	return 2;
 }
 
 char makeRequestNet(void)
@@ -1365,31 +1602,32 @@ char makeRequestNet(void)
 		}
 		memcpy(buf + downloaded, netbuf + limiter.headLng, todo);
 		downloaded = downloaded + todo;
-	} while (downloaded != contLen); // ref < лучше
+	} while (downloaded < contLen);
 
 	netShutDown(socket, 0);
 	buf[downloaded + 1] = 0;
-	return downloaded;
+	if (downloaded < 2)
+		return 0;
+	return 2;
 }
 
 char makeRequest(const char *request)
 {
 	char result;
 	unsigned int counter, len;
-	char tempreq[256];
 
 	sendReqdialog();
 
-	strcpy(tempreq, request);
-	len = strlen(tempreq);
+	strcpy(g_mkreq, request);
+	len = strlen(g_mkreq);
 	for (counter = 0; counter < len; counter++)
 	{
-		if (tempreq[counter] == ' ' || tempreq[counter] == '-')
+		if (g_mkreq[counter] == ' ' || g_mkreq[counter] == '-')
 		{
-			tempreq[counter] = '*';
+			g_mkreq[counter] = '*';
 		}
 	}
-	sprintf(link.path, "GET /?s=%s&p=%d%s%s%s", tempreq, limiter.curPage, userAgent1, link.host, userAgent2);
+	sprintf(link.path, "GET /?s=%s&p=%d%s%s%s", g_mkreq, limiter.curPage, userAgent1, link.host, userAgent2);
 
 	switch (netDriver)
 	{
@@ -1399,7 +1637,9 @@ char makeRequest(const char *request)
 	case 1:
 		result = makeRequestEsp();
 		break;
-
+	case 2:
+		result = makeRequestEspNet();
+		break;
 	default:
 		return false;
 	}
@@ -1442,8 +1682,8 @@ void fillTable(void)
 		if (findLimiters(limiter.second) == -2)
 			break;
 		len = limiter.second - limiter.first + 1;
-		if (len > 511)
-			len = 511; // Защита буфера name[512]
+		if (len > 299)
+			len = 299; // Защита буфера name[300]
 		strncpy(table[counter].name, buf + limiter.first, len);
 		table[counter].name[len] = 0;
 
@@ -1451,8 +1691,8 @@ void fillTable(void)
 		if (findLimiters(limiter.second) == -2)
 			break;
 		len = limiter.second - limiter.first - 3;
-		if (len > 511)
-			len = 511; // Защита буфера file[512]
+		if (len > 299)
+			len = 299; // Защита буфера file[300]
 		if (len < 0)
 			len = 0;
 		strncpy(table[counter].file, buf + limiter.first, len);
@@ -1494,7 +1734,7 @@ char triggerSearch(void)
 	curWin.back = 103;
 	strcpy(curWin.tittle, "Введите поисковый запрос");
 
-	if (inputBox(curWin, ""))
+	if (inputBox(&curWin, ""))
 	{
 		strcpy(search, cmd);
 		limiter.curPage = 0;
@@ -1555,7 +1795,7 @@ char getKey(void)
 		curWin.back = 103;
 		strcpy(curWin.tittle, "Введите поисковый запрос");
 
-		if (inputBox(curWin, ""))
+		if (inputBox(&curWin, ""))
 		{
 			strcpy(search, cmd);
 			limiter.curPage = 0;
@@ -1724,7 +1964,7 @@ char getKey(void)
 	return key;
 }
 
-C_task main(int argc, const char *argv[])
+C_task main(void)
 {
 	OS_HIDEFROMPARENT();
 	OS_SETGFX(0x86);

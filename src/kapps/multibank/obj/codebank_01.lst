@@ -1,0 +1,43 @@
+##############################################################################
+#                                                                            #
+# IAR Z80/64180 C-Compiler V4.06A/W32                                        #
+#                                                                            #
+#       Compile time  =  05/Aug/2026  19:21:54                               #
+#       Target option =  Z80                                                 #
+#       Memory model  =  large                                               #
+#       Source file   =  codebank_01.c                                       #
+#       List file     =  ./obj/codebank_01.lst                               #
+#       Object file   =  ./obj/codebank_01.r01                               #
+#       ASM file      =  ./obj/codebank_01.s01                               #
+#       Command line  =  -C -v0 -ml -s7 -S -uu -e -K -gA -O./obj/ -L./obj/   #
+#                        -A./obj/ -ID:/ATM/nedoOS/iar/inc/                   #
+#                        -ID:/ATM/nedoOS/src/kapps/iarlib/ codebank_01.c     #
+#                                                                            #
+#                           Copyright 2001 IAR Systems. All rights reserved. #
+##############################################################################
+
+      1            #pragma language=extended
+      2            #pragma codeseg(CODE_RESIDENT)
+      3            
+      4            #include "mb_inc.h"
+      5            
+      6            /*
+      7             * Overlay bank 1 @8000 ? JT slot 0 -> r_bank_entry.
+      8             * Strings OK: Makefile rewrites CSTR -> CSTR_RESIDENT.
+      9             * Call root libc directly (puts/printf/mb_report_bank).
+     10             */
+     11            
+     12            extern void mb_report_bank(unsigned int bank_nr);
+     13            
+     14            void r_bank_entry(void)
+     15            {
+     16                    mb_report_bank(1u);
+     17                    puts("bank01 ok\r\n");
+     18            }
+
+Errors: none
+Warnings: none
+Code size: 15
+Constant size: 12
+Static variable size: Data(0) Iram(0)
+
