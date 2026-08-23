@@ -1753,20 +1753,18 @@ void get_fileinfo (		/* No return code */
 #if _USE_LFN
 /*	if (fno->lfname && fno->lfsize)*/ {
 		TCHAR *tp = fno->lfname;
-		WCHAR w, *lfn;
+		BYTE b;
+		WCHAR *lfn;
 
 		i = 0;
 		if (dj->sect && dj->lfn_idx != 0xFFFF) {/* Get LFN if available */
 			lfn = dj->lfn;
-			while ((w = *lfn++) != 0) {			/* Get an LFN char */
+			while ((b = unicode_to_cp866(*lfn++)) != 0) {			/* Get an LFN char */
 #if !_LFN_UNICODE
-				w = unicode_to_cp866(w);			/* Unicode -> OEM conversion */
-				if (!w) { i = 0; break; }		/* Could not convert, no LFN */
-				if (_DF1S && w >= 0x100)		/* Put 1st byte if it is a DBC (always false on SBCS cfg) */
-					tp[i++] = (TCHAR)(w >> 8);
+				if (!b) { i = 0; break; }		/* Could not convert, no LFN */
 #endif
 				if (i >= 64 /*fno->lfsize*/ - 1) { i = 0; break; }	/* Buffer overflow, no LFN */
-				tp[i++] = (TCHAR)w;
+				tp[i++] = b;
 			}
 		}
 		tp[i] = 0;	/* Terminate the LFN str by a \0 */
