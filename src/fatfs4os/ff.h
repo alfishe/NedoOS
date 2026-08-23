@@ -256,7 +256,7 @@ TCHAR* f_gets (TCHAR*, int, FIL*);					/* Get a string from the file */
 
 /* Unicode support functions */
 #if _USE_LFN						/* Unicode - OEM code conversion */
-WCHAR ff_convert (WCHAR, UINT);		/* OEM-Unicode bidirectional conversion */
+WCHAR ff_convert (WCHAR, BYTE);		/* OEM-Unicode bidirectional conversion */
 WCHAR ff_wtoupper (WCHAR);			/* Unicode upper-case conversion */
 #if _USE_LFN == 3					/* Memory functions */
 void* ff_memalloc (UINT);			/* Allocate memory block */

@@ -514,6 +514,8 @@ static BYTE sfn[12];
 ---------------------------------------------------------------------------*/
 
 extern DWORD LD_CLUST(BYTE *);
+extern WORD cp866_to_unicode(BYTE);
+extern BYTE unicode_to_cp866(WORD);
 
 
 /*-----------------------------------------------------------------------*/
@@ -1586,11 +1588,6 @@ FRESULT create_name (
 	const TCHAR **path	/* Pointer to pointer to the segment in the path string */
 )
 {
-#ifdef _EXCVT
-//	static const BYTE excvt[] = _EXCVT;	/* Upper conversion table for extended chars */
-#endif
-
-#if _USE_LFN	/* LFN configuration */
 	BYTE b, cf;
 	WCHAR w, *lfn;
 	UINT i, ni, si, di;
@@ -1601,27 +1598,23 @@ FRESULT create_name (
 	lfn = dj->lfn;
 	si = di = 0;
 	for (;;) {
-		w = p[si++];					/* Get a character */
-		if (w < ' ' || w == '/' || w == '\\') break;	/* Break on end of segment */
+		b = p[si++];					/* Get a character */
+		if (b < ' ' || b == '/' || b == '\\') break;	/* Break on end of segment */
 		if (di >= _MAX_LFN)				/* Reject too long name */
 			return FR_INVALID_NAME;
-#if !_LFN_UNICODE
-		w &= 0xFF;
-		if (IsDBCS1(w)) {				/* Check if it is a DBC 1st byte (always false on SBCS cfg) */
-			b = (BYTE)p[si++];			/* Get 2nd byte */
-			if (!IsDBCS2(b))
-				return FR_INVALID_NAME;	/* Reject invalid sequence */
-			w = (w << 8) + b;			/* Create a DBC */
+		if (b < 0x80) 
+		{
+			if (strchr("\"*:<>\?|\x7F", b)) /* Reject illegal chars for LFN */
+				return FR_INVALID_NAME;
+			lfn[di++] = b;
 		}
-		w = ff_convert(w, 1);			/* Convert ANSI/OEM to Unicode */
-		if (!w) return FR_INVALID_NAME;	/* Reject invalid code */
-#endif
-		if (w < 0x80 && strchr("\"*:<>\?|\x7F", w)) /* Reject illegal chars for LFN */
-			return FR_INVALID_NAME;
-		lfn[di++] = w;					/* Store the Unicode char */
+		else
+		{
+			lfn[di++] = cp866_to_unicode(b);			/* Convert ANSI/OEM to Unicode */
+		}
 	}
 	*path = &p[si];						/* Return pointer to the next segment */
-	cf = (w < ' ') ? NS_LAST : 0;		/* Set last segment flag if end of path */
+	cf = (b < ' ') ? NS_LAST : 0;		/* Set last segment flag if end of path */
 #if _FS_RPATH
 	if ((di == 1 && lfn[di-1] == '.') || /* Is this a dot entry? */
 		(di == 2 && lfn[di-1] == '.' && lfn[di-2] == '.')) {
@@ -1666,35 +1659,22 @@ FRESULT create_name (
 		}
 
 		if (w >= 0x80) {				/* Non ASCII char */
-#ifdef _EXCVT
-			w = ff_convert(w, 0);		/* Unicode -> OEM code */
-			//if (w) w = excvt[w - 0x80];	/* Convert extended char to upper (SBCS) */
-#else
-			w = ff_convert(ff_wtoupper(w), 0);	/* Upper converted Unicode -> OEM code */
-#endif
+			w = unicode_to_cp866(w);		/* Unicode -> OEM code */
 			cf |= NS_LFN;				/* Force create LFN entry */
 		}
-#if 0
-		if (_DF1S && w >= 0x100) {		/* Double byte char (always false on SBCS cfg) */
-			if (i >= ni - 1) {
-				cf |= NS_LOSS | NS_LFN; i = ni; continue;
-			}
-			dj->fn[i++] = (BYTE)(w >> 8);
-		} else 
-#endif
-		{						/* Single byte char */
-			if (!w || strchr("+,;=[]", w)) {	/* Replace illegal chars for SFN */
-				w = '_'; cf |= NS_LOSS | NS_LFN;/* Lossy conversion */
+
+		if (!w || strchr("+,;=[]", w)) {	/* Replace illegal chars for SFN */
+			w = '_'; cf |= NS_LOSS | NS_LFN;/* Lossy conversion */
+		} else {
+			if (IsUpper(w)) {		/* ASCII large capital */
+				b |= 2;
 			} else {
-				if (IsUpper(w)) {		/* ASCII large capital */
-					b |= 2;
-				} else {
-					if (IsLower(w)) {	/* ASCII small capital */
-						b |= 1; w -= 0x20;
-					}
+				if (IsLower(w)) {	/* ASCII small capital */
+					b |= 1; w -= 0x20;
 				}
 			}
 		}
+
 		dj->fn[i++] = (BYTE)w;
 	}
 
@@ -1711,82 +1691,6 @@ FRESULT create_name (
 	dj->fn[NS] = cf;	/* SFN is created */
 
 	return FR_OK;
-
-
-#else	/* Non-LFN configuration */
-	BYTE b, c, d, *sfn;
-	UINT ni, si, i;
-	const char *p;
-
-	/* Create file name in directory form */
-	for (p = *path; *p == '/' || *p == '\\'; p++) ;	/* Strip duplicated separator */
-	sfn = dj->fn;
-	memset(sfn, ' ', 11);
-	si = i = b = 0; ni = 8;
-#if _FS_RPATH
-	if (p[si] == '.') { /* Is this a dot entry? */
-		for (;;) {
-			c = (BYTE)p[si++];
-			if (c != '.' || si >= 3) break;
-			sfn[i++] = c;
-		}
-		if (c != '/' && c != '\\' && c > ' ') return FR_INVALID_NAME;
-		*path = &p[si];									/* Return pointer to the next segment */
-		sfn[NS] = (c <= ' ') ? NS_LAST | NS_DOT : NS_DOT;	/* Set last segment flag if end of path */
-		return FR_OK;
-	}
-#endif
-	for (;;) {
-		c = (BYTE)p[si++];
-		if (c <= ' ' || c == '/' || c == '\\') break;	/* Break on end of segment */
-		if (c == '.' || i >= ni) {
-			if (ni != 8 || c != '.') return FR_INVALID_NAME;
-			i = 8; ni = 11;
-			b <<= 2; continue;
-		}
-		if (c >= 0x80) {				/* Extended char? */
-			b |= 3;						/* Eliminate NT flag */
-#ifdef _EXCVT
-			c = excvt[c-0x80];			/* Upper conversion (SBCS) */
-#else
-#if !_DF1S	/* ASCII only cfg */
-			return FR_INVALID_NAME;
-#endif
-#endif
-		}
-		if (IsDBCS1(c)) {				/* Check if it is a DBC 1st byte (always false on SBCS cfg) */
-			d = (BYTE)p[si++];			/* Get 2nd byte */
-			if (!IsDBCS2(d) || i >= ni - 1)	/* Reject invalid DBC */
-				return FR_INVALID_NAME;
-			sfn[i++] = c;
-			sfn[i++] = d;
-		} else {						/* Single byte code */
-			if (strchr("\"*+,:;<=>\?[]|\x7F", c))	/* Reject illegal chrs for SFN */
-				return FR_INVALID_NAME;
-			if (IsUpper(c)) {			/* ASCII large capital? */
-				b |= 2;
-			} else {
-				if (IsLower(c)) {		/* ASCII small capital? */
-					b |= 1; c -= 0x20;
-				}
-			}
-			sfn[i++] = c;
-		}
-	}
-	*path = &p[si];						/* Return pointer to the next segment */
-	c = (c <= ' ') ? NS_LAST : 0;		/* Set last segment flag if end of path */
-
-	if (!i) return FR_INVALID_NAME;		/* Reject nul string */
-	if (sfn[0] == DDE) sfn[0] = NDDE;	/* When first char collides with DDE, replace it with 0x05 */
-
-	if (ni == 8) b <<= 2;
-	if ((b & 0x03) == 0x01) c |= NS_EXT;	/* NT flag (Name extension has only small capital) */
-	if ((b & 0x0C) == 0x04) c |= NS_BODY;	/* NT flag (Name body has only small capital) */
-
-	sfn[NS] = c;		/* Store NT flag, File name is created */
-
-	return FR_OK;
-#endif
 }
 
 
@@ -1856,7 +1760,7 @@ void get_fileinfo (		/* No return code */
 			lfn = dj->lfn;
 			while ((w = *lfn++) != 0) {			/* Get an LFN char */
 #if !_LFN_UNICODE
-				w = ff_convert(w, 0);			/* Unicode -> OEM conversion */
+				w = unicode_to_cp866(w);			/* Unicode -> OEM conversion */
 				if (!w) { i = 0; break; }		/* Could not convert, no LFN */
 				if (_DF1S && w >= 0x100)		/* Put 1st byte if it is a DBC (always false on SBCS cfg) */
 					tp[i++] = (TCHAR)(w >> 8);
