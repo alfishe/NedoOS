@@ -17,7 +17,7 @@
 #define screenHeight 23
 #define SCREEN_WIDTH 80
 #define MAX_PAGES_TOTAL 150
-#define NETBUF_SIZE 19000
+#define NETBUF_SIZE 25500
 
 unsigned int RBR_THR = 0xf8ef;
 unsigned int IER = 0xf9ef;
@@ -118,7 +118,6 @@ struct time
 
 unsigned char nvext[1024];
 unsigned char netbuf[NETBUF_SIZE];
-unsigned char heap[1500];
 unsigned char colors[25];
 FILE *fp2;
 
@@ -1141,11 +1140,7 @@ void pusHistory(void)
 	}
 
 	OS_SEEKHANDLE(hf, filePos);
-
-	// Безопасное копирование и запись через heap
-	memcpy(&heap, &link, structSize);
-	OS_WRITEHANDLE(heap, hf, structSize);
-
+	OS_WRITEHANDLE((unsigned char *)&link, hf, structSize);
 	OS_CLOSEHANDLE(hf);
 }
 
@@ -1174,15 +1169,8 @@ char popHistory(void)
 	}
 
 	OS_SEEKHANDLE(hf, filePos);
-
-	// ИСПРАВЛЕНИЕ БАГА: Читаем данные в буфер heap вместо netbuf!
-	// Ваша обертка примет heap так же, как принимает его в pusHistory,
-	// а netbuf с текстом страницы останется в полной безопасности.
-	OS_READHANDLE(heap, hf, structSize);
+	OS_READHANDLE((unsigned char *)&link, hf, structSize);
 	OS_CLOSEHANDLE(hf);
-
-	// Переносим данные из heap обратно в рабочую структуру link
-	memcpy(&link, heap, structSize);
 	return true;
 }
 
