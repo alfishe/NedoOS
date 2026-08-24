@@ -969,7 +969,9 @@ unsigned char ren2old(unsigned char *name)
 
 	if (name == 0 || name[0] == 0)
 	{
-		fatalError((const unsigned char *)"ren2old: empty name");
+		clearStatus();
+		printf("empty name to rename");
+		return 254;
 	}
 	strncpy((char *)src, (const char *)name, sizeof(src) - 1);
 	src[sizeof(src) - 1] = 0;
@@ -980,11 +982,13 @@ unsigned char ren2old(unsigned char *name)
 	{
 		counter++;
 		sprintf((char *)dst, "%s.%u", src, counter);
-		if (counter == 255)
+		if (counter == 254)
 		{
-			fatalError((const unsigned char *)"Unable to rename old folder");
+			break;
 		}
 	}
+	// 255 = OLD
+	// 254 = no OLD
 	return counter;
 }
 
@@ -1027,6 +1031,14 @@ void ren2bin(void)
 void restoreConfig(unsigned char oldBinExt)
 {
 	unsigned char count;
+	if (oldBinExt == 254)
+	{
+		clearStatus();
+		printf("restoreConfig() skipped");
+		getchar();
+		return;
+	}
+
 	errn = OS_CHDIR("/");
 	errn = OS_RENAME("bin/autoexec.bat", "bin/autoexec.bat.new");
 	errn = OS_RENAME("bin/net.ini", "bin/net.ini.new");

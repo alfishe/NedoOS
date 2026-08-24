@@ -514,8 +514,10 @@ OS_GETSCR1:
 	PUBLIC OS_RENAME
 	#include "sysdefs.asm"
 	RSEG CODE
+; BDOS CMD_RENAME: in DE=old, HL=new; out A=FRESULT (0=FR_OK).
+; FatFs leaves junk in HL (often a path/dir pointer). IAR unsigned char is L.
+; Old wrapper did "ld a,l / pop hl" and returned that leftover, not success.
 OS_RENAME:
-	push hl
 	ld h,b
 	ld l,c
 	push ix
@@ -524,8 +526,8 @@ OS_RENAME:
 	call BDOS
 	pop iy
 	pop ix
-	ld a,l
-	pop hl
+	ld l,a
+	ld h,0
 	ret
 	ENDMOD
 
