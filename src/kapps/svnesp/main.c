@@ -1679,7 +1679,10 @@ static void exclude_load(void)
 		return;
 	fp = fs_open(excludePath);
 	if (!fs_hok(fp))
+	{
+		printf("-X: cannot open %s\r\n", excludePath);
 		return;
+	}
 	n = OS_READHANDLE(exclude_buf, fp, sizeof(exclude_buf) - 1);
 	fs_close(fp);
 	exclude_buf[n] = 0;
@@ -1689,6 +1692,8 @@ static void exclude_load(void)
 			exclude_buf[i] = 0;
 	}
 	exclude_loaded = 1;
+	if (verbose)
+		printf("-X loaded %s\r\n", excludePath);
 }
 
 static unsigned char exclude_match(const char *name)
@@ -2156,7 +2161,7 @@ static void cmd_upd(void)
 	if (localBase[0] != '/' || localBase[1] != 0)
 		OS_MKDIR((unsigned char *)localBase);
 	upd_cleanup_temps();
-	exclude_load();
+	/* exclude list already loaded in main() before ESP CHDIR */
 	if (verbose || debugRa)
 		printf("upd start fd=%u sk=%u\r\n", dbg_nfile, dbg_nsock);
 	if (is_remote_dir())
@@ -2360,6 +2365,10 @@ C_task main(int argc, char *argv[])
 	parse_args(argc, argv);
 	if (!args_ok)
 		return 0;
+	/* Load -X before loadEspConfig: it does SETSYSDRV+CHDIR("../ini")
+	 * and never restores, so relative exclude.txt would silently fail. */
+	exclude_load();
+	OS_GETPATH(curPath);
 	netDriver = read_param_from_ini();
 	if (forceEsp)
 		netDriver = 1;
@@ -2388,6 +2397,7 @@ C_task main(int argc, char *argv[])
 		break;
 	case 1:
 		loadEspConfig();
+		OS_CHDIR(curPath);
 		uart_init(divider);
 		espReBoot();
 		break;
