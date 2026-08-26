@@ -593,9 +593,17 @@ void renderType(unsigned char linkType)
 	colors[navi.lastLine] = 5;
 	OS_SETCOLOR(5);
 }
+/* current.txt for plaintext, current.gph for menus (link.type set by render*). */
+static unsigned char *browserCachePath(void)
+{
+	if (link.type == '0')
+		return (unsigned char *)"browser/current.txt";
+	return (unsigned char *)"browser/current.gph";
+}
+
 /**
- * Вспомогательная функция: горячая подгрузка следующего тома прямо во время рендера.
- * Вынесена отдельно, чтобы не перегружать регистровый контекст основного цикла renderPlain.
+ * Hot-load next volume during render (plain or gopher menu).
+ * Kept separate so the main render loops stay register-friendly.
  */
 static unsigned char switchInternalVolume(void)
 {
@@ -603,10 +611,10 @@ static unsigned char switchInternalVolume(void)
 	{
 		navi.volume++;
 		OS_SETSYSDRV();
-		loadPageFromDisk("browser/current.txt", navi.volume);
-		return 1; // Успешно переключили
+		loadPageFromDisk(browserCachePath(), navi.volume);
+		return 1;
 	}
-	return 0; // Конец всего файла
+	return 0;
 }
 
 /**
@@ -768,7 +776,6 @@ unsigned int renderPage(unsigned int bufPos)
 	unsigned char counter = 0;
 	unsigned char colCount = 0;
 	unsigned char byte;
-	// Переходим на быстрые указатели вместо индексации массива
 	register unsigned char *ptr = netbuf + bufPos;
 
 	navi.lastLine = 0;
@@ -778,32 +785,47 @@ unsigned int renderPage(unsigned int bufPos)
 	mainWinDraw();
 	OS_SETXY(0, 1);
 
-	// Отрисовка типа для самой первой строки
+	/* Skip leading NULs / empty volume head (after a prior hot-switch edge). */
+	while (*ptr == 0)
+	{
+		if (!switchInternalVolume())
+		{
+			navi.maxPage = navi.page;
+			navi.lastLine = 0;
+			return (unsigned int)(ptr - netbuf);
+		}
+		ptr = netbuf;
+	}
+
 	renderType(*ptr);
 
 	do
 	{
-		// Цикл 1: Чтение и вывод видимой части имени ссылки до знака табуляции
+		/* Name until TAB. First ptr++ skips the type byte already drawn. */
 		while (1)
 		{
 			ptr++;
 			byte = *ptr;
 
-			if (byte == 9) // \t - Конец отображаемого имени
+			if (byte == 0)
+			{
+				if (switchInternalVolume())
+				{
+					ptr = netbuf - 1; /* next ++ lands on first byte of new volume */
+					continue;
+				}
+				navi.maxPage = navi.page;
+				navi.lastLine = counter;
+				return (unsigned int)(ptr - netbuf);
+			}
+
+			if (byte == 9)
 			{
 				putchar('\r');
 				putchar('\n');
 				break;
 			}
 
-			if (byte == 0) // Конец данных в буфере
-			{
-				navi.maxPage = navi.page;
-				navi.lastLine = counter;
-				return (unsigned int)(ptr - netbuf);
-			}
-
-			// Ограничиваем вывод шириной экрана
 			if (colCount < (unsigned char)(SCREEN_WIDTH - 3))
 			{
 				putchar(byte);
@@ -811,27 +833,42 @@ unsigned int renderPage(unsigned int bufPos)
 			}
 		}
 
-		// Цикл 2: Быстрый пропуск служебной информации ссылки (селектор, хост, порт) до конца строки
+		/* Skip selector/host/port until LF; may span volumes. */
 		while (1)
 		{
 			ptr++;
 			byte = *ptr;
 
-			if (byte == 0) // Защита от зависания при битом буфере
+			if (byte == 0)
 			{
+				if (switchInternalVolume())
+				{
+					ptr = netbuf - 1;
+					continue;
+				}
 				navi.maxPage = navi.page;
 				navi.lastLine = counter;
 				return (unsigned int)(ptr - netbuf);
 			}
 
-			if (byte == 10) // LF - Конец строки достигнут
+			if (byte == 10)
 			{
 				colCount = 0;
 				counter++;
 				navi.lastLine = counter;
 				ptr++;
 
-				// Проверка на маркер конца Gopher-документа (строка со знаком точки)
+				while (*ptr == 0)
+				{
+					if (!switchInternalVolume())
+					{
+						navi.maxPage = navi.page;
+						navi.lastLine = counter;
+						return (unsigned int)(ptr - netbuf);
+					}
+					ptr = netbuf;
+				}
+
 				if (*ptr == '.' && *(ptr + 1) < 32)
 				{
 					navi.maxPage = navi.page;
@@ -839,7 +876,6 @@ unsigned int renderPage(unsigned int bufPos)
 					return (unsigned int)(ptr - netbuf);
 				}
 
-				// Рисуем иконку типа, только если строка помещается на экран
 				if (counter < (unsigned char)screenHeight)
 				{
 					renderType(*ptr);
@@ -855,16 +891,17 @@ unsigned int renderPage(unsigned int bufPos)
 
 void reDraw(void)
 {
+	OS_SETSYSDRV();
+	navi.volume = pageVolumes[navi.page];
 	if (link.type == '0')
 	{
+		loadPageFromDisk("browser/current.txt", navi.volume);
 		navi.nextBufPos = renderPlain(pageOffsets[navi.page]);
 	}
-	else
+	else if (link.type == '1')
 	{
-		if (link.type == '1')
-		{
-			navi.nextBufPos = renderPage(pageOffsets[navi.page]);
-		}
+		loadPageFromDisk("browser/current.gph", navi.volume);
+		navi.nextBufPos = renderPage(pageOffsets[navi.page]);
 	}
 }
 
@@ -1219,21 +1256,22 @@ void errNoConnect(void)
 	strcpy(link.host, link.prevHost);
 	waitKey();
 
+	navi.volume = pageVolumes[navi.page];
 	switch (link.type)
 	{
 	case '0':
 		OS_SETSYSDRV();
-		loadPageFromDisk("browser/current.txt", 0);
+		loadPageFromDisk("browser/current.txt", navi.volume);
 		navi.nextBufPos = renderPlain(pageOffsets[navi.page]);
 		break;
 	case '1':
 		OS_SETSYSDRV();
-		loadPageFromDisk("browser/current.gph", 0);
+		loadPageFromDisk("browser/current.gph", navi.volume);
 		navi.nextBufPos = renderPage(pageOffsets[navi.page]);
 		break;
 	default:
 		OS_SETSYSDRV();
-		loadPageFromDisk("browser/current.gph", 0);
+		loadPageFromDisk("browser/current.gph", navi.volume);
 		navi.nextBufPos = renderPage(pageOffsets[navi.page]);
 		break;
 	}
@@ -1903,7 +1941,8 @@ void doLink(char backSpace)
 		if (getFile(navi.fileName))
 		{
 			OS_SETSYSDRV();
-			loadPageFromDisk("browser/current.gph", 0);
+			navi.volume = pageVolumes[navi.page];
+			loadPageFromDisk("browser/current.gph", navi.volume);
 			navi.nextBufPos = renderPage(pageOffsets[navi.page]);
 			if (!navi.saveAs)
 			{
@@ -1988,11 +2027,12 @@ void enterDomain(void)
 void navigationPage(char keypress)
 {
 	unsigned char counter;
-	unsigned char oldColor; // Вынесли объявление в начало функции по стандарту C89
+	unsigned char oldColor; /* C89: decls at top */
+	unsigned int curPage = navi.page;
 
 	switch (keypress)
 	{
-	case 250: // Up
+	case 250: /* Up */
 		navi.prevLineSelect = navi.lineSelect;
 		navi.lineSelect--;
 
@@ -2004,13 +2044,16 @@ void navigationPage(char keypress)
 
 		if (navi.page != 0 && navi.lineSelect == 0)
 		{
-			navi.page--;
-			navi.nextBufPos = pageOffsets[navi.page];
-			navi.nextBufPos = renderPage(navi.nextBufPos);
+			curPage = navi.page - 1;
+			navi.page = curPage;
+			navi.volume = pageVolumes[curPage];
+			OS_SETSYSDRV();
+			loadPageFromDisk("browser/current.gph", navi.volume);
+			navi.nextBufPos = renderPage(pageOffsets[curPage]);
 			navi.lineSelect = screenHeight;
 		}
 		break;
-	case 249: // down
+	case 249: /* down */
 		navi.prevLineSelect = navi.lineSelect;
 		navi.lineSelect++;
 		if (navi.lineSelect > screenHeight && navi.page == navi.maxPage)
@@ -2020,44 +2063,70 @@ void navigationPage(char keypress)
 		}
 		if (navi.page != navi.maxPage && navi.lineSelect > screenHeight)
 		{
-			navi.page++;
-			pageOffsets[navi.page] = navi.nextBufPos;
-			navi.nextBufPos = renderPage(navi.nextBufPos);
+			if (curPage < MAX_PAGES_TOTAL)
+			{
+				pageOffsets[curPage + 1] = navi.nextBufPos;
+				pageVolumes[curPage + 1] = navi.volume;
+			}
+			curPage++;
+			navi.page = curPage;
+			if (navi.volume != pageVolumes[curPage])
+			{
+				navi.volume = pageVolumes[curPage];
+				OS_SETSYSDRV();
+				loadPageFromDisk("browser/current.gph", navi.volume);
+			}
+			navi.nextBufPos = renderPage(pageOffsets[curPage]);
 			navi.lineSelect = 1;
 		}
 		break;
-	case 248: // Left
+	case 248: /* Left */
 		if (navi.page == 0)
 		{
 			break;
 		}
-		navi.page--;
-		navi.nextBufPos = pageOffsets[navi.page];
-		navi.nextBufPos = renderPage(navi.nextBufPos);
+		curPage = navi.page - 1;
+		navi.page = curPage;
+		navi.volume = pageVolumes[curPage];
+		OS_SETSYSDRV();
+		loadPageFromDisk("browser/current.gph", navi.volume);
+		navi.nextBufPos = renderPage(pageOffsets[curPage]);
 		navi.lineSelect = screenHeight;
 		break;
-	case 251: // Right
+	case 251: /* Right */
 		if (navi.page == navi.maxPage)
 		{
 			break;
 		}
-		navi.page++;
-		pageOffsets[navi.page] = navi.nextBufPos;
-
-		navi.nextBufPos = renderPage(navi.nextBufPos);
+		if (curPage < MAX_PAGES_TOTAL)
+		{
+			pageOffsets[curPage + 1] = navi.nextBufPos;
+			pageVolumes[curPage + 1] = navi.volume;
+		}
+		curPage++;
+		navi.page = curPage;
+		if (navi.volume != pageVolumes[curPage])
+		{
+			navi.volume = pageVolumes[curPage];
+			OS_SETSYSDRV();
+			loadPageFromDisk("browser/current.gph", navi.volume);
+		}
+		navi.nextBufPos = renderPage(pageOffsets[curPage]);
 		navi.lineSelect = 1;
 		break;
 	case 0x0d:
 		activate();
 		break;
-	case 0x08: // BS
+	case 0x08: /* BS */
 		if (navi.history > 1)
 		{
 			popHistory();
 			doLink(true);
 		}
 		break;
-	case 31: // screen redraw
+	case 31: /* screen redraw */
+		OS_SETSYSDRV();
+		loadPageFromDisk("browser/current.gph", navi.volume);
 		renderPage(pageOffsets[navi.page]);
 		break;
 	case 'h':
@@ -2091,21 +2160,18 @@ void navigationPage(char keypress)
 	{
 		oldColor = colors[navi.prevLineSelect - 1];
 
-		// Возвращаем исходную логику: явно переставляем X для каждого символа строки
 		for (counter = 1; counter < (unsigned char)SCREEN_WIDTH; counter++)
 		{
 			OS_SETXY(counter, navi.prevLineSelect);
 			OS_PRATTR(oldColor);
 		}
 
-		// Коррекция аппаратного или программного курсора мыши NedoOS
 		if (mouse.cursYpos == navi.prevLineSelect)
 		{
 			OS_SETXY(mouse.cursXpos, mouse.cursYpos);
 			mouse.oldAtr = OS_GETATTR();
 		}
 
-		// Включаем выделение для новой активной строки
 		for (counter = 1; counter < (unsigned char)SCREEN_WIDTH; counter++)
 		{
 			OS_SETXY(counter, navi.lineSelect);
