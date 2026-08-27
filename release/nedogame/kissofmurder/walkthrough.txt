@@ -1,0 +1,722 @@
+JB Harold's Case Files: KISS OF MURDER
+
+Judd's Office
+Jane Gregory, Judd Gregory
+Talk: About the case, people involved, information, Sarah's romantic relationships
+
+;------------------------------
+Chapter 1: The Client (January 1988, Day 1 of the Investigation)
+
+New York Public Library
+Charlie Willis
+Newspaper Articles: Investigate
+
+Sarah’s Apartment
+Warren Spencer
+Talk: About himself (x2), David, the status of the investigation, evidence—receipts
+　　　　　Receipts (x2), other information
+
+Gazebo
+Carol Jackson
+Ask: About herself, Clark, events of December 30, Michael
+Deborah Jackson
+Ask: About events of December 30
+
+Toogood
+Annie Davis
+Ask: About Sarah, Karen, David, Michael, Sarah’s romantic relationships, Other—LP records
+Show: LP records
+
+Dennis Holdman’s Office
+Lisa Francis
+Ask: About Vicki, David, Dennis, events of December 30
+Dennis Holdman
+Ask: About himself, About Sarah, Karen, Vicki, events of December 30, About his married life
+　　　　・About the message
+
+Steinhart Company
+Max Lyall
+Listen: About December 30th, About running the company
+David Steinhart
+Listen: About himself, Dennis, Warren, About December 30th, About married life
+　　　　・About running the company, About theft insurance
+
+Baker & Co.
+Roy Baker
+Ask: About Himself, Events of December 30
+Show: Receipt
+
+Jewelry Christie
+Betty Jansen
+Ask: About Himself, About Sarah, About Vicky, About Clark, About Sarah’s romantic relationships, Other information,About Cindy
+Show: Photo
+Clark Evans
+Ask: About Himself, The “Blue Lament” Theft Case, About Cindy, About Michael, Events of December 30
+　　　　・About Company Management
+
+Bibi 96
+Jennifer Walker
+Ask: About Vicky, Michael, events of December 30 (x2), and other matters
+
+Lucies
+Joan Ford
+Ask: About the “Blue Lament” theft case, about Sarah, Cindy, Karen, Clark, Michael, and events of December 30
+　　　　・About Sarah’s romantic relationships, and other matters
+Show: Receipts
+
+Jed’s Office
+Jane Judd
+Ask about: Cindy, Michael, Jennifer, Warren
+Show: LP records, receipts
+
+Too Good
+Annie Davis
+Ask about: Cindy, Ted ;---- talk /ask all
+
+Gazebo
+Carol Jackson
+Ask about: Cindy
+Deborah Jackson
+Ask about: Jennifer
+
+
+Jewelry Christie
+Clark Evans
+Ask about: Events of December 30
+
+Brecker Record Store
+Cindy Evans
+Ask about: Herself, Ted, Clark, Jennifer, events of December 30 (x2)
+
+
+Judd’s Office
+Jane
+Ask about: Ted
+Judd
+Ask about: Ted
+Show: Receipt
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+if blueberry theatre at Broadway not available
+then:
+Too Good
+Annie Davis
+talk /ask all
+
+Jed’s Office ; jed,jane - talk /ask /show all
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+Blueberry Theater
+Ulois Ryans Jr.
+Ask: About himself, Sarah, Emily, Ted, the events of December 30, and the recording
+
+Orange Dance Studio
+Emily Cassidy
+Ask: About herself, Ted, and the events of December 30 (x2)
+
+Blueberry Theater
+Frank Howard
+Ask: About himself, Sarah, Emily, Ted
+Show: LP record
+Larry Jones
+Ask: About himself, the murder of Sarah Shields, about Sarah, Ted, Michael, events of December 30
+
+Adler’s House
+Iris Adler
+Ask: About himself x2, about Sarah, Emily, Ted, Larry, events of December 30 x2
+
+
+Judd’s Office
+Jane
+Listen: Emily, Iris, Larry, Michael, Warren
+Judd
+Listen: Emily, Iris, Larry, Recording
+
+Sarah’s Apartment
+Warren
+Listen: What Happened on December 30
+Getting to the Truth
+
+Blueberry Theater
+Frank Howard
+Listen: Larry, Iris
+Larry Jones
+Listen: Iris
+
+Brecker Record Store
+Machindi Evans
+Listen: Emily
+
+
+Orange Dance Studio
+Emily Cassidy
+Listens to: Iris, Larry
+
+
+
+Judd’s Office
+Jane
+Listens to: Emily
+Judd
+Listens to: Warren
+
+Orange Dance Studio
+Emily Cassidy
+Ask: Why did you call?
+
+Sarah's Apartment
+Warren
+Reveal the Truth / Confront x3
+
+Judd’s Office
+Judd
+Ask: Emily
+
+Orange Dance Studio
+Emily Cassidy
+Truth: Confront x3 — Confession!!
+
+Sarah’s Apartment
+Warren
+Truth x2 — Confession!! — Lipstick
+Sarah’s Room: Search — Bed — Take — Shirt buttons, desk — Take — Bus ticket
+
+;------------------------------
+
+Chapter 2: Novel (January 1988, Day 2 of the Investigation)
+
+Judd’s Office
+Jane
+Show: Shirt button, Lipstick, Bus ticket
+Judd
+Ask: Iris Warren
+Show: Shirt button, Bus ticket
+
+Steinhart Company
+David Steinhart
+Ask: Reason for hiring a detective
+
+Adler’s House
+Iris Adler
+Truth · Confront
+Show: Photo
+Ted Adler
+Ask: About himself · Events of December 30 (x2) · Relationship with Sarah
+
+Judd’s Office
+Judd
+Ask: Ted
+
+Adler’s House
+Ted
+Truth · Confront
+Show: LP record · Shirt buttons (x2)        (shirt buttons no reaction before blueberry theater???)
+
+HeartSafe
+Stephen Harris
+Ask: David—about theft insurance; other—credit card
+
+
+
+Judd’s Office
+Jane
+Ask: walker Show: Credit card
+Judd
+Ask: About theft insurance
+
+Walker’s Apartment
+Michael Walker
+Ask: About himself (x2); Jennifer; events of December 30 (x2); other; Billy
+
+Dead or Alive
+Eddie Khan
+Ask: Billy, events of December 30
+Billy McDonald
+Ask: About himself, Jennifer, events of December 30 (x2)
+
+
+Judd’s Office
+Jane
+Ask: Billy (x2)
+Judd
+Ask: Billy
+
+Dead or Alive
+The Truth, Confront
+
+Holdman’s House
+Vicky Holdman
+Ask: About Herself, Billy, Karen, Dennis, Events of December 30, Circumstances of the Discovery
+
+Judd’s Office
+Jane
+Ask: About Karen
+Judd
+Ask: About Publishing the Novel
+
+Haruki Restaurant
+Tom Mangini
+Ask: About Himself, Karen, Michael
+
+Gazebo
+Carol Jackson
+Ask: About Publishing the Novel
+
+Too Good
+Annie Davis
+Show: Bus ticket
+
+Walker’s Apartment
+Michael Walker
+Ask: About the debt
+
+Lucy’s
+Joan Ford
+Show: Lipstick
+
+
+Blueberry Theater
+Frank Howard
+Show: Shirt button, credit card
+Larry Jones
+Ask: About December 30
+
+Judd’s Office
+Judd
+Ask: Larry
+
+Adler’s House
+Ted
+Truth · Confront
+Show: Shirt buttons (x2)
+
+Blueberry Theater
+Larry Jones
+Presses for the truth / Confronts him x3; Shows: credit card x2; Presses for the truth x2; Confesses!!
+<<<<<<<
+if he dont want to confess then:
+Judd’s Office
+Jane
+show: credit card
+
+and repeat interrogation again.
+<<<<<<
+
+Jewelry Christie
+Betty Jansen
+Asks: Billy
+
+Judd’s Office
+Judd
+Ask: Michael, Jennifer, debt
+Show: Shirt button, lipstick, bus ticket
+Jennifer
+Show: Shirt button, lipstick, ticket
+
+Bibi 96
+Jennifer Walker
+Truth, Press for details x3
+
+Walker’s Apartment
+Michael Walker
+Truth, Press for details x2, Show: Credit card
+
+
+;------------------------------
+Chapter 3: The Second Murder (January 1988, Day 3 of the Investigation)
+
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+maybe we should set deduction:
+sarah shields case : david stainhart
+blue lament : michel walker
+
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+Steinhart’s House
+Karen Steinhart
+Ask about Sarah and the events of December 30 (twice)
+
+Judd’s Office
+Judd
+Ask about Karen
+
+
+Steinhart’s House
+Karen Steinhart
+Get to the truth: press her for details, and show her the lipstick (twice)
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+if she dont want to confess about lipstick then:
+Judd’s Office
+jed,jane
+show:lipstick
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+
+Club M&M
+Ronald Myers
+Ask about David and the events of December 30
+
+HeartSafe
+Stephen Harris
+Ask: David
+
+Steinhart Company
+David
+Ask about the events of December 30
+
+Judd’s Office
+Jed
+Ask David
+
+Steinhart Company
+David
+Get to the truth: Press him then Show him the receipts (x2) and the photo
+
+Judd’s Office
+Jane Judd
+Ask: About Sarah
+
+Gazebo
+Deborah Jackson
+Ask: Miscellaneous
+
+New York Public Library
+Michael’s obituary
+
+
+
+
+;------------------------------
+
+Chapter 4: Parent and Child (January 1988, Day 4 of the Investigation)
+Judd’s Office
+Jane
+Ask: Michael’s murder case
+
+Walker’s Apartment
+Jennifer
+Ask: Michael’s murder case
+Reveal the Truth x2: Confession!!
+
+Judd’s Office
+Judd
+Ask about: Cindy, Vicki, and Clark
+
+Brecker’s Record Store
+Cindy Evans
+Ask about: Michael’s Murder Case
+Reveal the Truth / Confront:  / Confront x2 / Reveal the Truth x2 / Confession!!
+
+
+Theater Lala
+Thomas Smith
+Ask: Vicky Dennis—what happened on December 30
+
+
+Holdman’s House
+Vicki
+Confront: Ask about: Michael’s Murder Case / Confront x2
+
+Holdman’s Office
+Lisa Francis
+Ask: Vicky
+Dennis Holdman
+Ask: Michael’s Murder Case · golden dream
+
+Holdman’s House
+Vicky Holdman
+Ask: golden dream
+
+Jewelry Christie
+Clark
+Ask: Michael’s Murder Case
+Confront x2 · Truth x2: Confession!!
+
+Steinhart’s House
+Karen Steinhart
+Talk to her: Michael’s Murder Case
+Confront her
+
+
+Dead or Alive
+Eddie Kahn
+Talk to him: Miscellaneous
+Billy McDonald
+Talk to him: Michael’s Murder Case, Secret Meeting Partner
+Confront him x2, Uncover the Truth x2
+
+Adler’s House
+Iris Adler
+Confront her x2, Uncover the Truth x2: Confession!!
+Ted Adler
+Confront him x2, Uncover the Truth x2
+
+;------------------------------------------------------------------
+
+
+
+Chapter 5: Chain Reaction (January 1988, Day 5 of the Investigation)
+
+!!!Set suspect : David Steinhart as Michael Walker Murderer!!!
+
+
+Judd’s Office
+Judd
+Ask: Who was he meeting with?
+
+Steinhart Company
+Call someone else
+Search the room: Desk—Take: Calendar, Document Case—Take: Earrings
+Max Lyall
+Show: Calendar
+
+Holdman’s Office
+Call someone else
+
+Seiki Restaurant
+Patty Lee
+Ask: Karen
+Tom Mangini
+Ask: Other
+
+Empire Magazine
+Scott Lerner
+Ask: Novel publication x2, Manuscript
+
+Judd’s Office
+Jane
+Show: Earring, calendar, Manuscript
+Judd
+Show: Calendar x2, Manuscript       ;<<calendar x2????
+Ask: Reason for being blackmailed
+
+Dead or Alive
+Eddie Khan
+Show: Earring
+Call someone else
+
+Jewelry Christie
+Betty Jansen
+Show her the earring
+
+Judd’s Office
+Jane
+Show: Earring (reply: Maybe it's belongs to Vicky)
+
+Holdman’s House
+Vicky Holdman
+Confront: Earring (x2)
+Dennis Holdman
+Ask about the events of December 30
+
+<--------------------------------------------------
+
+Judd’s Office
+Judd
+Ask about Dennis
+
+
+!Steinhart’s House
+David Steinhart
+Confront him: Calendar x2       (otherwise you can't grant permission to search Holdman's office)
+!!!! if we talk ask  conront him all then he's disappeared!!!!
+
+
+
+????????????????????
+                                Judd’s Office
+                                Judd
+                                show: calendar
+????????????????????
+
+
+Holdman’s Office
+Search the room. Take the ring.
+
+<<<<<<<<<<<<<<<<<<<<<
+Gazebo
+Carol Jackson
+show: ring              
+
+Judd’s Office
+Jed,Jane
+show:ring
+<<<<<<<<<<<<<<<<<<<<< (otherwise you cant confront Holdman with ring)
+
+
+Holdman’s House
+Dennis Holdman
+Confront him three times: ticket, ring, manuscript
+
+
+
+
+
+Steinhart’s House
+Karen Steinhart
+Confront her: Ask why she was being blackmailed
+David Steinhart
+Confront him: Calendar x2, Manuscript; Ask about Michael’s murder x2
+Search the room: Bed—Take handkerchief; Desk—Take wallet                        (no wallet ????) why steinhart disappeared?
+David Steinhart
+Confront him x2; Confront him: Wallet
+Karen Steinhart
+Confront her: Handkerchief
+
+Judd’s Office
+Jane
+Show: Earrings, Wallet, Ring, Handkerchief
+Judd
+Show: Handkerchief
+
+Steinhardt’s House
+Karen Steinhardt
+Confront: Earrings, Handkerchief
+David Steinhardt
+Confront: Earrings, Handkerchief
+
+Dead or Alive
+Eddie Kahn
+Talk
+
+Final Chapter: Kiss of Murder (January 1988, Day 6 of the Investigation)
+New York Public Library
+Charlie Willis
+Billy’s obituary
+
+Judd’s Office
+Jane
+Asks about Billy’s murder
+Judd
+Asks about other matters
+
+New York Public Library
+Charlie Willis
+Job listings in *Voice*
+
+Collins’ Apartment
+Peggy Collins
+Phoebe Collins
+Ask about: Sarah Shields murder case, *Blue Lament* theft case, Sarah, *Blue Lament* x2
+Show: Stock certificate
+
+Judd’s Office
+Jane
+Show: Stock certificate
+Judd
+Ask about: *Blue Lament*
+Show: Stock certificate
+
+Manhattan Bank
+Ron Tollman
+Show: Stock Certificate
+Ask: Forgery of Stock Certificate x2
+
+Steinhart Company
+Search Room: Miscellaneous; Take: *Blue Lament*
+
+Judd’s Office
+Jane
+Show: *Blue Lament*, Stock Certificate
+Judd
+Ask: Forgery of Stock Certificate x2
+Show: *Blue Lament*
+
+Gazebo
+Carol Jackson
+Show: Ring
+
+Lucy’s
+Joan Ford
+Show: Blue Sorrow
+
+Holdman’s House
+Vicky Holdman
+Ask: Billy’s Murder
+Dennis Holdman
+Confront: Blue Sorrow, Stock Certificate
+
+Steinhart’s House
+Karen Steinhart
+Confront: Earrings, Handkerchief, Blue Sorrow, Truth x2, Confession!!
+David Steinhart
+Confront: *Blue Sorrow*, Stock Certificates
+
+Judd’s Office
+Jane
+Show: Ring, Medical Report
+Judd
+Ask: Sarah’s Illness
+Show: *Blue Sorrow*, Medical Report
+
+<<<<<<<
+set suspect:  billy as michael walker murderer
+<<<<<<<
+The Holdmans’ House
+Vicki Holdman
+Truth x2, Confession!! 
+
+
+Dennis Holdman
+Confront: *Blue Sorrow*
+Ask: Billy’s Murder
+
+Steinhart’s House
+David Steinhart
+Confront him with *Blue Lament*
+Reveal the Truth x2: Confession!!  ;<---------------------?????????????????????? (set suspect: stainhart as billy murderer ???)
+
+Holdman’s House
+Call someone else
+Search the room: Desk—Take the letter; Cabinet—Take the tie
+
+Judd’s Office
+Jane
+Show *Blue Lament*, the letter, and the tie
+Judd
+Show the letters x2 and the tie
+
+Holdman’s House
+Dennis Holdman
+Confront him with the letter and tie
+
+Sarah’s Apartment
+Search the room: Take the cabinet, take the bracelet
+
+Judd’s Office
+Jane
+Show him the bracelet and the letter
+Judd
+Show him the bracelet
+
+Empire Magazine
+Scott Lerner
+Show him the manuscript
+
+Haruki Restaurant
+Patty Lee
+Tom Mangini
+
+Manhattan Bank
+Ron Truman
+
+Judd’s Office
+Jane
+Ask about Billy’s murder
+
+Holdman’s House
+Dennis Holdman
+Confront him with the bracelet and letter
+The Truth x2: Confession!!                              (set suspect: dennis holdman, as sarah murderer, billy murderer????)
+
+
+Steinhart’s House
+confront him -ask truth (set suspect: bill robbins as downhills assault suspect?)
+
+
+
+Holdman’s House
+Dennis Holdman
+The Truth x2: Confession!! (final suspect  1- holdman 2 -shields 3-robbins 4 billy 5-holdman)

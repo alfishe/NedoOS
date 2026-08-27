@@ -1,0 +1,441 @@
+	MODULE intro
+ri_start:
+
+
+		DISP T_START
+
+
+
+		call clear_loc_screen
+		
+		
+		
+		ld hl,blackpal
+		ld de,pal
+		ld bc,32
+		ldir
+		ld a,1
+		ld (setpalflag),a
+		halt
+
+		ld hl,9+74*40+0xc000
+		ld (screen_adr_img),hl
+		ld a,0x94
+		call load_image
+		call display_image_from_buffer
+
+		ld hl,mempal
+		ld de,pal
+		ld bc,32
+		ldir 
+		call fade_fromblack
+		xor a
+		call load_mus
+
+		ld a,0x5d
+		call wait_int
+		
+		call fade_toblack
+		
+		ld a,0x10
+		call wait_int
+
+		
+		call store_48c
+		ld a,(user_scr0_high)
+		SETPG8000
+		ld a,(user_scr0_low)
+		SETPGC000
+		ld de,intr1_img
+		call openstream_file
+						;		or a
+						;		jp nz,fileopenerror
+		ld hl,0x8000 ;len
+		ld de,0x8000 ;addr
+		call readstream_file
+						;		or a
+						;		jp nz,filereaderror
+		call closestream_file
+		call restore_48c
+
+
+		ld hl,mempal
+		ld de,pal
+		ld bc,32
+		ldir 
+		call fade_fromblack
+
+;------------------ загружаем изображения		
+		call store_48c
+		ld a,(scr_buff)
+		SETPG4000
+		ld hl,0x4000
+		ld de,0x4001
+		ld bc,16383
+		ld (hl),0
+		ldir
+		
+		ld a,(item_buf)	;"KI. только пиксели
+		SETPG4000
+		ld de,intr_k_img		
+		call openstream_file
+		ld hl,0x4000 ;len
+		ld de,0x4000 ;addr
+		call readstream_file
+		call closestream_file
+
+		ld a,(portrait_buf)	;"SS. только пиксели
+		SETPG4000
+		ld de,intr_s_img
+		call openstream_file
+		ld hl,0x4000 ;len
+		ld de,0x4000 ;addr
+		call readstream_file
+		call closestream_file		
+				
+		call restore_48c			
+		
+;=========================================================
+		ld a,0x47
+		call wait_int
+		
+		call fade_toblack		
+		
+		call clear_loc_screen
+		
+		ld hl,mempal
+		ld de,pal
+		ld bc,32
+		ldir 
+		ld a,1
+		ld (setpalflag),a
+		halt
+
+
+		ld a,0x71
+		call load_image
+		call display_image_bgnd
+		
+		
+;переносим атрибуты фона в основной экран.		
+		call store_48c
+		
+		ld a,(load_buf1)
+		SETPG4000
+		ld a,(load_buf2)
+		SETPG8000
+		ld de,intr_b_img		;background
+		call openstream_file
+		ld hl,0x8000 ;len
+		ld de,0x4000 ;addr
+		call readstream_file
+		call closestream_file				
+
+		ld hl,0x4000+4800
+		ld de,0x4000+63*40+4800
+		ld bc,4800
+		lddr
+		ld hl,0x4000+0x2000+4800
+		ld de,0x4000+63*40+0x2000+4800
+		ld bc,4800
+		lddr			
+			
+		ld a,(user_scr0_low)
+		SETPGC000
+		ld hl,0x8000
+		ld de,0xc000+63*40
+		ld bc,4800
+		ldir
+		ld hl,0x8000+0x2000
+		ld de,0xc000+63*40+0x2000
+		ld bc,4800
+		ldir
+
+		call pre_scroll_init
+		
+		ld a,(load_buf1)	;background
+		SETPG4000
+
+		ld a,(scr_buff)
+		ld h,a
+		ld a,(item_buf)
+		ld l,a
+		call _scroll_image
+		
+		ld a,(item_buf)
+		ld h,a
+		ld a,(portrait_buf)
+		ld l,a
+		call _scroll_image
+		
+		ld a,(portrait_buf)
+		ld h,a
+		ld a,(scr_buff)
+		ld l,a
+		call _scroll_image
+
+
+
+        ld a,(active_scr)
+        and a 
+        jr  z,.spl11z
+		
+        ;copy scr1 to scr0
+        ld a,(user_scr0_high)
+        SETPG8000
+        ld a,(user_scr1_high)
+        SETPGC000
+        ld hl,0xC000
+        ld de,0x8000
+        ld bc,16384
+		ldir
+
+.spl11z:
+
+		ld a,(user_scr0_high)
+		SETPG8000
+
+		ld hl,0x4000+63*40
+		ld de,0x8000+63*40
+		ld bc,4800
+		ldir
+		ld hl,0x4000+63*40+0x2000
+		ld de,0x8000+63*40+0x2000
+		ld bc,4800
+		ldir
+
+		
+		
+		call restore_48c
+		jp $
+		
+wait_int:
+		ld b,a
+.lp
+		halt
+		halt
+		djnz .lp
+		ret
+		
+pre_scroll_init:
+
+                ld a,(user_scr0_low)
+                SETPGC000
+                ld a,(user_scr1_low)
+                SETPG8000
+
+                ld hl,0xC000
+                ld de,0x8000
+                ld bc,8000
+                ldir
+                ld hl,0xE000
+                ld de,0xa000
+                ld bc,8000
+                ldir
+
+                ld a,(user_scr0_high)
+                SETPGC000
+                ld a,(user_scr1_high)
+                SETPG8000
+
+                ld hl,0xC000
+                ld de,0x8000
+                ld bc,8000
+                ldir
+                ld hl,0xE000
+                ld de,0xa000
+                ld bc,8000
+                ldir
+				xor a
+				ld (active_scr),a
+				ret
+	
+active_scr: db 0
+
+set_scr_high:
+        ld a,(active_scr)
+        and a
+        jr nz,.spl1
+          ld a,(user_scr1_high) ;ld a,(user_scr1_high)
+         SETPGC000
+         ret
+.spl1:
+        ld a,(user_scr0_high)
+        SETPGC000
+        ret
+		
+_scroll_image:
+		ld a,h
+		ld (.bank_1),a
+		ld a,l
+		ld (.bank_2),a		
+		ld hl,0x8000
+        ld (.s_move_base_src),hl ;src
+        ld a,640/8
+        ld (.s_move_lines1),a
+        ld a,0
+        ld (.s_move_lines2),a
+
+;		jp $
+
+		ld b,640/8+1
+.lp0
+		push bc
+		call set_scr_high
+		
+.bank_1 = $+1
+		ld a,0
+		SETPG8000
+		ld de,0xC000+63*40
+.s_move_base_src = $+1
+		ld hl,0
+.s_move_lines1 = $+1
+		ld a,0
+		ld b,a
+
+		call copy_and_line
+		
+		push de
+.bank_2 = $+1
+		ld a,0
+		SETPG8000
+		ld hl,0x8000
+		pop de
+.s_move_lines2 = $+1
+		ld a,0
+		ld b,a
+
+		call copy_and_line
+		
+		halt
+		
+        ld a,(active_scr)
+        and a
+        jr nz,.spl1
+        
+        ; active scr 0 ; show 2nd screen . set active scr1
+        inc a
+        ld (active_scr),a
+        ld e,a
+        OS_SETSCREEN
+        jr .spl0
+.spl1:        
+        ; active scr 1 ; show 1nd screen . set active scr 0
+        dec a
+        ld (active_scr),a
+        ld e,a
+        OS_SETSCREEN
+
+.spl0:
+        
+
+        ld a,(.s_move_lines1)
+        dec a
+        ld (.s_move_lines1),a
+        ld a,(.s_move_lines2)
+        inc a
+        ld (.s_move_lines2),a
+
+
+        ld hl,(.s_move_base_src)
+        nextcolumnhl
+        ld (.s_move_base_src),hl
+
+
+        pop bc
+
+        dec b
+        jp nz,.lp0
+
+        ld e,0
+        OS_SETSCREEN
+		ret
+		
+		
+copy_and_line:
+
+        ld a,b
+        and a
+        ret z
+
+        ld a,80
+        sub b   
+        push hl,de
+
+		ld      l, a
+		ld      h, 0
+		ld      e, l
+		ld      d, h
+		add     hl, hl
+		add     hl, de          ; *3 =3
+		add     hl, hl          ; *2 =6
+		add     hl, hl          ; *2 = 12
+		add     hl, hl          ; *2 = 24
+		add     hl, de          ; +1 = 25
+		ld de,_ldi_80_noeob
+		add hl,de
+        ld (._ldi_routine),hl
+		ld (._ldi_routine2),hl
+
+        pop de,hl
+
+
+		push hl,de
+		ex de,hl
+._ldi_routine2 = $+1
+		call 0
+		;ex de,hl
+		ld (.exitde),hl
+		pop de,hl
+		ld bc,40
+		add hl,bc
+		ex de,hl
+		add hl,bc
+		ex de,hl
+
+        ld b,119
+.inl:        
+        push bc
+		push hl,de
+		ex de,hl
+        ld bc,.inl_r
+        push bc  ;
+        jp 0
+._ldi_routine    equ $-2
+
+.inl_r: 
+		pop de,hl
+		ld bc,40
+		add hl,bc
+		ex de,hl
+		add hl,bc
+		ex de,hl
+        pop bc
+        djnz .inl
+
+.exitde = $+1
+		ld de,0
+        ret
+
+
+_ldi_80_noeob:
+;hl src de - dest        
+        dup 80
+		ld a,(de)	;1
+		and (hl)	;1
+		set 7,h		;2
+		ld (hl),a	;1
+		res 7,h		;2
+		nextcolumnhl	;9
+		nextcolumnde	;9
+        edup
+        ret		
+		
+		
+		
+		ENT
+
+ri_end:
+			savebin "kissofmurder/intro.bin",ri_start,ri_end-ri_start
+			ENDMODULE
+
