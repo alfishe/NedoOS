@@ -42,7 +42,7 @@ $(OBJ)/%.r01: $(SRC)%.asm  $(OSSDK)sysdefs.asm | $(OBJ)
 	$(AZ80) -uu -S -v0 -O$(OBJ)/ -I$(OSSDK) $<
 
 $(OBJ)/%.r01: $(SRC)%.c  $(SRCH) | $(OBJ)
-	$(ICCZ80) -v0 -S -ml -uu -b -q -x -K -gA -z7 -t4 -T -O$(OBJ)/ -L$(OBJ)/ -A$(OBJ)/ -I$(IARINC) $<
+	$(ICCZ80) -v0 -S -ml -uu -b -q -x -K -gA -z7 -t4 -T -O$(OBJ)/ -L$(OBJ)/ -A$(OBJ)/ -I$(IARINC) -I$(SRC) $<
 
 $(OBJ):
 	$(MKDIR) $@
