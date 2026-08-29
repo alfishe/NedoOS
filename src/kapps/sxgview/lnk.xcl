@@ -1,0 +1,7 @@
+-cZ80
+-Ilist
+/* Code+data below 0x8000: EGA 320x200 maps VRAM at 8000-FFFF. */
+-Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-7FFF
+-Z(DATA)DATA0,IDATA0,UDATA0,ECSTR,NO_INIT,CSTACK+280=0100-7FFF
+-e_medium_write=_formatted_write
+-e_medium_read=_formatted_read
