@@ -35,7 +35,7 @@ unsigned int espRetry = 5;
 unsigned long factor, timerok, count = 0;
 unsigned int magic = 15;
 
-unsigned char uVer[] = "2.0";
+unsigned char uVer[] = "2.1";
 unsigned char curPath[128];
 unsigned char cmd[512];
 unsigned long volumeOffsets[32];

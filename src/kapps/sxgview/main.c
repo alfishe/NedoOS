@@ -5,10 +5,10 @@
  *   7F 'S' 'X' 'G', version, bgcolor, packing (0=raw), format (1=16c, 2=256c),
  *   width LE, height LE, pal shift from 0x0E, pixel shift from 0x10.
  * Palette: RGB555 LE. 4bpp: high nibble first. Typical TS sizes: 320x240, 360x288.
- * ATM shows a 320x200 crop: center first, arrows snap that axis to the edge
- * (up then left = top-left). Arrow at the stop does nothing; any other key quits.
+ * ATM shows a 320x200 crop: center first. Arrows move by half a screen, or
+ * to the edge if less remains (360x288 still reaches the stop in one press).
  *
- * Keys: P = STANDARDPAL / file DDp, N = nibble order,
+ * Keys: P = 64-color (PWM off) / file DDp, N = nibble order,
  *       arrows = pan crop (edge is a stop), other = quit.
  */
 #include <intrz80.h>
@@ -51,6 +51,8 @@ static unsigned char g_bg;
 static unsigned int g_ncolors;
 static unsigned long g_pix_ofs;
 static unsigned char g_use_ddp;
+static unsigned char g_ddp_port; /* 1 = Evo/ATM3: port #BF D5 is PWM/444 */
+static unsigned char g_key_held; /* 1 = still the same GETKEY make/repeat */
 static unsigned char g_nibble_swap;
 static unsigned char g_ddp[GFX_PALETTE_OS_BYTES];
 static unsigned char g_idx_map[256];
@@ -65,9 +67,20 @@ static unsigned char g_pal_g[256];
 static unsigned char g_pal_b[256];
 static unsigned char g_pal_bytes[512];
 static unsigned char g_opened;
-/* -1 = origin, 0 = center, +1 = far edge (only when image is larger than ATM). */
-static signed char g_pan_x;
-static signed char g_pan_y;
+/* Crop origin in the source image; start centered. */
+static unsigned int g_src_x;
+static unsigned int g_src_y;
+
+/* Evo/ATM3: OUT (#BF),32 enables 12-bit PWM (DDp). 0 = 64-color DAC.
+ * Kernel ISR follows the focused app palette; this is extra between frames. */
+static void ddp_hw_apply(void)
+{
+  if (g_ddp_port == 0u)
+  {
+    return;
+  }
+  output(0xBFu, (unsigned char)(g_use_ddp ? 32u : 0u));
+}
 
 static unsigned char adiff(unsigned char a, unsigned char b)
 {
@@ -78,7 +91,8 @@ static unsigned char adiff(unsigned char a, unsigned char b)
   return (unsigned char)(b - a);
 }
 
-/* view.asm palcol: DDp %grbG11RB inverted, 4-bit RGB. */
+/* view.asm palcol: DDp %grbG11RB inverted, 4-bit RGB.
+ * Evo PWM uses the low 2 bits of each nibble (4096). ATM 64-color DAC is bits 2-3. */
 static void rgb4_to_ddp(unsigned char r, unsigned char g, unsigned char b,
                         unsigned char *lo, unsigned char *hi)
 {
@@ -94,6 +108,28 @@ static void rgb4_to_ddp(unsigned char r, unsigned char g, unsigned char b,
                        | ((g & 8u) << 1) | ((r & 8u) >> 2) | ((b & 8u) >> 3));
   *lo = (unsigned char)(0xFFu - v0);
   *hi = (unsigned char)(0xFFu - v1);
+}
+
+/* Drop PWM bits: RGB444 -> RGB222 (64 hardware colours). */
+static void rgb4_to_64(unsigned char *r, unsigned char *g, unsigned char *b)
+{
+  *r = (unsigned char)(*r & 12u);
+  *g = (unsigned char)(*g & 12u);
+  *b = (unsigned char)(*b & 12u);
+}
+
+static unsigned int pal_word(const unsigned char *pal_bytes, unsigned int i);
+static void word_to_rgb4(unsigned int word, unsigned char *r4,
+                         unsigned char *g4, unsigned char *b4);
+
+static void pal_rgb4(const unsigned char *pal_bytes, unsigned int i,
+                     unsigned char *r4, unsigned char *g4, unsigned char *b4)
+{
+  word_to_rgb4(pal_word(pal_bytes, i), r4, g4, b4);
+  if (g_use_ddp == 0u)
+  {
+    rgb4_to_64(r4, g4, b4);
+  }
 }
 
 static unsigned char rgb555_to4(unsigned char c5)
@@ -124,6 +160,8 @@ static void fail(const char *msg)
     g_opened = 0u;
   }
   gfx_shutdown();
+  g_use_ddp = 1u;
+  ddp_hw_apply();
   exit(1);
 }
 
@@ -329,7 +367,7 @@ static void build_file_palette(const unsigned char *pal_bytes)
     {
       if (i < g_ncolors)
       {
-        word_to_rgb4(pal_word(pal_bytes, i), &r4, &g4, &b4);
+        pal_rgb4(pal_bytes, i, &r4, &g4, &b4);
       }
       else
       {
@@ -348,10 +386,10 @@ static void build_file_palette(const unsigned char *pal_bytes)
     return;
   }
 
-  /* Full CLUT in RGB444, then 16 diverse hardware slots (not even-index). */
+  /* Full CLUT (RGB444 or RGB222), then 16 diverse hardware slots. */
   for (i = 0u; i < g_ncolors; i++)
   {
-    word_to_rgb4(pal_word(pal_bytes, i), &r4, &g4, &b4);
+    pal_rgb4(pal_bytes, i, &r4, &g4, &b4);
     g_pal_r[i] = r4;
     g_pal_g[i] = g4;
     g_pal_b[i] = b4;
@@ -399,21 +437,17 @@ static void build_file_palette(const unsigned char *pal_bytes)
   }
   for (i = 0u; i < g_ncolors; i++)
   {
-    word_to_rgb4(pal_word(pal_bytes, i), &r4, &g4, &b4);
+    pal_rgb4(pal_bytes, i, &r4, &g4, &b4);
     g_idx_map[i] = nearest16(r4, g4, b4);
   }
 }
 
 static void apply_palette(void)
 {
-  if (g_use_ddp)
-  {
-    gfx_set_palette_bytes(g_ddp);
-  }
-  else
-  {
-    gfx_set_palette_standard();
-  }
+  /* Mode bit first, then DAC bytes (444 vs 64c). Kernel ISR does the same. */
+  ddp_hw_apply();
+  gfx_set_palette_bytes(g_ddp);
+  ddp_hw_apply();
 }
 
 static void build_pair_tab(void)
@@ -642,17 +676,10 @@ static void draw_image(void)
   if (vis_w > GFX_EGA_SCREEN_W)
   {
     maxx = (unsigned int)(vis_w - GFX_EGA_SCREEN_W);
-    if (g_pan_x < 0)
-    {
-      src_x0 = 0u;
-    }
-    else if (g_pan_x > 0)
+    src_x0 = g_src_x;
+    if (src_x0 > maxx)
     {
       src_x0 = maxx;
-    }
-    else
-    {
-      src_x0 = (unsigned int)(maxx / 2u);
     }
     if (g_bpp != 8u)
     {
@@ -668,17 +695,10 @@ static void draw_image(void)
   if (vis_h > GFX_EGA_SCREEN_H)
   {
     maxy = (unsigned int)(vis_h - GFX_EGA_SCREEN_H);
-    if (g_pan_y < 0)
-    {
-      src_y0 = 0u;
-    }
-    else if (g_pan_y > 0)
+    src_y0 = g_src_y;
+    if (src_y0 > maxy)
     {
       src_y0 = maxy;
-    }
-    else
-    {
-      src_y0 = (unsigned int)(maxy / 2u);
     }
     vis_h = GFX_EGA_SCREEN_H;
   }
@@ -715,6 +735,7 @@ static void draw_image(void)
     {
       break;
     }
+    ddp_hw_apply();
     if (full_w)
     {
       if (g_bpp == 8u)
@@ -742,6 +763,107 @@ static void draw_image(void)
   }
 }
 
+static unsigned int crop_max_x(void)
+{
+  if (g_width <= GFX_EGA_SCREEN_W)
+  {
+    return 0u;
+  }
+  return (unsigned int)(g_width - GFX_EGA_SCREEN_W);
+}
+
+static unsigned int crop_max_y(void)
+{
+  if (g_height <= GFX_EGA_SCREEN_H)
+  {
+    return 0u;
+  }
+  return (unsigned int)(g_height - GFX_EGA_SCREEN_H);
+}
+
+static void crop_align_x(void)
+{
+  if (g_bpp != 8u)
+  {
+    g_src_x = (unsigned int)(g_src_x & ~1u);
+  }
+}
+
+static void crop_center(void)
+{
+  g_src_x = (unsigned int)(crop_max_x() / 2u);
+  g_src_y = (unsigned int)(crop_max_y() / 2u);
+  crop_align_x();
+}
+
+/* Half-screen step, or remaining distance to the edge. Returns 1 if the crop moved. */
+static unsigned char crop_step(unsigned char dir)
+{
+  unsigned int maxv;
+  unsigned int step;
+  unsigned int remain;
+
+  if (dir == KEY_LEFT || dir == KEY_RIGHT)
+  {
+    maxv = crop_max_x();
+    step = GFX_EGA_SCREEN_W / 2u;
+    if (dir == KEY_LEFT)
+    {
+      if (g_src_x == 0u)
+      {
+        return 0u;
+      }
+      if (step > g_src_x)
+      {
+        step = g_src_x;
+      }
+      g_src_x = (unsigned int)(g_src_x - step);
+    }
+    else
+    {
+      if (g_src_x >= maxv)
+      {
+        return 0u;
+      }
+      remain = (unsigned int)(maxv - g_src_x);
+      if (step > remain)
+      {
+        step = remain;
+      }
+      g_src_x = (unsigned int)(g_src_x + step);
+    }
+    crop_align_x();
+    return 1u;
+  }
+
+  maxv = crop_max_y();
+  step = GFX_EGA_SCREEN_H / 2u;
+  if (dir == KEY_UP)
+  {
+    if (g_src_y == 0u)
+    {
+      return 0u;
+    }
+    if (step > g_src_y)
+    {
+      step = g_src_y;
+    }
+    g_src_y = (unsigned int)(g_src_y - step);
+    return 1u;
+  }
+  if (g_src_y >= maxv)
+  {
+    return 0u;
+  }
+  remain = (unsigned int)(maxv - g_src_y);
+  if (step > remain)
+  {
+    step = remain;
+  }
+  g_src_y = (unsigned int)(g_src_y + step);
+  return 1u;
+}
+
 static void drain_keys(void)
 {
   unsigned int n;
@@ -759,60 +881,44 @@ static unsigned char wait_command(void)
 {
   unsigned char k;
 
-  drain_keys();
   for (;;)
   {
+    ddp_hw_apply();
+    YIELD();
     k = (unsigned char)OS_GETKEY();
     if (k == 0u)
     {
-      YIELD();
+      g_key_held = 0u;
       continue;
     }
-    if (k == 'P' || k == 'p')
+    if (k == 'P' || k == 'p' || k == 'N' || k == 'n')
     {
-      g_use_ddp = (unsigned char)(g_use_ddp ? 0u : 1u);
-      apply_palette();
-      continue;
-    }
-    if (k == 'N' || k == 'n')
-    {
-      g_nibble_swap = (unsigned char)(g_nibble_swap ? 0u : 1u);
-      build_pair_tab();
-      draw_image();
-      continue;
-    }
-    if (k == KEY_LEFT)
-    {
-      if (g_width > GFX_EGA_SCREEN_W && g_pan_x > -1)
+      /* Ignore auto-repeat of the same make; next real press after a 0. */
+      if (g_key_held)
       {
-        g_pan_x = (signed char)(g_pan_x - 1);
+        continue;
+      }
+      g_key_held = 1u;
+      if (k == 'P' || k == 'p')
+      {
+        g_use_ddp = (unsigned char)(g_use_ddp ? 0u : 1u);
+        build_file_palette(g_pal_bytes);
+        build_pair_tab();
+        apply_palette();
+        draw_image();
+      }
+      else
+      {
+        g_nibble_swap = (unsigned char)(g_nibble_swap ? 0u : 1u);
+        build_pair_tab();
         draw_image();
       }
       continue;
     }
-    if (k == KEY_RIGHT)
+    if (k == KEY_LEFT || k == KEY_RIGHT || k == KEY_UP || k == KEY_DOWN)
     {
-      if (g_width > GFX_EGA_SCREEN_W && g_pan_x < 1)
+      if (crop_step(k))
       {
-        g_pan_x = (signed char)(g_pan_x + 1);
-        draw_image();
-      }
-      continue;
-    }
-    if (k == KEY_UP)
-    {
-      if (g_height > GFX_EGA_SCREEN_H && g_pan_y > -1)
-      {
-        g_pan_y = (signed char)(g_pan_y - 1);
-        draw_image();
-      }
-      continue;
-    }
-    if (k == KEY_DOWN)
-    {
-      if (g_height > GFX_EGA_SCREEN_H && g_pan_y < 1)
-      {
-        g_pan_y = (signed char)(g_pan_y + 1);
         draw_image();
       }
       continue;
@@ -826,18 +932,26 @@ C_task main(int argc, char *argv[])
   unsigned char hdr[SXG_HDR_SIZE];
   unsigned int pal_sz;
   unsigned int pal_ofs;
+  unsigned char mach;
 
   g_opened = 0u;
   g_bg = 0u;
-  g_use_ddp = 1u; /* file DDp; P switches to STANDARDPAL */
+  g_use_ddp = 1u; /* file DDp (PWM 4096); P = 64-color, PWM off */
+  g_ddp_port = 0u;
+  g_key_held = 0u;
   g_nibble_swap = 0u;
-  g_pan_x = 0;
-  g_pan_y = 0;
+  g_src_x = 0u;
+  g_src_y = 0u;
 
   OS_SETGFX(GFX_MODE_TEXT_KEEP);
   OS_CLS(0);
   OS_HIDEFROMPARENT();
   OS_SETCOLOR(7u);
+  mach = (unsigned char)OS_GETCONFIG();
+  if (mach == 1u || mach == 3u)
+  {
+    g_ddp_port = 1u;
+  }
 
   if (argc < 2)
   {
@@ -914,6 +1028,10 @@ C_task main(int argc, char *argv[])
 
   build_file_palette(g_pal_bytes);
   build_pair_tab();
+  crop_center();
+
+  /* Eat nv Enter before the picture. Do not drain after draw: that ate the first P. */
+  drain_keys();
 
   gfx_enter_ega();
   gfx_map_front();
@@ -928,5 +1046,7 @@ C_task main(int argc, char *argv[])
     g_opened = 0u;
   }
   gfx_shutdown();
+  g_use_ddp = 1u;
+  ddp_hw_apply();
   return 0;
 }

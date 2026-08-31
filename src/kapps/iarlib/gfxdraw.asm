@@ -624,6 +624,7 @@ gfx_store_pair:
 	ret
 
 ; Hardware palette push (syskrnl.asm setgfxpal_focus): DDp pairs from buf[31..0].
+; ATM: OUT (BC),D with C=#FF and B=low DDp byte (16-bit port), A=index.
 gfx_hw_load_palette_focus:
 	push bc
 	push de
@@ -633,26 +634,26 @@ gfx_hw_load_palette_focus:
 	ld de,31
 	add hl,de
 	ld c,0xff
-	ld b,8
 	ld a,7
 gfx_hw_pal_f6_loop:
 	out (0xF6),a
 	ld d,(hl)
 	dec hl
+	ld b,(hl)
 	dec hl
 	out (c),d
 	dec a
-	djnz gfx_hw_pal_f6_loop
-	ld b,8
+	jp p,gfx_hw_pal_f6_loop
 	ld a,7
 gfx_hw_pal_fe_loop:
 	out (0xFE),a
 	ld d,(hl)
 	dec hl
+	ld b,(hl)
 	dec hl
 	out (c),d
 	dec a
-	djnz gfx_hw_pal_fe_loop
+	jp p,gfx_hw_pal_fe_loop
 	pop af
 	pop hl
 	pop de
