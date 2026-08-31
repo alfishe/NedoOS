@@ -8,10 +8,9 @@
  * ATM shows a 320x200 crop: center first. Arrows move by half a screen, or
  * to the edge if less remains (360x288 still reaches the stop in one press).
  *
- * Keys: P = 64-color (PWM off) / file DDp, N = nibble order,
- *       arrows = pan crop (edge is a stop), other = quit.
+ * Keys: P = file RGB444 DDp / ATM2 pal (2 bits/channel, lo==hi like BQ).
+ *       Start is ATM2 pal. N = nibble order, arrows = pan, other = quit.
  */
-#include <intrz80.h>
 #include <oscalls.h>
 #include <osfs.h>
 #include <graphic.h>
@@ -51,8 +50,6 @@ static unsigned char g_bg;
 static unsigned int g_ncolors;
 static unsigned long g_pix_ofs;
 static unsigned char g_use_ddp;
-static unsigned char g_ddp_port; /* 1 = Evo/ATM3: port #BF D5 is PWM/444 */
-static unsigned char g_key_held; /* 1 = still the same GETKEY make/repeat */
 static unsigned char g_nibble_swap;
 static unsigned char g_ddp[GFX_PALETTE_OS_BYTES];
 static unsigned char g_idx_map[256];
@@ -70,17 +67,6 @@ static unsigned char g_opened;
 /* Crop origin in the source image; start centered. */
 static unsigned int g_src_x;
 static unsigned int g_src_y;
-
-/* Evo/ATM3: OUT (#BF),32 enables 12-bit PWM (DDp). 0 = 64-color DAC.
- * Kernel ISR follows the focused app palette; this is extra between frames. */
-static void ddp_hw_apply(void)
-{
-  if (g_ddp_port == 0u)
-  {
-    return;
-  }
-  output(0xBFu, (unsigned char)(g_use_ddp ? 32u : 0u));
-}
 
 static unsigned char adiff(unsigned char a, unsigned char b)
 {
@@ -110,12 +96,22 @@ static void rgb4_to_ddp(unsigned char r, unsigned char g, unsigned char b,
   *hi = (unsigned char)(0xFFu - v1);
 }
 
-/* Drop PWM bits: RGB444 -> RGB222 (64 hardware colours). */
+/*
+ * ATM2 64-color: keep bits 2-3, copy them into bits 0-1 (0,5,10,15).
+ * rgb4_to_ddp then writes lo==hi, same as STANDARDPAL / BQ sprpal.
+ * PWM is on in the FPGA but duty matches the 2-bit color, so it does
+ * not shimmer; you lose the extra 12-bit shades on purpose.
+ */
 static void rgb4_to_64(unsigned char *r, unsigned char *g, unsigned char *b)
 {
-  *r = (unsigned char)(*r & 12u);
-  *g = (unsigned char)(*g & 12u);
-  *b = (unsigned char)(*b & 12u);
+  unsigned char t;
+
+  t = (unsigned char)(*r & 12u);
+  *r = (unsigned char)(t | (t >> 2));
+  t = (unsigned char)(*g & 12u);
+  *g = (unsigned char)(t | (t >> 2));
+  t = (unsigned char)(*b & 12u);
+  *b = (unsigned char)(t | (t >> 2));
 }
 
 static unsigned int pal_word(const unsigned char *pal_bytes, unsigned int i);
@@ -126,9 +122,30 @@ static void pal_rgb4(const unsigned char *pal_bytes, unsigned int i,
                      unsigned char *r4, unsigned char *g4, unsigned char *b4)
 {
   word_to_rgb4(pal_word(pal_bytes, i), r4, g4, b4);
-  if (g_use_ddp == 0u)
+}
+
+/* g_pal_r/g/b[0..15] stay RGB444 from the file; P only re-encodes this. */
+static void encode_hw_palette(void)
+{
+  unsigned int i;
+  unsigned char r4;
+  unsigned char g4;
+  unsigned char b4;
+  unsigned char lo;
+  unsigned char hi;
+
+  for (i = 0u; i < 16u; i++)
   {
-    rgb4_to_64(r4, g4, b4);
+    r4 = g_pal_r[i];
+    g4 = g_pal_g[i];
+    b4 = g_pal_b[i];
+    if (g_use_ddp == 0u)
+    {
+      rgb4_to_64(&r4, &g4, &b4);
+    }
+    rgb4_to_ddp(r4, g4, b4, &lo, &hi);
+    g_ddp[i * 2u] = lo;
+    g_ddp[i * 2u + 1u] = hi;
   }
 }
 
@@ -160,8 +177,6 @@ static void fail(const char *msg)
     g_opened = 0u;
   }
   gfx_shutdown();
-  g_use_ddp = 1u;
-  ddp_hw_apply();
   exit(1);
 }
 
@@ -349,8 +364,6 @@ static void build_file_palette(const unsigned char *pal_bytes)
   unsigned char r4;
   unsigned char g4;
   unsigned char b4;
-  unsigned char lo;
-  unsigned char hi;
   static unsigned char pick[16];
   static unsigned char hw_r[16];
   static unsigned char hw_g[16];
@@ -378,15 +391,13 @@ static void build_file_palette(const unsigned char *pal_bytes)
       g_pal_r[i] = r4;
       g_pal_g[i] = g4;
       g_pal_b[i] = b4;
-      rgb4_to_ddp(r4, g4, b4, &lo, &hi);
-      g_ddp[i * 2u] = lo;
-      g_ddp[i * 2u + 1u] = hi;
       g_idx_map[i] = (unsigned char)((i < g_ncolors) ? i : 0u);
     }
+    encode_hw_palette();
     return;
   }
 
-  /* Full CLUT (RGB444 or RGB222), then 16 diverse hardware slots. */
+  /* Full RGB444 CLUT, then 16 hardware slots. Mapping does not change on P. */
   for (i = 0u; i < g_ncolors; i++)
   {
     pal_rgb4(pal_bytes, i, &r4, &g4, &b4);
@@ -401,21 +412,16 @@ static void build_file_palette(const unsigned char *pal_bytes)
     {
       if (i < g_ncolors)
       {
-        r4 = g_pal_r[i];
-        g4 = g_pal_g[i];
-        b4 = g_pal_b[i];
         g_idx_map[i] = (unsigned char)i;
       }
       else
       {
-        r4 = 0u;
-        g4 = 0u;
-        b4 = 0u;
+        g_pal_r[i] = 0u;
+        g_pal_g[i] = 0u;
+        g_pal_b[i] = 0u;
       }
-      rgb4_to_ddp(r4, g4, b4, &lo, &hi);
-      g_ddp[i * 2u] = lo;
-      g_ddp[i * 2u + 1u] = hi;
     }
+    encode_hw_palette();
     return;
   }
 
@@ -431,10 +437,8 @@ static void build_file_palette(const unsigned char *pal_bytes)
     g_pal_r[i] = hw_r[i];
     g_pal_g[i] = hw_g[i];
     g_pal_b[i] = hw_b[i];
-    rgb4_to_ddp(hw_r[i], hw_g[i], hw_b[i], &lo, &hi);
-    g_ddp[i * 2u] = lo;
-    g_ddp[i * 2u + 1u] = hi;
   }
+  encode_hw_palette();
   for (i = 0u; i < g_ncolors; i++)
   {
     pal_rgb4(pal_bytes, i, &r4, &g4, &b4);
@@ -444,10 +448,8 @@ static void build_file_palette(const unsigned char *pal_bytes)
 
 static void apply_palette(void)
 {
-  /* Mode bit first, then DAC bytes (444 vs 64c). Kernel ISR does the same. */
-  ddp_hw_apply();
+  /* Same write as BQ: lo on B, hi on D. ATM2 mode has lo==hi. */
   gfx_set_palette_bytes(g_ddp);
-  ddp_hw_apply();
 }
 
 static void build_pair_tab(void)
@@ -735,7 +737,6 @@ static void draw_image(void)
     {
       break;
     }
-    ddp_hw_apply();
     if (full_w)
     {
       if (g_bpp == 8u)
@@ -883,36 +884,25 @@ static unsigned char wait_command(void)
 
   for (;;)
   {
-    ddp_hw_apply();
     YIELD();
     k = (unsigned char)OS_GETKEY();
     if (k == 0u)
     {
-      g_key_held = 0u;
       continue;
     }
-    if (k == 'P' || k == 'p' || k == 'N' || k == 'n')
+    if (k == 'P' || k == 'p')
     {
-      /* Ignore auto-repeat of the same make; next real press after a 0. */
-      if (g_key_held)
-      {
-        continue;
-      }
-      g_key_held = 1u;
-      if (k == 'P' || k == 'p')
-      {
-        g_use_ddp = (unsigned char)(g_use_ddp ? 0u : 1u);
-        build_file_palette(g_pal_bytes);
-        build_pair_tab();
-        apply_palette();
-        draw_image();
-      }
-      else
-      {
-        g_nibble_swap = (unsigned char)(g_nibble_swap ? 0u : 1u);
-        build_pair_tab();
-        draw_image();
-      }
+      /* Indices in VRAM stay; only the 16 hardware colours change. */
+      g_use_ddp = (unsigned char)(g_use_ddp ? 0u : 1u);
+      encode_hw_palette();
+      apply_palette();
+      continue;
+    }
+    if (k == 'N' || k == 'n')
+    {
+      g_nibble_swap = (unsigned char)(g_nibble_swap ? 0u : 1u);
+      build_pair_tab();
+      draw_image();
       continue;
     }
     if (k == KEY_LEFT || k == KEY_RIGHT || k == KEY_UP || k == KEY_DOWN)
@@ -932,13 +922,10 @@ C_task main(int argc, char *argv[])
   unsigned char hdr[SXG_HDR_SIZE];
   unsigned int pal_sz;
   unsigned int pal_ofs;
-  unsigned char mach;
 
   g_opened = 0u;
   g_bg = 0u;
-  g_use_ddp = 1u; /* file DDp (PWM 4096); P = 64-color, PWM off */
-  g_ddp_port = 0u;
-  g_key_held = 0u;
+  g_use_ddp = 0u; /* ATM2 pal (lo==hi); P = file RGB444 DDp */
   g_nibble_swap = 0u;
   g_src_x = 0u;
   g_src_y = 0u;
@@ -947,11 +934,6 @@ C_task main(int argc, char *argv[])
   OS_CLS(0);
   OS_HIDEFROMPARENT();
   OS_SETCOLOR(7u);
-  mach = (unsigned char)OS_GETCONFIG();
-  if (mach == 1u || mach == 3u)
-  {
-    g_ddp_port = 1u;
-  }
 
   if (argc < 2)
   {
@@ -1046,7 +1028,5 @@ C_task main(int argc, char *argv[])
     g_opened = 0u;
   }
   gfx_shutdown();
-  g_use_ddp = 1u;
-  ddp_hw_apply();
   return 0;
 }
