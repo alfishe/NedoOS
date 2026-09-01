@@ -4,7 +4,7 @@ CONSOLE := BDOS
 
 SRCC	:= main.c
 SRCH	:=
-SRCA	:=
+SRCA	:= plot.asm
 XCLFILE	:= lnk.xcl
 
 include ../iarlib/iar.mk

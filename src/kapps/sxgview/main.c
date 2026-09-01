@@ -42,6 +42,13 @@ static const unsigned char right_tab[16] = {
 
 unsigned char g_row[160];
 
+extern unsigned char g_pair_tab[256];
+extern unsigned char g_left8[256];
+extern unsigned char g_right8[256];
+void plot_row(unsigned char y, const unsigned char *pix);
+void plot_row_4(unsigned char y, const unsigned char *src);
+void plot_row_8(unsigned char y, const unsigned char *src);
+
 static FILE *g_fp;
 static unsigned int g_width;
 static unsigned int g_height;
@@ -55,7 +62,6 @@ static unsigned char g_ddp[GFX_PALETTE_OS_BYTES];
 static unsigned char g_idx_map[256];
 static unsigned char g_pixrow[GFX_EGA_SCREEN_W];
 static unsigned char g_srcrow[SXG_MAX_W];
-static unsigned char g_pair_tab[256];
 static unsigned char g_chunk[2048];
 static unsigned int g_chunk_i;
 static unsigned int g_chunk_n;
@@ -472,6 +478,8 @@ static void build_pair_tab(void)
     p0 = g_idx_map[p0];
     p1 = g_idx_map[p1];
     g_pair_tab[b] = (unsigned char)(left_tab[p0] | right_tab[p1]);
+    g_left8[b] = left_tab[g_idx_map[b]];
+    g_right8[b] = right_tab[g_idx_map[b]];
   }
 }
 
@@ -482,79 +490,6 @@ static unsigned int row_bytes(void)
     return g_width;
   }
   return (unsigned int)((g_width + 1u) / 2u);
-}
-
-static void plot_row(unsigned char y, const unsigned char *pix)
-{
-  unsigned int yoff;
-  unsigned char col;
-  unsigned char *b0;
-  unsigned char *b1;
-  unsigned char *b2;
-  unsigned char *b3;
-
-  yoff = ((unsigned int)y << 5) + ((unsigned int)y << 3);
-  b0 = (unsigned char *)(0x8000u + yoff);
-  b1 = (unsigned char *)(0xC000u + yoff);
-  b2 = (unsigned char *)(0xA000u + yoff);
-  b3 = (unsigned char *)(0xE000u + yoff);
-  for (col = 0u; col < 40u; col++)
-  {
-    *b0++ = (unsigned char)(left_tab[pix[0] & 15u] | right_tab[pix[1] & 15u]);
-    *b1++ = (unsigned char)(left_tab[pix[2] & 15u] | right_tab[pix[3] & 15u]);
-    *b2++ = (unsigned char)(left_tab[pix[4] & 15u] | right_tab[pix[5] & 15u]);
-    *b3++ = (unsigned char)(left_tab[pix[6] & 15u] | right_tab[pix[7] & 15u]);
-    pix += 8;
-  }
-}
-
-/* 4bpp: 160 packed bytes (320 pixels, even start) -> ATM banks. */
-static void plot_row_4(unsigned char y, const unsigned char *src)
-{
-  unsigned int yoff;
-  unsigned char col;
-  unsigned char *b0;
-  unsigned char *b1;
-  unsigned char *b2;
-  unsigned char *b3;
-
-  yoff = ((unsigned int)y << 5) + ((unsigned int)y << 3);
-  b0 = (unsigned char *)(0x8000u + yoff);
-  b1 = (unsigned char *)(0xC000u + yoff);
-  b2 = (unsigned char *)(0xA000u + yoff);
-  b3 = (unsigned char *)(0xE000u + yoff);
-  for (col = 0u; col < 40u; col++)
-  {
-    *b0++ = g_pair_tab[src[0]];
-    *b1++ = g_pair_tab[src[1]];
-    *b2++ = g_pair_tab[src[2]];
-    *b3++ = g_pair_tab[src[3]];
-    src += 4;
-  }
-}
-
-static void plot_row_8(unsigned char y, const unsigned char *src)
-{
-  unsigned int yoff;
-  unsigned char col;
-  unsigned char *b0;
-  unsigned char *b1;
-  unsigned char *b2;
-  unsigned char *b3;
-
-  yoff = ((unsigned int)y << 5) + ((unsigned int)y << 3);
-  b0 = (unsigned char *)(0x8000u + yoff);
-  b1 = (unsigned char *)(0xC000u + yoff);
-  b2 = (unsigned char *)(0xA000u + yoff);
-  b3 = (unsigned char *)(0xE000u + yoff);
-  for (col = 0u; col < 40u; col++)
-  {
-    *b0++ = (unsigned char)(left_tab[g_idx_map[src[0]]] | right_tab[g_idx_map[src[1]]]);
-    *b1++ = (unsigned char)(left_tab[g_idx_map[src[2]]] | right_tab[g_idx_map[src[3]]]);
-    *b2++ = (unsigned char)(left_tab[g_idx_map[src[4]]] | right_tab[g_idx_map[src[5]]]);
-    *b3++ = (unsigned char)(left_tab[g_idx_map[src[6]]] | right_tab[g_idx_map[src[7]]]);
-    src += 8;
-  }
 }
 
 static void unpack_row(const unsigned char *src, unsigned int vis_w,

@@ -1,8 +1,6 @@
 /*
- * ZiFi for NedoOS ? transport / catalog prototype.
- *
- * Original: TSConf client (zifi.vtrd.in) talking AT-Firmware HTTP/1.0
- * to the same PHP endpoints. Catalog records are 5 CRLF lines:
+ * ZiFi for NedoOS. HTTP/1.0 to the same PHP backends as the TSConf
+ * client. Catalog records are 5 CRLF lines: title, url, year, author, city.
  *   title, url, year, author, city
  * File downloads of zips go through:
  *   http://zifi.vtrd.in/unzipremote.php?f=<url>
@@ -63,8 +61,8 @@
 
 #define QUERY_MAX 20
 #define MAX_ITEMS 100
-#define LIST_ROWS 18
-#define LIST_Y0 3
+#define LIST_ROWS 20
+#define LIST_Y0 2
 #define LIST_MAX 16383u
 #define NETBUF_BYTES sizeof(netbuf)
 
@@ -75,10 +73,13 @@
 #define COL_LIST 7
 #define COL_SEL 48
 #define COL_META 6
-#define COL_STAT 95
-#define COL_BAR 70
+#define COL_STAT 7
 #define COL_ERR 82
 #define COL_OK 68
+#define COL_HELP 95
+
+#define ROW_STAT 23
+#define ROW_HELP 24
 
 #define DIRTY_FULL 1
 #define DIRTY_SEL 2
@@ -113,7 +114,7 @@ unsigned long contLen;
 unsigned int httpErr;
 unsigned int headlng;
 
-unsigned char uVer[] = "0.4";
+unsigned char uVer[] = "0.5";
 unsigned char curPath[128];
 unsigned char cmd[256];
 unsigned char crlf[2] = {13, 10};
@@ -254,6 +255,7 @@ static unsigned char g_play_author[20];
 static unsigned char g_play_year[8];
 static unsigned char g_play_city[16];
 static unsigned char g_play_file[66];
+static unsigned long g_stat_shown;
 
 static void map_list(void)
 {
@@ -377,17 +379,16 @@ static void mouse_poll(void)
 
 void clearStatus(void)
 {
-	fill_line(23, COL_STAT);
-	fill_line(24, COL_STAT);
-	OS_SETXY(0, 23);
+	fill_line(ROW_STAT, COL_STAT);
+	OS_SETXY(0, ROW_STAT);
 }
 
 static void set_status(unsigned char col, const char *msg)
 {
 	unsigned char i;
 
-	fill_line(23, col);
-	OS_SETXY(0, 23);
+	fill_line(ROW_STAT, col);
+	OS_SETXY(0, ROW_STAT);
 	i = 0;
 	while (msg[i] && i < 79)
 	{
@@ -505,16 +506,16 @@ static void set_list_base(const char *url)
 
 static void draw_search_row(void)
 {
-	fill_line(23, COL_TABHI);
-	OS_SETXY(0, 23);
+	fill_line(ROW_STAT, COL_TABHI);
+	OS_SETXY(0, ROW_STAT);
 	printf(" Find: %s", g_query);
 	putchar('_');
 }
 
 static void draw_now_playing(void)
 {
-	fill_line(23, COL_OK);
-	OS_SETXY(0, 23);
+	fill_line(ROW_STAT, COL_OK);
+	OS_SETXY(0, ROW_STAT);
 	putchar('>');
 	putchar(' ');
 	put_trunc((char *)g_play_title, 32);
@@ -541,34 +542,19 @@ static void draw_status_row(void)
 		draw_search_row();
 	else if (g_have_player)
 		draw_now_playing();
+	else
+		clearStatus();
 }
 
-static void draw_progress(unsigned long got, unsigned long total)
+static void draw_progress(unsigned long got)
 {
-	unsigned char i;
-	unsigned char filled;
-	unsigned int pct;
+	char line[16];
 
-	OS_SETCOLOR(COL_BAR);
-	fill_line(22, COL_BAR);
-	OS_SETXY(1, 22);
-	if (total == 0)
-	{
-		printf("%lu bytes", got);
+	if (got == 0 || got == g_stat_shown)
 		return;
-	}
-	pct = (unsigned int)((got * 100ul) / total);
-	if (pct > 100)
-		pct = 100;
-	filled = (unsigned char)((got * 40ul) / total);
-	if (filled > 40)
-		filled = 40;
-	putchar('[');
-	for (i = 0; i < filled; i++)
-		putchar(178);
-	for (i = filled; i < 40; i++)
-		putchar(176);
-	printf("] %u%%  %lu/%lu", pct, got, total);
+	g_stat_shown = got;
+	sprintf(line, "%lu", got);
+	set_status(COL_STAT, line);
 }
 
 static unsigned char site_count(const SITE *s)
@@ -872,7 +858,7 @@ static unsigned char feed_body(unsigned char *p, unsigned int n)
 		OS_WRITEHANDLE(p, g_fp, n);
 		g_got += n;
 	}
-	draw_progress(g_got, contLen);
+	draw_progress(g_got);
 	return 1;
 }
 
@@ -1073,9 +1059,7 @@ static unsigned char http_get(const char *url, unsigned char dest, unsigned char
 	}
 	build_http_req();
 
-	sprintf(line, "GET %s", g_host);
-	set_status(COL_BAR, line);
-	draw_progress(0, 0);
+	g_stat_shown = 0;
 
 	if (netDriver == 1)
 		ok = http_esp();
@@ -1109,6 +1093,7 @@ static unsigned char http_get(const char *url, unsigned char dest, unsigned char
 		set_status(COL_ERR, line);
 		return 0;
 	}
+	clearStatus();
 	return 1;
 }
 
@@ -1347,7 +1332,6 @@ static void parse_catalog(void)
 static unsigned char fetch_list(unsigned int page)
 {
 	const char *url;
-	char line[80];
 
 	if (page <= 1)
 	{
@@ -1372,22 +1356,14 @@ static unsigned char fetch_list(unsigned int page)
 	g_scroll = 0;
 	g_state = ST_LIST;
 	g_dirty |= DIRTY_FULL;
-
-	sprintf(line, "%u items  p=%u  %u bytes", nitems, g_page, list_bytes);
-	set_status(COL_OK, line);
+	clearStatus();
 	return 1;
 }
 
 static unsigned char save_url(const char *url, unsigned char unzip)
 {
-	char line[80];
-
 	url_filename(url, (char *)g_fname);
-	if (!http_get(url, DEST_FILE, unzip))
-		return 0;
-	sprintf(line, "saved %s  %lu bytes", g_fname, g_got);
-	set_status(COL_OK, line);
-	return 1;
+	return http_get(url, DEST_FILE, unzip);
 }
 
 static void stop_player(void)
@@ -1557,6 +1533,7 @@ static unsigned char play_item(const char *url)
 	remember_play();
 	g_play_secs = estimate_track_secs((char *)g_fname);
 	stop_player();
+	clearStatus();
 	if (!run_overlay("radio", "player.ovl", "player.com", (char *)g_fname, 0))
 		return 0;
 	g_autoplay = 1;
@@ -1711,19 +1688,18 @@ static void handle_search_key(unsigned int key)
 static void view_sxg(const char *url)
 {
 	unsigned char unzip;
-	char line[80];
 
 	unzip = 1;
 	if (strncmp(url, "https://", 8) != 0)
 		unzip = 0;
 	if (!save_url(url, unzip))
 		return;
+	clearStatus();
 	if (!run_overlay((const char *)0, "sxgview.com", "sxgview.com", (char *)g_fname, 1))
 		return;
 	g_dirty |= DIRTY_FULL;
 	refresh();
-	sprintf(line, "sxg %s", g_fname);
-	set_status(COL_OK, line);
+	clearStatus();
 }
 
 static void put_trunc(const char *s, unsigned char maxc)
@@ -1745,7 +1721,7 @@ static void draw_frame(void)
 	unsigned char y;
 
 	OS_SETCOLOR(COL_FRAME);
-	OS_SETXY(0, 2);
+	OS_SETXY(0, (unsigned char)(LIST_Y0 - 1));
 	putchar(201);
 	for (y = 0; y < 78; y++)
 		putchar(205);
@@ -1768,42 +1744,50 @@ static void draw_tabs(void)
 {
 	unsigned char i;
 	unsigned char x;
+	unsigned char n;
+	char right[32];
 
-	OS_SETCOLOR(COL_TITLE);
-	fill_line(0, COL_TITLE);
-	OS_SETXY(1, 0);
-	printf("ZiFi %s", uVer);
-	OS_SETXY(16, 0);
-	printf("%s", section_name[g_sec]);
-	OS_SETXY(52, 0);
-	printf("[%s]", drv_name[netDriver]);
-	if (g_state == ST_LIST)
-	{
-		OS_SETXY(68, 0);
-		printf("p=%02u", g_page);
-	}
-
-	fill_line(1, COL_TAB);
+	fill_line(0, COL_TAB);
 	x = 1;
 	for (i = 0; i < 4; i++)
 	{
-		OS_SETXY(x, 1);
+		OS_SETXY(x, 0);
 		OS_SETCOLOR((unsigned char)(i == g_sec ? COL_TABHI : COL_TAB));
 		printf(" [%u]%s ", (unsigned int)(i + 1), section_name[i]);
 		x = (unsigned char)(x + 12);
 	}
+
+	if (g_state == ST_LIST)
+		sprintf(right, "[ZiFi %s] [%s] p=%02u", uVer, drv_name[netDriver], g_page);
+	else
+		sprintf(right, "[ZiFi %s] [%s]", uVer, drv_name[netDriver]);
+	n = (unsigned char)strlen(right);
+	if (n == 0)
+		return;
+	if (n > 29)
+		n = 29;
+	x = (unsigned char)(80 - n);
+	OS_SETXY(x, 0);
+	OS_SETCOLOR(COL_TITLE);
+	i = 0;
+	while ((unsigned char)(i + 1) < n)
+	{
+		putchar(right[i]);
+		i++;
+	}
+	put_stay(right[i]);
 }
 
 static void draw_help(void)
 {
-	fill_line(24, COL_STAT);
-	OS_SETXY(0, 24);
+	fill_line(ROW_HELP, COL_HELP);
+	OS_SETXY(0, ROW_HELP);
 	if (g_state == ST_SITES)
-		printf(" Enter open  /find  1-4 section  I net  E exit  mouse");
+		printf(" Enter open  /find  1-4 section  E exit");
 	else if (g_state == ST_TEXT)
 		printf(" Up/Dn  PgUp/Dn  Esc back");
 	else
-		printf(" /find  P stop  PgUp/Dn  </>  Enter  Esc  S save  I  E");
+		printf(" /find  P stop  PgUp/Dn  </>  Enter  Esc back  E exit");
 }
 
 static void draw_text_view(void)
@@ -1929,7 +1913,6 @@ static void draw_screen(void)
 	draw_tabs();
 	draw_frame();
 	draw_list();
-	fill_line(22, COL_BAR);
 	draw_status_row();
 	draw_help();
 }
@@ -1993,6 +1976,7 @@ static unsigned char url_ext_is(const char *url, const char *ext)
 
 static void gfx_show(void)
 {
+	clearStatus();
 	OS_SETBORDER(0);
 	OS_SETGFX(0x83);
 	OS_SETSCREEN(1);
@@ -2219,6 +2203,7 @@ static void open_item(unsigned int idx)
 		g_state = ST_TEXT;
 		g_text_off = 0;
 		g_dirty |= DIRTY_FULL;
+		refresh();
 		set_status(COL_OK, "text  Esc=back");
 		return;
 	}
@@ -2242,8 +2227,7 @@ static void open_item(unsigned int idx)
 	if (!unzip && strncmp(url, "https://", 8) == 0)
 		unzip = 1;
 
-	if (save_url(url, unzip))
-		fill_line(22, COL_BAR);
+	save_url(url, unzip);
 }
 
 static void activate(void)
@@ -2294,36 +2278,6 @@ static void go_back(void)
 		clearStatus();
 		return;
 	}
-}
-
-static void cycle_net(void)
-{
-	char line[40];
-
-	netDriver = (unsigned char)((netDriver + 1) % 3);
-	g_dns_host[0] = 0;
-	OS_GETPATH(curPath);
-	if (netDriver == 1)
-	{
-		loadEspConfig();
-		OS_CHDIR(curPath);
-		uart_init(divider);
-		espReBoot();
-	}
-	else if (netDriver == 2)
-	{
-		OS_CHDIR(curPath);
-		OS_ESPINIT();
-		EspGetDns();
-	}
-	else
-	{
-		OS_CHDIR(curPath);
-		get_dns();
-	}
-	sprintf(line, "net: %s", drv_name[netDriver]);
-	set_status(COL_OK, line);
-	g_dirty |= DIRTY_FULL;
 }
 
 static unsigned char read_net_ini(void)
@@ -2463,19 +2417,6 @@ static void handle_key(unsigned int key)
 		if (g_state == ST_LIST || g_state == ST_SITES)
 			start_search();
 		break;
-	case 'i':
-	case 'I':
-		cycle_net();
-		break;
-	case 's':
-	case 'S':
-		if (g_state == ST_LIST && g_sel < nitems)
-		{
-			map_list();
-			save_url((char *)items[g_sel].url, 1);
-			fill_line(22, COL_BAR);
-		}
-		break;
 	case 'r':
 	case 'R':
 		if (g_state == ST_LIST)
@@ -2519,13 +2460,13 @@ static void handle_mouse(void)
 	if (!m_lmb_click)
 		return;
 
-	if (y == 23 && (g_state == ST_LIST || g_state == ST_SITES))
+	if (y == ROW_STAT && (g_state == ST_LIST || g_state == ST_SITES))
 	{
 		start_search();
 		return;
 	}
 
-	if (y == 1)
+	if (y == 0)
 	{
 		if (x < 13)
 			handle_key('1');
@@ -2535,6 +2476,13 @@ static void handle_mouse(void)
 			handle_key('3');
 		else if (x < 49)
 			handle_key('4');
+		else if (g_state == ST_LIST && x >= 76)
+		{
+			if (x < 78)
+				page_delta(-1);
+			else
+				page_delta(1);
+		}
 	}
 	else if (y >= LIST_Y0 && y < (unsigned char)(LIST_Y0 + LIST_ROWS))
 	{
@@ -2550,13 +2498,6 @@ static void handle_mouse(void)
 				g_dirty |= DIRTY_SEL;
 			}
 		}
-	}
-	else if (y == 0 && x >= 66 && g_state == ST_LIST)
-	{
-		if (x < 73)
-			page_delta(-1);
-		else
-			page_delta(1);
 	}
 }
 
@@ -2621,9 +2562,7 @@ void main(void)
 	m_have_sample = 0;
 	m_cursor_on = 0;
 	g_dirty = DIRTY_FULL;
-	draw_screen();
-	set_status(COL_OK, "ZiFi transport prototype");
-	mouse_show();
+	refresh();
 
 	for (;;)
 	{
