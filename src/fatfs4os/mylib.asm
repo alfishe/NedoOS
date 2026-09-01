@@ -156,12 +156,12 @@ MODULE CP866_UNICODE
   RSEG CODE
 
 cp866_to_unicode:
-    ld   a,e
-    ld   l,a
+    ld   a, e
+    ld   l, a
 
-    ld   h,0x00
-    cp   0x80           ; Проверяем, не ASCII ли это (A < 0x80)
-    ret  c             ; Быстрый выход для ascii
+    ld   h, 0x00
+    or   a           ; Проверяем, не ASCII ли это (A < 0x80)
+    ret  p             ; Быстрый выход для ascii
     
     ld   h, 0x04        ; Старший байт в H (блок кириллицы)
 
