@@ -116,6 +116,7 @@ unsigned int headlng;
 
 unsigned char uVer[] = "0.5";
 unsigned char curPath[128];
+unsigned char g_save_dir[128];
 unsigned char cmd[256];
 unsigned char crlf[2] = {13, 10};
 const unsigned char gotWiFi[] = "WIFI GOT IP";
@@ -256,6 +257,7 @@ static unsigned char g_play_year[8];
 static unsigned char g_play_city[16];
 static unsigned char g_play_file[66];
 static unsigned long g_stat_shown;
+static unsigned long g_factor_full;
 
 static void map_list(void)
 {
@@ -756,17 +758,79 @@ static unsigned char dns_for_host(void)
 	return 1;
 }
 
+static void chdir_save(void)
+{
+	if (g_save_dir[0])
+		OS_CHDIR(g_save_dir);
+}
+
+static void uart_wait_short(void)
+{
+	unsigned long f;
+
+	if (g_factor_full == 0)
+		g_factor_full = factor;
+	f = g_factor_full >> 4;
+	if (f < 2000ul)
+		f = 2000ul;
+	if (g_factor_full != 0 && f > g_factor_full)
+		f = g_factor_full;
+	factor = f;
+}
+
+static void uart_wait_full(void)
+{
+	if (g_factor_full)
+		factor = g_factor_full;
+}
+
+static unsigned long parse_contlen(unsigned char *buf, unsigned char *lim)
+{
+	unsigned char *p;
+	unsigned char *q;
+	const char *k;
+	unsigned char a;
+
+	for (p = buf; p < lim; p++)
+	{
+		k = "content-length:";
+		q = p;
+		while (q < lim && *k)
+		{
+			a = *q;
+			if (a >= 'A' && a <= 'Z')
+				a = (unsigned char)(a + 32);
+			if (a != (unsigned char)*k)
+				break;
+			q++;
+			k++;
+		}
+		if (*k == 0)
+			return (unsigned long)atol((char *)q);
+	}
+	return 0;
+}
+
 static unsigned char file_create(void)
 {
+	OS_GETPATH(curPath);
+	OS_CHDIR(g_save_dir);
 	OS_DELETE(g_fname);
 	g_fp = OS_CREATEHANDLE(g_fname, 0x80);
 	if (((int)g_fp) & 0xff)
+	{
+		OS_CHDIR(curPath);
 		return 0;
+	}
 	OS_CLOSEHANDLE(g_fp);
 	g_fp = OS_OPENHANDLE(g_fname, 0x80);
 	if (((int)g_fp) & 0xff)
+	{
+		OS_CHDIR(curPath);
 		return 0;
+	}
 	g_fp_open = 1;
+	OS_CHDIR(curPath);
 	return 1;
 }
 
@@ -789,15 +853,7 @@ static unsigned char feed_body(unsigned char *p, unsigned int n)
 		headlng = (unsigned int)(eoh - netbuf) + 4;
 		if (headlng > n)
 			return 0;
-		{
-			unsigned char *cl;
-
-			cl = (unsigned char *)strstr((char *)netbuf, "Content-Length:");
-			if (cl)
-				contLen = atol((char *)cl + 15);
-			else
-				contLen = 0;
-		}
+		contLen = parse_contlen(netbuf, eoh);
 		p = netbuf + headlng;
 		n = n - headlng;
 		g_first = 0;
@@ -891,11 +947,17 @@ static unsigned char http_esp(void)
 
 	sendcommand((char *)g_httpreq);
 
+	if (g_factor_full == 0)
+		g_factor_full = factor;
+
 	ok = 1;
 	do
 	{
 		headlng = 0;
+		if (!g_first)
+			uart_wait_short();
 		todo = recvHead();
+		uart_wait_full();
 		if (todo == 0)
 			break;
 		if (!getdataEsp((unsigned int)todo))
@@ -916,9 +978,11 @@ static unsigned char http_esp(void)
 			break;
 	} while (1);
 
+	uart_wait_short();
 	sendcommand("AT+CIPCLOSE");
 	getAnswer3();
 	getAnswer3();
+	uart_wait_full();
 	return ok;
 }
 
@@ -1055,6 +1119,7 @@ static unsigned char http_get(const char *url, unsigned char dest, unsigned char
 	if (!parse_url(url))
 	{
 		set_status(COL_ERR, "bad url");
+		chdir_save();
 		return 0;
 	}
 	build_http_req();
@@ -1091,9 +1156,11 @@ static unsigned char http_get(const char *url, unsigned char dest, unsigned char
 		else
 			strcpy(line, "download failed");
 		set_status(COL_ERR, line);
+		chdir_save();
 		return 0;
 	}
 	clearStatus();
+	chdir_save();
 	return 1;
 }
 
@@ -1429,12 +1496,12 @@ static unsigned char run_overlay(const char *subdir, const char *file, const cha
 	fp2 = OS_OPENHANDLE((unsigned char *)file, 0x80);
 	if (((int)fp2) & 0xff)
 	{
-		OS_CHDIR(curPath);
+		chdir_save();
 		sprintf(line, "%s not found", file);
 		set_status(COL_ERR, line);
 		return 0;
 	}
-	OS_CHDIR(curPath);
+	chdir_save();
 
 	OS_NEWAPP((unsigned int)&player_pg);
 	if (player_pg.pgs.error)
@@ -1476,6 +1543,7 @@ static unsigned char run_overlay(const char *subdir, const char *file, const cha
 		g_have_player = 1;
 		g_play_t0 = time();
 	}
+	chdir_save();
 	return 1;
 }
 
@@ -1500,6 +1568,7 @@ static unsigned int estimate_track_secs(const char *fname)
 	unsigned long ticks;
 	unsigned int secs;
 
+	chdir_save();
 	fp = OS_OPENHANDLE((unsigned char *)fname, 0x80);
 	if (((int)fp) & 0xff)
 		return 0;
@@ -2529,24 +2598,31 @@ void main(void)
 	OS_MKDIR("../downloads");
 	OS_MKDIR("../downloads/zifi");
 	OS_CHDIR("../downloads/zifi");
+	OS_GETPATH(g_save_dir);
 
 	netDriver = read_net_ini();
+	chdir_save();
 	g_dns_host[0] = 0;
 	if (netDriver == 1)
 	{
-		OS_GETPATH(curPath);
 		loadEspConfig();
-		OS_CHDIR(curPath);
+		chdir_save();
 		uart_init(divider);
 		espReBoot();
+		chdir_save();
+		g_factor_full = factor;
 	}
 	else if (netDriver == 2)
 	{
 		OS_ESPINIT();
 		EspGetDns();
+		chdir_save();
 	}
 	else
+	{
 		get_dns();
+		chdir_save();
+	}
 
 	g_sec = SEC_FILES;
 	g_state = ST_SITES;
