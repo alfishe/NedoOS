@@ -239,6 +239,8 @@ static unsigned char g_unzip;
 static unsigned char g_first;
 static unsigned char g_fp_open;
 static unsigned long g_got;
+static unsigned char g_hdr[512];
+static unsigned int g_hdr_n;
 static FILE *g_fp;
 static unsigned char g_wheel_prev;
 static unsigned char g_dirty;
@@ -257,7 +259,6 @@ static unsigned char g_play_year[8];
 static unsigned char g_play_city[16];
 static unsigned char g_play_file[66];
 static unsigned long g_stat_shown;
-static unsigned long g_factor_full;
 
 static void map_list(void)
 {
@@ -758,30 +759,12 @@ static unsigned char dns_for_host(void)
 	return 1;
 }
 
-static void chdir_save(void)
+/* Same helper as gopher: zero the prefix recvHead scans for CLOSED/ERROR. */
+static void clearNetBuf(unsigned int size)
 {
-	if (g_save_dir[0])
-		OS_CHDIR(g_save_dir);
-}
-
-static void uart_wait_short(void)
-{
-	unsigned long f;
-
-	if (g_factor_full == 0)
-		g_factor_full = factor;
-	f = g_factor_full >> 4;
-	if (f < 2000ul)
-		f = 2000ul;
-	if (g_factor_full != 0 && f > g_factor_full)
-		f = g_factor_full;
-	factor = f;
-}
-
-static void uart_wait_full(void)
-{
-	if (g_factor_full)
-		factor = g_factor_full;
+	if (size > sizeof(netbuf))
+		size = sizeof(netbuf);
+	memset(netbuf, 0, size);
 }
 
 static unsigned long parse_contlen(unsigned char *buf, unsigned char *lim)
@@ -811,6 +794,32 @@ static unsigned long parse_contlen(unsigned char *buf, unsigned char *lim)
 	return 0;
 }
 
+static unsigned char *find_eoh(unsigned char *buf, unsigned int n)
+{
+	unsigned int i;
+
+	if (n < 4)
+		return 0;
+	for (i = 0; i + 3 < n; i++)
+	{
+		if (buf[i] == 13 && buf[i + 1] == 10 && buf[i + 2] == 13 && buf[i + 3] == 10)
+			return buf + i;
+	}
+	return 0;
+}
+
+static unsigned int http_status_buf(unsigned char *buf)
+{
+	char *r;
+
+	r = strstr((char *)buf, "HTTP/1.1 ");
+	if (r == 0)
+		r = strstr((char *)buf, "HTTP/1.0 ");
+	if (r == 0)
+		return 0;
+	return (unsigned int)atol(r + 9);
+}
+
 static unsigned char file_create(void)
 {
 	OS_GETPATH(curPath);
@@ -834,57 +843,12 @@ static unsigned char file_create(void)
 	return 1;
 }
 
-static unsigned char feed_body(unsigned char *p, unsigned int n)
+static unsigned char copy_dest(unsigned char *p, unsigned int n)
 {
-	unsigned char *eoh;
 	unsigned int skip;
 
 	if (n == 0)
 		return 1;
-
-	if (g_first)
-	{
-		httpErr = httpError();
-		if (httpErr != 200)
-			return 0;
-		eoh = (unsigned char *)strstr((char *)netbuf, "\r\n\r\n");
-		if (eoh == 0)
-			return 0;
-		headlng = (unsigned int)(eoh - netbuf) + 4;
-		if (headlng > n)
-			return 0;
-		contLen = parse_contlen(netbuf, eoh);
-		p = netbuf + headlng;
-		n = n - headlng;
-		g_first = 0;
-
-		if (g_unzip && n >= 4 && p[0] == '.')
-		{
-			g_ext[0] = p[1];
-			g_ext[1] = p[2];
-			g_ext[2] = p[3];
-			g_ext[3] = 0;
-			g_have_ext = 1;
-			p += 4;
-			n -= 4;
-			if (contLen >= 4)
-				contLen -= 4;
-			replace_ext((char *)g_fname, (char *)g_ext);
-		}
-
-		if (g_dest == DEST_FILE)
-		{
-			if (!file_create())
-			{
-				set_status(COL_ERR, "create file failed");
-				return 0;
-			}
-		}
-	}
-
-	if (n == 0)
-		return 1;
-
 	if (g_dest == DEST_MEM)
 	{
 		skip = n;
@@ -918,26 +882,123 @@ static unsigned char feed_body(unsigned char *p, unsigned int n)
 	return 1;
 }
 
+static unsigned char begin_body(unsigned char **pp, unsigned int *pn)
+{
+	unsigned char *p;
+	unsigned int n;
+
+	p = *pp;
+	n = *pn;
+	if (g_unzip && n >= 4 && p[0] == '.')
+	{
+		g_ext[0] = p[1];
+		g_ext[1] = p[2];
+		g_ext[2] = p[3];
+		g_ext[3] = 0;
+		g_have_ext = 1;
+		p += 4;
+		n -= 4;
+		if (contLen >= 4)
+			contLen -= 4;
+		replace_ext((char *)g_fname, (char *)g_ext);
+	}
+	if (g_dest == DEST_FILE)
+	{
+		if (!file_create())
+		{
+			set_status(COL_ERR, "create file failed");
+			return 0;
+		}
+	}
+	*pp = p;
+	*pn = n;
+	return 1;
+}
+
+static unsigned char feed_body(unsigned char *p, unsigned int n)
+{
+	unsigned char *eoh;
+	unsigned int prev;
+	unsigned int off;
+
+	if (n == 0)
+		return 1;
+	if (!g_first)
+		return copy_dest(p, n);
+
+	/* Usual case: whole HTTP header is in this +IPD. Scan the packet
+	 * itself. Do not copy g_hdr over netbuf: that planted a NUL and
+	 * the catalog parser stopped after ~4 lines; SCR got a bad byte. */
+	if (g_hdr_n == 0)
+	{
+		eoh = find_eoh(p, n);
+		if (eoh)
+		{
+			httpErr = http_status_buf(p);
+			if (httpErr != 200)
+				return 0;
+			headlng = (unsigned int)(eoh - p) + 4;
+			contLen = parse_contlen(p, eoh);
+			g_first = 0;
+			if (headlng > n)
+				return 0;
+			p += headlng;
+			n = (unsigned int)(n - headlng);
+			if (!begin_body(&p, &n))
+				return 0;
+			return copy_dest(p, n);
+		}
+	}
+
+	prev = g_hdr_n;
+	if (prev + n >= (unsigned int)(sizeof(g_hdr) - 1))
+		return 0;
+	memcpy(g_hdr + prev, p, n);
+	g_hdr_n = (unsigned int)(prev + n);
+	g_hdr[g_hdr_n] = 0;
+	eoh = find_eoh(g_hdr, g_hdr_n);
+	if (eoh == 0)
+		return 1;
+
+	httpErr = http_status_buf(g_hdr);
+	if (httpErr != 200)
+		return 0;
+	headlng = (unsigned int)(eoh - g_hdr) + 4;
+	contLen = parse_contlen(g_hdr, eoh);
+	g_first = 0;
+	if (headlng < prev)
+		off = 0;
+	else
+		off = (unsigned int)(headlng - prev);
+	if (off >= n)
+		return 1;
+	p += off;
+	n = (unsigned int)(n - off);
+	if (!begin_body(&p, &n))
+		return 0;
+	return copy_dest(p, n);
+}
+
+/* ESP-COM GET: gopher getFileEsp control flow (recvHead until CLOSED). */
 static unsigned char http_esp(void)
 {
 	int todo;
 	unsigned char byte;
-	unsigned char ok;
+	unsigned long downloaded;
 
+	downloaded = 0;
 	sprintf((char *)cmd, "AT+CIPSTART=\"TCP\",\"%s\",%u", g_host, g_port);
 	sendcommand((char *)cmd);
-	do
+	for (;;)
 	{
-		if (!getAnswer3())
-			return 0;
+		getAnswer3();
 		if (strstr((char *)netbuf, "CONNECT") != 0)
 			break;
 		if (strstr((char *)netbuf, "ERROR") != 0)
 			return 0;
-	} while (1);
-
+	}
 	getAnswer3();
-	sprintf((char *)cmd, "AT+CIPSEND=%u", strlen((char *)g_httpreq) + 2);
+	sprintf((char *)cmd, "AT+CIPSEND=%u", strlen((char *)g_httpreq));
 	sendcommand((char *)cmd);
 	getAnswer3();
 	do
@@ -945,45 +1006,25 @@ static unsigned char http_esp(void)
 		byte = (unsigned char)uartReadBlock();
 	} while (byte != '>');
 
-	sendcommand((char *)g_httpreq);
+	sendcommandNrn((char *)g_httpreq);
 
-	if (g_factor_full == 0)
-		g_factor_full = factor;
-
-	ok = 1;
 	do
 	{
-		headlng = 0;
-		if (!g_first)
-			uart_wait_short();
+		clearNetBuf(128);
 		todo = recvHead();
-		uart_wait_full();
-		if (todo == 0)
-			break;
+		downloaded = downloaded + (unsigned long)todo;
+		if (downloaded == 0)
+			return 1;
+		if (todo > (int)(sizeof(netbuf) - 1))
+			return 0;
 		if (!getdataEsp((unsigned int)todo))
-		{
-			ok = 0;
-			break;
-		}
+			return 0;
+		netbuf[todo] = 0;
 		if (!feed_body(netbuf, (unsigned int)todo))
-		{
-			ok = 0;
-			break;
-		}
-		if (contLen && g_got >= contLen)
-			break;
-		if (g_dest == DEST_MEM && g_got >= LIST_MAX)
-			break;
-		if (g_dest == DEST_SCR && g_got >= SCR_SIZE)
-			break;
-	} while (1);
+			return 0;
+	} while (todo != 0);
 
-	uart_wait_short();
-	sendcommand("AT+CIPCLOSE");
-	getAnswer3();
-	getAnswer3();
-	uart_wait_full();
-	return ok;
+	return 1;
 }
 
 static unsigned char http_net(void)
@@ -1026,12 +1067,6 @@ static unsigned char http_net(void)
 			ok = 0;
 			break;
 		}
-		if (contLen && g_got >= contLen)
-			break;
-		if (g_dest == DEST_MEM && g_got >= LIST_MAX)
-			break;
-		if (g_dest == DEST_SCR && g_got >= SCR_SIZE)
-			break;
 	} while (1);
 
 	netShutDown(socket, 0);
@@ -1081,12 +1116,6 @@ static unsigned char http_espnet(void)
 			ok = 0;
 			break;
 		}
-		if (contLen && g_got >= contLen)
-			break;
-		if (g_dest == DEST_MEM && g_got >= LIST_MAX)
-			break;
-		if (g_dest == DEST_SCR && g_got >= SCR_SIZE)
-			break;
 	} while (1);
 
 	EspShutDown((signed char)socket, 0);
@@ -1108,6 +1137,7 @@ static unsigned char http_get(const char *url, unsigned char dest, unsigned char
 	contLen = 0;
 	httpErr = 0;
 	headlng = 0;
+	g_hdr_n = 0;
 
 	if (unzip)
 	{
@@ -1119,7 +1149,6 @@ static unsigned char http_get(const char *url, unsigned char dest, unsigned char
 	if (!parse_url(url))
 	{
 		set_status(COL_ERR, "bad url");
-		chdir_save();
 		return 0;
 	}
 	build_http_req();
@@ -1156,11 +1185,9 @@ static unsigned char http_get(const char *url, unsigned char dest, unsigned char
 		else
 			strcpy(line, "download failed");
 		set_status(COL_ERR, line);
-		chdir_save();
 		return 0;
 	}
 	clearStatus();
-	chdir_save();
 	return 1;
 }
 
@@ -1496,12 +1523,12 @@ static unsigned char run_overlay(const char *subdir, const char *file, const cha
 	fp2 = OS_OPENHANDLE((unsigned char *)file, 0x80);
 	if (((int)fp2) & 0xff)
 	{
-		chdir_save();
+		OS_CHDIR(curPath);
 		sprintf(line, "%s not found", file);
 		set_status(COL_ERR, line);
 		return 0;
 	}
-	chdir_save();
+	OS_CHDIR(curPath);
 
 	OS_NEWAPP((unsigned int)&player_pg);
 	if (player_pg.pgs.error)
@@ -1543,7 +1570,6 @@ static unsigned char run_overlay(const char *subdir, const char *file, const cha
 		g_have_player = 1;
 		g_play_t0 = time();
 	}
-	chdir_save();
 	return 1;
 }
 
@@ -1568,12 +1594,17 @@ static unsigned int estimate_track_secs(const char *fname)
 	unsigned long ticks;
 	unsigned int secs;
 
-	chdir_save();
+	OS_GETPATH(curPath);
+	OS_CHDIR(g_save_dir);
 	fp = OS_OPENHANDLE((unsigned char *)fname, 0x80);
 	if (((int)fp) & 0xff)
+	{
+		OS_CHDIR(curPath);
 		return 0;
+	}
 	n = OS_READHANDLE(g_modhdr, fp, sizeof(g_modhdr));
 	OS_CLOSEHANDLE(fp);
+	OS_CHDIR(curPath);
 	if (n < 102)
 		return 0;
 	if (g_modhdr[0] != 'P' && g_modhdr[0] != 'V')
@@ -2601,28 +2632,23 @@ void main(void)
 	OS_GETPATH(g_save_dir);
 
 	netDriver = read_net_ini();
-	chdir_save();
 	g_dns_host[0] = 0;
 	if (netDriver == 1)
 	{
+		OS_GETPATH(curPath);
 		loadEspConfig();
-		chdir_save();
+		OS_CHDIR(curPath);
 		uart_init(divider);
 		espReBoot();
-		chdir_save();
-		g_factor_full = factor;
 	}
 	else if (netDriver == 2)
 	{
 		OS_ESPINIT();
 		EspGetDns();
-		chdir_save();
 	}
 	else
-	{
 		get_dns();
-		chdir_save();
-	}
+	OS_CHDIR(g_save_dir);
 
 	g_sec = SEC_FILES;
 	g_state = ST_SITES;
