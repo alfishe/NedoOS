@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>scrnet</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #121417;
+      --fg: #e8edf3;
+      --muted: #9aa7b5;
+      --accent: #e8742a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+    }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-bottom: 1px solid #343b45;
+    }
+    h1 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+    label, select, button { font-size: 0.9rem; color: var(--fg); }
+    button {
+      background: #252a31;
+      border: 1px solid #343b45;
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+    }
+    button:hover { border-color: var(--accent); }
+    .hint { color: var(--muted); font-size: 0.8rem; }
+    main { padding: 14px; overflow: auto; }
+    canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      image-rendering: -moz-crisp-edges;
+      background: #000;
+      box-shadow: 0 0 0 1px #343b45;
+      display: block;
+      outline: none;
+    }
+    canvas:focus { box-shadow: 0 0 0 2px var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>scrnet</h1>
+    <label>Font
+      <select id="fontFile">
+        <option value="atmucode.fnt" selected>atmucode.fnt (ATM font RAM)</option>
+        <option value="866_code.fnt">866_code.fnt</option>
+      </select>
+    </label>
+    <label>Index
+      <select id="indexMode">
+        <option value="atm" selected>byte = ATM glyph (live / VRAM)</option>
+        <option value="cp866">byte = CP866 (old dumps)</option>
+      </select>
+    </label>
+    <label>Scale
+      <select id="zoom">
+        <option value="1">1x</option>
+        <option value="2" selected>2x</option>
+        <option value="3">3x</option>
+        <option value="4">4x</option>
+      </select>
+    </label>
+    <button type="button" id="btnMap">Charset 0..255</button>
+    <button type="button" id="btnLoad">Load dump</button>
+    <input type="file" id="fileDump" hidden>
+    <span id="status" class="hint">connecting...</span>
+    <span class="hint">click screen to type; RShift/Ctrl+Enter = switch task</span>
+  </header>
+  <main>
+    <canvas id="screen" width="640" height="400" tabindex="0"></canvas>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
