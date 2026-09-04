@@ -200,8 +200,10 @@ function blitEga() {
 }
 
 function mcOff(xByte, y, pageBase) {
+  /* ATM MC: consecutive bytes alternate bit5 (8000/A000 or C000/E000).
+     Not the EGA 4-bank walk ? that swapped columns 2-3, 6-7, ... */
   var off40 = xByte >> 1;
-  var bit5 = (xByte ^ (xByte >> 1)) & 1;
+  var bit5 = xByte & 1;
   return pageBase + (bit5 ? 0x2000 : 0) + y * EGA_LINE + off40;
 }
 
