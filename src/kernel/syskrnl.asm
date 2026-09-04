@@ -445,6 +445,7 @@ sys_sysint_sp=$+1
 sys_sysint_jp=$+1
         jp 0
         
+
 on_int
 ;в 0x4000 сейчас pgtrdosfs;5, там стек
 focusappaddr=$+1
@@ -546,7 +547,14 @@ keyscan_nosetactive
 
         ;call PEEKKEY ;ld a,(curkey)
         ;cp ssEnter
-        
+
+        ld a,(switchgfx_req)
+        or a
+        jr z,on_int_chkss
+        xor a
+        ld (switchgfx_req),a
+        jr on_int_doswitch
+on_int_chkss
         ld a,0x7f
         in a,(0xfe)
         rra
@@ -564,6 +572,7 @@ on_int_oldssEnter=$+1
         ld a,c
         ld (on_int_oldssEnter),a
         jr c,sys_int_noselectapp
+on_int_doswitch
          call KEY_PUTREDRAW
 
        ld a,(sys_curpg8000)

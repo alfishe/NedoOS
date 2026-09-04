@@ -53,6 +53,8 @@ CMD_GETPATH=0x5e ;DE = Pointer to MAXPATH_sz byte buffer ;out: DE = Filled in wi
 CMD_DELETE=0x4d ;DE = Drive/path/file ASCIIZ string, out: A = Error
 
 ;invented:
+CMD_PUTKEY=0xc6 ;de=key (e=code, d=0 letter / 1 control / 2=SS+Enter switch gfx); out: a=0 ok, a=1 queue full
+CMD_GETGFX=0xc7 ;out: a=raw gfxmode (#BD77), b=focus id, c=screen 0/1, d=pgscr0_0, e=pgscr0_1, h=pgscr1_0, l=pgscr1_1
 CMD_GETPAL=0xc8 ;de=palette (32 bytes)
 CMD_SETTIME=0xc9 ;ix=date, hl=time
 CMD_GETMEMPORTS=0xca ;out: ix=memport0000, bc=memport4000, de=memport8000, hl=memportc000

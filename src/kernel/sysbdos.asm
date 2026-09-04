@@ -248,7 +248,65 @@ BDOS_getpal
         ld bc,32
         ldir
 	ret
+
+BDOS_getgfx
+;out: a=raw gfxmode (#BD77)
+;     b=focus id
+;     c=screen 0/1
+;     d=pgscr0_0 e=pgscr0_1 h=pgscr1_0 l=pgscr1_1
+;     These are the pages on the CRT. Keep-private app.scr* are backups
+;     used when the task is not focused; do not return those here.
+        ld iy,(focusappaddr)
+        ld b,(iy+app.id)
+        ld a,(iy+app.screen)
+        and 8
+        ld c,0
+        jr z,BDOS_getgfx_s0
+        inc c
+BDOS_getgfx_s0
+        ld a,(iy+app.gfxmode)
+        ld d,pgscr0_0
+        ld e,pgscr0_1
+        ld h,pgscr1_0
+        ld l,pgscr1_1
+        ret
         
+switchgfx_req   db 0
+
+BDOS_putkey
+;de=e code, d=0 letter / 1 control / 2=SS+Enter next gfx task
+;out: a=0 ok, a=1 full
+        ld a,d
+        cp 2
+        jr nz,BDOS_putkey_key
+        ld a,1
+        ld (switchgfx_req),a
+        xor a
+        ret
+BDOS_putkey_key
+        ld c,e
+        ld b,d
+        if PS2KBD==0
+        ld a,(keyqueueN)
+        cp keyqueuemax
+        ld a,1
+        ret z
+        ld (keyqueueput_codenolang),bc
+        call KEYQUEUEPUT
+        else
+        ld hl,(KEY_PUTREDRAW.redrawkey)
+        ld a,l
+        cp key_redraw
+        jr z,BDOS_putkey_ps2
+        or a
+        ld a,1
+        ret nz
+BDOS_putkey_ps2
+        ld (KEY_PUTREDRAW.redrawkey),bc
+        endif
+        xor a
+        ret
+
 BDOS_scroll_prepare
         ld a,l
         srl a
