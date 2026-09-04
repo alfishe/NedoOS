@@ -37,7 +37,22 @@
       cursor: pointer;
     }
     button:hover { border-color: var(--accent); }
+    header input[type="number"] {
+      width: 3.2em;
+      background: #252a31;
+      border: 1px solid #343b45;
+      border-radius: 6px;
+      color: var(--fg);
+      padding: 2px 4px;
+    }
     .hint { color: var(--muted); font-size: 0.8rem; }
+    .stats {
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.8rem;
+      color: var(--accent);
+      margin-left: auto;
+      letter-spacing: 0.02em;
+    }
     main { padding: 14px; overflow: auto; }
     canvas {
       image-rendering: pixelated;
@@ -74,10 +89,20 @@
         <option value="4">4x</option>
       </select>
     </label>
+    <label title="max fps, 50 Hz timer">text
+      <input id="fpsText" type="number" min="1" max="50" value="7">
+    </label>
+    <label title="max fps">6912
+      <input id="fpsScr" type="number" min="1" max="50" value="4">
+    </label>
+    <label title="max fps, also MC">ega
+      <input id="fpsEga" type="number" min="1" max="50" value="2">
+    </label>
     <button type="button" id="btnMap">Charset 0..255</button>
     <button type="button" id="btnLoad">Load dump</button>
     <input type="file" id="fileDump" hidden>
     <span id="status" class="hint">connecting...</span>
+    <span id="stats" class="stats">last -- | -- B/s | -- fps</span>
     <span class="hint">click screen to type; RShift/Ctrl+Enter = switch task</span>
   </header>
   <main>

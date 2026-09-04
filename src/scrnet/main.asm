@@ -13,6 +13,7 @@
 ; GET  /k/ccff  -> key (cc=code, ff=0 letter / 1 control) into OS_PUTKEY
 ; POST /input   -> 2-byte body, same (if headers+body fit the read)
 ; Browser: http://<ip>:2324/
+; fps.ini next to the web files: text=/scr=/ega= (1-50). MC uses ega.
 
 PORT=2324
 STACK=0x3FFE
@@ -24,7 +25,11 @@ SCRSZ=6912
 REQSZ=128
 IOSZ=SCRSZ+80
 NETIN_SZ=64
-TICKMASK=0xf8
+; Max FPS per mode (50 Hz timer). Overridden by /bin/scrnet/fps.ini
+FPS_TEXT EQU 7
+FPS_SCR  EQU 4
+FPS_EGA  EQU 2
+FPSSZ EQU 96
 
 curbuf  EQU 0x4000
 prevbuf EQU curbuf+SCRSZ
@@ -49,7 +54,9 @@ FR_MCXOR EQU 10
 PALSZ EQU 32
 EGASZ EQU 32768
 EGAPREV EQU 0x4000
-RLEBUFSZ EQU 256
+; Real Wiznet TX ~MTU; emulator accepts any size. Keep <=1500.
+SENDMAX EQU 1500
+RLEBUFSZ EQU SENDMAX
 
         org PROGSTART
 begin
@@ -65,6 +72,8 @@ begin
         ld (soc),a
         ld (soc_client),a
         ld (is_stream),a
+        call set_poll
+        call load_fps
 
 gotostart
         ld sp,STACK
@@ -116,14 +125,20 @@ do_stream
         jr z,mainloop
         OS_GETTIMER
         ld a,l
-        and TICKMASK
-        ld b,a
-        ld a,(lastslot)
-        cp b
-        jr z,mainloop
-        ld a,b
-        ld (lastslot),a
+        ld (nowtick),a
+        ld a,(force)
+        or a
+        jr nz,do_sf
+        ld a,(nowtick)
+        ld hl,lastsend
+        sub (hl)
+        ld hl,ival_poll
+        cp (hl)
+        jr c,do_stream_end
+do_sf
         call stream_frame
+do_stream_end
+        call try_input
         jr mainloop
 
 ; ---- sockets ----
@@ -149,6 +164,14 @@ got_cli
         ret
 
 close_client
+        ld a,(soc_post)
+        or a
+        jr z,cc_cli
+        ld e,0
+        OS_NETSHUTDOWN
+        xor a
+        ld (soc_post),a
+cc_cli
         ld a,(soc_client)
         or a
         ret z
@@ -164,29 +187,35 @@ close_client
         ld (req_len),hl
         ret
 
-; Second TCP client while /stream is up. Browser GET /k/ccff (request
-; line is short). POST body is a fallback if \r\n\r\n + 2 bytes fit.
+; Second TCP client while /stream is up. GET /k/ccff or /f/t/s/e.
+; One shot + close (keep-alive desynced the browser and ate Wiznet sockets).
+; If ACCEPT wins before the GET arrives, keep soc_post and retry next loop.
 try_input
+        ld a,(soc_post)
+        or a
+        jr nz,ti_read
         ld a,(soc)
         OS_ACCEPT
         bit 7,l
         ret nz
         ld a,l
         ld (soc_post),a
-        ld b,32
-ti_wait
-        push bc
+        xor a
+        ld (ti_age),a
+ti_read
         ld a,(soc_post)
         ld de,rlebuf
         ld hl,256
         OS_WIZNETREAD
-        pop bc
         bit 7,h
         jr z,ti_got
         cp ERR_EAGAIN
         jr nz,ti_drop
-        YIELD
-        djnz ti_wait
+        ld a,(ti_age)
+        inc a
+        ld (ti_age),a
+        cp 25
+        ret c
         jr ti_drop
 ti_got
         ld a,h
@@ -203,12 +232,7 @@ ti_got
         ld (soc_client),a
         ld a,1
         ld (is_stream),a
-        ld a,(soc_post)
-        ld e,0
-        OS_NETSHUTDOWN
-        xor a
-        ld (soc_post),a
-        ret
+        jr ti_drop
 ti_drop
         ld a,(soc_post)
         or a
@@ -217,6 +241,7 @@ ti_drop
         OS_NETSHUTDOWN
         xor a
         ld (soc_post),a
+        ld (ti_age),a
         ret
 
 ; rlebuf = first TCP payload. Prefer GET /k/ccff in the request line.
@@ -231,6 +256,10 @@ pkr_lp
         call is_kpath
         pop hl
         jr nc,pkr_key
+        push hl
+        call is_fpath
+        pop hl
+        ret nc
 pkr_n
         inc hl
         djnz pkr_lp
@@ -309,6 +338,49 @@ parse4hex
         ld d,a
         or a
         ret
+
+; HL="/f/t/s/e" decimal fps 1-50. NC: applied. CY: not that path.
+is_fpath
+        ld a,(hl)
+        cp '/'
+        scf
+        ret nz
+        inc hl
+        ld a,(hl)
+        cp 'f'
+        scf
+        ret nz
+        inc hl
+        ld a,(hl)
+        cp '/'
+        scf
+        ret nz
+        inc hl
+        call pf_num
+        ret c
+        call fps_to_ival
+        ld (ival_text),a
+        ld a,(hl)
+        cp '/'
+        scf
+        ret nz
+        inc hl
+        call pf_num
+        ret c
+        call fps_to_ival
+        ld (ival_scr),a
+        ld a,(hl)
+        cp '/'
+        scf
+        ret nz
+        inc hl
+        call pf_num
+        ret c
+        call fps_to_ival
+        ld (ival_ega),a
+        call set_poll
+        xor a
+        ret
 hexnib
         ld a,(hl)
         inc hl
@@ -331,11 +403,10 @@ hn_d
         ret
 
 ; DE=buf HL=size. CY if client died (already closed)
-; W5300 TX is 8K; a 6912 write fails with EMSGSIZE whenever FSR < 6912
-; (e.g. after a 4000-byte text frame). Retrying the full size then hangs
-; the stream on the last text keyframe. Send in 512-byte pieces.
-; Do not use DE for the size cap ? it is the buffer pointer.
-SENDMAX EQU 512
+; W5300 TX is 8K; a 6912 write fails with EMSGSIZE whenever FSR < 6912.
+; Cap each write at SENDMAX (~Ethernet MTU). Real card will not take more
+; than one frame per call; emulator accepts any size. Do not use DE for
+; the cap ? it is the buffer pointer. SENDMAX need not be a multiple of 256.
 send_data
         ld a,h
         or l
@@ -348,8 +419,8 @@ send_data0
         jr c,sd_now
         jr nz,sd_cap
         ld a,l
-        or a
-        jr z,sd_now
+        cp (SENDMAX&255)+1
+        jr c,sd_now
 sd_cap
         ld hl,SENDMAX
 sd_now
@@ -588,6 +659,9 @@ ds_z
         call is_kpath
         jp nc,do_kpath
         ld hl,pathbuf
+        call is_fpath
+        jp nc,do_fpath
+        ld hl,pathbuf
         ld de,p_stream
         call strcmp
         jp z,start_stream
@@ -695,6 +769,11 @@ do_kpath
         call send_str
         jp close_client
 
+do_fpath
+        ld de,hdr_204
+        call send_str
+        jp close_client
+
 put_one_key
         ld a,d
         cp 2
@@ -713,7 +792,7 @@ pok_try
         ret z
         push bc
         push de
-        YIELD
+        YIELDKEEP
         pop de
         pop bc
         djnz pok_try
@@ -839,7 +918,9 @@ start_stream
         ld (last_mode),a
         ld (last_id),a
         ld (last_scr),a
-        ld (lastslot),a
+        xor a
+        ld (lastsend),a
+        call load_fps
         jp stream_frame
 
 stream_rx
@@ -856,6 +937,251 @@ srx_ok
         ld a,h
         or l
         jp z,close_client
+        ret
+
+; A = gfxmode&7 -> A = ticks between frames for that mode
+ival_for_mode
+        ld a,(g_gfxmode)
+        and 7
+        jr z,im_ega
+        cp 2
+        jr z,im_ega
+        cp 3
+        jr z,im_scr
+        ld a,(ival_text)
+        ret
+im_ega
+        ld a,(ival_ega)
+        ret
+im_scr
+        ld a,(ival_scr)
+        ret
+
+; CY = too soon, NC = capture/send now
+pace_ready
+        ld a,(force)
+        or a
+        jr nz,pr_go
+        ld a,(g_gfxmode)
+        and 7
+        ld hl,last_mode
+        cp (hl)
+        jr nz,pr_go
+        ld a,(g_id)
+        ld hl,last_id
+        cp (hl)
+        jr nz,pr_go
+        ld a,(g_screen)
+        ld hl,last_scr
+        cp (hl)
+        jr nz,pr_go
+        ld a,(nowtick)
+        ld hl,lastsend
+        sub (hl)
+        ld hl,pace_ival
+        cp (hl)
+        ret
+pr_go
+        or a
+        ret
+
+stamp_lastsend
+        push af
+        OS_GETTIMER
+        ld a,l
+        ld (lastsend),a
+        pop af
+        ret
+
+set_poll
+        ld a,(ival_text)
+        ld hl,ival_scr
+        cp (hl)
+        jr c,sp_e
+        ld a,(hl)
+sp_e
+        ld hl,ival_ega
+        cp (hl)
+        jr c,sp_ok
+        ld a,(hl)
+sp_ok
+        or a
+        jr nz,sp_st
+        inc a
+sp_st
+        ld (ival_poll),a
+        ret
+
+; A=fps 1..50 -> A=50/fps (>=1)
+fps_to_ival
+        ld e,a
+        or a
+        jr nz,f2i_go
+        inc e
+f2i_go
+        ld a,50
+        ld b,0
+f2i_lp
+        cp e
+        jr c,f2i_dn
+        sub e
+        inc b
+        jr f2i_lp
+f2i_dn
+        ld a,b
+        or a
+        ret nz
+        inc a
+        ret
+
+load_fps
+        ld de,n_fps
+        call make_fname
+        ld de,fname
+        OS_OPENHANDLE
+        or a
+        jp nz,set_poll
+        ld a,b
+        ld (fhan),a
+        ld hl,fpsfile
+        ld de,fpsfile+1
+        ld bc,FPSSZ-1
+        ld (hl),0
+        ldir
+        ld de,fpsfile
+        ld hl,FPSSZ-1
+        ld a,(fhan)
+        ld b,a
+        OS_READHANDLE
+        ld a,(fhan)
+        ld b,a
+        OS_CLOSEHANDLE
+        ld hl,fpsfile
+        call parse_fps
+        jp set_poll
+
+parse_fps
+pf_loop
+        call pf_skip
+        ld a,(hl)
+        or a
+        ret z
+        cp ';'
+        jr z,pf_com
+        ld de,k_text
+        call pf_match
+        jr nz,pf_s
+        call pf_num
+        jr c,pf_loop
+        call fps_to_ival
+        ld (ival_text),a
+        jr pf_loop
+pf_s
+        ld de,k_scr
+        call pf_match
+        jr nz,pf_e
+        call pf_num
+        jr c,pf_loop
+        call fps_to_ival
+        ld (ival_scr),a
+        jr pf_loop
+pf_e
+        ld de,k_ega
+        call pf_match
+        jr z,pf_eg
+        ld de,k_mc
+        call pf_match
+        jr nz,pf_unk
+pf_eg
+        call pf_num
+        jr c,pf_loop
+        call fps_to_ival
+        ld (ival_ega),a
+        jr pf_loop
+pf_unk
+        inc hl
+        jr pf_loop
+pf_com
+        call pf_skipline
+        jr pf_loop
+
+pf_skip
+        ld a,(hl)
+        cp 32
+        jr z,pf_sk1
+        cp 9
+        jr z,pf_sk1
+        cp 13
+        jr z,pf_sk1
+        cp 10
+        ret nz
+pf_sk1
+        inc hl
+        jr pf_skip
+
+pf_skipline
+        ld a,(hl)
+        or a
+        ret z
+        inc hl
+        cp 10
+        ret z
+        jr pf_skipline
+
+; DE=ASCIIZ key, HL=text. Z+HL after key if match, else NZ+HL restored
+pf_match
+        push hl
+pm_lp
+        ld a,(de)
+        or a
+        jr z,pm_ok
+        cp (hl)
+        jr nz,pm_bad
+        inc de
+        inc hl
+        jr pm_lp
+pm_ok
+        pop de
+        xor a
+        ret
+pm_bad
+        pop hl
+        or 1
+        ret
+
+; HL at digits. NC, A=1..50, HL after. CY if no number
+pf_num
+        ld a,(hl)
+        sub '0'
+        cp 10
+        ccf
+        ret c
+        ld b,a
+        inc hl
+        ld a,(hl)
+        sub '0'
+        cp 10
+        jr nc,pn_one
+        inc hl
+        ld c,a
+        ld a,b
+        add a,a
+        ld d,a
+        add a,a
+        add a,a
+        add a,d
+        add a,c
+        ld b,a
+pn_one
+        ld a,b
+        or a
+        scf
+        ret z
+        cp 51
+        jr c,pn_ok
+        ld a,50
+pn_ok
+        or a
         ret
 
 ; ---- frames ----
@@ -878,6 +1204,12 @@ stream_frame
         ld (g_s1l),a
         ld a,l
         ld (g_s1h),a
+        call ival_for_mode
+        ld (pace_ival),a
+        call pace_ready
+        ret c
+        ld hl,stamp_lastsend
+        push hl
         ld de,palbuf
         OS_GETPAL
         call maybe_send_pal
@@ -1147,7 +1479,23 @@ ega_pgset
 ; Snapshot visible pages. DI so SETSCREEN cannot turn this
 ; buffer into the back buffer mid-copy (Sanshimai flips in IM1).
 ; xor_any=1 if the snapshot differs from the last sent frame.
+; Forced/mode-change keyframe: LDIR, no per-byte XOR (send will take seconds).
 ega_copy_vram_to_prev
+        ld a,(force)
+        or a
+        jr nz,ega_copy_fast
+        ld a,(last_mode)
+        ld hl,g32_mode
+        cp (hl)
+        jr nz,ega_copy_fast
+        ld a,(g_screen)
+        ld hl,last_scr
+        cp (hl)
+        jr nz,ega_copy_fast
+        ld a,(g_id)
+        ld hl,last_id
+        cp (hl)
+        jr nz,ega_copy_fast
         xor a
         ld (xor_any),a
         di
@@ -1163,6 +1511,24 @@ ega_copy_vram_to_prev
         ld de,EGAPREV+16384
         ld bc,16384
         call ega_cp_blk
+        ei
+        ret
+ega_copy_fast
+        ld a,1
+        ld (xor_any),a
+        di
+        ld a,(ega_pgl)
+        SETPGC000
+        ld hl,0xC000
+        ld de,EGAPREV
+        ld bc,16384
+        ldir
+        ld a,(ega_pgh)
+        SETPGC000
+        ld hl,0xC000
+        ld de,EGAPREV+16384
+        ld bc,16384
+        ldir
         ei
         ret
 ega_cp_blk
@@ -1619,11 +1985,18 @@ force           db 0
 last_mode       db 0xff
 last_id         db 0xff
 last_scr        db 0xff
-lastslot        db 0xff
+lastsend        db 0
+nowtick         db 0
+pace_ival       db 50/FPS_TEXT
+ival_text       db 50/FPS_TEXT
+ival_scr        db 50/FPS_SCR
+ival_ega        db 50/FPS_EGA
+ival_poll       db 50/FPS_TEXT
 soc             db 0
 soc_client      db 0
 soc_post        db 0
 soc_saved       db 0
+ti_age          db 0
 is_stream       db 0
 hdr_st          db 0
 line_done       db 0
@@ -1660,6 +2033,11 @@ n_index         db "index.htm",0
 n_app           db "app.js",0
 n_atm           db "atmucode.fnt",0
 n_866           db "866_code.fnt",0
+n_fps           db "fps.ini",0
+k_text          db "text=",0
+k_scr           db "scr=",0
+k_ega           db "ega=",0
+k_mc            db "mc=",0
 p_root          db "/",0
 p_index         db "/index.htm",0
 p_app           db "/app.js",0
@@ -1670,7 +2048,7 @@ p_stream2       db "/stream/",0
 p_input         db "/input",0
 
 ct_htm          db "text/html; charset=utf-8",0
-ct_js           db "text/javascript",0
+ct_js           db "text/javascript; charset=utf-8",0
 ct_bin          db "application/octet-stream",0
 
 hdr_ok          db "HTTP/1.1 200 OK",13,10,"Content-Type: ",0
@@ -1705,3 +2083,4 @@ palbuf          ds PALSZ
 prevpal         ds PALSZ
 rlebuf          ds RLEBUFSZ
 rlebuf_end
+fpsfile         ds FPSSZ

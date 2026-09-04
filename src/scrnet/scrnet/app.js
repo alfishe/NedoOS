@@ -42,6 +42,7 @@ var SCR_H = 192;
 var EGA_W = 320;
 var EGA_H = 200;
 var EGASZ = 32768;
+var PALSZ = 32;
 var EGA_LINE = 40;
 var EGA_BANK = [0x0000, 0x4000, 0x2000, 0x6000];
 
@@ -114,12 +115,77 @@ var imageData = null;
 var PW = TEXT_W;
 var PH = TEXT_H;
 var statusEl = document.getElementById("status");
+var statsEl = document.getElementById("stats");
 var reconnectTimer = 0;
 var streamAbort = null;
 var zoom = 2;
+var lastFrameBytes = 0;
+var lastFrameRaw = 0;
+var rxEvents = [];
+var frEvents = [];
+var hudRaf = 0;
 
 function setStatus(t) {
   if (statusEl) statusEl.textContent = t;
+}
+
+function fmtBytes(n) {
+  if (n < 1024) return n + " B";
+  if (n < 1024 * 1024) return (n / 1024).toFixed(n < 10 * 1024 ? 1 : 0) + " KB";
+  return (n / (1024 * 1024)).toFixed(2) + " MB";
+}
+
+function sumSince(arr, t0) {
+  var i, n = 0;
+  for (i = arr.length - 1; i >= 0; i--) {
+    if (arr[i].t < t0) {
+      arr.splice(0, i + 1);
+      break;
+    }
+    n += arr[i].n;
+  }
+  return n;
+}
+
+function frameRawSize(type) {
+  if (type === FR_KEY || type === FR_XOR) return PLANESZ;
+  if (type === FR_SCR || type === FR_SCRXOR) return SCRSZ;
+  if (type === FR_EGA || type === FR_EGAXOR || type === FR_MC || type === FR_MCXOR) return EGASZ;
+  if (type === FR_PAL) return PALSZ;
+  return 0;
+}
+
+function noteRx(n) {
+  if (n > 0) rxEvents.push({ t: performance.now(), n: n });
+  requestHud();
+}
+
+function noteFrame(type, payloadLen) {
+  if (type !== FR_PAL && type !== FR_GFX) {
+    lastFrameBytes = 3 + payloadLen;
+    lastFrameRaw = frameRawSize(type);
+  }
+  frEvents.push({ t: performance.now(), n: 1 });
+  requestHud();
+}
+
+function requestHud() {
+  if (hudRaf) return;
+  hudRaf = requestAnimationFrame(renderHud);
+}
+
+function renderHud() {
+  hudRaf = 0;
+  if (!statsEl) return;
+  var now = performance.now();
+  var t0 = now - 1000;
+  var bytes = sumSince(rxEvents, t0);
+  var fps = sumSince(frEvents, t0);
+  var last = lastFrameBytes ? fmtBytes(lastFrameBytes) : "--";
+  if (lastFrameBytes && lastFrameRaw) {
+    last += " " + (100 * lastFrameBytes / lastFrameRaw).toFixed(0) + "%";
+  }
+  statsEl.textContent = "last " + last + " | " + fmtBytes(bytes) + "/s | " + fps + " fps";
 }
 
 function setSrcSize(w, h) {
@@ -200,8 +266,10 @@ function blitEga() {
 }
 
 function mcOff(xByte, y, pageBase) {
+  /* ATM MC: consecutive bytes alternate bit5 (8000/A000 or C000/E000).
+     Not the EGA 4-bank walk ? that swapped columns 2-3, 6-7, ... */
   var off40 = xByte >> 1;
-  var bit5 = (xByte ^ (xByte >> 1)) & 1;
+  var bit5 = xByte & 1;
   return pageBase + (bit5 ? 0x2000 : 0) + y * EGA_LINE + off40;
 }
 
@@ -461,6 +529,7 @@ function consumeFrames(buf) {
     var len = buf[o + 1] | (buf[o + 2] << 8);
     if (buf.length - o < 3 + len) break;
     applyFrame(type, buf.subarray(o + 3, o + 3 + len));
+    noteFrame(type, len);
     o += 3 + len;
   }
   if (!o) return buf;
@@ -488,6 +557,7 @@ function connectStream() {
   }).then(function (r) {
     if (!r.ok || !r.body) throw new Error("stream " + r.status);
     setStatus("live");
+    sendFps();
     var reader = r.body.getReader();
     var buf = new Uint8Array(0);
     function pump() {
@@ -496,6 +566,7 @@ function connectStream() {
           scheduleReconnect();
           return;
         }
+        noteRx(res.value.length);
         var n = new Uint8Array(buf.length + res.value.length);
         n.set(buf);
         n.set(res.value, buf.length);
@@ -587,11 +658,11 @@ function mapNedoKey(e) {
   if (k === "End") return [30, 1];
   if (k === "Insert") return [29, 1];
   if (k === " " || code === "Space") return [32, 0];
-  if (k.length === 2 && k.charAt(0) === "F") {
-    var n = parseInt(k.slice(1), 10);
-    if (n >= 1 && n <= 9) return [0xb0 + n, 1];
-    if (n === 10) return [0xb0, 1];
-  }
+  var fn = 0;
+  if (code.charAt(0) === "F") fn = parseInt(code.slice(1), 10);
+  else if (k.charAt(0) === "F") fn = parseInt(k.slice(1), 10);
+  if (fn >= 1 && fn <= 9) return [0xb0 + fn, 1];
+  if (fn === 10) return [0xb0, 1];
   if (e.ctrlKey || e.altKey || e.metaKey) return null;
   if (k.length === 1) {
     var c = k.charCodeAt(0);
@@ -618,14 +689,47 @@ function sendNedoKey(pair) {
 canvas.tabIndex = 0;
 canvas.addEventListener("click", function () { canvas.focus(); });
 canvas.addEventListener("mousedown", function () { canvas.focus(); });
-window.addEventListener("keydown", function (e) {
+function onScrnetKeyDown(e) {
   trackShift(e);
   if (document.activeElement !== canvas) return;
   var pair = mapNedoKey(e);
   if (!pair) return;
   e.preventDefault();
+  if (e.stopImmediatePropagation) e.stopImmediatePropagation();
   sendNedoKey(pair);
-});
-window.addEventListener("keyup", trackShift);
+}
+function onScrnetKeyUp(e) {
+  trackShift(e);
+  if (document.activeElement !== canvas) return;
+  if ((e.code || "").charAt(0) === "F" || (e.key || "").charAt(0) === "F") {
+    e.preventDefault();
+  }
+}
+window.addEventListener("keydown", onScrnetKeyDown, true);
+window.addEventListener("keyup", onScrnetKeyUp, true);
+
+setInterval(requestHud, 250);
+
+function clampFps(n) {
+  n = parseInt(n, 10);
+  if (!(n >= 1)) n = 1;
+  if (n > 50) n = 50;
+  return n;
+}
+
+function sendFps() {
+  var t = clampFps(document.getElementById("fpsText").value);
+  var s = clampFps(document.getElementById("fpsScr").value);
+  var e = clampFps(document.getElementById("fpsEga").value);
+  document.getElementById("fpsText").value = t;
+  document.getElementById("fpsScr").value = s;
+  document.getElementById("fpsEga").value = e;
+  kseq += 1;
+  fetch("/f/" + t + "/" + s + "/" + e + "?" + kseq, { cache: "no-store" }).catch(function () {});
+}
+
+document.getElementById("fpsText").addEventListener("change", sendFps);
+document.getElementById("fpsScr").addEventListener("change", sendFps);
+document.getElementById("fpsEga").addEventListener("change", sendFps);
 
 loadFont(document.getElementById("fontFile").value).then(connectStream);
