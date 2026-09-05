@@ -493,6 +493,7 @@ sd_wrote
         jr z,sd_same
         ld (hl),a
         YIELDKEEP
+        call try_input
 sd_same
         pop hl
         pop de
