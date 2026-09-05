@@ -709,6 +709,7 @@ __1=$
         ld c,CMD_SETWAITING
 	CALLBDOS_NOPARAM_A
         endm
+        IFNDEF ESPNET
         macro OS_NETSOCKET ;D=address family (2=inet, 23=inet6), E=socket type (0x01 tcp/ip, 0x02 icmp, 0x03 udp/ip) ;out: L=SOCKET (if L < 0 then A=error)
 	ld l,0x01
         ld c,CMD_WIZNETOPEN
@@ -756,6 +757,44 @@ __1=$
         ld c,CMD_WIZNETWRITE
 	CALLBDOS
         endm
+        ELSE
+        ; ESPNET UART coprocessor: same registers as WIZNET (L=sock, HL=-1 error).
+        ; include "../_sdk/espnet.asm" in the app. Call OS_ESPINIT once.
+        macro OS_ESPINIT
+        call esp_init
+        endm
+        macro OS_NETSOCKET
+        call esp_socket
+        endm
+        macro OS_NETSHUTDOWN
+        call esp_shutdown
+        endm
+        macro OS_NETCONNECT
+        call esp_connect
+        endm
+        macro OS_ACCEPT
+        call esp_accept
+        endm
+        macro OS_BIND
+        call esp_bind
+        endm
+        macro OS_LISTEN
+        call esp_listen
+        endm
+        macro OS_GETDNS
+        call esp_getdns
+        endm
+        macro OS_WIZNETCLOSE
+        ld e,0
+        call esp_shutdown
+        endm
+        macro OS_WIZNETREAD
+        call esp_read
+        endm
+        macro OS_WIZNETWRITE
+        call esp_write
+        endm
+        ENDIF
         macro OS_DROPAPP ;e=id
         ld c,CMD_DROPAPP
 	CALLBDOS_NOPARAM_A

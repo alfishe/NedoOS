@@ -3,6 +3,7 @@
 
 ; HTTP remote screen. No SETGFX, does not take the CRT.
 ; Listen stays open. Port 2324.
+; /ini/network.ini currentNetwork: 0=WIZNET, 2=ESPNET; else print and QUIT.
 ; GET /           -> /bin/scrnet/index.htm
 ; GET /stream     -> chunked binary frames
 ;   text 80x25: type1 key 4000 / type2 XOR-RLE
@@ -17,6 +18,7 @@
 
 PORT=2324
 STACK=0x3FFE
+NOSOCK EQU 0xff
 COLS=80
 ROWS=25
 TXTSZ=COLS*ROWS
@@ -61,51 +63,54 @@ RLEBUFSZ EQU SENDMAX
         org PROGSTART
 begin
         ld sp,STACK
-        OS_HIDEFROMPARENT
         OS_SETSYSDRV
 
         OS_GETMAINPAGES
         ld e,l
         OS_DELPAGE
 
-        xor a
+        ld a,NOSOCK
         ld (soc),a
         ld (soc_client),a
+        ld (soc_post),a
+        xor a
         ld (is_stream),a
+        call load_net
+        jr nc,net_ok
+        QUIT
+net_ok
         call set_poll
         call load_fps
+        call listen_now
+        jr nc,hideme
+        ld hl,t_lisnfail
+        call prstr
+        QUIT
+hideme
+        OS_HIDEFROMPARENT
+        jp mainloop
 
 gotostart
         ld sp,STACK
         call close_client
         ld a,(soc)
-        or a
+        inc a
         jr z,nul_soc
+        ld a,(soc)
         ld e,0
-        OS_NETSHUTDOWN
-        xor a
+        call net_shutdown
+        ld a,NOSOCK
         ld (soc),a
 nul_soc
-        ld d,AF_INET
-        ld e,SOCK_STREAM
-        OS_NETSOCKET
-        bit 7,l
-        jp nz,gotostart
-        ld a,l
-        ld (soc),a
-        ld de,bind_addr
-        OS_BIND
-        bit 7,l
-        jp nz,gotostart
-        ld a,(soc)
-        OS_LISTEN
-        bit 7,l
-        jp nz,gotostart
+        call listen_now
+        jr nc,mainloop
+        YIELD
+        jp gotostart
 
 mainloop
         YIELD
         ld a,(soc_client)
-        or a
+        inc a
         jr nz,have_cli
         call try_accept
         jr mainloop
@@ -121,7 +126,7 @@ do_stream
         call try_input
         call stream_rx
         ld a,(soc_client)
-        or a
+        inc a
         jr z,mainloop
         OS_GETTIMER
         ld a,l
@@ -145,7 +150,7 @@ do_stream_end
 
 try_accept
         ld a,(soc)
-        OS_ACCEPT
+        call net_accept
         bit 7,l
         jr z,got_cli
         cp ERR_EAGAIN
@@ -165,22 +170,24 @@ got_cli
 
 close_client
         ld a,(soc_post)
-        or a
+        inc a
         jr z,cc_cli
+        ld a,(soc_post)
         ld e,0
-        OS_NETSHUTDOWN
-        xor a
+        call net_shutdown
+        ld a,NOSOCK
         ld (soc_post),a
 cc_cli
         ld a,(soc_client)
-        or a
+        inc a
         ret z
+        ld a,(soc_client)
         ld e,0
-        OS_NETSHUTDOWN
-        xor a
+        call net_shutdown
+        ld a,NOSOCK
         ld (soc_client),a
-        ld (is_stream),a
         xor a
+        ld (is_stream),a
         ld (hdr_st),a
         ld (line_done),a
         ld hl,0
@@ -192,10 +199,10 @@ cc_cli
 ; If ACCEPT wins before the GET arrives, keep soc_post and retry next loop.
 try_input
         ld a,(soc_post)
-        or a
+        inc a
         jr nz,ti_read
         ld a,(soc)
-        OS_ACCEPT
+        call net_accept
         bit 7,l
         ret nz
         ld a,l
@@ -206,7 +213,7 @@ ti_read
         ld a,(soc_post)
         ld de,rlebuf
         ld hl,256
-        OS_WIZNETREAD
+        call net_read
         bit 7,h
         jr z,ti_got
         cp ERR_EAGAIN
@@ -235,12 +242,14 @@ ti_got
         jr ti_drop
 ti_drop
         ld a,(soc_post)
-        or a
+        inc a
         ret z
+        ld a,(soc_post)
         ld e,0
-        OS_NETSHUTDOWN
-        xor a
+        call net_shutdown
+        ld a,NOSOCK
         ld (soc_post),a
+        xor a
         ld (ti_age),a
         ret
 
@@ -425,7 +434,7 @@ sd_cap
         ld hl,SENDMAX
 sd_now
         ld a,(soc_client)
-        OS_WIZNETWRITE
+        call net_write
         bit 7,h
         jr z,sd_wrote
         pop hl
@@ -506,7 +515,7 @@ http_serve
         ld a,(soc_client)
         ld de,iobuf
         ld hl,512
-        OS_WIZNETREAD
+        call net_read
         bit 7,h
         jr z,hr_got
         cp ERR_EAGAIN
@@ -927,7 +936,7 @@ stream_rx
         ld a,(soc_client)
         ld de,netin
         ld hl,NETIN_SZ
-        OS_WIZNETREAD
+        call net_read
         bit 7,h
         jr z,srx_ok
         cp ERR_EAGAIN
@@ -1188,7 +1197,7 @@ pn_ok
 
 stream_frame
         ld a,(soc_client)
-        or a
+        inc a
         ret z
         OS_GETGFX
         ld (g_gfxmode),a
@@ -1992,10 +2001,13 @@ ival_text       db 50/FPS_TEXT
 ival_scr        db 50/FPS_SCR
 ival_ega        db 50/FPS_EGA
 ival_poll       db 50/FPS_TEXT
-soc             db 0
-soc_client      db 0
-soc_post        db 0
+soc             db NOSOCK
+soc_client      db NOSOCK
+soc_post        db NOSOCK
 soc_saved       db 0
+net_drv         db 0
+net_a           db 0
+net_fh          db 0
 ti_age          db 0
 is_stream       db 0
 hdr_st          db 0
@@ -2039,6 +2051,11 @@ k_scr           db "scr=",0
 k_ega           db "ega=",0
 k_mc            db "mc=",0
 p_root          db "/",0
+p_ini           db "ini",0
+n_netini        db "network.ini",0
+k_curNet        db "currentNetwork",0
+t_badnet        db "scrnet: currentNetwork must be 0 (WIZNET) or 2 (ESPNET)",13,10,0
+t_lisnfail      db "scrnet: listen :2324 failed",13,10,0
 p_index         db "/index.htm",0
 p_app           db "/app.js",0
 p_atm           db "/atmucode.fnt",0
@@ -2069,12 +2086,255 @@ bind_addr
         db 0,0,0,0
         db 0,0,0,0,0,0,0,0
 
+; ---- net: 0 WIZNET, 2 ESPNET. Print errors before HIDEFROMPARENT. ----
+
+prstr
+        ld a,(hl)
+        or a
+        ret z
+        push hl
+        OS_PRCHAR
+        pop hl
+        inc hl
+        jr prstr
+
+load_net
+        xor a
+        ld (net_drv),a
+        ld de,net_path
+        OS_GETPATH
+        OS_SETSYSDRV
+        ld de,p_root
+        OS_CHDIR
+        ld de,p_ini
+        OS_CHDIR
+        ld de,n_netini
+        OS_OPENHANDLE
+        or a
+        jr z,ln_rd
+        ld de,net_path
+        OS_CHDIR
+        xor a
+        ret
+ln_rd
+        ld a,b
+        ld (net_fh),a
+        ld b,a
+        ld de,net_inibuf
+        ld hl,255
+        OS_READHANDLE
+        ld a,(net_fh)
+        ld b,a
+        OS_CLOSEHANDLE
+        ld de,net_path
+        OS_CHDIR
+        xor a
+        ld (net_inibuf+255),a
+        ld hl,net_inibuf
+        call find_curnet
+        ld (net_drv),a
+        or a
+        ret z
+        cp 2
+        jr z,ln_esp
+        ld hl,t_badnet
+        call prstr
+        scf
+        ret
+ln_esp
+        call esp_init
+        call net_reap
+        xor a
+        ret
+
+find_curnet
+        ld de,k_curNet
+fn_lp
+        ld a,(hl)
+        or a
+        ret z
+        push hl
+        push de
+        call streq_at
+        pop de
+        jr z,fn_got
+        pop hl
+        inc hl
+        jr fn_lp
+fn_got
+        pop hl
+fn_eq
+        ld a,(hl)
+        or a
+        ret z
+        cp '='
+        jr z,fn_val
+        inc hl
+        jr fn_eq
+fn_val
+        inc hl
+fn_sp
+        ld a,(hl)
+        cp ' '
+        jr z,fn_sk
+        cp 9
+        jr z,fn_sk
+        jr fn_num
+fn_sk
+        inc hl
+        jr fn_sp
+fn_num
+        ld b,0
+fn_d
+        ld a,(hl)
+        sub '0'
+        cp 10
+        jr nc,fn_done
+        ld c,a
+        ld a,b
+        add a,a
+        ld b,a
+        add a,a
+        add a,a
+        add a,b
+        add a,c
+        ld b,a
+        inc hl
+        jr fn_d
+fn_done
+        ld a,b
+        ret
+
+streq_at
+        ld a,(de)
+        or a
+        ret z
+        cp (hl)
+        ret nz
+        inc de
+        inc hl
+        jr streq_at
+
+listen_now
+        ld d,AF_INET
+        ld e,SOCK_STREAM
+        call net_socket
+        bit 7,l
+        jr nz,ln_fail
+        ld a,l
+        ld (soc),a
+        ld de,bind_addr
+        call net_bind
+        bit 7,l
+        jr nz,ln_fail
+        ld a,(soc)
+        call net_listen
+        bit 7,l
+        jr nz,ln_fail
+        or a
+        ret
+ln_fail
+        push af
+        ld a,(soc)
+        inc a
+        jr z,ln_fail2
+        ld a,(soc)
+        ld e,0
+        call net_shutdown
+        ld a,NOSOCK
+        ld (soc),a
+ln_fail2
+        pop af
+        scf
+        ret
+
+net_reap
+        ld a,(net_drv)
+        cp 2
+        ret nz
+        xor a
+reap_lp
+        ld (net_a),a
+        ld e,0
+        call esp_shutdown
+        ld a,(net_a)
+        inc a
+        cp 8
+        jr c,reap_lp
+        ret
+
+; Save A (socket) before reading net_drv.
+net_socket
+        ld a,(net_drv)
+        cp 2
+        jp z,esp_socket
+        OS_NETSOCKET
+        ret
+
+net_shutdown
+        ld (net_a),a
+        ld a,(net_drv)
+        cp 2
+        ld a,(net_a)
+        jp z,esp_shutdown
+        OS_NETSHUTDOWN
+        ret
+
+net_bind
+        ld (net_a),a
+        ld a,(net_drv)
+        cp 2
+        ld a,(net_a)
+        jp z,esp_bind
+        OS_BIND
+        ret
+
+net_listen
+        ld (net_a),a
+        ld a,(net_drv)
+        cp 2
+        ld a,(net_a)
+        jp z,esp_listen
+        OS_LISTEN
+        ret
+
+net_accept
+        ld (net_a),a
+        ld a,(net_drv)
+        cp 2
+        ld a,(net_a)
+        jp z,esp_accept
+        OS_ACCEPT
+        ret
+
+net_read
+        ld (net_a),a
+        ld a,(net_drv)
+        cp 2
+        ld a,(net_a)
+        jp z,esp_read
+        OS_WIZNETREAD
+        ret
+
+net_write
+        ld (net_a),a
+        ld a,(net_drv)
+        cp 2
+        ld a,(net_a)
+        jp z,esp_write
+        OS_WIZNETWRITE
+        ret
+
+        include "../_sdk/espnet.asm"
+
 end
         savebin "scrnet.com",begin,end-begin
         LABELSLIST "../../us/user.l",1
 
 reqbuf          ds REQSZ
 netin           ds NETIN_SZ
+net_path        ds 256
+net_inibuf      ds 256
 pathbuf         ds 32
 fname           ds 32
 chead           ds 8
