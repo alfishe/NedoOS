@@ -1050,42 +1050,42 @@ send_prof
         call prof_snap
         ld (prof_send),a
         ld a,FR_PROF
-        ld (iobuf),a
+        ld (frmhdr),a
         ld hl,10
-        ld (iobuf+1),hl
+        ld (frmhdr+1),hl
         ld a,(prof_flags)
-        ld (iobuf+3),a
+        ld (frmhdr+3),a
         ld a,(g_gfxmode)
-        ld (iobuf+4),a
+        ld (frmhdr+4),a
         ld a,(prof_wait)
-        ld (iobuf+5),a
+        ld (frmhdr+5),a
         ld a,(prof_gfx)
         ld hl,prof_sf
         sub (hl)
-        ld (iobuf+6),a
+        ld (frmhdr+6),a
         ld a,(prof_cap)
         ld hl,prof_gfx
         sub (hl)
-        ld (iobuf+7),a
+        ld (frmhdr+7),a
         ld a,(prof_xor)
         ld hl,prof_cap
         sub (hl)
-        ld (iobuf+8),a
+        ld (frmhdr+8),a
         ld a,(prof_send)
         ld hl,prof_xor
         sub (hl)
-        ld (iobuf+9),a
+        ld (frmhdr+9),a
         ld a,(prof_send)
         ld hl,prof_sf
         sub (hl)
-        ld (iobuf+10),a
+        ld (frmhdr+10),a
         ld a,(prof_nskip)
-        ld (iobuf+11),a
+        ld (frmhdr+11),a
         xor a
         ld (prof_nskip),a
         ld a,(pace_ival)
-        ld (iobuf+12),a
-        ld de,iobuf
+        ld (frmhdr+12),a
+        ld de,frmhdr
         ld hl,13
         call send_chunk
         ret
@@ -1525,9 +1525,9 @@ send_ega_raw
         or 1
         ld (prof_flags),a
         pop af
-        ld (iobuf),a
+        ld (frmhdr),a
         ld hl,EGASZ
-        ld (iobuf+1),hl
+        ld (frmhdr+1),hl
         push hl
         ld bc,3
         add hl,bc
@@ -1543,7 +1543,7 @@ send_ega_raw
         call send_data
         pop hl
         ret c
-        ld de,iobuf
+        ld de,frmhdr
         ld hl,3
         call send_data
         ret c
@@ -2696,6 +2696,7 @@ net_inibuf      ds 256
 pathbuf         ds 32
 fname           ds 32
 chead           ds 8
+frmhdr          ds 16
 itoa_buf        ds 8
 palbuf          ds PALSZ
 prevpal         ds PALSZ
