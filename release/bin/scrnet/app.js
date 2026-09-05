@@ -746,37 +746,49 @@ function hex2(n) {
 }
 
 var kseq = 0;
-var keyBusy = false;
+var keyInflight = 0;
+var KEY_INFLIGHT_MAX = 2;
 var keyQ = [];
 var KEY_QMAX = 2;
 var KEY_REPEAT_DELAY = 400;
-var KEY_REPEAT_MS = 250;
+var KEY_REPEAT_MS = 140;
 var keyRepeatWait = 0;
 var keyRepeatIv = 0;
 var keyHeldCode = "";
 var keyHeldPair = null;
+var keyPendingRepeat = null;
 
-function pumpKeys() {
-  if (keyBusy || !keyQ.length) return;
-  var pair = keyQ.shift();
-  keyBusy = true;
+function fireKey(pair) {
+  keyInflight++;
   kseq += 1;
   fetch("/k/" + hex2(pair[0]) + hex2(pair[1]) + "?" + kseq, {
     cache: "no-store"
   }).catch(function () {}).then(function () {
-    keyBusy = false;
+    keyInflight--;
+    if (keyPendingRepeat && keyInflight < KEY_INFLIGHT_MAX) {
+      var p = keyPendingRepeat;
+      keyPendingRepeat = null;
+      fireKey(p);
+      return;
+    }
     pumpKeys();
   });
 }
 
+function pumpKeys() {
+  while (keyInflight < KEY_INFLIGHT_MAX && keyQ.length) {
+    fireKey(keyQ.shift());
+  }
+}
+
 function sendNedoKey(pair, fromRepeat) {
   if (fromRepeat) {
-    if (keyBusy || keyQ.length) return;
-    keyQ.push(pair);
-  } else {
-    if (keyQ.length >= KEY_QMAX) keyQ.shift();
-    keyQ.push(pair);
+    if (keyInflight < KEY_INFLIGHT_MAX) fireKey(pair);
+    else keyPendingRepeat = pair;
+    return;
   }
+  if (keyQ.length >= KEY_QMAX) keyQ.shift();
+  keyQ.push(pair);
   pumpKeys();
 }
 
@@ -791,6 +803,7 @@ function stopKeyRepeat() {
   }
   keyHeldCode = "";
   keyHeldPair = null;
+  keyPendingRepeat = null;
 }
 
 canvas.tabIndex = 0;
@@ -811,6 +824,7 @@ function onScrnetKeyDown(e) {
   keyRepeatWait = setTimeout(function () {
     keyRepeatWait = 0;
     if (!keyHeldPair) return;
+    sendNedoKey(keyHeldPair, true);
     keyRepeatIv = setInterval(function () {
       if (!keyHeldPair) return;
       sendNedoKey(keyHeldPair, true);
