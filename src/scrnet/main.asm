@@ -9,8 +9,9 @@
 ;   text 80x25: type1 key 4000 / type2 XOR-RLE
 ;   6912:       type4 key 6912 / type5 XOR-RLE (skip unchanged)
 ;   palette:    type6 32-byte DDp (focus OS_GETPAL), on change / connect
-;   EGA 320x200: type7 PackBits 32K / type8 XOR-RLE (prev at 4000-BFFF)
-;   MC  640x200: type9 PackBits 32K / type10 XOR-RLE (same dump, 1bpp+attr)
+;   EGA 320x200: WIZNET raw 32K type12 / ESPNET PackBits type7
+;   MC  640x200: WIZNET raw 32K type13 / ESPNET PackBits type9
+;   EGA/MC: snapshot 32K under one DI; TX yield when 50Hz tick moves, not per MTU.
 ; GET  /k/ccff  -> key (cc=code, ff=0 letter / 1 control) into OS_PUTKEY
 ; POST /input   -> 2-byte body, same (if headers+body fit the read)
 ; Browser: http://<ip>:2324/
@@ -53,6 +54,12 @@ FR_EGA EQU 7
 FR_EGAXOR EQU 8
 FR_MC EQU 9
 FR_MCXOR EQU 10
+FR_PROF EQU 11
+FR_EGARAW EQU 12
+FR_MCRAW EQU 13
+; 1: skip ival/pace, emit type11 ticks to the browser HUD.
+SCRNET_PROF EQU 1
+; Text: WIZNET=raw 4000-byte FR_KEY; ESPNET=XOR-RLE (UART ~10 KB/s max).
 PALSZ EQU 32
 EGASZ EQU 32768
 EGAPREV EQU 0x4000
@@ -131,6 +138,9 @@ do_stream
         OS_GETTIMER
         ld a,l
         ld (nowtick),a
+        if SCRNET_PROF
+        jr do_sf
+        endif
         ld a,(force)
         or a
         jr nz,do_sf
@@ -416,7 +426,13 @@ hn_d
 ; Cap each write at SENDMAX (~Ethernet MTU). Real card will not take more
 ; than one frame per call; emulator accepts any size. Do not use DE for
 ; the cap ? it is the buffer pointer. SENDMAX need not be a multiple of 256.
+; send_data_yield: same, but YIELDKEEP when the 50Hz timer moves (EGA/MC 32K).
+; One YIELDKEEP per MTU was 21 ticks/frame and capped the NIC at ~60 KB/s.
+; Text/6912 stay on send_data so radio/nc keep their fps.
 send_data
+        xor a
+        ld (sd_yield),a
+send_data_go
         ld a,h
         or l
         ret z
@@ -462,11 +478,41 @@ sd_wrote
         ld b,a
         ld h,b
         ld l,c
-        jr send_data
+        ld a,h
+        or l
+        ret z
+        ld a,(sd_yield)
+        or a
+        jr z,send_data0
+        push de
+        push hl
+        OS_GETTIMER
+        ld a,l
+        ld hl,sd_tick
+        cp (hl)
+        jr z,sd_same
+        ld (hl),a
+        YIELDKEEP
+sd_same
+        pop hl
+        pop de
+        jr send_data0
 sd_dead
         call close_client
         scf
         ret
+
+send_data_yield
+        ld a,1
+        ld (sd_yield),a
+        push de
+        push hl
+        OS_GETTIMER
+        ld a,l
+        ld (sd_tick),a
+        pop hl
+        pop de
+        jr send_data_go
 
 send_str
         push de
@@ -784,27 +830,7 @@ do_fpath
         jp close_client
 
 put_one_key
-        ld a,d
-        cp 2
-        jr nz,pok_try8
         OS_PUTKEY
-        ret
-pok_try8
-        ld b,8
-pok_try
-        push bc
-        push de
-        OS_PUTKEY
-        pop de
-        pop bc
-        or a
-        ret z
-        push bc
-        push de
-        YIELDKEEP
-        pop de
-        pop bc
-        djnz pok_try
         ret
 
 do_index
@@ -1000,6 +1026,67 @@ stamp_lastsend
         ld a,l
         ld (lastsend),a
         pop af
+        ret
+
+; A = timer L. GETTIMER spoils all; does not advance while DI.
+prof_snap
+        push bc
+        push de
+        push hl
+        OS_GETTIMER
+        ld a,l
+        pop hl
+        pop de
+        pop bc
+        ret
+
+prof_and_stamp
+        call send_prof
+        jp stamp_lastsend
+
+; type11: flags,mode,wait,gfx,cap,xor,send,tot,nskip,ival  (ticks, 20ms)
+send_prof
+        call prof_snap
+        ld (prof_send),a
+        ld a,FR_PROF
+        ld (iobuf),a
+        ld hl,10
+        ld (iobuf+1),hl
+        ld a,(prof_flags)
+        ld (iobuf+3),a
+        ld a,(g_gfxmode)
+        ld (iobuf+4),a
+        ld a,(prof_wait)
+        ld (iobuf+5),a
+        ld a,(prof_gfx)
+        ld hl,prof_sf
+        sub (hl)
+        ld (iobuf+6),a
+        ld a,(prof_cap)
+        ld hl,prof_gfx
+        sub (hl)
+        ld (iobuf+7),a
+        ld a,(prof_xor)
+        ld hl,prof_cap
+        sub (hl)
+        ld (iobuf+8),a
+        ld a,(prof_send)
+        ld hl,prof_xor
+        sub (hl)
+        ld (iobuf+9),a
+        ld a,(prof_send)
+        ld hl,prof_sf
+        sub (hl)
+        ld (iobuf+10),a
+        ld a,(prof_nskip)
+        ld (iobuf+11),a
+        xor a
+        ld (prof_nskip),a
+        ld a,(pace_ival)
+        ld (iobuf+12),a
+        ld de,iobuf
+        ld hl,13
+        call send_chunk
         ret
 
 set_poll
@@ -1199,6 +1286,11 @@ stream_frame
         ld a,(soc_client)
         inc a
         ret z
+        call prof_snap
+        ld (prof_sf),a
+        ld hl,lastsend
+        sub (hl)
+        ld (prof_wait),a
         OS_GETGFX
         ld (g_gfxmode),a
         ld a,b
@@ -1216,8 +1308,30 @@ stream_frame
         call ival_for_mode
         ld (pace_ival),a
         call pace_ready
-        ret c
-        ld hl,stamp_lastsend
+        if SCRNET_PROF
+        jr sf_work
+        endif
+        jr nc,sf_work
+        ld a,(prof_nskip)
+        inc a
+        jr z,sf_sksat
+        ld (prof_nskip),a
+sf_sksat
+        ret
+sf_work
+        xor a
+        ld (prof_flags),a
+        ld a,(force)
+        or a
+        jr z,sf_nf
+        ld a,4
+        ld (prof_flags),a
+sf_nf
+        call prof_snap
+        ld (prof_gfx),a
+        ld (prof_cap),a
+        ld (prof_xor),a
+        ld hl,prof_and_stamp
         push hl
         ld de,palbuf
         OS_GETPAL
@@ -1225,48 +1339,68 @@ stream_frame
         ret c
         ld a,(g_gfxmode)
         and 7
-        jr z,do_ega
+        jp z,do_ega
         cp 2
-        jr z,do_mc
+        jp z,do_mc
         cp 3
         jp z,do_6912
         cp 6
         ret nz
-        call capture_planes
         ld hl,PLANESZ
         ld (planesize),hl
-        ld a,(force)
-        or a
-        jr nz,txt_key
-        ld a,(last_mode)
-        cp 6
-        jr nz,txt_key
-        ld a,(g_screen)
-        ld hl,last_scr
-        cp (hl)
-        jr nz,txt_key
-        ld a,(g_id)
-        ld hl,last_id
-        cp (hl)
-        jr z,txt_delta
-txt_key
         ld a,(g_id)
         ld (last_id),a
         ld a,(g_screen)
         ld (last_scr),a
+        ld a,(force)
+        ld (txt_need),a
         xor a
         ld (force),a
         ld a,6
         ld (last_mode),a
+        ld a,(net_drv)
+        cp 2
+        jr z,txt_esp_cap
+        call capture_cmp_planes
+        jr txt_got
+txt_esp_cap
+        ld a,(txt_need)
+        or a
+        jr nz,txt_esp_full
+        call capture_xor_planes
+        jr txt_got
+txt_esp_full
+        call capture_planes
+        ld a,1
+        ld (xor_any),a
+txt_got
+        call prof_snap
+        ld (prof_cap),a
+        ld (prof_xor),a
+        ld a,(txt_need)
+        or a
+        jr nz,txt_out
+        ld a,(xor_any)
+        or a
+        jr nz,txt_out
+        ld a,(prof_flags)
+        or 2
+        ld (prof_flags),a
+        ret
+txt_out
+        ld a,(net_drv)
+        cp 2
+        jr nz,txt_send
+        ld a,(txt_need)
+        or a
+        jr nz,txt_send
+        ld a,FR_XOR
+        ld (frame_type),a
+        jp send_xor_packed
+txt_send
         ld a,FR_KEY
         ld hl,PLANESZ
         jp send_keyframe
-txt_delta
-        ld a,6
-        ld (last_mode),a
-        ld a,FR_XOR
-        ld (frame_type),a
-        jp send_xor
 
 do_ega
         xor a
@@ -1305,6 +1439,9 @@ do_gfx_unused
 
 do_6912
         call capture_6912
+        call prof_snap
+        ld (prof_cap),a
+        ld (prof_xor),a
         ld hl,SCRSZ
         ld (planesize),hl
         ld a,(force)
@@ -1342,6 +1479,11 @@ scr_delta
 
 ; A=type HL=payload size. Data in curbuf.
 send_keyframe
+        push af
+        ld a,(prof_flags)
+        or 1
+        ld (prof_flags),a
+        pop af
         ld (iobuf),a
         ld (iobuf+1),hl
         push hl
@@ -1375,12 +1517,62 @@ send_keyframe
         ret c
         jp store_prev
 
+; A=type. 32K at EGAPREV, no RLE (WIZNET).
+send_ega_raw
+        push af
+        ld a,(prof_flags)
+        or 1
+        ld (prof_flags),a
+        pop af
+        ld (iobuf),a
+        ld hl,EGASZ
+        ld (iobuf+1),hl
+        push hl
+        ld bc,3
+        add hl,bc
+        ld de,chead
+        call hex4
+        ld a,13
+        ld (de),a
+        inc de
+        ld a,10
+        ld (de),a
+        ld de,chead
+        ld hl,6
+        call send_data
+        pop hl
+        ret c
+        ld de,iobuf
+        ld hl,3
+        call send_data
+        ret c
+        ld de,EGAPREV
+        ld hl,EGASZ
+        call send_data_yield
+        ret c
+        ld de,crlf
+        ld hl,2
+        jp send_data
+
 send_xor
         call xor_make
+send_xor_packed
         ld a,(xor_any)
         or a
-        ret z
+        jr nz,sx_go
+        ld a,(prof_flags)
+        or 2
+        ld (prof_flags),a
+        call prof_snap
+        ld (prof_xor),a
+        ret
+sx_go
         call pack_xor
+        call prof_snap
+        ld (prof_xor),a
+        ld a,(prof_flags)
+        or 1
+        ld (prof_flags),a
         ld a,(frame_type)
         ld (iobuf),a
         ld hl,(rle_dst)
@@ -1436,8 +1628,14 @@ pal_send
 ; streamed so a 32K worst-case payload never sits in RAM.
 
 ega_frame
+        ld a,(prof_flags)
+        or 8
+        ld (prof_flags),a
         call ega_selpages
         call ega_copy_vram_to_prev
+        call prof_snap
+        ld (prof_cap),a
+        ld (prof_xor),a
         ld a,(force)
         or a
         jr nz,ega_key
@@ -1455,7 +1653,11 @@ ega_frame
         jr nz,ega_key
         ld a,(xor_any)
         or a
-        ret z
+        jr nz,ega_key
+        ld a,(prof_flags)
+        or 2
+        ld (prof_flags),a
+        ret
 ega_key
         ld a,(g_id)
         ld (last_id),a
@@ -1465,6 +1667,17 @@ ega_key
         ld (force),a
         ld a,(g32_mode)
         ld (last_mode),a
+        ld a,(net_drv)
+        cp 2
+        jp z,ega_esp
+        ld a,(g32_mode)
+        or a
+        ld a,FR_EGARAW
+        jr z,ega_wraw
+        ld a,FR_MCRAW
+ega_wraw
+        jp send_ega_raw
+ega_esp
         ld a,(g32_frkey)
         ld (frame_type),a
         jp ega_send_rle
@@ -1485,10 +1698,10 @@ ega_pgset
         ld (ega_pgl),a
         ret
 
-; Snapshot visible pages. DI so SETSCREEN cannot turn this
-; buffer into the back buffer mid-copy (Sanshimai flips in IM1).
+; Snapshot both visible pages under one DI. Sanshimai/bq flip SETSCREEN
+; in IM1; EI mid-copy mixes two frames and the level geometry falls apart.
 ; xor_any=1 if the snapshot differs from the last sent frame.
-; Forced/mode-change keyframe: LDIR, no per-byte XOR (send will take seconds).
+; Forced/mode-change keyframe: LDIR, no per-byte XOR.
 ega_copy_vram_to_prev
         ld a,(force)
         or a
@@ -1568,6 +1781,11 @@ ega_send_rle
         ld hl,EGASZ
         ld (rle_left),hl
         call pk_loop
+        call prof_snap
+        ld (prof_xor),a
+        ld a,(prof_flags)
+        or 1
+        ld (prof_flags),a
         ld hl,(rle_outsz)
         ld a,h
         or l
@@ -1611,9 +1829,10 @@ ega_send_rle
         jp send_data
 
 ; ---- capture / xor / rle ----
-; ATM VRAM bytes (font RAM index), then attributes. Same countxy as BDOS.
+; ATM text: countxy once per row, then step_xy (xor 0x20 / inc l).
+; Delta: one pass VRAM -> cur + xor vs prev into xorbuf (no IX).
 
-capture_planes
+cap_selpages
         ld a,(g_screen)
         or a
         ld a,(g_s0h)
@@ -1627,58 +1846,184 @@ cap_pg
         ld (cap_attrpg),a
         ld a,b
         SETPGC000
-        ld d,0
-        ld hl,curbuf
-cap_y
-        ld e,0
-cap_x
-        push de
-        push hl
-        call countxy
-        ld a,(hl)
-        pop hl
-        ld (hl),a
-        inc hl
-        pop de
-        inc e
-        ld a,e
-        cp COLS
-        jr nz,cap_x
-        inc d
-        ld a,d
-        cp ROWS
-        jr nz,cap_y
+        ret
 
-        ld a,(cap_attrpg)
-        SETPGC000
-        ld d,0
-        ld hl,curbuf+TXTSZ
-capa_y
-        ld e,0
-capa_x
-        push de
-        push hl
-        call countxy
+; HL=vram, DE=dst, B=80.
+cap_row
+        ld a,(hl)
+        ld (de),a
+        inc de
         ld a,h
         xor 0x20
         ld h,a
         and 0x20
-        jr nz,capa_ok
+        jr nz,cap_rs
         inc l
-capa_ok
+cap_rs
+        djnz cap_row
+        ret
+
+; HL=vram, DE=cur, B=80. C=y. Compare to prev; set xor_any if different.
+cap_cmp_row
+        push bc
         ld a,(hl)
-        pop hl
-        ld (hl),a
+        ld (de),a
+        inc de
+        push hl
+        ld hl,(cx_prev)
+        cp (hl)
         inc hl
+        ld (cx_prev),hl
+        pop hl
+        jr z,cc_z
+        ld a,1
+        ld (xor_any),a
+cc_z
+        pop bc
+        ld a,h
+        xor 0x20
+        ld h,a
+        and 0x20
+        jr nz,cc_rs
+        inc l
+cc_rs
+        djnz cap_cmp_row
+        ret
+
+; HL=vram, DE=cur, B=80. Also fill xorbuf. C=y.
+cap_xor_row
+        push bc
+        ld a,(hl)
+        ld (de),a
+        inc de
+        push de
+        ld de,(cx_prev)
+        ld a,(de)
+        xor (hl)
+        inc de
+        ld (cx_prev),de
+        ld de,(cx_xor)
+        ld (de),a
+        inc de
+        ld (cx_xor),de
+        or a
+        jr z,cx_z
+        ld a,1
+        ld (xor_any),a
+cx_z
         pop de
-        inc e
-        ld a,e
-        cp COLS
-        jr nz,capa_x
-        inc d
-        ld a,d
+        pop bc
+        ld a,h
+        xor 0x20
+        ld h,a
+        and 0x20
+        jr nz,cx_rs
+        inc l
+cx_rs
+        djnz cap_xor_row
+        ret
+
+cap_text_addr
+        push de
+        ld d,c
+        ld e,0
+        call countxy
+        pop de
+        ret
+
+cap_attr_addr
+        call cap_text_addr
+        ld a,h
+        xor 0x20
+        ld h,a
+        and 0x20
+        ret nz
+        inc l
+        ret
+
+capture_planes
+        call cap_selpages
+        ld de,curbuf
+        ld c,0
+cp_ty
+        call cap_text_addr
+        ld b,COLS
+        call cap_row
+        inc c
+        ld a,c
         cp ROWS
-        jr nz,capa_y
+        jr nz,cp_ty
+        ld a,(cap_attrpg)
+        SETPGC000
+        ld c,0
+cp_ay
+        call cap_attr_addr
+        ld b,COLS
+        call cap_row
+        inc c
+        ld a,c
+        cp ROWS
+        jr nz,cp_ay
+        ret
+
+capture_cmp_planes
+        xor a
+        ld (xor_any),a
+        call cap_selpages
+        ld de,curbuf
+        ld hl,prevbuf
+        ld (cx_prev),hl
+        ld c,0
+cc_ty
+        call cap_text_addr
+        ld b,COLS
+        call cap_cmp_row
+        inc c
+        ld a,c
+        cp ROWS
+        jr nz,cc_ty
+        ld a,(cap_attrpg)
+        SETPGC000
+        ld c,0
+cc_ay
+        call cap_attr_addr
+        ld b,COLS
+        call cap_cmp_row
+        inc c
+        ld a,c
+        cp ROWS
+        jr nz,cc_ay
+        ret
+
+capture_xor_planes
+        xor a
+        ld (xor_any),a
+        call cap_selpages
+        ld de,curbuf
+        ld hl,prevbuf
+        ld (cx_prev),hl
+        ld hl,xorbuf
+        ld (cx_xor),hl
+        ld c,0
+cx_ty
+        call cap_text_addr
+        ld b,COLS
+        call cap_xor_row
+        inc c
+        ld a,c
+        cp ROWS
+        jr nz,cx_ty
+        ld a,(cap_attrpg)
+        SETPGC000
+        ld c,0
+cx_ay
+        call cap_attr_addr
+        ld b,COLS
+        call cap_xor_row
+        inc c
+        ld a,c
+        cp ROWS
+        jr nz,cx_ay
         ret
 
 ;in: de=yx ;out: hl=text VRAM addr (BDOS_countxy)
@@ -1721,24 +2066,29 @@ store_prev
         ret
 
 xor_make
+        ld hl,xorbuf
+        ld (cx_xor),hl
         ld hl,curbuf
         ld de,prevbuf
-        ld ix,xorbuf
         ld bc,(planesize)
         xor a
         ld (xor_any),a
 xm_lp
         ld a,(de)
         xor (hl)
-        ld (ix),a
+        inc hl
+        inc de
+        push de
+        ld de,(cx_xor)
+        ld (de),a
+        inc de
+        ld (cx_xor),de
+        pop de
         or a
         jr z,xm_z
         ld a,1
         ld (xor_any),a
 xm_z
-        inc hl
-        inc de
-        inc ix
         dec bc
         ld a,b
         or c
@@ -1853,6 +2203,7 @@ rle_flush_full
         ld hl,RLEBUFSZ
         call send_data
         ret c
+        YIELDKEEP
         ld hl,rlebuf
         ld (rle_ptr),hl
         xor a
@@ -1869,28 +2220,21 @@ count_run
         ld hl,(rle_src)
         ld a,(hl)
         ld (rle_val),a
+        ld c,a
         ld b,1
 cr_lp
         ld a,b
         cp 128
         jr z,cr_done
-        ld hl,(rle_left)
-        ld a,h
-        or a
-        jr nz,cr_cmp
-        ld a,l
-        cp b
-        jr z,cr_done
+        ld a,(rle_left)
+        sub b
+        ld a,(rle_left+1)
+        sbc a,0
         jr c,cr_done
-cr_cmp
-        push bc
-        ld hl,(rle_src)
-        ld e,b
-        ld d,0
-        add hl,de
-        ld a,(rle_val)
+        jr z,cr_done
+        inc hl
+        ld a,c
         cp (hl)
-        pop bc
         jr nz,cr_done
         inc b
         jr cr_lp
@@ -1996,6 +2340,16 @@ last_id         db 0xff
 last_scr        db 0xff
 lastsend        db 0
 nowtick         db 0
+prof_sf         db 0
+prof_gfx        db 0
+prof_cap        db 0
+prof_xor        db 0
+prof_send       db 0
+prof_wait       db 0
+prof_flags      db 0
+prof_nskip      db 0
+cx_prev         dw 0
+cx_xor          dw 0
 pace_ival       db 50/FPS_TEXT
 ival_text       db 50/FPS_TEXT
 ival_scr        db 50/FPS_SCR
@@ -2006,6 +2360,7 @@ soc_client      db NOSOCK
 soc_post        db NOSOCK
 soc_saved       db 0
 net_drv         db 0
+txt_need        db 0
 net_a           db 0
 net_fh          db 0
 ti_age          db 0
@@ -2036,6 +2391,8 @@ g32_frkey       db FR_EGA
 g32_frxor       db FR_EGAXOR
 ega_pgl         db 0
 ega_pgh         db 0
+sd_yield        db 0
+sd_tick         db 0
 pack_emit       db 2
 rle_outsz       dw 0
 rle_ptr         dw 0

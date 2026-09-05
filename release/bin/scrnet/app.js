@@ -35,6 +35,9 @@ var FR_EGA = 7;
 var FR_EGAXOR = 8;
 var FR_MC = 9;
 var FR_MCXOR = 10;
+var FR_PROF = 11;
+var FR_EGARAW = 12;
+var FR_MCRAW = 13;
 var TEXT_W = COLS * CW;
 var TEXT_H = ROWS * CH;
 var SCR_W = 256;
@@ -116,6 +119,7 @@ var PW = TEXT_W;
 var PH = TEXT_H;
 var statusEl = document.getElementById("status");
 var statsEl = document.getElementById("stats");
+var profEl = document.getElementById("prof");
 var reconnectTimer = 0;
 var streamAbort = null;
 var zoom = 2;
@@ -150,7 +154,7 @@ function sumSince(arr, t0) {
 function frameRawSize(type) {
   if (type === FR_KEY || type === FR_XOR) return PLANESZ;
   if (type === FR_SCR || type === FR_SCRXOR) return SCRSZ;
-  if (type === FR_EGA || type === FR_EGAXOR || type === FR_MC || type === FR_MCXOR) return EGASZ;
+  if (type === FR_EGA || type === FR_EGAXOR || type === FR_MC || type === FR_MCXOR || type === FR_EGARAW || type === FR_MCRAW) return EGASZ;
   if (type === FR_PAL) return PALSZ;
   return 0;
 }
@@ -160,7 +164,10 @@ function noteRx(n) {
   requestHud();
 }
 
+var lastProf = null;
+
 function noteFrame(type, payloadLen) {
+  if (type === FR_PROF) return;
   if (type !== FR_PAL && type !== FR_GFX) {
     lastFrameBytes = 3 + payloadLen;
     lastFrameRaw = frameRawSize(type);
@@ -186,6 +193,28 @@ function renderHud() {
     last += " " + (100 * lastFrameBytes / lastFrameRaw).toFixed(0) + "%";
   }
   statsEl.textContent = "last " + last + " | " + fmtBytes(bytes) + "/s | " + fps + " fps";
+  if (profEl) {
+    if (!lastProf) profEl.textContent = "";
+    else {
+      var p = lastProf;
+      var bits = [];
+      if (p.flags & 1) bits.push("tx");
+      if (p.flags & 2) bits.push("skip");
+      if (p.flags & 4) bits.push("force");
+      if (p.flags & 8) bits.push("DI");
+      profEl.textContent =
+        "host 20ms: cap " + p.cap +
+        " xor " + p.xor +
+        " send " + p.send +
+        " gfx " + p.gfx +
+        " wait " + p.wait +
+        " tot " + p.tot +
+        " skip " + p.nskip +
+        " ival " + p.ival +
+        (bits.length ? " [" + bits.join(" ") + "]" : "") +
+        (p.flags & 8 ? " (DI: timer frozen in copy)" : "");
+    }
+  }
 }
 
 function setSrcSize(w, h) {
@@ -461,13 +490,16 @@ function applyXorRle(p, dest, destLen) {
   }
 }
 
+/* Text: WIZNET full FR_KEY if changed; ESPNET type-2 XOR-RLE. No packet if unchanged. */
 function applyFrame(type, p) {
   if (type === FR_KEY) {
     vid = "text";
-    plane.fill(0);
-    attrs.fill(0x07);
-    cells.set(p.subarray(0, Math.min(p.length, CELLS)));
-    if (p.length >= PLANESZ) attrs.set(p.subarray(CELLS, PLANESZ));
+    if (p.length >= PLANESZ) plane.set(p.subarray(0, PLANESZ));
+    else {
+      plane.fill(0);
+      attrs.fill(0x07);
+      cells.set(p.subarray(0, Math.min(p.length, CELLS)));
+    }
     blitScreen();
     setStatus("live text");
   } else if (type === FR_XOR) {
@@ -505,6 +537,15 @@ function applyFrame(type, p) {
     applyRle(p, ega, EGASZ);
     blitEga();
     setStatus("live ega");
+  } else if (type === FR_EGARAW) {
+    vid = "ega";
+    if (p.length >= EGASZ) ega.set(p.subarray(0, EGASZ));
+    else {
+      ega.fill(0);
+      ega.set(p);
+    }
+    blitEga();
+    setStatus("live ega");
   } else if (type === FR_EGAXOR) {
     applyXorRle(p, ega, EGASZ);
     vid = "ega";
@@ -515,10 +556,36 @@ function applyFrame(type, p) {
     applyRle(p, ega, EGASZ);
     blitMc();
     setStatus("live mc");
+  } else if (type === FR_MCRAW) {
+    vid = "mc";
+    if (p.length >= EGASZ) ega.set(p.subarray(0, EGASZ));
+    else {
+      ega.fill(0);
+      ega.set(p);
+    }
+    blitMc();
+    setStatus("live mc");
   } else if (type === FR_MCXOR) {
     applyXorRle(p, ega, EGASZ);
     vid = "mc";
     blitMc();
+  } else if (type === FR_PROF) {
+    if (p.length >= 10) {
+      lastProf = {
+        flags: p[0],
+        mode: p[1],
+        wait: p[2],
+        gfx: p[3],
+        cap: p[4],
+        xor: p[5],
+        send: p[6],
+        tot: p[7],
+        nskip: p[8],
+        ival: p[9]
+      };
+      requestHud();
+    }
+    return;
   }
 }
 
@@ -679,11 +746,51 @@ function hex2(n) {
 }
 
 var kseq = 0;
-function sendNedoKey(pair) {
+var keyBusy = false;
+var keyQ = [];
+var KEY_QMAX = 2;
+var KEY_REPEAT_DELAY = 400;
+var KEY_REPEAT_MS = 250;
+var keyRepeatWait = 0;
+var keyRepeatIv = 0;
+var keyHeldCode = "";
+var keyHeldPair = null;
+
+function pumpKeys() {
+  if (keyBusy || !keyQ.length) return;
+  var pair = keyQ.shift();
+  keyBusy = true;
   kseq += 1;
   fetch("/k/" + hex2(pair[0]) + hex2(pair[1]) + "?" + kseq, {
     cache: "no-store"
-  }).catch(function () {});
+  }).catch(function () {}).then(function () {
+    keyBusy = false;
+    pumpKeys();
+  });
+}
+
+function sendNedoKey(pair, fromRepeat) {
+  if (fromRepeat) {
+    if (keyBusy || keyQ.length) return;
+    keyQ.push(pair);
+  } else {
+    if (keyQ.length >= KEY_QMAX) keyQ.shift();
+    keyQ.push(pair);
+  }
+  pumpKeys();
+}
+
+function stopKeyRepeat() {
+  if (keyRepeatWait) {
+    clearTimeout(keyRepeatWait);
+    keyRepeatWait = 0;
+  }
+  if (keyRepeatIv) {
+    clearInterval(keyRepeatIv);
+    keyRepeatIv = 0;
+  }
+  keyHeldCode = "";
+  keyHeldPair = null;
 }
 
 canvas.tabIndex = 0;
@@ -696,10 +803,23 @@ function onScrnetKeyDown(e) {
   if (!pair) return;
   e.preventDefault();
   if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-  sendNedoKey(pair);
+  if (e.repeat) return;
+  stopKeyRepeat();
+  sendNedoKey(pair, false);
+  keyHeldCode = e.code || "";
+  keyHeldPair = pair;
+  keyRepeatWait = setTimeout(function () {
+    keyRepeatWait = 0;
+    if (!keyHeldPair) return;
+    keyRepeatIv = setInterval(function () {
+      if (!keyHeldPair) return;
+      sendNedoKey(keyHeldPair, true);
+    }, KEY_REPEAT_MS);
+  }, KEY_REPEAT_DELAY);
 }
 function onScrnetKeyUp(e) {
   trackShift(e);
+  if (keyHeldCode && (e.code || "") === keyHeldCode) stopKeyRepeat();
   if (document.activeElement !== canvas) return;
   if ((e.code || "").charAt(0) === "F" || (e.key || "").charAt(0) === "F") {
     e.preventDefault();
@@ -707,6 +827,7 @@ function onScrnetKeyUp(e) {
 }
 window.addEventListener("keydown", onScrnetKeyDown, true);
 window.addEventListener("keyup", onScrnetKeyUp, true);
+window.addEventListener("blur", stopKeyRepeat);
 
 setInterval(requestHud, 250);
 
