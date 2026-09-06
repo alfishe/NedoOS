@@ -1730,7 +1730,10 @@ ega_pgset
 ; Snapshot both visible pages under one DI. Sanshimai/bq flip SETSCREEN
 ; in IM1; EI mid-copy mixes two frames and the level geometry falls apart.
 ; xor_any=1 if the snapshot differs from the last sent frame.
-; Forced/mode-change keyframe: LDIR, no per-byte XOR.
+; Two SETPGC000 is the minimum: dest is 4000-BFFF, src must sit at C000.
+; Delta: compare-copy until the first mismatch, then unrolled LDI of the rest
+; (second 16K becomes a plain copy if the first plane already differed).
+; Keyframe: unrolled LDI both planes (LDIR is 21 T/byte, 8x LDI is ~17).
 ega_copy_vram_to_prev
         ld a,(force)
         or a
@@ -1752,16 +1755,20 @@ ega_copy_vram_to_prev
         di
         ld a,(ega_pgl)
         SETPGC000
-        ld hl,0xC000
         ld de,EGAPREV
-        ld bc,16384
-        call ega_cp_blk
+        call ega_cp_16k
         ld a,(ega_pgh)
         SETPGC000
-        ld hl,0xC000
         ld de,EGAPREV+16384
-        ld bc,16384
-        call ega_cp_blk
+        ld a,(xor_any)
+        or a
+        jr z,ega_p2cmp
+        ld hl,0xC000
+        call ega_ldir16k
+        ei
+        ret
+ega_p2cmp
+        call ega_cp_16k
         ei
         ret
 ega_copy_fast
@@ -1772,31 +1779,68 @@ ega_copy_fast
         SETPGC000
         ld hl,0xC000
         ld de,EGAPREV
-        ld bc,16384
-        ldir
+        call ega_ldir16k
         ld a,(ega_pgh)
         SETPGC000
         ld hl,0xC000
         ld de,EGAPREV+16384
-        ld bc,16384
-        ldir
+        call ega_ldir16k
         ei
         ret
-ega_cp_blk
+
+; Compare-copy 16K at C000 into DE. Equal bytes are not rewritten.
+; First mismatch: xor_any=1, LDIR the remainder (any length).
+ega_cp_16k
+        ld hl,0xC000
+        ld a,64
+ega_cpo
+        push af
+        ld b,0
+ega_cpb
         ld a,(de)
         cp (hl)
-        jr z,ega_cps
-        ld a,1
-        ld (xor_any),a
-ega_cps
-        ld a,(hl)
-        ld (de),a
+        jr nz,ega_dif
         inc hl
         inc de
-        dec bc
+        djnz ega_cpb
+        pop af
+        dec a
+        jr nz,ega_cpo
+        ret
+ega_dif
+        pop af
+        inc b
+        dec b
+        jr nz,ega_difb
+        ld b,a
+        ld c,0
+        jr ega_tail
+ega_difb
+        dec a
+        ld c,b
+        ld b,a
+ega_tail
+        ld a,1
+        ld (xor_any),a
         ld a,b
         or c
-        jr nz,ega_cp_blk
+        ret z
+        ldir
+        ret
+
+; Exactly 16384 bytes HL->DE. 8x LDI + JP PE (PV set while BC!=0).
+ega_ldir16k
+        ld bc,16384
+ega_ld8
+        ldi
+        ldi
+        ldi
+        ldi
+        ldi
+        ldi
+        ldi
+        ldi
+        jp pe,ega_ld8
         ret
 
 ; PackBits of 32K at EGAPREV. Count, then HTTP-chunk the RLE without a 32K dest.
@@ -2134,67 +2178,207 @@ pack_xor
         ld hl,iobuf+3
         ld (rle_dst),hl
 pk_loop
-        ld hl,(rle_left)
-        ld a,h
-        or l
-        ret z
-        call count_run
-        ld a,(rle_run)
+        ld hl,(rle_src)
+        ld de,(rle_left)
+pk_next
+        ld a,d
+        or e
+        jr z,pk_done
+        call pk_runlen
+        ld a,b
         cp 2
         jr nc,pk_rep
-        ld hl,(rle_src)
-        ld (rle_litptr),hl
-        xor a
-        ld (rle_lit),a
-pk_lit
-        ld hl,(rle_left)
-        ld a,h
-        or l
-        jr z,pk_litout
-        call count_run
-        ld a,(rle_run)
-        cp 2
-        jr nc,pk_litout
-        ld a,(rle_lit)
-        cp 128
-        jr z,pk_litout
-        inc a
-        ld (rle_lit),a
-        ld a,1
-        call advance_a
-        jr pk_lit
-pk_litout
-        ld a,(rle_lit)
-        or a
-        jr z,pk_loop
-        dec a
-        call rle_out_byte
+        call pk_litlen
+        call pk_emit_lit
         ret c
-        ld hl,(rle_litptr)
-        ld a,(rle_lit)
-        ld b,a
-pk_litb
+        jr pk_next
+pk_rep
+        call pk_emit_rep
+        ret c
+        jr pk_next
+pk_done
+        ld (rle_src),hl
+        ld (rle_left),de
+        or a
+        ret
+
+; HL=src DE=left. Out B=run 1..128 of (hl). HL,DE preserved.
+pk_runlen
+        ld a,(hl)
+        ld (rle_val),a
+        ld c,a
+        ld b,1
+        push hl
+        push de
+        dec de
+        inc hl
+pk_rl
+        ld a,b
+        cp 128
+        jr z,pk_rlx
+        ld a,d
+        or e
+        jr z,pk_rlx
+        ld a,(hl)
+        cp c
+        jr nz,pk_rlx
+        inc b
+        inc hl
+        dec de
+        jr pk_rl
+pk_rlx
+        pop de
+        pop hl
+        ret
+
+; First byte is a literal (run was 1). Out B=1..128. HL,DE preserved.
+pk_litlen
+        ld b,0
+        push hl
+        push de
+pk_ll
+        ld a,b
+        cp 128
+        jr z,pk_llx
+        ld a,d
+        or e
+        jr z,pk_llx
+        ld a,e
+        cp 2
+        jr nc,pk_llp
+        ld a,d
+        or a
+        jr z,pk_lt1
+pk_llp
+        ld a,(hl)
+        inc hl
+        cp (hl)
+        dec hl
+        jr nz,pk_lt1
+        ld a,b
+        or a
+        jr nz,pk_llx
+pk_lt1
+        inc b
+        inc hl
+        dec de
+        jr pk_ll
+pk_llx
+        pop de
+        pop hl
+        ret
+
+; B=run. HL=src DE=left.
+pk_emit_rep
+        ld a,(pack_emit)
+        or a
+        jr z,pk_er_cnt
+        ld a,b
+        add a,127
+        push bc
+        push de
+        push hl
+        call rle_out_byte
+        pop hl
+        pop de
+        pop bc
+        ret c
+        ld a,(rle_val)
+        push bc
+        push de
+        push hl
+        call rle_out_byte
+        pop hl
+        pop de
+        pop bc
+        ret c
+        jr pk_adv
+pk_er_cnt
+        push hl
+        ld hl,(rle_outsz)
+        inc hl
+        inc hl
+        ld (rle_outsz),hl
+        pop hl
+pk_adv
+        ld c,b
+        ld b,0
+        add hl,bc
+        ex de,hl
+        or a
+        sbc hl,bc
+        ex de,hl
+        or a
+        ret
+
+; B=lits. HL=src DE=left.
+pk_emit_lit
+        ld a,(pack_emit)
+        or a
+        jr z,pk_el_cnt
+        ld a,b
+        dec a
+        push bc
+        push de
+        push hl
+        call rle_out_byte
+        pop hl
+        pop de
+        pop bc
+        ret c
+        ld a,(pack_emit)
+        cp 2
+        jr z,pk_el_mem
+        ld c,b
+pk_el_net
         ld a,(hl)
         inc hl
         push hl
         push bc
+        push de
         call rle_out_byte
+        pop de
         pop bc
         pop hl
         ret c
-        djnz pk_litb
-        jr pk_loop
-pk_rep
-        ld a,(rle_run)
-        add a,127
-        call rle_out_byte
-        ret c
-        ld a,(rle_val)
-        call rle_out_byte
-        ret c
-        ld a,(rle_run)
-        call advance_a
-        jr pk_loop
+        dec c
+        jr nz,pk_el_net
+        ; HL already += B; DE still old. Restore HL then pk_adv.
+        ld a,b
+        ld c,a
+        ld b,0
+        or a
+        sbc hl,bc
+        ld b,c
+        jr pk_adv
+pk_el_mem
+        push de
+        push bc
+        ld c,b
+        ld b,0
+        ld de,(rle_dst)
+        ldir
+        ld (rle_dst),de
+        pop bc
+        pop de
+        ld a,b
+        ld c,a
+        ld b,0
+        or a
+        sbc hl,bc
+        ld b,c
+        jr pk_adv
+pk_el_cnt
+        push hl
+        ld hl,(rle_outsz)
+        inc hl
+        ld c,b
+        ld b,0
+        add hl,bc
+        ld (rle_outsz),hl
+        ld b,c
+        pop hl
+        jr pk_adv
 
 ; A=byte. pack_emit: 0=count size, 1=net (rlebuf), 2=mem (rle_dst). CY if send died.
 rle_out_byte
@@ -2244,45 +2428,6 @@ rle_flush
         sbc hl,de
         ret z
         jp send_data
-
-count_run
-        ld hl,(rle_src)
-        ld a,(hl)
-        ld (rle_val),a
-        ld c,a
-        ld b,1
-cr_lp
-        ld a,b
-        cp 128
-        jr z,cr_done
-        ld a,(rle_left)
-        sub b
-        ld a,(rle_left+1)
-        sbc a,0
-        jr c,cr_done
-        jr z,cr_done
-        inc hl
-        ld a,c
-        cp (hl)
-        jr nz,cr_done
-        inc b
-        jr cr_lp
-cr_done
-        ld a,b
-        ld (rle_run),a
-        ret
-
-advance_a
-        ld c,a
-        ld b,0
-        ld hl,(rle_src)
-        add hl,bc
-        ld (rle_src),hl
-        ld hl,(rle_left)
-        or a
-        sbc hl,bc
-        ld (rle_left),hl
-        ret
 
 ; HL=s1 DE=s2  Z if equal
 strcmp
