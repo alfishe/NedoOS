@@ -1266,7 +1266,11 @@ void errNoConnect(void)
 		break;
 	case '1':
 		OS_SETSYSDRV();
-		loadPageFromDisk("browser/current.gph", navi.volume);
+		if (!loadPageFromDisk("browser/current.gph", navi.volume))
+		{
+			goHome(false);
+			return;
+		}
 		navi.nextBufPos = renderPage(pageOffsets[navi.page]);
 		break;
 	default:
@@ -1853,39 +1857,45 @@ void doLink(char backSpace)
 		link.type = link.nexType; // так-как мы остались на странице, восстановим тип, хотя можно просто ставить 1 (пока других нет)
 		return;
 	case '0': // plain texts
-		if (getFile("browser/current.txt"))
-		{
-			newPage();
-			OS_SETSYSDRV();
-			loadPageFromDisk("browser/current.txt", 0);
-			if (!backSpace)
-			{
-				pusHistory();
-			}
-			navi.nextBufPos = renderPlain(navi.nextBufPos);
-		}
-		else
+		if (!getFile("browser/current.txt"))
 		{
 			errNoConnect();
+			return;
 		}
+
+		newPage();
+		OS_SETSYSDRV();
+		if (!loadPageFromDisk("browser/current.txt", 0))
+		{
+			errNoConnect();
+			return;
+		}
+		if (!backSpace)
+		{
+			pusHistory();
+		}
+		navi.nextBufPos = renderPlain(navi.nextBufPos);
 		return;
 	case '1': // gopher page
-		if (getFile("browser/current.gph"))
+		if (!getFile("browser/current.gph"))
 		{
-			newPage();
-			OS_SETSYSDRV();
-			loadPageFromDisk("browser/current.gph", 0);
-			if (!backSpace)
-			{
-				pusHistory();
-			}
-			navi.nextBufPos = renderPage(navi.nextBufPos);
-		}
-		else
-		{
-
 			errNoConnect();
+			return;
 		}
+		newPage();
+		OS_SETSYSDRV();
+		if (!loadPageFromDisk("browser/current.gph", 0))
+		{
+			errNoConnect();
+			return;
+		}
+
+		if (!backSpace)
+		{
+			pusHistory();
+		}
+		navi.nextBufPos = renderPage(navi.nextBufPos);
+
 		return;
 	case '7': // search input
 		curWin.w = 40;
@@ -1938,28 +1948,31 @@ void doLink(char backSpace)
 		OS_CHDIR("downloads");
 		OS_GETPATH(curPath);
 
-		if (getFile(navi.fileName))
-		{
-			OS_SETSYSDRV();
-			navi.volume = pageVolumes[navi.page];
-			loadPageFromDisk("browser/current.gph", navi.volume);
-			navi.nextBufPos = renderPage(pageOffsets[navi.page]);
-			if (!navi.saveAs)
-			{
-				if (mediaProcessorExt())
-				{
-					OS_CHDIR("/");
-					OS_CHDIR("downloads");
-					clearStatus();
-					printf("cmd:[%s]", cmd);
-					OS_SHELL(cmd);
-					OS_SETSYSDRV();
-				}
-			}
-		}
-		else
+		if (!getFile(navi.fileName))
 		{
 			errNoConnect();
+			return;
+		}
+
+		OS_SETSYSDRV();
+		navi.volume = pageVolumes[navi.page];
+		if (!loadPageFromDisk("browser/current.gph", navi.volume))
+		{
+			errNoConnect();
+			return;
+		}
+		navi.nextBufPos = renderPage(pageOffsets[navi.page]);
+		if (!navi.saveAs)
+		{
+			if (mediaProcessorExt())
+			{
+				OS_CHDIR("/");
+				OS_CHDIR("downloads");
+				clearStatus();
+				printf("cmd:[%s]", cmd);
+				OS_SHELL(cmd);
+				OS_SETSYSDRV();
+			}
 		}
 		return;
 	case 'h': // html
