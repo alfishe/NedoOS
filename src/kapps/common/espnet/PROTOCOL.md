@@ -1,5 +1,7 @@
 # ESPNET binary UART protocol
 
+How to flash (Arduino IDE / OTA) and NedoOS includes: README.txt.
+
 ESP32 / ESP8266 act as a W5300-style socket coprocessor over UART.
 Host is master: the module never sends unsolicited data (`+IPD` does not exist).
 Incoming TCP is buffered on the ESP until `CMD_READ`.
@@ -181,38 +183,15 @@ Persist stores baud in NVS (ESP32) / EEPROM (ESP8266). Boot uses the saved
 value, or 115200 if unset. USB debug stays 115200. Recovery if ZX and ESP
 disagree: USB `AT+UART=115200`, then set `divider = 1` on the host.
 
-## Arduino IDE 2
+## Arduino IDE 2 / OTA
 
-Open folder `src/kapps/common/espnet/` (sketch `espnet.ino`).
+Board list, `pins.h`, Upload and ArduinoOTA: README.txt.
 
-- ESP32 D1 mini: **WEMOS D1 MINI ESP32** / **ESP32 Dev Module**, USB.
-- ESP32-C3 Super Mini: **ESP32C3 Dev Module**, USB CDC On Boot = Enabled.
-- ESP8266 ZX-WiFi (ESP-12F): **Generic ESP8266 Module**, flash 4 MB with OTA.
-- ESP8266 D1 mini / ESP-AT: **LOLIN(WEMOS) D1 R2 & mini**.
+USB Serial Monitor understands `AT+GMR`, `AT+STATUS`, `AT+SOCKS`,
+`AT+UART`, `AT+UART=115200`, `AT+WEB`, `AT+HELP`.
+Do not send AT text on the ZX UART. HTTP dashboard is off until `AT+WEB`.
 
-USB Serial Monitor (ESP32 UART0) understands `AT+GMR`, `AT+STATUS`, `AT+SOCKS`,
-`AT+UART`, `AT+UART=115200`, `AT+HELP`.
-Do not send AT text on the ZX UART.
-
-## Web UI and OTA (v1.12)
-
-After STA has an IP the module serves **http://espnet.local/** (or the IP from
-`CMD_INFO`). Login: user `espnet`, password `espnet` (`ESPNET_WEB_USER` /
-`ESPNET_WEB_PASS` in `pins.h`).
-
-HTTP is idle-only: no poll while ZX UART had a byte in the last 300 ms.
-The dashboard is a static page; stats come from `/stat` every 3 s (one TCP
-connection, `Connection: close`). Meta-refresh is gone -- it opened extra
-sockets and stalled gopher. Close the browser tab while the Spectrum is
-downloading if you still see WiFi lag.
-
-**ArduinoOTA** hostname by chip: `espnet-32`, `espnet-c3`, `espnet-8266`
-(password still `espnet`). Close the web page first.
-While OTA runs, UART/TCP from the ZX are paused. IDE: Port -
-`espnet-8266 at <ip>`. First image is still USB. ESP8266 needs a 4 MB
-board with OTA partition.
-
-## Arduino IDE 2
+## WiFi persist
 
 On boot the firmware calls `WiFi.begin()` with the last AP from NVS (ESP32) / flash
 (ESP8266) and `setAutoReconnect(true)`. Connect from the host saves the AP.
