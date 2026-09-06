@@ -2,8 +2,7 @@ bat: cmd.com
 bas: basic.com
 txt,new,ext,ini,nfo,diz: texted.com
 bmp: scratch.com
-gif,jpg,png: browser.com
-htm,svg: browser.com -f
+gif,jpg,png,htm,svg: browser.com
 16c,scr,fnt,img,3  ,888,y  ,+  ,-  ,plc,mc ,mcx,grf,ch$,mg1,mg2,mg4,mg8,rm ,mlt,53c,atr,zxs: view.com
 tfc,mt3,m  ,et ,etc,cmp,tfd,tfm: player.com
 s98: s98_play.com
