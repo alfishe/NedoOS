@@ -503,6 +503,7 @@ function applyFrame(type, p) {
     blitScreen();
     setStatus("live text");
   } else if (type === FR_XOR) {
+    if (vid !== "text") return;
     applyXorRle(p, plane, PLANESZ);
     blitScreen();
   } else if (type === FR_SCR) {
@@ -594,6 +595,13 @@ function consumeFrames(buf) {
   while (buf.length - o >= 3) {
     var type = buf[o];
     var len = buf[o + 1] | (buf[o + 2] << 8);
+    if (type < 1 || type > 13 || len > EGASZ) {
+      if (streamAbort) {
+        try { streamAbort.abort(); } catch (e) {}
+      }
+      scheduleReconnect();
+      return new Uint8Array(0);
+    }
     if (buf.length - o < 3 + len) break;
     applyFrame(type, buf.subarray(o + 3, o + 3 + len));
     noteFrame(type, len);
@@ -624,7 +632,6 @@ function connectStream() {
   }).then(function (r) {
     if (!r.ok || !r.body) throw new Error("stream " + r.status);
     setStatus("live");
-    sendFps();
     var reader = r.body.getReader();
     var buf = new Uint8Array(0);
     function pump() {
@@ -867,4 +874,20 @@ document.getElementById("fpsText").addEventListener("change", sendFps);
 document.getElementById("fpsScr").addEventListener("change", sendFps);
 document.getElementById("fpsEga").addEventListener("change", sendFps);
 
-loadFont(document.getElementById("fontFile").value).then(connectStream);
+function loadFpsIni() {
+  return fetch("fps.ini", { cache: "no-store" }).then(function (r) {
+    if (!r.ok) return;
+    return r.text();
+  }).then(function (t) {
+    if (!t) return;
+    var m;
+    m = /(?:^|[\r\n])\s*text\s*=\s*(\d+)/i.exec(t);
+    if (m) document.getElementById("fpsText").value = clampFps(m[1]);
+    m = /(?:^|[\r\n])\s*scr\s*=\s*(\d+)/i.exec(t);
+    if (m) document.getElementById("fpsScr").value = clampFps(m[1]);
+    m = /(?:^|[\r\n])\s*ega\s*=\s*(\d+)/i.exec(t);
+    if (m) document.getElementById("fpsEga").value = clampFps(m[1]);
+  }).catch(function () {});
+}
+
+loadFont(document.getElementById("fontFile").value).then(loadFpsIni).then(connectStream);

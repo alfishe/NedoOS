@@ -6,7 +6,7 @@
 ; /ini/network.ini currentNetwork: 0=WIZNET, 2=ESPNET; else print and QUIT.
 ; GET /           -> /bin/scrnet/index.htm
 ; GET /stream     -> chunked binary frames
-;   text 80x25: type1 key 4000 / type2 XOR-RLE
+;   text 80x25: WIZNET type1 raw 4000; ESPNET type1 key / type2 XOR-RLE
 ;   6912:       type4 key 6912 / type5 XOR-RLE (skip unchanged)
 ;   palette:    type6 32-byte DDp (focus OS_GETPAL), on change / connect
 ;   EGA 320x200: WIZNET raw 32K type12 / ESPNET PackBits type7
@@ -746,6 +746,10 @@ ds_z
         ld de,p_866
         call strcmp
         jp z,do_866
+        ld hl,pathbuf
+        ld de,p_fps
+        call strcmp
+        jp z,do_fps
         jp send_404
 
 ds_post
@@ -849,6 +853,10 @@ do_atm
 do_866
         ld de,n_866
         ld hl,ct_bin
+        jp send_named
+do_fps
+        ld de,n_fps
+        ld hl,ct_txt
         jp send_named
 
 ; DE=leaf HL=content-type
@@ -1349,14 +1357,34 @@ sf_nf
         ret nz
         ld hl,PLANESZ
         ld (planesize),hl
+        ; ESPNET: XOR-RLE for deltas. Full FR_KEY on mode/focus/screen
+        ; change so prev/client cannot stay on MC leftover. WIZNET: raw KEY.
+        ld a,(force)
+        or a
+        jr nz,txt_need_f
+        ld a,(last_mode)
+        cp 6
+        jr nz,txt_need_f
+        ld a,(g_id)
+        ld hl,last_id
+        cp (hl)
+        jr nz,txt_need_f
+        ld a,(g_screen)
+        ld hl,last_scr
+        cp (hl)
+        jr nz,txt_need_f
+        xor a
+        jr txt_need_st
+txt_need_f
+        ld a,1
+txt_need_st
+        ld (txt_need),a
+        xor a
+        ld (force),a
         ld a,(g_id)
         ld (last_id),a
         ld a,(g_screen)
         ld (last_scr),a
-        ld a,(force)
-        ld (txt_need),a
-        xor a
-        ld (force),a
         ld a,6
         ld (last_mode),a
         ld a,(net_drv)
@@ -1485,8 +1513,8 @@ send_keyframe
         or 1
         ld (prof_flags),a
         pop af
-        ld (iobuf),a
-        ld (iobuf+1),hl
+        ld (frmhdr),a
+        ld (frmhdr+1),hl
         push hl
         ld bc,3
         add hl,bc
@@ -1504,12 +1532,12 @@ send_keyframe
         pop hl
         pop hl
         ret c
-        ld de,iobuf
+        ld de,frmhdr
         ld hl,3
         call send_data
         ret c
         ld de,curbuf
-        ld hl,(iobuf+1)
+        ld hl,(frmhdr+1)
         call send_data
         ret c
         ld de,crlf
@@ -2418,12 +2446,14 @@ p_index         db "/index.htm",0
 p_app           db "/app.js",0
 p_atm           db "/atmucode.fnt",0
 p_866           db "/866_code.fnt",0
+p_fps           db "/fps.ini",0
 p_stream        db "/stream",0
 p_stream2       db "/stream/",0
 p_input         db "/input",0
 
 ct_htm          db "text/html; charset=utf-8",0
 ct_js           db "text/javascript; charset=utf-8",0
+ct_txt          db "text/plain; charset=utf-8",0
 ct_bin          db "application/octet-stream",0
 
 hdr_ok          db "HTTP/1.1 200 OK",13,10,"Content-Type: ",0
