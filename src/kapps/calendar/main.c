@@ -712,7 +712,7 @@ char fillProdCal(int year)
 
 #include <../common/esp-com.c>
 #include <../common/network.c>
-/* Must fit full HTTP response headers in one READ (cutHeader needs \\r\\n\\r\\n). */
+/* HTTP header may span several READs (kernel ESPNET is 192 bytes). */
 #define ESPNET_HOST_MAX 2048
 #define ESPNET_CLIENT_ONLY 1
 #include <../common/espnet.c>
@@ -805,7 +805,10 @@ char fillBuffer(signed char socket)
 	while (42)
 	{
 		headlng = 0;
-		todo = tcpRead(socket, 20);
+		if (headskip == 0)
+			todo = tcpReadHeader(socket, 20);
+		else
+			todo = tcpRead(socket, 20);
 		testOperation("OS_WIZNETREAD", todo);
 
 		if (headskip == 0)
@@ -1004,14 +1007,19 @@ unsigned char loadProdCalEspNet(int year, const char *country)
 	do
 	{
 		headlng = 0;
-		do
+		if (firstPacket)
+			todo = EspReadHeader((signed char)socket);
+		else
 		{
-			todo = EspRead((signed char)socket);
-			if (todo == 0 - (int)ESPNET_ERR_EAGAIN)
+			do
 			{
-				YIELD();
-			}
-		} while (todo == 0 - (int)ESPNET_ERR_EAGAIN);
+				todo = EspRead((signed char)socket);
+				if (todo == 0 - (int)ESPNET_ERR_EAGAIN)
+				{
+					YIELD();
+				}
+			} while (todo == 0 - (int)ESPNET_ERR_EAGAIN);
+		}
 
 		if (todo < 1)
 		{
@@ -1065,7 +1073,6 @@ C_task main(int argc, char *argv[])
 
 	os_initstdio();
 	CLS();
-	printf("[Build:%s  %s]", __DATE__, __TIME__);
 	AT(3, 25);
 	ATRIB(40);
 	ATRIB(90);

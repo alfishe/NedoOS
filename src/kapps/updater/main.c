@@ -646,10 +646,17 @@ unsigned char getFileEspNet(const unsigned char *fileLink, unsigned char *fileNa
 	do
 	{
 		headlng = 0;
-		do
+		if (firstPacket)
 		{
-			todo = EspRead(socket);
-		} while (todo == 0 - ESPNET_ERR_EAGAIN);
+			todo = EspReadHeader(socket);
+		}
+		else
+		{
+			do
+			{
+				todo = EspRead(socket);
+			} while (todo == 0 - ESPNET_ERR_EAGAIN);
+		}
 		if (todo < 1)
 		{
 			EspShutDown(socket, 0);
@@ -724,7 +731,10 @@ unsigned char getFileNet(const unsigned char *fileLink, unsigned char *fileNameP
 	do
 	{
 		headlng = 0;
-		todo = tcpRead(socket, 1);
+		if (firstPacket)
+			todo = tcpReadHeader(socket, 1);
+		else
+			todo = tcpRead(socket, 1);
 		if (!testOperation3("OS_WIZNETREAD", todo))
 		{
 			return false;
@@ -1093,7 +1103,7 @@ void fullUpdate(void)
 	AT(1, 1);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("[%u:%u]              [FULL UPDATE - UPDATING ALL SYSTEM FILES]    [Build:%s]", netDriver, comType, __TIME__);
+	printf("[%u:%u]              [FULL UPDATE - UPDATING ALL SYSTEM FILES]     ", netDriver, comType);
 	strcpy(cw.tittle, "nedoOS FULL updater ");
 	strcat(cw.tittle, uVer);
 	getConfig();

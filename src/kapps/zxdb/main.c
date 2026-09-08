@@ -1191,7 +1191,10 @@ char getFileNet(void)
 	do
 	{
 		limiter.headLng = 0;
-		todo = tcpRead(socket, 1);
+		if (firstPacket)
+			todo = tcpReadHeader(socket, 1);
+		else
+			todo = tcpRead(socket, 1);
 		testOperation("OS_WIZNETREAD", todo);
 		if (todo == 0)
 		{
@@ -1579,7 +1582,10 @@ char makeRequestNet(void)
 	do
 	{
 		limiter.headLng = 0;
-		todo = tcpRead(socket, 1);
+		if (firstPacket)
+			todo = tcpReadHeader(socket, 1);
+		else
+			todo = tcpRead(socket, 1);
 		testOperation("OS_WIZNETREAD", todo); // Quit if too many retries
 
 		if (firstPacket)
@@ -1970,7 +1976,6 @@ C_task main(void)
 	OS_SETGFX(0x86);
 	OS_CLS(0);
 	OS_SETSYSDRV();
-	printf("[Build:%s  %s]", __DATE__, __TIME__);
 	init();
 	// printTable();
 	//  waitKey();

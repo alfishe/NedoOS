@@ -16,10 +16,10 @@
 #define true 1
 #define false 0
 #define SVN_PORT 3690
-#define NETBUF_BYTES 4096
+#define NETBUF_BYTES 5120
 #define RA_BUF_SIZE 2048
 #define RA_OUT_SIZE 512
-#define RA_CHUNK_IO 512
+#define RA_FILE_IO 8192
 #define RA_CHUNK_MAX 65536
 #define RA_FILL_MAX 2000
 #define PROG_DOT_BYTES 16384UL
@@ -98,7 +98,8 @@ static char ra_list_line[192];
 static char ra_list_name[64];
 static char ra_list_date[20];
 static char ra_get_line[192];
-static unsigned char ra_chunk_buf[RA_CHUNK_IO];
+static unsigned char ra_file_buf[RA_FILE_IO];
+static unsigned int ra_file_pos;
 static unsigned char ra_pb;
 static unsigned char ra_pb_ok;
 
@@ -764,6 +765,48 @@ static unsigned char ra_is_failure(void)
 	return strstr((char *)ra_buf, "( failure") != 0;
 }
 
+static unsigned char ra_copy_to_file(FILE *fp, unsigned int n);
+static unsigned char ra_copy_to_file_esp(FILE *fp, unsigned int n);
+
+static void ra_file_wr_reset(void)
+{
+	ra_file_pos = 0;
+}
+
+static unsigned char ra_file_wr_flush(FILE *fp)
+{
+	if (ra_file_pos == 0)
+		return 1;
+	if (OS_WRITEHANDLE(ra_file_buf, fp, ra_file_pos) != ra_file_pos)
+		return 0;
+	ra_file_pos = 0;
+	return 1;
+}
+
+static unsigned char ra_file_wr_put(FILE *fp, const unsigned char *data, unsigned int n)
+{
+	unsigned int take;
+	unsigned int space;
+
+	while (n > 0)
+	{
+		space = RA_FILE_IO - ra_file_pos;
+		take = n;
+		if (take > space)
+			take = space;
+		memcpy(ra_file_buf + ra_file_pos, data, take);
+		ra_file_pos += take;
+		data += take;
+		n -= take;
+		if (ra_file_pos >= RA_FILE_IO)
+		{
+			if (!ra_file_wr_flush(fp))
+				return 0;
+		}
+	}
+	return 1;
+}
+
 static unsigned char ra_copy_to_file(FILE *fp, unsigned int n)
 {
 	unsigned int avail;
@@ -780,9 +823,34 @@ static unsigned char ra_copy_to_file(FILE *fp, unsigned int n)
 		take = n;
 		if (take > avail)
 			take = avail;
-		if (OS_WRITEHANDLE(netbuf + ra_rx_pos, fp, take) != take)
+		if (!ra_file_wr_put(fp, netbuf + ra_rx_pos, take))
 			return 0;
 		ra_rx_pos += take;
+		n -= take;
+		prog_add(take);
+	}
+	return 1;
+}
+
+static unsigned char ra_copy_to_file_esp(FILE *fp, unsigned int n)
+{
+	unsigned int avail;
+	unsigned int take;
+
+	while (n > 0)
+	{
+		if (esp_ra_pos >= esp_ra_len)
+		{
+			if (!ra_esp_fill())
+				return 0;
+		}
+		avail = esp_ra_len - esp_ra_pos;
+		take = n;
+		if (take > avail)
+			take = avail;
+		if (!ra_file_wr_put(fp, netbuf + esp_ra_pos, take))
+			return 0;
+		esp_ra_pos += take;
 		n -= take;
 		prog_add(take);
 	}
@@ -842,26 +910,16 @@ static unsigned char ra_read_svn_chunk(FILE *fp, unsigned int *out_len)
 	}
 	while (count > 0)
 	{
-		if (netDriver != 1)
+		n = (count > 65535UL) ? 65535U : (unsigned int)count;
+		if (netDriver == 1)
 		{
-			n = (count > 65535UL) ? 65535U : (unsigned int)count;
-			if (!ra_copy_to_file(fp, n))
+			if (!ra_copy_to_file_esp(fp, n))
 				return 0;
 		}
 		else
 		{
-			unsigned long got = 0;
-
-			n = (count > RA_CHUNK_IO) ? RA_CHUNK_IO : (unsigned int)count;
-			while (got < n)
-			{
-				if (!ra_get_byte(&c))
-					return 0;
-				ra_chunk_buf[got++] = c;
-			}
-			if (OS_WRITEHANDLE(ra_chunk_buf, fp, got) != got)
+			if (!ra_copy_to_file(fp, n))
 				return 0;
-			prog_add((unsigned int)got);
 		}
 		*out_len += n;
 		count -= n;
@@ -1397,6 +1455,7 @@ static unsigned char ra_svn_get_file(
 		ra_diag = 30;
 		return 0;
 	}
+	ra_file_wr_reset();
 
 	total_len = 0;
 	while (1)
@@ -1411,6 +1470,13 @@ static unsigned char ra_svn_get_file(
 		if (chunk_len == 0)
 			break;
 		total_len += chunk_len;
+	}
+	if (!ra_file_wr_flush(fp))
+	{
+		ra_diag = 25;
+		fs_close(fp);
+		OS_DELETE((unsigned char *)local_path);
+		return 0;
 	}
 	fs_close(fp);
 	if (total_len == 0)
