@@ -283,6 +283,57 @@ int tcpRead(signed char socket, unsigned char retry)
   return 0 - OS_CALL_ERR(todo);
 }
 
+/* Accumulate into netbuf until HTTP header ends with \r\n\r\n.
+ * Kernel ESPNET READ is 192 bytes; zxart headers are often ~340. */
+int tcpReadHeader(signed char socket, unsigned char retry)
+{
+  unsigned int got;
+  unsigned int todo;
+  unsigned int room;
+  unsigned char tries;
+  char key;
+
+  got = 0;
+  netbuf[0] = 0;
+  tries = retry;
+  if (tries == 0)
+    tries = 1;
+  for (;;)
+  {
+    if (strstr((char *)netbuf, "\r\n\r\n") != 0)
+      return (int)got;
+    room = NETBUF_BYTES - 1 - got;
+    if (room == 0)
+      return 0 - (int)ERR_EMSGSIZE;
+    readStruct.socket = socket;
+    readStruct.BufAdr = (unsigned int)(netbuf + got);
+    readStruct.bufsize = room;
+    readStruct.protocol = SOCK_STREAM;
+    todo = OS_WIZNETREAD(&readStruct);
+    if (OS_CALL_OK(todo))
+    {
+      got += todo;
+      netbuf[got] = 0;
+      tries = retry;
+      if (tries == 0)
+        tries = 1;
+      continue;
+    }
+    if (OS_CALL_ERR(todo) == ERR_EAGAIN)
+    {
+      YIELD();
+      key = _low_level_get();
+      if (key == 27)
+        return 0 - (int)ERR_INTR;
+      continue;
+    }
+    tries--;
+    if (tries == 0)
+      return 0 - (int)OS_CALL_ERR(todo);
+    delayLong(100);
+  }
+}
+
 #ifndef NET_NO_UDP
 unsigned char dnsResolve(const char *domainName)
 {

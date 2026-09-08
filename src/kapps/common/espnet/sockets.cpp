@@ -88,8 +88,12 @@ static void slot_free(uint8_t i)
 	Slot *s = &s_slot[i];
 	if (s->state == ST_TCP || s->state == ST_TCP_IDLE)
 		s->tcp.stop();
-	if (s->state == ST_UDP)
+	if (s->state == ST_UDP) {
 		s->udp.stop();
+		/* Arduino WiFiUDP.stop() returns before lwIP recycles the PCB.
+		 * Rapid SOCKET/BIND begin(0) then failed with NOTSOCK until a pause. */
+		delay(15);
+	}
 	if (s->srv) {
 		s->srv->stop();
 		delete s->srv;
@@ -293,7 +297,21 @@ static uint16_t do_socket(const uint8_t *req, uint16_t req_n, uint8_t *rsp)
 	s_slot[id].proto = proto;
 	s_slot[id].local_port = 0;
 	s_slot[id].rx_len = 0;
-	s_slot[id].state = (proto == ESPNET_SOCK_STREAM) ? ST_TCP_IDLE : ST_UDP;
+	if (proto == ESPNET_SOCK_STREAM) {
+		s_slot[id].state = ST_TCP_IDLE;
+		return rsp_hdr(rsp, ESPNET_CMD_SOCKET, (uint8_t)id, 0, seq, 0, 0);
+	}
+	/* WIZNET socket() already programs an ephemeral local port. WiFiUDP
+	 * needs begin() before beginPacket(); myip / dnsResolve never BIND. */
+	if (!s_slot[id].udp.begin(0)) {
+		delay(20);
+		if (!s_slot[id].udp.begin(0)) {
+			s_slot[id].proto = 0;
+			return rsp_err(rsp, ESPNET_CMD_SOCKET, ESPNET_SOCK_NONE, seq,
+				       ESPNET_ERR_ECONNABORTED);
+		}
+	}
+	s_slot[id].state = ST_UDP;
 	return rsp_hdr(rsp, ESPNET_CMD_SOCKET, (uint8_t)id, 0, seq, 0, 0);
 }
 
@@ -333,8 +351,7 @@ static uint16_t do_connect(const uint8_t *req, uint16_t req_n, uint8_t *rsp)
 	if (plen < ESPNET_SOCKADDR_SIZE || req_n < ESPNET_REQ_HDR + ESPNET_SOCKADDR_SIZE)
 		return rsp_err(rsp, ESPNET_CMD_CONNECT, sock, seq, ESPNET_ERR_INTR);
 	sa = req + ESPNET_REQ_HDR;
-	if (sa[0] != ESPNET_AF_INET)
-		return rsp_err(rsp, ESPNET_CMD_CONNECT, sock, seq, ESPNET_ERR_AFNOSUPPORT);
+	/* WIZNET copies port+IP and ignores family; browser host_ia.family=0. */
 	ip = sa_ip(sa);
 	port = sa_port(sa);
 	s_slot[sock].tcp.stop();
@@ -392,6 +409,9 @@ static uint16_t do_bind(const uint8_t *req, uint16_t req_n, uint8_t *rsp)
 	sa = req + ESPNET_REQ_HDR;
 	s_slot[sock].local_port = sa_port(sa);
 	if (s_slot[sock].proto == ESPNET_SOCK_DGRAM) {
+		/* SOCKET already called begin(0). stop+begin(0) again races lwIP. */
+		if (s_slot[sock].state == ST_UDP && s_slot[sock].local_port == 0)
+			return rsp_hdr(rsp, ESPNET_CMD_BIND, sock, 0, seq, 0, 0);
 		s_slot[sock].udp.stop();
 		if (!s_slot[sock].udp.begin(s_slot[sock].local_port))
 			return rsp_err(rsp, ESPNET_CMD_BIND, sock, seq, ESPNET_ERR_ECONNABORTED);
@@ -545,13 +565,13 @@ static uint16_t do_write(const uint8_t *req, uint16_t req_n, uint8_t *rsp)
 		sa = req + ESPNET_REQ_HDR;
 		data = sa + ESPNET_SOCKADDR_SIZE;
 		dlen = (uint16_t)(plen - ESPNET_SOCKADDR_SIZE);
-		if (s->state != ST_UDP) {
+		if (!s->udp.beginPacket(sa_ip(sa), sa_port(sa))) {
 			if (!s->udp.begin(s->local_port))
 				return rsp_err(rsp, ESPNET_CMD_WRITE, sock, seq, ESPNET_ERR_ECONNABORTED);
 			s->state = ST_UDP;
+			if (!s->udp.beginPacket(sa_ip(sa), sa_port(sa)))
+				return rsp_err(rsp, ESPNET_CMD_WRITE, sock, seq, ESPNET_ERR_HOSTUNREACH);
 		}
-		if (!s->udp.beginPacket(sa_ip(sa), sa_port(sa)))
-			return rsp_err(rsp, ESPNET_CMD_WRITE, sock, seq, ESPNET_ERR_HOSTUNREACH);
 		if (dlen)
 			s->udp.write(data, dlen);
 		if (!s->udp.endPacket())

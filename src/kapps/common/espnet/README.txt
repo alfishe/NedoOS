@@ -119,8 +119,11 @@ ESP8266 D1 mini / WROOM-02 (ESP-AT разводка)
   ESP8266 D1 mini (swap)  15  13    3    1   лог GPIO2
   ESP8266 ZX-WiFi native   1   3   13   15   GPIO2, без разъёма
 
-ZX RTS -> ESP CTS  (на YIELD Спектрум снимает RTS, ESP стопит TX)
-ESP RTS -> ZX CTS
+ZX RTS -> ESP CTS: host готов принимать. Ядро RTS/CTS не трогает.
+Если RTS поднят и задача сделала YIELD - байты с UART пропадают
+(читать некому). Поэтому приём кадра идёт под DI. YIELD - это
+"отдай остаток кванта ядру", не сброс RTS.
+ESP RTS -> ZX CTS: не переполнять RX FIFO модуля.
 
 ZX-WiFi v1.6: прошивка через X2 (TTL 3.3 V), SW1 = ESP.
 На время Upload разомкните X5/X6 (16550 не должен драться с адаптером),
@@ -149,17 +152,17 @@ Arduino OTA
 После STA+IP OTA поднимается сама. Веб по умолчанию выключен
 (экономит сокеты); включить: USB AT+WEB.
 
-  mDNS     espnet-32 / espnet-c3 / espnet-8266   (AT+GMR -> ota:)
-  OTA pass espnet                                (ESPNET_WEB_PASS)
-  Web      http://espnet-32.local/  или IP
+  mDNS     espnet-ESP32 / espnet-C3 / espnet-8266  (AT+GMR -> ota:)
+  OTA pass espnet                                  (ESPNET_WEB_PASS)
+  Web      http://espnet-ESP32.local/  или IP
            логин espnet / espnet
 
 Как прошить по воздуху:
 
 1. Модуль в той же Wi-Fi, что ПК. Первый образ - только USB.
 2. Закройте вкладку веба, если открывали.
-3. Тот же скетч, та же плата. Port = "espnet-8266 at <ip>"
-   (имя зависит от чипа).
+3. Тот же скетч, та же плата. Port = "espnet-ESP32 at <ip>"
+   (или espnet-C3 / espnet-8266 - смотри AT+GMR).
 4. Upload. Пока идёт OTA, UART/TCP со Спектрума стоят.
 5. ESP8266: Flash Size с OTA-partition, иначе по сети не влезет.
 

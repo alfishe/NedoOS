@@ -85,6 +85,41 @@ int EspRead(signed char socket)
 	return 0 - ESPNET_C_ERR(todo);
 }
 
+int EspReadHeader(signed char socket)
+{
+	unsigned int got;
+	unsigned int todo;
+	unsigned int room;
+
+	got = 0;
+	netbuf[0] = 0;
+	for (;;)
+	{
+		if (strstr((char *)netbuf, "\r\n\r\n") != 0)
+			return (int)got;
+		room = NETBUF_BYTES - 1 - got;
+		if (room == 0)
+			return 0 - (int)ESPNET_ERR_EMSGSIZE;
+		readStruct.socket = (unsigned char)socket;
+		readStruct.BufAdr = (unsigned int)(netbuf + got);
+		readStruct.bufsize = room;
+		readStruct.protocol = SOCK_STREAM;
+		todo = OS_ESPREAD(&readStruct);
+		if (ESPNET_C_OK(todo))
+		{
+			got += todo;
+			netbuf[got] = 0;
+			continue;
+		}
+		if (ESPNET_C_ERR(todo) == ESPNET_ERR_EAGAIN)
+		{
+			YIELD();
+			continue;
+		}
+		return 0 - (int)ESPNET_C_ERR(todo);
+	}
+}
+
 #ifndef ESPNET_NO_UDP
 int EspSendTo(signed char socket, unsigned int messageadr, unsigned int size,
 	      struct sockaddr_in *to)
@@ -124,6 +159,8 @@ unsigned char EspDnsResolve(const char *domainName)
 
 	if (domainName[0] == 0)
 		return 0;
+	/* After TCP close the ESP DNS resolver often fails for ~1s (lwIP). */
+	espnet_pause(15);
 	for (try = 0; try < ESPNET_DNS_TRIES; try++)
 	{
 		r = OS_ESPDNSRESOLVE((unsigned char *)domainName, ip);
