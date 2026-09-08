@@ -32,6 +32,9 @@ unsigned char term_has_replies(void);
 unsigned char term_take_ed2_needs_cr(void);
 void term_palette_begin(void);
 void term_palette_restore(void);
+void term_set_ansi_palette(void);
+/* After key_redraw: sync HW cursor to tracked position and redraw caret. */
+void term_focus_redraw(void);
 
 #define TERM_CURS_HOLD_RX  1u
 #define TERM_CURS_HOLD_ZM  2u

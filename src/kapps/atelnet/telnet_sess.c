@@ -71,6 +71,8 @@ static unsigned long g_idle_loops;
 
 static void telnet_flush_ga_debt(void);
 static int telnet_poll_rx(void);
+static void telnet_ui_redraw(void);
+static void telnet_drain_keys(unsigned char do_redraw);
 static char g_cur_host[128];
 
 static void telnet_flush_tx(void)
@@ -406,10 +408,7 @@ static void telnet_zm_after_common(int rc, char *ok_msg, char *fail_msg)
   telnet_zm_discard_rx(16u);
   zm_status_clear();
   telnet_zm_discard_rx(128u);
-  while ((OS_GETKEY() & 0xFFL) != 0L)
-  {
-    YIELD();
-  }
+  telnet_drain_keys(1u);
 }
 
 static void telnet_zm_bin_prep(void)
@@ -677,6 +676,40 @@ static void telnet_waiting_hint(void)
   term_set_color(0x07u);
 }
 
+static void telnet_ui_redraw(void)
+{
+  term_set_ansi_palette();
+  term_cursor_hide();
+  if (g_wait_hint != 0u)
+  {
+    OS_SETXY(0u, 0u);
+    OS_SETCOLOR(0x4Eu);
+    printf("Connected. Waiting for host data... (retry if BBS busy)");
+    OS_SETCOLOR(0x07u);
+  }
+  term_focus_redraw();
+  telnet_status_draw();
+}
+
+static void telnet_drain_keys(unsigned char do_redraw)
+{
+  unsigned char key;
+
+  for (;;)
+  {
+    key = (unsigned char)(OS_GETKEY() & 0xFFL);
+    if (key == 0u)
+    {
+      break;
+    }
+    if (key == KEY_REDRAW && do_redraw != 0u)
+    {
+      telnet_ui_redraw();
+    }
+    YIELD();
+  }
+}
+
 static void telnet_send_key(unsigned char key)
 {
   switch (key)
@@ -837,7 +870,11 @@ int telnet_session(const char *host, unsigned int port, unsigned char debug, uns
       key = (unsigned char)(OS_GETKEY() & 0xFFL);
       if (key != 0u)
       {
-        if (key == KEY_F10)
+        if (key == KEY_REDRAW)
+        {
+          telnet_ui_redraw();
+        }
+        else if (key == KEY_F10)
         {
           running = 0u;
           user_quit = 1u;
@@ -855,10 +892,7 @@ int telnet_session(const char *host, unsigned int port, unsigned char debug, uns
           term_palette_restore();
           netShutDown(g_socket, 0u);
           g_socket = -1;
-          while ((OS_GETKEY() & 0xFFL) != 0L)
-          {
-            YIELD();
-          }
+          telnet_drain_keys(0u);
 
           if (r_telbook_run(g_cur_host, sizeof(g_cur_host), &book_port, &book_cp866, &book_debug))
           {

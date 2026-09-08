@@ -845,11 +845,31 @@ void purgeline(void)
   zm_nb_clear();
 }
 
-int opabort(void)
+static void zm_focus_redraw(void)
+{
+  term_set_ansi_palette();
+  term_focus_redraw();
+  zm_status_render();
+}
+
+static unsigned char zm_poll_key(void)
 {
   unsigned char key;
 
   key = (unsigned char)(OS_GETKEY() & 0xFFL);
+  if (key == KEY_REDRAW)
+  {
+    zm_focus_redraw();
+    return 0u;
+  }
+  return key;
+}
+
+int opabort(void)
+{
+  unsigned char key;
+
+  key = zm_poll_key();
   if (key == 0u)
   {
     return FALSE;
@@ -921,7 +941,7 @@ int chrin(void)
 
   for (;;)
   {
-    key = (unsigned char)(OS_GETKEY() & 0xFFL);
+    key = zm_poll_key();
     if (key != 0u)
     {
       return (int)key;
@@ -948,12 +968,22 @@ int getpathname(char *prompt)
     do
     {
       key = (unsigned char)(OS_GETKEY() & 0xFFL);
+      if (key == KEY_REDRAW)
+      {
+        break;
+      }
       if (key != 0u)
       {
         break;
       }
       YIELD();
     } while (1);
+    if (key == KEY_REDRAW)
+    {
+      term_set_ansi_palette();
+      term_focus_redraw();
+      continue;
+    }
     if (key == 13u || key == 253u)
     {
       break;

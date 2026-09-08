@@ -7,30 +7,41 @@
 #include <intrz80.h>
 #include <oscalls.h>
 #include "term.h"
+#include "atelnet_plug.h"
 
-static const char ver[] = "atelnet 1.82";
+static const char ver[] = "atelnet 1.83";
 
-void r_wait_key(void)
+unsigned char r_wait_key(void)
 {
+  unsigned char key;
+
   do
   {
     YIELD();
-  } while ((OS_GETKEY() & 0xFFL) == 0L);
+    key = (unsigned char)(OS_GETKEY() & 0xFFL);
+  } while (key == 0u);
+  return key;
 }
 
 void r_show_ansiview_hint(const char *path)
 {
-  term_cls(0x4Fu);
-  term_set_xy(0u, 0u);
-  printf("ANSI files: use ansiview.com\r\n");
-  if (path != 0 && path[0] != 0)
+  for (;;)
   {
-    term_set_xy(0u, 2u);
-    printf("ansiview %s\r\n", path);
+    term_cls(0x4Fu);
+    term_set_xy(0u, 0u);
+    printf("ANSI files: use ansiview.com\r\n");
+    if (path != 0 && path[0] != 0)
+    {
+      term_set_xy(0u, 2u);
+      printf("ansiview %s\r\n", path);
+    }
+    term_set_xy(0u, TERM_LAST_ROW);
+    printf("Press any key...");
+    if (r_wait_key() != KEY_REDRAW)
+    {
+      return;
+    }
   }
-  term_set_xy(0u, TERM_LAST_ROW);
-  printf("Press any key...");
-  r_wait_key();
 }
 
 int r_host_looks_like_file(const char *host)
@@ -52,32 +63,38 @@ int r_host_looks_like_file(const char *host)
 
 void r_show_usage(void)
 {
-  term_cls(0x07u);
-  term_set_xy(0u, 0u);
-  printf("%s\r\n", ver);
-  term_set_xy(0u, 2u);
-  printf("Usage:\r\n");
-  term_set_xy(2u, 3u);
-  printf("atelnet host[:port]\r\n");
-  term_set_xy(2u, 5u);
-  printf("  host[:port]  telnet session (port 23)\r\n");
-  term_set_xy(2u, 6u);
-  printf("  -d          debug status (RX/TX line)\r\n");
-  term_set_xy(2u, 7u);
-  printf("  -866        CP866 wire (default CP437)\r\n");
-  term_set_xy(2u, 8u);
-  printf("  (no args)    address book\r\n");
-  term_set_xy(2u, 9u);
-  printf("  F10=exit  F2=address book (in session)\r\n");
-  term_set_xy(2u, 10u);
-  printf("  F5=ZMODEM send (file in /downloads, rz on host)\r\n");
-  term_set_xy(2u, 11u);
-  printf("  F6=ZMODEM recv  F7=YMODEM  F8=XMODEM\r\n");
-  term_set_xy(2u, 12u);
-  printf("  ESC=send ESC to host\r\n");
-  term_set_xy(0u, TERM_LAST_ROW);
-  printf("Press any key...");
-  r_wait_key();
+  for (;;)
+  {
+    term_cls(0x07u);
+    term_set_xy(0u, 0u);
+    printf("%s\r\n", ver);
+    term_set_xy(0u, 2u);
+    printf("Usage:\r\n");
+    term_set_xy(2u, 3u);
+    printf("atelnet host[:port]\r\n");
+    term_set_xy(2u, 5u);
+    printf("  host[:port]  telnet session (port 23)\r\n");
+    term_set_xy(2u, 6u);
+    printf("  -d          debug status (RX/TX line)\r\n");
+    term_set_xy(2u, 7u);
+    printf("  -866        CP866 wire (default CP437)\r\n");
+    term_set_xy(2u, 8u);
+    printf("  (no args)    address book\r\n");
+    term_set_xy(2u, 9u);
+    printf("  F10=exit  F2=address book (in session)\r\n");
+    term_set_xy(2u, 10u);
+    printf("  F5=ZMODEM send (file in /downloads, rz on host)\r\n");
+    term_set_xy(2u, 11u);
+    printf("  F6=ZMODEM recv  F7=YMODEM  F8=XMODEM\r\n");
+    term_set_xy(2u, 12u);
+    printf("  ESC=send ESC to host\r\n");
+    term_set_xy(0u, TERM_LAST_ROW);
+    printf("Press any key...");
+    if (r_wait_key() != KEY_REDRAW)
+    {
+      return;
+    }
+  }
 }
 
 int r_parse_host_port(char *arg, char *host, unsigned int host_sz, unsigned int *port)
@@ -109,10 +126,16 @@ int r_parse_host_port(char *arg, char *host, unsigned int host_sz, unsigned int 
 
 void r_show_bad_host(void)
 {
-  term_cls(0x4Fu);
-  term_set_xy(0u, 0u);
-  printf("atelnet: bad host argument\r\n");
-  term_set_xy(0u, 2u);
-  printf("Press any key...");
-  r_wait_key();
+  for (;;)
+  {
+    term_cls(0x4Fu);
+    term_set_xy(0u, 0u);
+    printf("atelnet: bad host argument\r\n");
+    term_set_xy(0u, 2u);
+    printf("Press any key...");
+    if (r_wait_key() != KEY_REDRAW)
+    {
+      return;
+    }
+  }
 }

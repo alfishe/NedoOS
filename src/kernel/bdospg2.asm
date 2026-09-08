@@ -167,9 +167,13 @@ standardpal
         endif
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-		if INETDRV
+		if INETDRV == 1
         include "w5300.asm"
-        else
+		endif
+		if INETDRV == 2
+        include "espnet.asm"
+		endif
+		if INETDRV == 0
 wiznet_open
 wiznet_close
 wiznet_read
@@ -177,4 +181,4 @@ wiznet_write
         ld hl,0xffff
         ld a,l
         ret
-		ENDIF
+		endif

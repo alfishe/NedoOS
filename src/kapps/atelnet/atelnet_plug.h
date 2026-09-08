@@ -3,6 +3,9 @@
 
 #include <oscalls.h>
 
+/* sysdefs.asm key_redraw: OS sends this when the app regains focus. */
+#define KEY_REDRAW 31u
+
 extern unsigned char residentPg;
 extern unsigned char g_dataPg;
 
@@ -15,6 +18,7 @@ int r_telbook_run(char *host, unsigned int host_sz, unsigned int *port,
 void r_show_ansiview_hint(const char *path);
 int r_host_looks_like_file(const char *host);
 void r_show_usage(void);
+unsigned char r_wait_key(void);
 int r_parse_host_port(char *arg, char *host, unsigned int host_sz, unsigned int *port);
 void r_show_bad_host(void);
 

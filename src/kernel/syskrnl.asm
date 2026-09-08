@@ -1231,5 +1231,73 @@ INTSTACK1;!=0x3f00 ;kernelspace (для входа в обработчик без порчи стека) (не пер
 
         include "fatfsdrv.asm"
         include "sysbdos.asm" ;в конце есть align 256
+		if INETDRV == 2
+        include "espnet_bss.asm"
+; Sockaddr in pgsys: WIZNET copies dest into the chip before mapping the
+; payload page. We stash 15 bytes here so UDP DE/IX can live on different pages.
+espk_sa_save
+        ld hl,espk_sa
+        ex de,hl
+        ld bc,15
+        ldir
+        ld de,espk_sa
+        ret
+espk_sa_load
+        push af
+        push hl
+        ; WIZNET: sockaddr to DE, then payload to IX. If DE==IX, payload wins.
+        ; browser DNS uses DE=IX=dnsbuf; copying sa after data clobbers the packet.
+        ld hl,(espk_sa_user)
+        ld de,(espk_buf_user)
+        or a
+        sbc hl,de
+        jr z,espk_sa_load_skip
+        ld de,(espk_sa_user)
+        call BDOS_preparedepage
+        call BDOS_setdepage
+        ld hl,espk_sa
+        ld bc,15
+        ldir
+espk_sa_load_skip
+        pop hl
+        pop af
+        ret
+; browser host_ia.family=0; WIZNET skips it, ESP CONNECT used to require AF_INET.
+espk_connect_sa
+        push af
+        call espk_sa_save
+        ld a,AF_INET
+        ld (espk_sa),a
+        pop af
+        jp esp_connect
+; WIZNET socket() sets a local port; ESP needs BIND/begin before sendto.
+; myip and dnsResolve never call OS_BIND. Keep HL=sock on return.
+espk_udp_autobind
+        push hl
+        push bc
+        ld c,a
+        ld b,0
+        ld hl,esp_proto
+        add hl,bc
+        ld a,(hl)
+        cp SOCK_DGRAM
+        ld a,c
+        jr nz,espk_uab_done
+        push af
+        ld hl,espk_sa
+        xor a
+        ld b,ESPNET_SOCKADDR_SIZE
+espk_uab_z
+        ld (hl),a
+        inc hl
+        djnz espk_uab_z
+        pop af
+        ld de,espk_sa
+        call esp_bind
+espk_uab_done
+        pop bc
+        pop hl
+        ret
+		endif
 syskrnl_end=$
         ent

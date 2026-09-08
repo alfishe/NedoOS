@@ -239,6 +239,18 @@ void term_cursor_hold_and_not(unsigned char mask)
   term_cursor_show();
 }
 
+void term_focus_redraw(void)
+{
+  term_cursor_hide();
+  if (TERM_DOC_ON())
+  {
+    return;
+  }
+  OS_SETXY(term_col, term_row);
+  term_hw_sync = 1u;
+  term_cursor_show();
+}
+
 static unsigned char term_safe_cls_attr(unsigned char attr)
 {
   if (attr == 0x00u)

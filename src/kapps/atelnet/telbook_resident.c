@@ -634,6 +634,12 @@ static void telbook_draw_static(void)
   telbook_draw_global_hint();
 }
 
+static void telbook_full_redraw(void)
+{
+  telbook_draw_static();
+  telbook_draw_list();
+}
+
 static void telbook_clamp_scroll(void)
 {
   unsigned char total;
@@ -895,6 +901,13 @@ static void telbook_delete_entry(void)
   telbook_clamp_scroll();
 }
 
+static void telbook_draw_confirm_quit(void)
+{
+  telbook_full_redraw();
+  telbook_fill_rect(1u, TELBOOK_HELP_Y, 78u, 1u, 0x07u);
+  telbook_draw_chip(1u, TELBOOK_HELP_Y, 32u, 0x70u, " Save changes? Y/N Esc=discard ");
+}
+
 static int telbook_confirm_quit(void)
 {
   unsigned char key;
@@ -903,12 +916,16 @@ static int telbook_confirm_quit(void)
   {
     return 1;
   }
-  telbook_fill_rect(1u, TELBOOK_HELP_Y, 78u, 1u, 0x07u);
-  telbook_draw_chip(1u, TELBOOK_HELP_Y, 32u, 0x70u, " Save changes? Y/N Esc=discard ");
+  telbook_draw_confirm_quit();
   for (;;)
   {
     YIELD();
     key = (unsigned char)(OS_GETKEY() & 0xFFL);
+    if (key == KEY_REDRAW)
+    {
+      telbook_draw_confirm_quit();
+      continue;
+    }
     if (key == 'y' || key == 'Y')
     {
       (void)telbook_save();
@@ -1040,8 +1057,19 @@ int r_telbook_run(char *host, unsigned int host_sz, unsigned int *port,
   tel_sel = 0u;
   tel_scroll = 0u;
   telbook_draw_static();
-  while ((OS_GETKEY() & 0xFFL) != 0L)
+  for (;;)
   {
+    unsigned char drain;
+
+    drain = (unsigned char)(OS_GETKEY() & 0xFFL);
+    if (drain == 0u)
+    {
+      break;
+    }
+    if (drain == KEY_REDRAW)
+    {
+      telbook_full_redraw();
+    }
     YIELD();
   }
   rb_kind = TEL_RB_LIST;
@@ -1063,6 +1091,11 @@ int r_telbook_run(char *host, unsigned int host_sz, unsigned int *port,
     key = (unsigned char)(OS_GETKEY() & 0xFFL);
     if (key == 0u)
     {
+      continue;
+    }
+    if (key == KEY_REDRAW)
+    {
+      telbook_full_redraw();
       continue;
     }
 
