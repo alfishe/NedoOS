@@ -69,7 +69,8 @@ extern unsigned char ty_lo[200];
 void gfx_set_palette(void);           /* ZX Spectrum DDp palette (browser/zxpal) */
 void gfx_set_palette_standard(void);  /* kernel STANDARDPAL (games default) */
 void gfx_set_palette_black(void);     /* all-black while drawing */
-void gfx_set_palette_bytes(const unsigned char *pal32); /* 32-byte DDp / OS_SETPAL */
+void gfx_set_palette_bytes(const unsigned char *pal32); /* 32-byte DDp (PWM bits in lo) */
+void gfx_set_palette_bytes_atm64(const unsigned char *pal32); /* high bytes only, B=#FF */
 void gfx_draw_palette_test(unsigned char x, unsigned char y); /* 16 index swatches */
 
 void gfx_init(void);

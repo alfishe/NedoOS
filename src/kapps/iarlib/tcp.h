@@ -24,6 +24,15 @@ void OS_SETDNS(void * addr);
 
 void OS_GETDNS(void * addr);
 
+/* 20 bytes: comType, divider, RBR,IER,IIR,LCR,MCR,LSR,MSR,SR, pktMax (words LE) */
+/* HL=0 ok; HL=-1 and A=errno on error (EAGAIN=35 if UART frame in flight) */
+unsigned int OS_SETUART(void * addr);
+
+unsigned int OS_GETUART(void * addr);
+
+/* 53-byte ESP CMD_INFO: wifi, rssi, ip[4], ssid[33], ... ; 0=ok */
+unsigned int OS_GETINFO(void * addr);
+
 unsigned int OS_NETSOCKET(unsigned int);
 //	D - семейство адресов, беззнаковое 8-битное число, допускается только значение 2 (AF_INET).
 //  E - протокол соединения(0x01 tcp/ip, 0x02 icmp, 0x03 udp/ip)

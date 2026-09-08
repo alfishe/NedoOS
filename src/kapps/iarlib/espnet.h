@@ -36,6 +36,7 @@ int EspShutDown(signed char socket, unsigned char type);
 int EspConnect(signed char socket);
 int EspSend(signed char socket, unsigned int messageadr, unsigned int size);
 int EspRead(signed char socket);
+int EspReadHeader(signed char socket);
 int EspSendTo(signed char socket, unsigned int messageadr, unsigned int size,
 	      struct sockaddr_in *to);
 int EspRecvFrom(signed char socket, struct sockaddr_in *from);

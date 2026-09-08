@@ -16,6 +16,7 @@ void gfx_pal_load_zx(void);
 void gfx_pal_load_standard(void);
 void gfx_pal_load_black(void);
 void gfx_pal_apply(void);
+void gfx_pal_apply_atm64(void);
 
 static void gfx_map_pages(unsigned char low_pg, unsigned char high_pg)
 {
@@ -83,6 +84,26 @@ void gfx_set_palette_bytes(const unsigned char *pal32)
     gfx_pal_buf[i] = pal32[i];
   }
   gfx_push_palette();
+}
+
+void gfx_set_palette_bytes_atm64(const unsigned char *pal32)
+{
+  unsigned char i;
+  unsigned char n;
+
+  if (pal32 == 0)
+  {
+    return;
+  }
+  for (i = 0u; i < GFX_PALETTE_OS_BYTES; i++)
+  {
+    gfx_pal_buf[i] = pal32[i];
+  }
+  gfx_pal_apply_atm64();
+  for (n = 0u; n < 3u; n++)
+  {
+    OS_HALT();
+  }
 }
 
 void gfx_draw_palette_test(unsigned char x, unsigned char y)

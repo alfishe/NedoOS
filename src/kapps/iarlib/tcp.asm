@@ -416,4 +416,55 @@ OS_SETDNS:
 	pop ix
 	ret
 ENDMOD
+
+MODULE OS_SETUART
+PUBLIC OS_SETUART
+#include "sysdefs.asm"
+RSEG CODE
+OS_SETUART:
+	ld l,0x09
+	push ix
+	push iy
+	ld a,c
+	ex af,af'
+	ld c,CMD_WIZNETOPEN
+	call BDOS
+	pop iy
+	pop ix
+	ret
+ENDMOD
+
+MODULE OS_GETUART
+PUBLIC OS_GETUART
+#include "sysdefs.asm"
+RSEG CODE
+OS_GETUART:
+	ld l,0x0a
+	push ix
+	push iy
+	ld a,c
+	ex af,af'
+	ld c,CMD_WIZNETOPEN
+	call BDOS
+	pop iy
+	pop ix
+	ret
+ENDMOD
+
+MODULE OS_GETINFO
+PUBLIC OS_GETINFO
+#include "sysdefs.asm"
+RSEG CODE
+OS_GETINFO:
+	ld l,0x0b
+	push ix
+	push iy
+	ld a,c
+	ex af,af'
+	ld c,CMD_WIZNETOPEN
+	call BDOS
+	pop iy
+	pop ix
+	ret
+ENDMOD
 END

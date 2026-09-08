@@ -6,7 +6,7 @@
 	PUBLIC zx_ega_left_tab, zx_ega_right_tab, zx_ega_solid_tab
 	PUBLIC gfx_put_screen_byte, gfx_store_pair, gfx_putpixel
 	PUBLIC gfx_pal_buf, gfx_pal_load_zx, gfx_pal_load_standard
-	PUBLIC gfx_pal_load_black, gfx_pal_apply
+	PUBLIC gfx_pal_load_black, gfx_pal_apply, gfx_pal_apply_atm64
 	PUBLIC ty_lo
 	EXTERN g_row
 	#include "sysdefs.asm"
@@ -660,6 +660,40 @@ gfx_hw_pal_fe_loop:
 	pop bc
 	ret
 
+; 64-color ATM: high DDp byte only. B=#FF so A8-A15 carry no PWM bits.
+gfx_hw_load_palette_atm64:
+	push bc
+	push de
+	push hl
+	push af
+	ld hl,gfx_pal_buf
+	ld de,31
+	add hl,de
+	ld bc,0xffff
+	ld a,7
+gfx_hw_pal64_f6_loop:
+	out (0xF6),a
+	ld d,(hl)
+	dec hl
+	dec hl
+	out (c),d
+	dec a
+	jp p,gfx_hw_pal64_f6_loop
+	ld a,7
+gfx_hw_pal64_fe_loop:
+	out (0xFE),a
+	ld d,(hl)
+	dec hl
+	dec hl
+	out (c),d
+	dec a
+	jp p,gfx_hw_pal64_fe_loop
+	pop af
+	pop hl
+	pop de
+	pop bc
+	ret
+
 ; RAM palette buffer (games keep pal[] in RAM; BDOS_setpal copies from DE).
 gfx_pal_buf:
 	DEFS	32
@@ -695,6 +729,22 @@ gfx_pal_apply:
 	pop ix
 	pop de
 	call gfx_hw_load_palette_focus
+	pop bc
+	ret
+
+; OS_SETPAL + ATM64 push (no PWM bits on the port high address).
+gfx_pal_apply_atm64:
+	push bc
+	push de
+	push ix
+	push iy
+	ld de,gfx_pal_buf
+	ld c,CMD_SETPAL
+	call BDOS
+	pop iy
+	pop ix
+	pop de
+	call gfx_hw_load_palette_atm64
 	pop bc
 	ret
 
