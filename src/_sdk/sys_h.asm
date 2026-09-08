@@ -745,6 +745,21 @@ __1=$
         ld c,CMD_WIZNETOPEN
 	CALLBDOS
         endm
+        macro OS_SETUART;DE= ptr to 20-byte UART cfg (comType,divider,8 words,pktMax)
+	ld l,0x09
+        ld c,CMD_WIZNETOPEN
+	CALLBDOS
+        endm
+        macro OS_GETUART;DE= ptr to 20-byte UART cfg
+	ld l,0x0a
+        ld c,CMD_WIZNETOPEN
+	CALLBDOS
+        endm
+        macro OS_GETINFO;DE= ptr to 53-byte ESP INFO (wifi,rssi,ip,ssid)
+	ld l,0x0b
+        ld c,CMD_WIZNETOPEN
+	CALLBDOS
+        endm
         macro OS_WIZNETCLOSE;A=SOCKET
         ld c,CMD_WIZNETCLOSE
 	CALLBDOS

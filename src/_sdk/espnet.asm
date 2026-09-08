@@ -16,10 +16,17 @@
 
 ESPNET_SOF              EQU 0xA5
 ESPNET_SOCK_NONE        EQU 0xFF
+        ifdef ESPNET_KERNEL
+; Firmware UART payload cap. Per-BDOS clip is ram esp_host_max (espcfg pktMax).
 ESPNET_HOST_MAX         EQU 2048
+ESPNET_HOST_MAX_DEF     EQU 192
+ESPNET_RSP_MAX          EQU 64
+        else
+ESPNET_HOST_MAX         EQU 2048
+ESPNET_RSP_MAX          EQU 256
+        endif
 ESPNET_REQ_HDR          EQU 6
 ESPNET_RSP_HDR          EQU 8
-ESPNET_RSP_MAX          EQU 256
 ESPNET_SOCKADDR_SIZE    EQU 15
 ESPNET_CMD_MASK         EQU 0x7F
 ESPNET_CMD_SOCKET       EQU 0x01
@@ -44,6 +51,11 @@ ESPNET_ERR_EAGAIN       EQU 35
 ESPNET_ERR_EMSGSIZE     EQU 40
 ESPNET_ERR_NOTCONN      EQU 57
 ESPNET_ERR_HOSTUNREACH  EQU 65
+; Timeouts (kernel: no YIELD, spin). Tune here:
+; SOF_TICKS      - wait for 0xA5: each wrap of idle (256 polls) decrements deadline
+; SOF_TICKS_LONG - CONNECT / DNSRESOLVE / WIFI
+; esp_spin/factor 65000 - per-byte wait in fill (and CTS inner loop)
+; CTS kernel cap 20001 - esp_wait_cts
 ESPNET_SOF_TICKS        EQU 500
 ESPNET_SOF_TICKS_LONG   EQU 3000
 ESPNET_INFO_SIZE        EQU 53
@@ -64,8 +76,13 @@ esp_init
         ld (esp_seq),a
         ld (esp_armed),a
         ld (esp_qflag),a
+        ifdef ESPNET_KERNEL
+        ld (esp_busy),a
+        endif
         call esp_cfg_default
+        ifndef ESPNET_KERNEL
         call esp_load_ini
+        endif
         call esp_ports_ready
         ld a,(esp_div)
         call esp_uart_init
@@ -76,8 +93,10 @@ esp_init
         ld (esp_spin),hl
         ld a,1
         ld (esp_inited),a
+        ifndef ESPNET_KERNEL
         ld bc,25
         call esp_wait_ticks
+        endif
         xor a
         ld l,a
         ld h,a
@@ -176,17 +195,13 @@ esp_read
         ld a,ESPNET_ERR_NOTCONN
         jp z,esp_fail
         ld hl,(esp_rs_want)
-        ld a,h
-        cp ESPNET_HOST_MAX/256
-        jr c,esp_rd_wantok
-        jr nz,esp_rd_cap
-        ld a,l
-        or a
-        jr z,esp_rd_wantok
-esp_rd_cap
-        ld hl,ESPNET_HOST_MAX
+        ifdef ESPNET_KERNEL
+        call esp_ld_hostmax
+        else
+        ld de,ESPNET_HOST_MAX
+        endif
+        call esp_umin
         ld (esp_rs_want),hl
-esp_rd_wantok
         ld a,(esp_rs_want)
         ld (esp_pay2),a
         ld a,(esp_rs_want+1)
@@ -317,7 +332,11 @@ esp_wr_lp
         ld a,h
         or l
         jr z,esp_wr_done
+        ifdef ESPNET_KERNEL
+        call esp_ld_hostmax
+        else
         ld de,ESPNET_HOST_MAX
+        endif
         call esp_umin
         ld (esp_chunk),hl
         ld a,(esp_rs_sock)
@@ -368,13 +387,16 @@ esp_wr_got
         ld de,(esp_chunk)
         or a
         sbc hl,de
+        ifndef ESPNET_KERNEL
         jr c,esp_wr_done
         jr esp_wr_lp
+        endif
 esp_wr_done
         ld hl,(esp_sent)
         xor a
         ret
 
+        ifndef ESPNET_KERNEL
 ; ============================================================
 ; GETDNS  DE=ip[4]
 ; ============================================================
@@ -602,6 +624,7 @@ esp_echo
         ld hl,(esp_rsp+6)
         xor a
         ret
+        endif
 
 ; UDP READ  A=sock DE=data HL=size BC=sockaddr
 esp_read_udp
@@ -614,7 +637,11 @@ esp_read_udp
         ld a,ESPNET_ERR_NOTCONN
         jp z,esp_fail
         ld hl,(esp_rs_want)
+        ifdef ESPNET_KERNEL
+        call esp_ld_hostmax_udp
+        else
         ld de,ESPNET_HOST_MAX-ESPNET_SOCKADDR_SIZE
+        endif
         call esp_umin
         ld (esp_rs_want),hl
         ld a,l
@@ -709,7 +736,11 @@ esp_write_udp
         ld a,ESPNET_ERR_NOTCONN
         jp z,esp_fail
         ld hl,(esp_rs_want)
+        ifdef ESPNET_KERNEL
+        call esp_ld_hostmax_udp
+        else
         ld de,ESPNET_HOST_MAX-ESPNET_SOCKADDR_SIZE
+        endif
         ld a,h
         cp d
         jr c,esp_wu_oksz
@@ -757,6 +788,7 @@ esp_wu_bad
         ld a,ESPNET_ERR_INTR
         jp esp_fail
 
+        ifndef ESPNET_KERNEL
 esp_copyz
         ; HL=src DE=dst B=max
         ld a,(hl)
@@ -767,6 +799,7 @@ esp_copyz
         inc de
         djnz esp_copyz
         ret
+        endif
 
 ; ============================================================
 ; Framing
@@ -801,6 +834,8 @@ esp_xf_sz
         cp ESPNET_CMD_DNSRESOLVE
         jr z,esp_xf_long
         cp ESPNET_CMD_CONNECT
+        jr z,esp_xf_long
+        cp ESPNET_CMD_INFO
         jr z,esp_xf_long
         cp ESPNET_CMD_WIFI_CONNECT
         jr nz,esp_xf_short
@@ -1118,12 +1153,17 @@ esp_recv_sof
         ld hl,20000
 esp_sof_sp
         ld (esp_spin),hl
+        ifdef ESPNET_KERNEL
+        ld hl,(esp_sof_ticks)
+        ld (esp_deadline),hl
+        else
         OS_GETTIMER
         ld de,(esp_sof_ticks)
         add hl,de
         ld (esp_deadline),hl
         OS_GETTIMER
         ld (esp_last_y),hl
+        endif
         xor a
         ld (esp_idle),a
 esp_sof_lp
@@ -1174,6 +1214,14 @@ esp_sof_idle
         inc a
         ld (esp_idle),a
         jr nz,esp_sof_lp
+        ifdef ESPNET_KERNEL
+        ld hl,(esp_deadline)
+        dec hl
+        ld (esp_deadline),hl
+        ld a,h
+        or l
+        jp nz,esp_sof_lp
+        else
         OS_GETKEY
         or a
         jr z,esp_sof_tmr
@@ -1201,6 +1249,7 @@ esp_sof_tochk
         or a
         sbc hl,de
         jp nc,esp_sof_lp
+        endif
 esp_sof_to
         ld a,1
         or a
@@ -1486,6 +1535,14 @@ esp_cts_chk
         ld a,l
         and 0x3f
         jr nz,esp_cts_lp
+        ifdef ESPNET_KERNEL
+        ld de,20001
+        or a
+        sbc hl,de
+        ret nc
+        add hl,de
+        jr esp_cts_lp
+        else
         push hl
         OS_GETKEY
         or a
@@ -1508,6 +1565,7 @@ esp_cts_q
         ld a,1
         ld (esp_qflag),a
         ret
+        endif
 
 ; A=mode 0=off 1=on else pulse
 esp_setrts
@@ -1852,6 +1910,7 @@ esp_reg8lo
         ld a,l
         ret
 
+        ifndef ESPNET_KERNEL
 esp_load_ini
         ld de,esp_path
         OS_GETPATH
@@ -2204,3 +2263,4 @@ esp_pay2        ds 2
 esp_rs_sock     db 0
 esp_fh          db 0
 esp_errno       db 0
+        endif
