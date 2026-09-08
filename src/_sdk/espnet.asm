@@ -2197,26 +2197,29 @@ esp_k_er  db "espRetry",0
 
 ; ============================================================
 ; BSS
+; Kernel copy (same names, no ini buffers): kernel/espnet_bss.asm
 ; ============================================================
 ESP_INIBUF EQU 384
 
-esp_RBR         dw 0
+; 16550 port addresses from ini (type 0/2: full 16-bit; type 3: high byte)
+esp_RBR         dw 0            ; RBR/THR data port
 esp_IER         dw 0
 esp_IIR         dw 0
 esp_LCR         dw 0
-esp_MCR         dw 0
-esp_LSR         dw 0
-esp_MSR         dw 0
+esp_MCR         dw 0            ; RTS lives here (type 0)
+esp_LSR         dw 0            ; bit0=DR, bit5=THRE
+esp_MSR         dw 0            ; bit4=CTS
 esp_SR          dw 0
-esp_divw        dw 0
-esp_comTypew    dw 0
-esp_espTypew    dw 0
-esp_espRetryw   dw 0
+esp_divw        dw 0            ; baud divider (uart_init)
+esp_comTypew    dw 0            ; 0 Kondr, 1 ATM2 COM, 2 AFC, 3 ATM2IOESP
+esp_espTypew    dw 0            ; unused by this driver (ini leftover)
+esp_espRetryw   dw 0            ; unused by this driver (ini leftover)
 esp_div         equ esp_divw
 esp_comType     equ esp_comTypew
 esp_espType     equ esp_espTypew
 esp_espRetry    equ esp_espRetryw
 
+; Type 3: 16550 register index 0..7 (out FB, in/out FA)
 esp_rRBR        db 0
 esp_rIER        db 0
 esp_rIIR        db 0
@@ -2225,52 +2228,57 @@ esp_rMCR        db 0
 esp_rLSR        db 0
 esp_rMSR        db 0
 
-esp_factor      dw 0
-esp_spin        dw 0
-esp_sof_ticks   dw 0
-esp_deadline    dw 0
-esp_last_y      dw 0
-esp_inlen       dw 0
-esp_plen        dw 0
-esp_n           dw 0
-esp_dst         dw 0
-esp_left        dw 0
-esp_chunk       dw 0
-esp_chunk_got   dw 0
-esp_sent        dw 0
-esp_rs_dst      dw 0
-esp_rs_src      dw 0
-esp_rs_want     dw 0
-esp_rs_n        dw 0
-esp_udp_sa      dw 0
-esp_p2          dw 0
-esp_n2          dw 0
-esp_p3          dw 0
-esp_n3          dw 0
+; Timeouts (kernel: spin loops; userland: timer + YIELD)
+esp_factor      dw 0            ; empty-UART spin (also copied to esp_spin)
+esp_spin        dw 0            ; per-byte wait in fill0..3 / CTS inner
+esp_sof_ticks   dw 0            ; SOF wait budget (short vs LONG for INFO/DNS)
+esp_deadline    dw 0            ; SOF: remaining spins (kernel) or timer (user)
+esp_last_y      dw 0            ; userland: last timer for YIELD in SOF wait
 
-esp_req         ds ESPNET_REQ_HDR
-esp_rsp         ds ESPNET_RSP_HDR+ESPNET_RSP_MAX
-esp_wifi_pay    ds ESPNET_WIFI_CONN_SIZE
-esp_path        ds 128
-esp_inbuf       ds ESP_INIBUF
-esp_proto       ds 8
+; RX framing
+esp_inlen       dw 0            ; bytes already in esp_inbuf (userland ini)
+esp_plen        dw 0            ; payload LEN from last 8-byte RSP header
+esp_n           dw 0            ; fill: how many UART bytes still to read
+esp_dst         dw 0            ; fill: destination pointer (DE into fill)
+esp_left        dw 0            ; skip/drain: payload bytes still to discard
+esp_chunk       dw 0            ; write/skip: this piece size (clipped)
+esp_chunk_got   dw 0            ; write: bytes this UART piece actually sent
+esp_sent        dw 0            ; write: total payload bytes sent so far
 
-esp_seq         db 0
-esp_inited      db 0
-esp_armed       db 0
-esp_qflag       db 0
-esp_txb         db 0
-esp_rb          db 0
-esp_idle        db 0
-esp_silent      db 0
-esp_rtsmode     db 0
-esp_xcmd        db 0
-esp_xsock       db 0
-esp_xarg        db 0
-esp_arg         db 0
-esp_pay1        db 0
-esp_pay2        ds 2
-esp_rs_sock     db 0
-esp_fh          db 0
-esp_errno       db 0
+; Current OS_READ/WRITE (rs = readstructure)
+esp_rs_dst      dw 0            ; user buffer ptr
+esp_rs_src      dw 0            ; write: source ptr (userland copy path)
+esp_rs_want     dw 0            ; requested size (clipped to host_max)
+esp_rs_n        dw 0            ; result count from RSP RESULT field
+esp_udp_sa      dw 0            ; ptr to 15-byte sockaddr for UDP
+esp_p2          dw 0            ; xfer payload #1 ptr (or UDP sockaddr)
+esp_n2          dw 0            ; xfer payload #1 length
+esp_p3          dw 0            ; xfer payload #2 ptr (UDP data after sa)
+esp_n3          dw 0            ; xfer payload #2 length
+
+esp_req         ds ESPNET_REQ_HDR              ; 6-byte CMD header TX
+esp_rsp         ds ESPNET_RSP_HDR+ESPNET_RSP_MAX ; RSP header + body
+esp_wifi_pay    ds ESPNET_WIFI_CONN_SIZE       ; WIFI_CONNECT ssid+pass
+esp_path        ds 128          ; userland: GETPATH / ini path
+esp_inbuf       ds ESP_INIBUF   ; userland: espcom.ini load buffer
+esp_proto       ds 8            ; per-sock proto (STREAM/DGRAM), index=id
+
+esp_seq         db 0            ; request sequence (match RSP)
+esp_inited      db 0            ; uart programmed, SOF path live
+esp_armed       db 0            ; 1 = CMD_READ already on the wire
+esp_qflag       db 0            ; userland: Q pressed during wait
+esp_txb         db 0            ; byte staged for esp_putb (A clobbered)
+esp_rb          db 0            ; last polled RX byte (SOF / rx_poll)
+esp_idle        db 0            ; SOF: idle poll counter (YIELD wrap)
+esp_silent      db 0            ; drain: consecutive empty polls
+esp_rtsmode     db 0            ; arg to esp_setrts (0/1/pulse)
+esp_xcmd        db 0            ; xfer: CMD
+esp_xsock       db 0            ; xfer: sock id (or 0xFF)
+esp_xarg        db 0            ; xfer: ARG byte
+esp_arg         db 0            ; SOCKET: proto saved for esp_proto[]
+esp_pay1        db 0            ; SOCKET: family byte on the wire
+esp_pay2        ds 2            ; READ: le16 maxlen in CMD payload
+esp_rs_sock     db 0            ; current sock for READ/WRITE
+esp_fh          db 0            ; userland: ini file handle
+esp_errno       db 0            ; last errno (A on fail)
         endif

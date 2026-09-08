@@ -2121,8 +2121,6 @@ C_task main(int argc, const char *argv[])
   targetadr.b3 = 69;  // 45
   targetadr.b4 = 13;  // 0D
 
-  printf("[Build:%s  %s]\r\n", __DATE__, __TIME__);
-
   netDriver = readParamFromIni();
 
   if (argc > 1)

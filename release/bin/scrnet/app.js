@@ -165,6 +165,7 @@ function noteRx(n) {
 }
 
 var lastProf = null;
+var lowBwHavePref = false;
 
 function noteFrame(type, payloadLen) {
   if (type === FR_PROF) return;
@@ -202,6 +203,7 @@ function renderHud() {
       if (p.flags & 2) bits.push("skip");
       if (p.flags & 4) bits.push("force");
       if (p.flags & 8) bits.push("DI");
+      if (p.flags & 16) bits.push("low");
       profEl.textContent =
         "host 20ms: cap " + p.cap +
         " xor " + p.xor +
@@ -213,6 +215,10 @@ function renderHud() {
         " ival " + p.ival +
         (bits.length ? " [" + bits.join(" ") + "]" : "") +
         (p.flags & 8 ? " (DI: timer frozen in copy)" : "");
+      if (!lowBwHavePref) {
+        var el = document.getElementById("lowBw");
+        if (el) el.checked = !!(p.flags & 16);
+      }
     }
   }
 }
@@ -859,20 +865,35 @@ function clampFps(n) {
   return n;
 }
 
+var LOW_BW_KEY = "scrnet-lowbw";
+
+function lowBwOn() {
+  var el = document.getElementById("lowBw");
+  return !!(el && el.checked);
+}
+
 function sendFps() {
   var t = clampFps(document.getElementById("fpsText").value);
   var s = clampFps(document.getElementById("fpsScr").value);
   var e = clampFps(document.getElementById("fpsEga").value);
+  var b = lowBwOn() ? 1 : 0;
   document.getElementById("fpsText").value = t;
   document.getElementById("fpsScr").value = s;
   document.getElementById("fpsEga").value = e;
   kseq += 1;
-  fetch("/f/" + t + "/" + s + "/" + e + "?" + kseq, { cache: "no-store" }).catch(function () {});
+  fetch("/f/" + t + "/" + s + "/" + e + "/" + b + "?" + kseq, { cache: "no-store" }).catch(function () {});
 }
 
 document.getElementById("fpsText").addEventListener("change", sendFps);
 document.getElementById("fpsScr").addEventListener("change", sendFps);
 document.getElementById("fpsEga").addEventListener("change", sendFps);
+document.getElementById("lowBw").addEventListener("change", function () {
+  lowBwHavePref = true;
+  try {
+    localStorage.setItem(LOW_BW_KEY, lowBwOn() ? "1" : "0");
+  } catch (e) {}
+  sendFps();
+});
 
 function loadFpsIni() {
   return fetch("fps.ini", { cache: "no-store" }).then(function (r) {
@@ -890,4 +911,24 @@ function loadFpsIni() {
   }).catch(function () {});
 }
 
-loadFont(document.getElementById("fontFile").value).then(loadFpsIni).then(connectStream);
+function loadLowBw() {
+  var v = null;
+  try {
+    v = localStorage.getItem(LOW_BW_KEY);
+  } catch (e) {}
+  if (v === "1") {
+    document.getElementById("lowBw").checked = true;
+    return true;
+  }
+  if (v === "0") {
+    document.getElementById("lowBw").checked = false;
+    return true;
+  }
+  return false;
+}
+
+loadFont(document.getElementById("fontFile").value).then(loadFpsIni).then(function () {
+  lowBwHavePref = loadLowBw();
+  connectStream();
+  if (lowBwHavePref) sendFps();
+});

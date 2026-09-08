@@ -45,6 +45,9 @@
       color: var(--fg);
       padding: 2px 4px;
     }
+    header input[type="checkbox"] {
+      vertical-align: middle;
+    }
     .hint { color: var(--muted); font-size: 0.8rem; }
     .stats {
       font-family: ui-monospace, Consolas, monospace;
@@ -97,6 +100,9 @@
     </label>
     <label title="max fps, also MC">ega
       <input id="fpsEga" type="number" min="1" max="50" value="2">
+    </label>
+    <label title="XOR-RLE / PackBits. On for ESPNET by default; uncheck for raw frames (slow on UART). Also for ESP behind ZXNETUSB.">
+      <input id="lowBw" type="checkbox"> low bandwidth
     </label>
     <button type="button" id="btnMap">Charset 0..255</button>
     <button type="button" id="btnLoad">Load dump</button>

@@ -6,13 +6,16 @@
 ; /ini/network.ini currentNetwork: 0=WIZNET, 2=ESPNET; else print and QUIT.
 ; GET /           -> /bin/scrnet/index.htm
 ; GET /stream     -> chunked binary frames
-;   text 80x25: WIZNET type1 raw 4000; ESPNET type1 key / type2 XOR-RLE
+;   text 80x25: WIZNET type1 raw 4000; ESPNET / low-bw: type1 key / type2 XOR-RLE
 ;   6912:       type4 key 6912 / type5 XOR-RLE (skip unchanged)
 ;   palette:    type6 32-byte DDp (focus OS_GETPAL), on change / connect
-;   EGA 320x200: WIZNET raw 32K type12 / ESPNET PackBits type7
-;   MC  640x200: WIZNET raw 32K type13 / ESPNET PackBits type9
+;   EGA 320x200: WIZNET raw 32K type12 / ESPNET+low-bw PackBits type7
+;   MC  640x200: WIZNET raw 32K type13 / ESPNET+low-bw PackBits type9
 ;   EGA/MC: snapshot 32K under one DI; TX yield when 50Hz tick moves, not per MTU.
 ; GET  /k/ccff  -> key (cc=code, ff=0 letter / 1 control) into OS_PUTKEY
+; GET  /f/t/s/e[/b] -> fps 1-50; optional b=0/1 selects ESP-style encode
+;   (XOR-RLE / PackBits) vs raw WIZNET frames. Default: 1 if
+;   currentNetwork=2, else 0. Client can turn it off even on ESPNET.
 ; POST /input   -> 2-byte body, same (if headers+body fit the read)
 ; Browser: http://<ip>:2324/
 ; fps.ini next to the web files: text=/scr=/ega= (1-50). MC uses ega.
@@ -204,7 +207,7 @@ cc_cli
         ld (req_len),hl
         ret
 
-; Second TCP client while /stream is up. GET /k/ccff or /f/t/s/e.
+; Second TCP client while /stream is up. GET /k/ccff or /f/t/s/e[/b].
 ; One shot + close (keep-alive desynced the browser and ate Wiznet sockets).
 ; If ACCEPT wins before the GET arrives, keep soc_post and retry next loop.
 try_input
@@ -358,7 +361,8 @@ parse4hex
         or a
         ret
 
-; HL="/f/t/s/e" decimal fps 1-50. NC: applied. CY: not that path.
+; HL="/f/t/s/e" or "/f/t/s/e/b". fps 1-50; b is 0/1 (pf_num rejects 0).
+; NC: applied. CY: not that path. b change forces a keyframe.
 is_fpath
         ld a,(hl)
         cp '/'
@@ -397,8 +401,32 @@ is_fpath
         ret c
         call fps_to_ival
         ld (ival_ega),a
+        ld a,(hl)
+        cp '/'
+        jr nz,fp_done
+        inc hl
+        ld a,(hl)
+        sub '0'
+        cp 2
+        jr nc,fp_done
+        inc hl
+        ld c,a
+        ld a,(low_bw)
+        cp c
+        ld a,c
+        ld (low_bw),a
+        jr z,fp_done
+        ld a,1
+        ld (force),a
+fp_done
         call set_poll
         xor a
+        ret
+
+; NZ if XOR-RLE / PackBits. Default 1 on ESPNET, 0 on WIZNET; /f/.../b overrides.
+want_esp_enc
+        ld a,(low_bw)
+        or a
         ret
 hexnib
         ld a,(hl)
@@ -1329,11 +1357,16 @@ sf_sksat
         ret
 sf_work
         xor a
+        call want_esp_enc
+        jr z,sf_fl
+        ld a,16
+sf_fl
         ld (prof_flags),a
         ld a,(force)
         or a
         jr z,sf_nf
-        ld a,4
+        ld a,(prof_flags)
+        or 4
         ld (prof_flags),a
 sf_nf
         call prof_snap
@@ -1357,8 +1390,8 @@ sf_nf
         ret nz
         ld hl,PLANESZ
         ld (planesize),hl
-        ; ESPNET: XOR-RLE for deltas. Full FR_KEY on mode/focus/screen
-        ; change so prev/client cannot stay on MC leftover. WIZNET: raw KEY.
+        ; ESP-style encode (low_bw): XOR-RLE deltas. Full FR_KEY on
+        ; mode/focus/screen change. Default on for ESPNET; /f/.../b overrides.
         ld a,(force)
         or a
         jr nz,txt_need_f
@@ -1387,9 +1420,8 @@ txt_need_st
         ld (last_scr),a
         ld a,6
         ld (last_mode),a
-        ld a,(net_drv)
-        cp 2
-        jr z,txt_esp_cap
+        call want_esp_enc
+        jr nz,txt_esp_cap
         call capture_cmp_planes
         jr txt_got
 txt_esp_cap
@@ -1417,9 +1449,8 @@ txt_got
         ld (prof_flags),a
         ret
 txt_out
-        ld a,(net_drv)
-        cp 2
-        jr nz,txt_send
+        call want_esp_enc
+        jr z,txt_send
         ld a,(txt_need)
         or a
         jr nz,txt_send
@@ -1696,9 +1727,8 @@ ega_key
         ld (force),a
         ld a,(g32_mode)
         ld (last_mode),a
-        ld a,(net_drv)
-        cp 2
-        jp z,ega_esp
+        call want_esp_enc
+        jp nz,ega_esp
         ld a,(g32_mode)
         or a
         ld a,FR_EGARAW
@@ -2534,6 +2564,7 @@ soc_client      db NOSOCK
 soc_post        db NOSOCK
 soc_saved       db 0
 net_drv         db 0
+low_bw          db 0
 txt_need        db 0
 net_a           db 0
 net_fh          db 0
@@ -2675,6 +2706,8 @@ ln_rd
         scf
         ret
 ln_esp
+        ld a,1
+        ld (low_bw),a
         call esp_init
         call net_reap
         xor a
