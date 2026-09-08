@@ -59,7 +59,7 @@ struct sockaddr_in dnsaddress;
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 
-unsigned char ver[] = "5.1";
+unsigned char ver[] = "5.2";
 // const unsigned char sendOk[] = "SEND OK";
 const unsigned char gotWiFi[] = "WIFI GOT IP";
 unsigned char buffer[] = "0000000000";
@@ -203,10 +203,9 @@ void printHelp(void)
 {
   OS_CLS(0);
   OS_SETCOLOR(67);
-  printf("   GETPIC [%s] zxart.ee picture viewer for NedoNET\n\r", ver);
   OS_SETCOLOR(6);
   printf("----------------------------------------------------------\n\r");
-  printf("-----------GETPIC [Build:%s  %s]-----------\r\n", __DATE__, __TIME__);
+  printf("-----GETPIC [%s] zxart.ee picture viewer for NedoNET-----\n\r", ver);
   printf("----------------------------------------------------------\n\r");
   printf(" Управление:\n\r");
   printf("   'ESC' - выход из программы;\n\r");
@@ -470,7 +469,10 @@ char fillPictureNet(void)
   do
   {
     headlng = 0;
-    todo = tcpRead(socket, retry);
+    if (firstPacket)
+      todo = tcpReadHeader(socket, retry);
+    else
+      todo = tcpRead(socket, retry);
     testOperation2("OS_WIZNETREAD", todo); // Quit if too many retries
 
     if (firstPacket)
@@ -530,10 +532,15 @@ char fillPictureEspNet(void)
   do
   {
     headlng = 0;
-    do
+    if (firstPacket)
+      todo = EspReadHeader((signed char)socket);
+    else
     {
-      todo = EspRead((signed char)socket);
-    } while (todo == 0 - (int)ESPNET_ERR_EAGAIN);
+      do
+      {
+        todo = EspRead((signed char)socket);
+      } while (todo == 0 - (int)ESPNET_ERR_EAGAIN);
+    }
 
     if (todo < 1)
     {

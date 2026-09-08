@@ -37,7 +37,7 @@ unsigned char userQuery[256] = "/export:zxMusic/filter:zxMusicId=44816";
 unsigned char defQuery[] = "/export:zxMusic/filter:zxMusicId=44816";
 unsigned char appCmd[128] = "player.com ";
 unsigned char curPath[256];
-unsigned char ver[] = "4.3";
+unsigned char ver[] = "4.4";
 
 unsigned char queryType[50];
 /* RX / AT / GET. JSON lives in window_3 at C000 (16K). */
@@ -1039,7 +1039,10 @@ char getFileNet(void)
   do
   {
     headlng = 0;
-    todo = tcpRead(socket, 2);
+    if (firstPacket)
+      todo = tcpReadHeader(socket, 2);
+    else
+      todo = tcpRead(socket, 2);
     clearStatus();
     testOperation("OS_WIZNETREAD", todo);
     if (todo == 0)
@@ -1195,10 +1198,15 @@ char getFileEspNet(void)
   do
   {
     headlng = 0;
-    do
+    if (firstPacket)
+      todo = EspReadHeader((signed char)socket);
+    else
     {
-      todo = EspRead((signed char)socket);
-    } while (todo == 0 - (int)ESPNET_ERR_EAGAIN);
+      do
+      {
+        todo = EspRead((signed char)socket);
+      } while (todo == 0 - (int)ESPNET_ERR_EAGAIN);
+    }
 
     if (todo < 1)
     {
@@ -1584,7 +1592,10 @@ unsigned char getTrack2Net(unsigned long fileId)
   {
     headlng = 0;
     // clearNetbuf();
-    todo = tcpRead(socket, 10);
+    if (firstPacket)
+      todo = tcpReadHeader(socket, 10);
+    else
+      todo = tcpRead(socket, 10);
     testOperation("OS_WIZNETREAD", todo);
 
     if (todo == 0)
@@ -1720,10 +1731,15 @@ unsigned char getTrack2EspNet(unsigned long fileId)
   do
   {
     headlng = 0;
-    do
+    if (firstPacket)
+      todo = EspReadHeader((signed char)socket);
+    else
     {
-      todo = EspRead((signed char)socket);
-    } while (todo == 0 - (int)ESPNET_ERR_EAGAIN);
+      do
+      {
+        todo = EspRead((signed char)socket);
+      } while (todo == 0 - (int)ESPNET_ERR_EAGAIN);
+    }
 
     if (todo < 1)
       break;

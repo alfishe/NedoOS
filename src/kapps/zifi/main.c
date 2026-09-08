@@ -17,7 +17,6 @@
 #include <intrz80.h>
 #include <stdlib.h>
 #include <oscalls.h>
-#include <../common/terminal.c>
 #include <tcp.h>
 #include <espnet.h>
 #include <osfs.h>

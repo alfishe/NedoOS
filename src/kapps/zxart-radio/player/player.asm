@@ -1,5 +1,5 @@
         DEVICE ZXSPECTRUM128
-        include "../_sdk/sys_h.asm"
+        include "../../../_sdk/sys_h.asm"
 
 COLOR=7
 MDLADDR=0x6000;0xc000
@@ -520,11 +520,11 @@ muter
         call z,tfmshut
         ret
        
-        include "../_sdk/ptsplay.asm"
+        include "ptsplay.asm"
         include "tfmplay.asm"
-        include "tfdtest.asm"
-        include "tfmtest.asm"
-        include "etplayer.asm"
+        include "../../../player/tfdtest.asm"
+        include "../../../player/tfmtest.asm"
+        include "../../../player/etplayer.asm"
 ;tfmData
         ent
 szplayer=$-wasplayer
@@ -535,5 +535,6 @@ cmd_end
 	display "Size ",/d,cmd_end-cmd_begin," bytes"
 
 	savebin "player.com",cmd_begin,cmd_end-cmd_begin
-	
-	LABELSLIST "../../us/user.l",1
+	savebin "../player.ovl",cmd_begin,cmd_end-cmd_begin
+
+	LABELSLIST "../../../../us/user.l",1
