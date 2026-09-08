@@ -56,7 +56,21 @@ blocksize=128 ;сколько байтов читать в CP/M операциях
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 BDOS_wiznetopen
         BDOSSETPGW5300 ;портит bc
+		if INETDRV == 2
+        ld a,l
+        cp 9
+        jr z,espk_open_nolock
+        cp 10
+        jr z,espk_open_nolock
+        call espk_busy_try
+        jp nz,espk_busy_eagain
+        call wiznet_open
+        jp espk_busy_leave
+espk_open_nolock
         jp wiznet_open
+		else
+        jp wiznet_open
+		endif
 
 BDOS_wiznetclose
         BDOSSETPGW5300 ;портит bc
@@ -69,7 +83,14 @@ BDOS_wiznetread
         call BDOS_setdepage
 ;DE = Pointer to physical data
         BDOSSETPGW5300
+		if INETDRV == 2
+        call espk_busy_try
+        jp nz,espk_busy_eagain
+        call wiznet_read
+        jp espk_busy_leave
+		else
         jp wiznet_read
+		endif
 
 BDOS_wiznetwrite
 ;de=pointer, hl=size
@@ -77,7 +98,14 @@ BDOS_wiznetwrite
         call BDOS_setdepage
 ;DE = Pointer to physical data
         BDOSSETPGW5300
+		if INETDRV == 2
+        call espk_busy_try
+        jp nz,espk_busy_eagain
+        call wiznet_write
+        jp espk_busy_leave
+		else
         jp wiznet_write
+		endif
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1159,7 +1187,7 @@ sys_quit_delpages0
         djnz sys_quit_delpages0
 		if INETDRV
 		BDOSSETPGW5300
-		call w53_drop_socs
+		call w53_drop_socs ; WIZNET and ESPNET both export this name
 		endif
         if 1==1
         call BDOS_setpgstructs

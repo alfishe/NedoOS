@@ -1865,7 +1865,17 @@ esp_cfg_default
         ld (esp_SR),hl
         ld a,1
         ld (esp_div),a
+        ; Kernel ATM2: ATM2 COM (type 1). Evo/userland: Kondratyev (0).
+        ; espcfg OS_SETUART overrides this after -S.
+        ifdef ESPNET_KERNEL
+        if atm==2
+        ld a,1
+        else
         xor a
+        endif
+        else
+        xor a
+        endif
         ld (esp_comType),a
         ld a,32
         ld (esp_espType),a

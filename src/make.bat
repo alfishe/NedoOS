@@ -88,6 +88,7 @@ rem	)
 
 rem network
         nedotrd test.trd -a %releasedir%/bin/wizcfg.com
+        nedotrd test.trd -a %releasedir%/bin/espcfg.com
         nedotrd test.trd -a %releasedir%/bin/ping.com
         nedotrd test.trd -a %releasedir%/bin/browser.com
         nedotrd test.trd -a %releasedir%/bin/browser/nos.htm

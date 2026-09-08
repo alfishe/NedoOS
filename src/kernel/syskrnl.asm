@@ -1231,5 +1231,160 @@ INTSTACK1;!=0x3f00 ;kernelspace (для входа в обработчик без порчи стека) (не пер
 
         include "fatfsdrv.asm"
         include "sysbdos.asm" ;в конце есть align 256
+		if INETDRV == 2
+        include "espnet_bss.asm"
+; Sockaddr in pgsys: WIZNET copies dest into the chip before mapping the
+; payload page. We stash 15 bytes here so UDP DE/IX can live on different pages.
+espk_sa_save
+        ld hl,espk_sa
+        ex de,hl
+        ld bc,15
+        ldir
+        ld de,espk_sa
+        ret
+espk_sa_load
+        push af
+        push hl
+        ; WIZNET: sockaddr to DE, then payload to IX. If DE==IX, payload wins.
+        ; browser DNS uses DE=IX=dnsbuf; copying sa after data clobbers the packet.
+        ld hl,(espk_sa_user)
+        ld de,(espk_buf_user)
+        or a
+        sbc hl,de
+        jr z,espk_sa_load_skip
+        ld de,(espk_sa_user)
+        call BDOS_preparedepage
+        call BDOS_setdepage
+        ld hl,espk_sa
+        ld bc,15
+        ldir
+espk_sa_load_skip
+        pop hl
+        pop af
+        ret
+; browser host_ia.family=0; WIZNET skips it, ESP CONNECT used to require AF_INET.
+espk_connect_sa
+        push af
+        call espk_sa_save
+        ld a,AF_INET
+        ld (espk_sa),a
+        pop af
+        jp esp_connect
+; UDP bind: firmware SOCKET does udp.begin(0); WRITE retries begin()
+; if beginPacket fails. Do not BIND here (stop+begin races lwIP).
+esp_ld_hostmax
+        ld de,(esp_host_max)
+        ld a,d
+        or e
+        ret nz
+        ld de,ESPNET_HOST_MAX_DEF
+        ret
+esp_ld_hostmax_udp
+        push hl
+        call esp_ld_hostmax
+        ld hl,-ESPNET_SOCKADDR_SIZE
+        add hl,de
+        ex de,hl
+        pop hl
+        ret
+; HL -> le16 from already-mapped user cfg
+espk_pktmax_fromhl
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        ld a,d
+        or e
+        jr nz,espk_pm_nz
+        ld de,ESPNET_HOST_MAX_DEF
+        jr espk_pm_store
+espk_pm_nz
+        ld a,d
+        cp ESPNET_HOST_MAX/256
+        jr c,espk_pm_hiok
+        jr nz,espk_pm_cap
+        ld a,e
+        or a
+        jr z,espk_pm_store
+espk_pm_cap
+        ld de,ESPNET_HOST_MAX
+        jr espk_pm_store
+espk_pm_hiok
+        ld a,d
+        or a
+        jr nz,espk_pm_store
+        ld a,e
+        cp 64
+        jr nc,espk_pm_store
+        ld e,64
+espk_pm_store
+        ld (esp_host_max),de
+        ret
+espk_pktmax_tode
+        push de
+        call esp_ld_hostmax
+        pop hl
+        ld (hl),e
+        inc hl
+        ld (hl),d
+        ret
+; DE -> 53-byte ESP CMD_INFO (wifi, rssi, ip, ssid)
+espk_getinfo
+        call espk_mapde
+        ld (esp_rs_dst),de
+        ld a,ESPNET_CMD_INFO
+        ld c,ESPNET_SOCK_NONE
+        ld b,0
+        ld de,0
+        ld hl,0
+        call esp_xfer
+        ret nz
+        ld de,(esp_rs_dst)
+        call BDOS_preparedepage
+        call BDOS_setdepage
+        ld hl,(esp_rsp+6)
+        ld de,ESPNET_INFO_SIZE
+        call esp_umin
+        push hl
+        ld hl,(esp_rs_dst)
+        ld b,ESPNET_INFO_SIZE
+        xor a
+espk_info_z
+        ld (hl),a
+        inc hl
+        djnz espk_info_z
+        pop bc
+        ld a,b
+        or c
+        jr z,espk_info_ok
+        ld de,(esp_rs_dst)
+        ld hl,esp_rsp+ESPNET_RSP_HDR
+        ldir
+espk_info_ok
+        xor a
+        ld l,a
+        ld h,a
+        ret
+; UART lock: second net BDOS while a frame is in flight -> EAGAIN (35).
+; Close is not locked so shutdown can still run. Z=got lock.
+; SETUART/GETUART (L=9/10) skip the lock so espcfg can program the 16550.
+espk_busy_try
+        ld a,(esp_busy)
+        or a
+        ret nz
+        inc a
+        ld (esp_busy),a
+        xor a
+        ret
+espk_busy_leave
+        push af
+        xor a
+        ld (esp_busy),a
+        pop af
+        ret
+espk_busy_eagain
+        ld a,ESPNET_ERR_EAGAIN
+        ld hl,-1
+        ret
+		endif
 syskrnl_end=$
         ent

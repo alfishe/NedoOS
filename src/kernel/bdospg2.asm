@@ -167,9 +167,13 @@ standardpal
         endif
         
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; INETDRV=2 ESPNET; any other nonzero (1, 0x01, ...) WIZNET+SL811; 0=stubs.
+		if INETDRV == 2
+        include "espnet.asm"
+		else
 		if INETDRV
         include "w5300.asm"
-        else
+		else
 wiznet_open
 wiznet_close
 wiznet_read
@@ -177,4 +181,5 @@ wiznet_write
         ld hl,0xffff
         ld a,l
         ret
-		ENDIF
+		endif
+		endif

@@ -29,7 +29,8 @@ disk_status:
         ld d,0
         ld hl,device_states
         add hl,de
-		if INETDRV != 1
+		if INETDRV
+		if INETDRV == 2
 			ld a,(hl)
 			ret
 		else
@@ -55,6 +56,10 @@ disk_status:
 .resSL811
 			ld a,1
 			ld (hl),a
+			ret
+		endif
+		else
+			ld a,(hl)
 			ret
 		endif
 devices_init
@@ -117,13 +122,15 @@ devices_init_noSD
 	ld (device_states+3),a
 	ret  
 devices_init_noGS
-	if INETDRV == 1
+	if INETDRV
+	if INETDRV != 2
 		dec a
 		jr nz,devices_init_noSL811
 		call SL811.init
 		ld (device_states+4),a
 		ret 
 devices_init_noSL811
+	endif
 	endif
 	ld a,0x01 ;нет такого устройства
 	ret  
@@ -195,9 +202,11 @@ readsectors_noIDEslave
 	jp z,readsectorsSD
 	dec a
 	jp z,readsectorsGS
-	if INETDRV == 1
+	if INETDRV
+	if INETDRV != 2
 		dec a
 		jp z,SL811.RBC_Read
+	endif
 	endif
 	ld a,0x01
 	ret  
@@ -249,9 +258,11 @@ writesectors_noIDEslave
 	jp z,writesectorsSD
 	dec a
 	jp z,writesectorsGS
-	if INETDRV == 1
+	if INETDRV
+	if INETDRV != 2
 		dec a
 		jp z,SL811.RBC_Write
+	endif
 	endif
 	ld a,0x01
 	ret  
@@ -891,6 +902,8 @@ get_fattime:
         ldir
         ret
 
-	if INETDRV == 1
+	if INETDRV
+	if INETDRV != 2
 		include "sl811.asm"
+	endif
 	endif

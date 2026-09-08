@@ -2,6 +2,18 @@
         ;device pentagon1024
 
         include "../_sdk/syssets.asm"
+        ; INETDRV: 0=none, 1/0x01=WIZNET+SL811, 2/0x02=ESPNET
+        ; Nested `if INETDRV` after `== 2`, never `== 1` (0x01 vs 1).
+        ; Do not use indented NAME=val here: sjasmplus treats that as an instruction.
+        if INETDRV == 2
+        display "kernel NET=ESPNET"
+        else
+        if INETDRV
+        display "kernel NET=WIZNET+SL811 INETDRV=",/h,INETDRV
+        else
+        display "kernel NET=none"
+        endif
+        endif
        ifdef USETOPDOWNMEM
 TOPDOWNMEM=1 
        else
@@ -1139,6 +1151,7 @@ idle_sz=$-idle
         ent
 trdosfs_sz=$-wastrdosfs
         display "trdosfs_sz=",/h,trdosfs_sz,"<=0x1c00"
+        ASSERT trdosfs_sz <= 0x1c00
         
 end
 wassys
