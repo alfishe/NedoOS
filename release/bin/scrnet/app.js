@@ -119,7 +119,6 @@ var PW = TEXT_W;
 var PH = TEXT_H;
 var statusEl = document.getElementById("status");
 var statsEl = document.getElementById("stats");
-var profEl = document.getElementById("prof");
 var reconnectTimer = 0;
 var streamAbort = null;
 var zoom = 2;
@@ -194,31 +193,27 @@ function renderHud() {
     last += " " + (100 * lastFrameBytes / lastFrameRaw).toFixed(0) + "%";
   }
   statsEl.textContent = "last " + last + " | " + fmtBytes(bytes) + "/s | " + fps + " fps";
-  if (profEl) {
-    if (!lastProf) profEl.textContent = "";
-    else {
-      var p = lastProf;
-      var bits = [];
-      if (p.flags & 1) bits.push("tx");
-      if (p.flags & 2) bits.push("skip");
-      if (p.flags & 4) bits.push("force");
-      if (p.flags & 8) bits.push("DI");
-      if (p.flags & 16) bits.push("low");
-      profEl.textContent =
-        "host 20ms: cap " + p.cap +
-        " xor " + p.xor +
-        " send " + p.send +
-        " gfx " + p.gfx +
-        " wait " + p.wait +
-        " tot " + p.tot +
-        " skip " + p.nskip +
-        " ival " + p.ival +
-        (bits.length ? " [" + bits.join(" ") + "]" : "") +
-        (p.flags & 8 ? " (DI: timer frozen in copy)" : "");
-      if (!lowBwHavePref) {
-        var el = document.getElementById("lowBw");
-        if (el) el.checked = !!(p.flags & 16);
-      }
+  if (lastProf) {
+    var p = lastProf;
+    var bits = [];
+    if (p.flags & 1) bits.push("tx");
+    if (p.flags & 2) bits.push("skip");
+    if (p.flags & 4) bits.push("force");
+    if (p.flags & 8) bits.push("DI");
+    if (p.flags & 16) bits.push("low");
+    statsEl.textContent +=
+      " | cap " + p.cap +
+      " xor " + p.xor +
+      " send " + p.send +
+      " gfx " + p.gfx +
+      " wait " + p.wait +
+      " tot " + p.tot +
+      " skip " + p.nskip +
+      " ival " + p.ival +
+      (bits.length ? " [" + bits.join(" ") + "]" : "");
+    if (!lowBwHavePref) {
+      var el = document.getElementById("lowBw");
+      if (el) el.checked = !!(p.flags & 16);
     }
   }
 }

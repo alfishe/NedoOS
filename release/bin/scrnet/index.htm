@@ -23,8 +23,8 @@
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      gap: 12px;
-      padding: 10px 14px;
+      gap: 8px 12px;
+      padding: 8px 14px;
       border-bottom: 1px solid #343b45;
     }
     h1 { margin: 0; font-size: 1.1rem; font-weight: 600; }
@@ -48,14 +48,20 @@
     header input[type="checkbox"] {
       vertical-align: middle;
     }
-    .hint { color: var(--muted); font-size: 0.8rem; }
-    .stats {
+    .hud {
+      flex: 1 0 100%;
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: baseline;
+      gap: 12px;
+      min-height: 1.25em;
       font-family: ui-monospace, Consolas, monospace;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       color: var(--accent);
-      margin-left: auto;
-      letter-spacing: 0.02em;
+      white-space: nowrap;
     }
+    .hud #status { color: var(--muted); }
+    .hud .hint { color: var(--muted); margin-left: auto; }
     main { padding: 14px; overflow: auto; }
     canvas {
       image-rendering: pixelated;
@@ -107,10 +113,11 @@
     <button type="button" id="btnMap">Charset 0..255</button>
     <button type="button" id="btnLoad">Load dump</button>
     <input type="file" id="fileDump" hidden>
-    <span id="status" class="hint">connecting...</span>
-    <span id="stats" class="stats">last -- | -- B/s | -- fps</span>
-    <span id="prof" class="stats"></span>
-    <span class="hint">click screen to type; RShift/Ctrl+Enter = switch task</span>
+    <div class="hud">
+      <span id="status">connecting...</span>
+      <span id="stats">last -- | -- B/s | -- fps</span>
+      <span class="hint">click screen to type; RShift/Ctrl+Enter = switch task</span>
+    </div>
   </header>
   <main>
     <canvas id="screen" width="640" height="400" tabindex="0"></canvas>
