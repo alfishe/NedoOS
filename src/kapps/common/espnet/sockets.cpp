@@ -575,7 +575,7 @@ static uint16_t do_write(const uint8_t *req, uint16_t req_n, uint8_t *rsp)
 		if (dlen)
 			s->udp.write(data, dlen);
 		if (!s->udp.endPacket())
-			return rsp_err(rsp, ESPNET_CMD_WRITE, sock, seq, ESPNET_ERR_EMSGSIZE);
+			return rsp_err(rsp, ESPNET_CMD_WRITE, sock, seq, ESPNET_ERR_EAGAIN);
 		if (dlen == 0)
 			return rsp_err(rsp, ESPNET_CMD_WRITE, sock, seq, ESPNET_ERR_EMSGSIZE);
 		stats_wifi_tx(dlen);

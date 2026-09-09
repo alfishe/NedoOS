@@ -14,8 +14,8 @@
  *   Arduino board "Generic ESP8266 Module" (ESP-12) -> ZX-WiFi, native UART0
  *   Arduino board "LOLIN D1 mini" and others        -> ESP-AT, Serial.swap()
  */
-//#define ESPNET_BOARD_ZXWIFI
-#define ESPNET_BOARD_D1MINI
+#define ESPNET_BOARD_ZXWIFI
+//#define ESPNET_BOARD_D1MINI
 
 #if defined(CONFIG_IDF_TARGET_ESP32C3)
 /* ESP-AT C3 / Super Mini: UART1 to host, USB CDC = Serial debug. */

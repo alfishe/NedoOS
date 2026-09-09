@@ -184,7 +184,10 @@ esp_ok_sock
 
 ; ============================================================
 ; READ  A=sock DE=buf HL=size
-; Pipelines the next CMD_READ (esp_armed) like the C driver.
+; Userland pipelines the next CMD_READ (esp_armed) so ESP TXs during
+; disk I/O. Kernel must not: armed leaves a frame on the UART after
+; BDOS returns (esp_busy=0). Another process's SOCKET then drop_armed
+; or READ eats that payload (EMSGSIZE 40, garbage errno, PT3 in zifi).
 ; ============================================================
 esp_read
         ld (esp_rs_sock),a
@@ -289,6 +292,11 @@ esp_fail
         ret
 
 esp_rd_arm
+        ifdef ESPNET_KERNEL
+        xor a
+        ld (esp_armed),a
+        ret
+        else
         ld a,(esp_rs_sock)
         ld c,a
         ld b,0
@@ -299,6 +307,7 @@ esp_rd_arm
         ld a,1
         ld (esp_armed),a
         ret
+        endif
 
 esp_skip_or_drain
         call esp_recv_skip
@@ -1272,38 +1281,42 @@ esp_recv_fill
         jp z,esp_fill2
         jp esp_fill3
 
+; Type 0 Kondratyev, no AFC: pulse MCR RTS while LSR is empty, then RBR.
+; BC = LSR during the wait; MCR only when we actually pulse.
 esp_fill0
         di
         ld ix,(esp_dst)
         ld de,(esp_n)
-esp_f0b
+        ld bc,(esp_LSR)
+esp_f0_next
         ld a,d
         or e
-        jr z,esp_f0ok
+        jr z,esp_f0_ok
         ld hl,(esp_spin)
-esp_f0w
+esp_f0_wait
         ld a,h
         or l
         jr z,esp_f0to
-        ld bc,(esp_LSR)
         in a,(c)
         rrca
-        jr c,esp_f0got
+        jr c,esp_f0_read
         dec hl
         ld bc,(esp_MCR)
         ld a,2
         out (c),a
         xor a
         out (c),a
-        jr esp_f0w
-esp_f0got
+        ld bc,(esp_LSR)
+        jr esp_f0_wait
+esp_f0_read
         ld bc,(esp_RBR)
         in a,(c)
         ld (ix),a
         inc ix
         dec de
-        jr esp_f0b
-esp_f0ok
+        ld bc,(esp_LSR)
+        jr esp_f0_next
+esp_f0_ok
         ei
         xor a
         ret
@@ -1314,93 +1327,95 @@ esp_fill_to
         or a
         ret
 
+; Type 1 ATM2 COM: command 55FE, count C2FE, data 02FE. C stays 0xFE.
 esp_fill1
         ld ix,(esp_dst)
         ld de,(esp_n)
-esp_f1b
+esp_f1_next
         ld a,d
         or e
-        jr z,esp_f1ok
+        jr z,esp_f1_ok
         ld hl,(esp_spin)
-esp_f1w
+esp_f1_wait
         di
         ld bc,0x55fe
         in a,(c)
-        ld bc,0xc2fe
+        ld b,0xc2
         in a,(c)
         or a
-        jr z,esp_f1empty
-        ld bc,0x55fe
+        jr z,esp_f1_empty
+        ld b,0x55
         in a,(c)
-        ld bc,0x02fe
+        ld b,0x02
         in a,(c)
         ei
         ld (ix),a
         inc ix
         dec de
-        jr esp_f1b
-esp_f1empty
+        jr esp_f1_next
+esp_f1_empty
         ei
         dec hl
         ld a,h
         or l
-        jr nz,esp_f1w
+        jr nz,esp_f1_wait
         jr esp_fill_to
-esp_f1ok
+esp_f1_ok
         xor a
         ret
 
+; Type 2 AFC: hardware RTS. One wait on LSR DR, then RBR.
+; BC holds the LSR port for the whole wait (address is constant).
+; esp_spin is the per-byte timeout; reload it for each byte, not each poll.
 esp_fill2
         di
         ld ix,(esp_dst)
         ld de,(esp_n)
-esp_f2b
+        ld bc,(esp_LSR)
+esp_f2_next
         ld a,d
         or e
-        jr z,esp_f2ok
+        jr z,esp_f2_ok
         ld hl,(esp_spin)
-esp_f2w
+esp_f2_wait
         ld a,h
         or l
         jr z,esp_f0to
-        ld bc,(esp_LSR)
         in a,(c)
         rrca
-        jr c,esp_f2got
+        jr c,esp_f2_read
         dec hl
-        jr esp_f2w
-esp_f2got
-        ld bc,(esp_LSR)
-esp_f2w2
-        in a,(c)
-        rrca
-        jr nc,esp_f2w2
+        jr esp_f2_wait
+esp_f2_read
         ld bc,(esp_RBR)
         in a,(c)
         ld (ix),a
         inc ix
         dec de
-        jr esp_f2b
-esp_f2ok
+        ld bc,(esp_LSR)
+        jr esp_f2_next
+esp_f2_ok
         ei
         xor a
         ret
 
+; Type 3 ATM2IOESP: 16550 behind FB=index / FA=data. LSR stays selected
+; between bytes. Empty: pulse MCR RTS, select LSR again, retry.
 esp_fill3
         di
         ld a,(esp_rLSR)
         out (0xfb),a
         ld ix,(esp_dst)
         ld de,(esp_n)
-esp_f3b
+esp_f3_next
         ld a,d
         or e
-        jr z,esp_f3ok
+        jr z,esp_f3_ok
         in a,(0xfa)
         rrca
-        jr c,esp_f3got
+        jr c,esp_f3_read
         ld hl,(esp_spin)
-esp_f3w
+esp_f3_wait
         dec hl
         ld a,h
         or l
@@ -1415,8 +1430,8 @@ esp_f3w
         out (0xfb),a
         in a,(0xfa)
         rrca
-        jr nc,esp_f3w
-esp_f3got
+        jr nc,esp_f3_wait
+esp_f3_read
         ld a,(esp_rRBR)
         out (0xfb),a
         in a,(0xfa)
@@ -1425,8 +1440,8 @@ esp_f3got
         dec de
         ld a,(esp_rLSR)
         out (0xfb),a
-        jr esp_f3b
-esp_f3ok
+        jr esp_f3_next
+esp_f3_ok
         ei
         xor a
         ret

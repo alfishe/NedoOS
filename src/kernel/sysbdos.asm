@@ -74,7 +74,14 @@ espk_open_nolock
 
 BDOS_wiznetclose
         BDOSSETPGW5300 ;портит bc
+		if INETDRV == 2
+        call espk_busy_try
+        jp nz,espk_busy_eagain
+        call wiznet_close
+        jp espk_busy_leave
+		else
         jp wiznet_close
+		endif
 
 BDOS_wiznetread
 ;de=pointer, hl=buffer size

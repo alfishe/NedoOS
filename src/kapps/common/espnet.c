@@ -315,6 +315,8 @@ static int recv_fill(unsigned char *dst, unsigned int n)
 		}
 		return 0;
 	case 2:
+		/* AFC: hardware RTS. DR already set after the timed wait;
+		 * a second LSR loop under DI never sees it go empty. */
 		disable_interrupt();
 		while (r_n)
 		{
@@ -328,8 +330,6 @@ static int recv_fill(unsigned char *dst, unsigned int n)
 					return -1;
 				}
 			}
-			while ((input(LSR) & 1) == 0)
-				;
 			*r_dst = input(RBR_THR);
 			r_dst++;
 			r_n--;

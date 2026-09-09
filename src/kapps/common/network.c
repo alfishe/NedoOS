@@ -51,56 +51,6 @@ int httpError(void)
   return httpErr;
 }
 
-void getErrorText(unsigned int error, char *buf)
-{
-  error = error & 0xff;
-  switch (error)
-  {
-  case 2:
-    strcpy(buf, "02 SHUT_RDWR");
-    break;
-  case 4:
-    strcpy(buf, "04 ERR_INTR");
-    break;
-  case 23:
-    strcpy(buf, "23 ERR_NFILE");
-    break;
-  case 35:
-    strcpy(buf, "35 ERR_EAGAIN");
-    break;
-  case 37:
-    strcpy(buf, "37 ERR_ALREADY");
-    break;
-  case 38:
-    strcpy(buf, "38 ERR_NOTSOCK");
-    break;
-  case 40:
-    strcpy(buf, "40 ERR_EMSGSIZE");
-    break;
-  case 41:
-    strcpy(buf, "41 ERR_PROTOTYPE");
-    break;
-  case 47:
-    strcpy(buf, "47 ERR_AFNOSUPPORT");
-    break;
-  case 53:
-    strcpy(buf, "53 ERR_ECONNABORTED");
-    break;
-  case 54:
-    strcpy(buf, "54 ERR_CONNRESET");
-    break;
-  case 57:
-    strcpy(buf, "57 ERR_NOTCONN");
-    break;
-  case 65:
-    strcpy(buf, "65 ERR_HOSTUNREACH");
-    break;
-  default:
-    sprintf(buf, "%u UNKNOWN ERROR", error);
-    break;
-  }
-}
-
 void errorPrint(unsigned int error)
 {
   switch (error)
@@ -165,13 +115,19 @@ void testOperation(const char *process, int socket)
 char OpenSock(unsigned char family, unsigned char protocol)
 {
   unsigned int todo;
+  unsigned char retry;
 
-  todo = OS_NETSOCKET((family << 8) + protocol);
-  if (!OS_CALL_OK(todo))
+  retry = 50;
+  for (;;)
   {
-    return 0 - OS_CALL_ERR(todo);
+    todo = OS_NETSOCKET((family << 8) + protocol);
+    if (OS_CALL_OK(todo))
+      return OS_CALL_SOCKET(todo);
+    if (OS_CALL_ERR(todo) != ERR_EAGAIN || retry == 0)
+      return 0 - OS_CALL_ERR(todo);
+    retry--;
+    YIELD();
   }
-  return OS_CALL_SOCKET(todo);
 }
 
 char netShutDown(signed char socket, unsigned char type)
@@ -387,13 +343,23 @@ unsigned char dnsResolve(const char *domainName)
   readStruct.bufsize = (unsigned int)reqSize;
   readStruct.protocol = SOCK_DGRAM;
 
-  todo = OS_WIZNETWRITE_UDP(&readStruct, &dnsaddress);
-  if (!OS_CALL_OK(todo))
+  retry = 50;
+  for (;;)
   {
-    putchar('\r');
-    errorPrint(OS_CALL_ERR(todo));
-    netShutDown(socket, 0);
-    return 0;
+    todo = OS_WIZNETWRITE_UDP(&readStruct, &dnsaddress);
+    if (OS_CALL_OK(todo))
+      break;
+    /* 35 = UART/lwIP busy. 40 = old firmware used EMSGSIZE for UDP send fail. */
+    if ((OS_CALL_ERR(todo) != ERR_EAGAIN && OS_CALL_ERR(todo) != ERR_EMSGSIZE) ||
+        retry == 0)
+    {
+      putchar('\r');
+      errorPrint(OS_CALL_ERR(todo));
+      netShutDown(socket, 0);
+      return 0;
+    }
+    retry--;
+    YIELD();
   }
 
   readStruct.BufAdr = (unsigned int)netbuf;

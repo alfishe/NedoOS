@@ -1364,9 +1364,12 @@ espk_info_ok
         ld l,a
         ld h,a
         ret
-; UART lock: second net BDOS while a frame is in flight -> EAGAIN (35).
-; Close is not locked so shutdown can still run. Z=got lock.
+; UART lock: one BDOS net call (0 free, else EAGAIN 35). Held until the
+; call has copied to user memory and returned; then anyone may take it.
+; YIELD is irrelevant. Socket lifetime is espk_owner until CLOSE/peer
+; drop, not this lock. CLOSE is locked too.
 ; SETUART/GETUART (L=9/10) skip the lock so espcfg can program the 16550.
+; Kernel READ does not pipeline (no esp_armed across BDOS return).
 espk_busy_try
         ld a,(esp_busy)
         or a

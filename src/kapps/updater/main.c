@@ -500,8 +500,8 @@ char testOperation3(const char *process, int socket)
 	if (socket < 0)
 	{
 		clearStatus();
-		getErrorText(-socket, cmd);
-		printf("%s: [ERROR:%s]          ", process, cmd);
+		printf("%s:", process);
+		errorPrint(-socket & 0xff);
 		YIELD();
 		return false;
 	}
