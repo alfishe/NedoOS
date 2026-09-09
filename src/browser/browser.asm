@@ -342,8 +342,34 @@ browser_open_skip
         pop hl
 
         ex de,hl ;de=filename
+        ld a,(init_homepagesys)
+        or a
+        jr z,browser_open_nosys
+        ld a,(curprotocol)
+        or a
+        jr nz,browser_open_nosys ;http/etc: CWD unchanged
+        push de
+        ld de,0x8000 ;oldpath (temppg)
+        OS_GETPATH
+        OS_SETSYSDRV
+        pop de
+        ld a,1
+        jr browser_open_sysq
+browser_open_nosys
+        xor a
+browser_open_sysq
+        push af ;A=1 => restore CWD after open
 openstream_patch=$+1
         call openstream_file
+        pop hl ;H=1 => restore CWD
+        inc h
+        dec h
+        jr z,browser_open_done
+        push af
+        ld de,0x8000 ;oldpath
+        OS_CHDIR
+        pop af
+browser_open_done
 	or a
 	jp nz,LOADERROR
 
@@ -569,7 +595,8 @@ downloadfilehandle=$+1
 
 	ld hl,downloadfilename
 	inc (hl) ;TODO ввод имени
-	jp closequit
+	call closestream
+	jp browser_reload ;show the page again (getkeyquit has no HTML nav)
 
 DOCTYPEsz=9
 loadxml;svg

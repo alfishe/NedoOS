@@ -54,6 +54,7 @@ init
 ;-f: load argument from disk (file://), for nc.ext / bare filenames
         xor a
         ld (init_forcefile),a
+        ld (init_homepagesys),a
         ld hl,COMMANDLINE ;command line
         call skipword
         call skipspaces
@@ -74,6 +75,9 @@ init_parseflags
         ld (init_forcefile),a
         jr init_parseflags
 init_usedefault
+;homepage file://browser/nos.htm lives under bin/; keep CWD for -f / cmdline files
+        ld a,1
+        ld (init_homepagesys),a
         ld hl,defaultfilename
 init_gotarg
         ld de,linkbuf
@@ -119,6 +123,8 @@ defaultfilename
 tflagf
         db "-f",0
 init_forcefile
+        db 0
+init_homepagesys
         db 0
 
 zxpal

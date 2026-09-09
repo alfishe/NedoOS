@@ -493,7 +493,6 @@ C_task main(int argc, char *argv[])
 {
 	unsigned char i = 1;
 	os_initstdio();
-	printf("[TIME2 Build:%s  %s]\r\n\r\n", __DATE__, __TIME__);
 	is_atm = (unsigned char)OS_GETCONFIG();
 	netDriver = read_netdriver();
 
