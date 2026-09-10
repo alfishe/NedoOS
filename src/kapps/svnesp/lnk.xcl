@@ -2,7 +2,7 @@
 -Ilist
 /* One linear 64K COM: code + BSS + stack after 0100.
  * 0000-00FF stays user kernel (RST0/IM1/cmdline). FFFF = DBGMON. */
--Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-FF00
--Z(DATA)DATA0,IDATA0,UDATA0,ECSTR,NO_INIT,CSTACK+500
+-Z(CODE)RCODE,CODE,CDATA0,CONST,CSTR,CCSTR=0100-FFF0
+-Z(DATA)DATA0,IDATA0,UDATA0,ECSTR,NO_INIT,CSTACK+280
 -e_medium_write=_formatted_write
 -e_medium_read=_formatted_read

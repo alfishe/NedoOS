@@ -1660,7 +1660,152 @@ static void make_tmp_path(const char *local)
 	path_copy_n((char *)(tmpPath + n), "/_svnesp_tmp", 128 - n);
 }
 
-static unsigned char local_needs_update(const char *local, const char *remote, const char *date_str)
+/* svn.com checks offline against the list via CHDIR+READDIR (no GETFILETIME).
+ * Index lives in ra_file_buf (packed: len, name[len], date, time) so check
+ * and download are separate passes - get-file reuses that buffer. */
+#define LOCIDX_SIZE RA_FILE_IO
+
+static unsigned int locidx_n;
+static unsigned char locidx_ok;
+static unsigned char locidx_full;
+static unsigned int qbuf_n;
+static unsigned int qbuf_i;
+static FILE *upd_qf;
+static unsigned int upd_q_count;
+static unsigned long upd_q_pos;
+
+static unsigned char str_ieq_n(const char *a, const char *b, unsigned char n)
+{
+	unsigned char i;
+
+	for (i = 0; i < n; i++)
+	{
+		if (a[i] == 0)
+			return 0;
+		if (tolower((unsigned char)a[i]) != tolower((unsigned char)b[i]))
+			return 0;
+	}
+	return a[n] == 0;
+}
+
+static unsigned char locidx_add(const char *name, unsigned int date, unsigned int time)
+{
+	unsigned int n = 0;
+
+	while (name[n])
+		n++;
+	if (n > 255)
+		n = 255;
+	if (locidx_n + n + 5 > LOCIDX_SIZE)
+		return 0;
+	ra_file_buf[locidx_n++] = (unsigned char)n;
+	memcpy(ra_file_buf + locidx_n, name, n);
+	locidx_n += n;
+	ra_file_buf[locidx_n++] = (unsigned char)date;
+	ra_file_buf[locidx_n++] = (unsigned char)(date >> 8);
+	ra_file_buf[locidx_n++] = (unsigned char)time;
+	ra_file_buf[locidx_n++] = (unsigned char)(time >> 8);
+	return 1;
+}
+
+static unsigned char locidx_find(const char *name, unsigned int *date, unsigned int *time)
+{
+	unsigned int i = 0;
+	unsigned char n;
+
+	if (!name || name[0] == 0)
+		return 0;
+	while (i < locidx_n)
+	{
+		n = ra_file_buf[i++];
+		if (i + n + 4 > locidx_n)
+			return 0;
+		if (str_ieq_n(name, (char *)(ra_file_buf + i), n))
+		{
+			i += n;
+			*date = (unsigned int)ra_file_buf[i] | ((unsigned int)ra_file_buf[i + 1] << 8);
+			*time = (unsigned int)ra_file_buf[i + 2] | ((unsigned int)ra_file_buf[i + 3] << 8);
+			return 1;
+		}
+		i += n + 4;
+	}
+	return 0;
+}
+
+static void locidx_build(void)
+{
+	unsigned char r;
+	fileInfo *fi;
+	static char nm[64];
+	unsigned int nlen;
+
+	locidx_ok = 0;
+	locidx_full = 0;
+	locidx_n = 0;
+	OS_GETPATH((unsigned char *)ra_get_line);
+	if (OS_CHDIR(localBase) != 0)
+		return;
+	OS_OPENDIR("");
+	fi = (fileInfo *)ra_out;
+	for (;;)
+	{
+		r = OS_READDIR(fi);
+		if (r == 4 || r != 0)
+			break;
+		if (fi->fname[0] == 0)
+			break;
+		if (fi->fname[0] == '.' &&
+			(fi->fname[1] == 0 ||
+			 (fi->fname[1] == '.' && fi->fname[2] == 0)))
+			continue;
+		if (fi->fattrib & 0x10)
+			continue;
+		if (fi->lfname[0])
+			path_copy_n(nm, (char *)fi->lfname, 64);
+		else
+			path_copy_n(nm, (char *)fi->fname, 13);
+		nlen = (unsigned int)strlen(nm);
+		while (nlen && nm[nlen - 1] == ' ')
+			nm[--nlen] = 0;
+		if (nm[0] == 0)
+			continue;
+		if (!locidx_add(nm, fi->fdate, fi->ftime))
+		{
+			locidx_full = 1;
+			break;
+		}
+	}
+	OS_CHDIR((unsigned char *)ra_get_line);
+	locidx_ok = 1;
+}
+
+static void qbuf_reset(void)
+{
+	qbuf_n = 0;
+	qbuf_i = 0;
+}
+
+static void qbuf_sync(void)
+{
+	OS_SEEKHANDLE(upd_qf, upd_q_pos);
+	qbuf_reset();
+}
+
+static unsigned char q_getc(unsigned char *c)
+{
+	if (qbuf_i >= qbuf_n)
+	{
+		qbuf_n = OS_READHANDLE(ra_txbuf, upd_qf, sizeof(ra_txbuf));
+		qbuf_i = 0;
+		if (qbuf_n == 0)
+			return 0;
+	}
+	*c = ra_txbuf[qbuf_i++];
+	upd_q_pos++;
+	return 1;
+}
+
+static unsigned char local_needs_update(const char *local, const char *name, const char *remote, const char *date_str)
 {
 	unsigned int lfdate, lftime;
 	unsigned int rfdate, rftime;
@@ -1668,7 +1813,17 @@ static unsigned char local_needs_update(const char *local, const char *remote, c
 		return 1;
 	if (!parse_http_date(date_str, &rfdate, &rftime))
 		return 1;
-	if (OS_GETFILETIME((unsigned char *)local, &lfdate, &lftime) != 0)
+	if (locidx_ok)
+	{
+		if (!locidx_find(name, &lfdate, &lftime))
+		{
+			if (!locidx_full)
+				return 1;
+			if (OS_GETFILETIME((unsigned char *)local, &lfdate, &lftime) != 0)
+				return 1;
+		}
+	}
+	else if (OS_GETFILETIME((unsigned char *)local, &lfdate, &lftime) != 0)
 		return 1;
 	if (rfdate != lfdate || rftime != lftime)
 		return 1;
@@ -1819,7 +1974,7 @@ static unsigned char upd_one_file(const char *remote, const char *name, const ch
 	if (!eff_date[0])
 		ra_svn_fetch_mtime(path, eff_date);
 
-	if (!local_needs_update(local, path, eff_date))
+	if (!local_needs_update(local, name, path, eff_date))
 	{
 		if (verbose)
 			printf("skip %s\r\n", local);
@@ -1872,14 +2027,12 @@ static unsigned char upd_one_file(const char *remote, const char *name, const ch
 	return 1;
 }
 
-static FILE *upd_qf;
-static unsigned int upd_q_count;
-static unsigned long upd_q_pos;
-
 static void upd_cleanup_temps(void)
 {
 	join_path(upd_q_path, (char *)localBase, "_svnesp.q");
 	OS_DELETE(upd_q_path);
+	join_path(tmpPath, (char *)localBase, "_svnesp.n");
+	OS_DELETE(tmpPath);
 	join_path(tmpPath, (char *)localBase, "_svnesp_tmp");
 	OS_DELETE(tmpPath);
 	join_path(dstk_path, (char *)localBase, "_svnesp.d");
@@ -1966,17 +2119,14 @@ static unsigned char upd_q_readline(char *line, unsigned int max)
 {
 	unsigned int i = 0;
 	unsigned char c;
-	unsigned int n;
 
 	while (i < max - 1)
 	{
-		n = OS_READHANDLE(&c, upd_qf, 1);
-		if (n == 0)
+		if (!q_getc(&c))
 		{
 			line[i] = 0;
 			return i > 0;
 		}
-		upd_q_pos++;
 		if (c == '\r')
 			continue;
 		if (c == '\n')
@@ -2056,12 +2206,56 @@ static unsigned char upd_q_process_files(void)
 	static char line[96];
 	static char name[64];
 	static char date[20];
+	FILE *nf;
+	unsigned char any;
 
 	upd_q_close();
 	upd_q_pos = 0;
+	qbuf_reset();
+	join_path(ra_list_line, (char *)localBase, "_svnesp.n");
+	OS_DELETE((unsigned char *)ra_list_line);
+
+	/* -c CRC compares file bodies and uses ra_file_buf; keep the old one-pass. */
+	if (useCrc)
+	{
+		upd_qf = fs_open(upd_q_path);
+		if (!fs_hok(upd_qf))
+			return 0;
+		while (upd_q_readline(line, 96))
+		{
+			if (line[0] == 'F' && line[1] == ' ')
+			{
+				strncpy(name, line + 2, 63);
+				name[63] = 0;
+				date[0] = 0;
+				if (!upd_q_readline(line, 96))
+				{
+					upd_q_close();
+					return 0;
+				}
+				if (line[0] == 'T' && line[1] == ' ' && line[2])
+				{
+					strncpy(date, line + 2, 19);
+					date[19] = 0;
+				}
+				qbuf_sync();
+				if (!upd_one_file(0, name, date))
+				{
+					upd_q_close();
+					return 0;
+				}
+			}
+		}
+		upd_q_close();
+		return 1;
+	}
+
+	locidx_build();
 	upd_qf = fs_open(upd_q_path);
 	if (!fs_hok(upd_qf))
 		return 0;
+	nf = 0;
+	any = 0;
 	while (upd_q_readline(line, 96))
 	{
 		if (line[0] == 'F' && line[1] == ' ')
@@ -2072,6 +2266,9 @@ static unsigned char upd_q_process_files(void)
 			if (!upd_q_readline(line, 96))
 			{
 				upd_q_close();
+				if (nf)
+					fs_close(nf);
+				OS_DELETE((unsigned char *)ra_list_line);
 				return 0;
 			}
 			if (line[0] == 'T' && line[1] == ' ' && line[2])
@@ -2079,15 +2276,80 @@ static unsigned char upd_q_process_files(void)
 				strncpy(date, line + 2, 19);
 				date[19] = 0;
 			}
-			/* Queue stays open: fd budget is queue + destination. */
+			if (exclude_match(name))
+			{
+				printf("%s... Skipped\r\n", name);
+				continue;
+			}
+			join_path((char *)ra_out, (char *)localBase, name);
+			if (!local_needs_update((char *)ra_out, name, (char *)ra_out, date))
+				continue;
+			if (!nf)
+			{
+				nf = fs_create((unsigned char *)ra_list_line);
+				if (!fs_hok(nf))
+				{
+					upd_q_close();
+					return 0;
+				}
+			}
+			sprintf(line, "F %s\r\n", name);
+			OS_WRITEHANDLE((unsigned char *)line, nf, (unsigned int)strlen(line));
+			if (date[0])
+				sprintf(line, "T %s\r\n", date);
+			else
+				path_copy_n(line, "T\r\n", 96);
+			OS_WRITEHANDLE((unsigned char *)line, nf, (unsigned int)strlen(line));
+			any = 1;
+		}
+	}
+	upd_q_close();
+	locidx_ok = 0;
+	if (nf)
+		fs_close(nf);
+	if (!any)
+	{
+		OS_DELETE((unsigned char *)ra_list_line);
+		return 1;
+	}
+
+	qbuf_reset();
+	upd_q_pos = 0;
+	upd_qf = fs_open((unsigned char *)ra_list_line);
+	if (!fs_hok(upd_qf))
+	{
+		OS_DELETE((unsigned char *)ra_list_line);
+		return 0;
+	}
+	while (upd_q_readline(line, 96))
+	{
+		if (line[0] == 'F' && line[1] == ' ')
+		{
+			strncpy(name, line + 2, 63);
+			name[63] = 0;
+			date[0] = 0;
+			if (!upd_q_readline(line, 96))
+			{
+				upd_q_close();
+				OS_DELETE((unsigned char *)ra_list_line);
+				return 0;
+			}
+			if (line[0] == 'T' && line[1] == ' ' && line[2])
+			{
+				strncpy(date, line + 2, 19);
+				date[19] = 0;
+			}
+			qbuf_sync();
 			if (!upd_one_file(0, name, date))
 			{
 				upd_q_close();
+				OS_DELETE((unsigned char *)ra_list_line);
 				return 0;
 			}
 		}
 	}
 	upd_q_close();
+	OS_DELETE((unsigned char *)ra_list_line);
 	return 1;
 }
 
@@ -2101,6 +2363,7 @@ static unsigned char upd_q_push_subdirs(void)
 	upd_qf = fs_open(upd_q_path);
 	if (((int)upd_qf) & 0xff)
 		return 0;
+	qbuf_reset();
 	while (upd_q_readline(line, 96))
 	{
 		if (line[0] == 'D' && line[1] == ' ')
