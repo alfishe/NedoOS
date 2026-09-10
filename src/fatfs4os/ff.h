@@ -52,14 +52,7 @@ extern "C" {
 /* Type of path name strings on FatFs API */
 
 #if _LFN_UNICODE			/* Unicode string */
-#if !_USE_LFN
-#error _LFN_UNICODE must be 0 in non-LFN cfg.
-#endif
-#ifndef _INC_TCHAR
-typedef WCHAR TCHAR;
-#define _T(x) L ## x
-#define _TEXT(x) L ## x
-#endif
+#error _LFN_UNICODE must be 0 in not supported.
 
 #else						/* ANSI/OEM string */
 #ifndef _INC_TCHAR
@@ -166,7 +159,7 @@ typedef struct {
 	BYTE	fattrib;		/* Attribute */
 	TCHAR	fname[13];		/* Short file name (8.3 format) */
 #if _USE_LFN
-	TCHAR	lfname[64];			/* Pointer to the LFN buffer */
+	TCHAR	lfname[_MAX_LFN+1];			/* Pointer to the LFN buffer */
 //	TCHAR*	lfname;			/* Pointer to the LFN buffer */
 //	UINT 	lfsize;			/* Size of LFN buffer in TCHAR */
 #endif
