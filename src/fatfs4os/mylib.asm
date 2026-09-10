@@ -99,6 +99,40 @@ LD_CLUST:
   
 ENDMOD
 
+MODULE STRIP_SP_DOT
+  
+    PUBLIC fs_strip_sp_dot
+    RSEG CODE
+fs_strip_sp_dot:
+    ld hl,0xffff
+loop:
+    ld a,(de)
+    inc hl
+    inc de
+    cp ' '
+    jr z,loop
+    cp '.'
+    ret nz
+    jr loop
+  
+ENDMOD
+
+MODULE FS_STRCPY
+  
+  PUBLIC fs_strcpy
+  RSEG CODE
+fs_strcpy:
+    ld h,b
+    ld l,c
+loop:
+    ld a,(hl)
+    ldi
+    or a
+    jp nz,loop
+    ret
+
+ENDMOD
+
 MODULE UNICODE_CP866
   
   PUBLIC unicode_to_cp866
