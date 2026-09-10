@@ -11,9 +11,121 @@
  * #define NET_NO_UDP before include to drop dnsResolve (EspDnsResolve-only apps).
  * Do not gate this on ESPNET_NO_UDP: dual-stack apps still need WIZNET DNS. */
 #define DNS_PKT_MAX 512
+/* One UDP query + 10*80ms (~0.8s) was too short: 8.8.4.4 often arrives
+ * later or the datagram is lost, and a SERVFAIL/empty read looked instant. */
+#ifndef DNS_SEND_TRIES
+#define DNS_SEND_TRIES 4
+#endif
+#ifndef DNS_RECV_TRIES
+#define DNS_RECV_TRIES 25
+#endif
+#ifndef DNS_RECV_MS
+#define DNS_RECV_MS 100
+#endif
 static const unsigned char dns_query_hdr[12] =
     {0x11, 0x22, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 static const unsigned char dns_query_tail[5] = {0x00, 0x00, 0x01, 0x00, 0x01};
+
+static unsigned char dns_parse_ipv4(const char *host, unsigned char ip[4])
+{
+  unsigned int octet;
+  unsigned char idx;
+  const char *p;
+
+  p = host;
+  for (idx = 0; idx < 4; idx++)
+  {
+    if (*p < '0' || *p > '9')
+      return 0;
+    octet = 0;
+    while (*p >= '0' && *p <= '9')
+    {
+      octet = octet * 10u + (unsigned int)(*p - '0');
+      p++;
+    }
+    if (octet > 255)
+      return 0;
+    ip[idx] = (unsigned char)octet;
+    if (idx < 3)
+    {
+      if (*p != '.')
+        return 0;
+      p++;
+    }
+  }
+  return (*p == 0) ? 1 : 0;
+}
+
+static unsigned int dns_build_query(const char *domainName, unsigned int domainLng)
+{
+  unsigned char *enc;
+  unsigned int comaCount;
+  unsigned int loop;
+
+  enc = netbuf + 256;
+  comaCount = 0;
+  loop = domainLng;
+  enc[loop + 1] = 0;
+  do
+  {
+    if (domainName[loop - 1] == '.')
+    {
+      enc[loop] = (unsigned char)comaCount;
+      comaCount = 0;
+    }
+    else
+    {
+      enc[loop] = domainName[loop - 1];
+      comaCount++;
+    }
+    loop--;
+  } while (loop != 0);
+  enc[0] = (unsigned char)comaCount;
+  memcpy(netbuf, dns_query_hdr, sizeof(dns_query_hdr));
+  memcpy(netbuf + sizeof(dns_query_hdr), enc, domainLng + 1);
+  memcpy(netbuf + domainLng + sizeof(dns_query_hdr) + 1, dns_query_tail,
+         sizeof(dns_query_tail));
+  return sizeof(dns_query_hdr) + sizeof(dns_query_tail) + domainLng + 1;
+}
+
+/* QR + RCODE + first A (type 1). Compression in answers as before. */
+static unsigned char dns_take_a(unsigned int n)
+{
+  unsigned int queryPos;
+  unsigned int queryType;
+  unsigned int queryLng;
+
+  if (n < 12)
+    return 0;
+  if ((netbuf[2] & 0x80) == 0 || (netbuf[3] & 0x0f) != 0)
+    return 0;
+  queryPos = 11;
+  do
+  {
+    queryPos++;
+    if (queryPos >= n)
+      return 0;
+  } while (netbuf[queryPos] != 0);
+  queryPos = queryPos + 7;
+  do
+  {
+    if (queryPos > n - 12 || queryPos > DNS_PKT_MAX - 11)
+      return 0;
+    queryType = (unsigned int)netbuf[queryPos] * 256u + netbuf[queryPos + 1];
+    queryPos = queryPos + 8;
+    if (queryPos + 1 >= n)
+      return 0;
+    queryLng = (unsigned int)netbuf[queryPos] * 256u + netbuf[queryPos + 1];
+    queryPos = queryPos + queryLng + 4;
+  } while (queryType != 1);
+  if (queryPos < 6 || queryPos - 3 >= n)
+    return 0;
+  targetadr.b1 = netbuf[queryPos - 6];
+  targetadr.b2 = netbuf[queryPos - 5];
+  targetadr.b3 = netbuf[queryPos - 4];
+  targetadr.b4 = netbuf[queryPos - 3];
+  return 1;
+}
 #endif
 
 void delayLong(unsigned long counter)
@@ -295,126 +407,86 @@ unsigned char dnsResolve(const char *domainName)
 {
   int socket;
   unsigned char retry;
-  unsigned int todo, queryPos, queryType, domainLng, comaCount, reqSize;
-  unsigned int loop;
-  unsigned char *enc;
+  unsigned char send_try;
+  unsigned char recv_try;
+  unsigned int todo;
+  unsigned int domainLng;
+  unsigned int reqSize;
+  unsigned char ip4[4];
+  struct sockaddr_in from;
+  char key;
 
   domainLng = strlen(domainName);
   if (domainLng == 0 || domainLng > 126)
-  {
     return 0;
-  }
-
-  enc = netbuf + 256;
-  comaCount = 0;
-  loop = domainLng;
-  enc[loop + 1] = 0;
-
-  do
+  if (dns_parse_ipv4(domainName, ip4))
   {
-    if (domainName[loop - 1] == '.')
-    {
-      enc[loop] = comaCount;
-      comaCount = 0;
-    }
-    else
-    {
-      enc[loop] = domainName[loop - 1];
-      comaCount++;
-    }
-    loop--;
-  } while (loop != 0);
-  enc[0] = comaCount;
-
-  memcpy(netbuf, dns_query_hdr, sizeof(dns_query_hdr));
-  memcpy(netbuf + sizeof(dns_query_hdr), enc, domainLng + 1);
-  memcpy(netbuf + domainLng + sizeof(dns_query_hdr) + 1, dns_query_tail,
-         sizeof(dns_query_tail));
-  reqSize = sizeof(dns_query_hdr) + sizeof(dns_query_tail) + domainLng + 1;
+    targetadr.b1 = ip4[0];
+    targetadr.b2 = ip4[1];
+    targetadr.b3 = ip4[2];
+    targetadr.b4 = ip4[3];
+    return 1;
+  }
 
   socket = OpenSock(AF_INET, SOCK_DGRAM);
   if (socket < 0)
-  {
     return 0;
-  }
 
-  readStruct.socket = socket;
-  readStruct.BufAdr = (unsigned int)netbuf;
-  readStruct.bufsize = (unsigned int)reqSize;
-  readStruct.protocol = SOCK_DGRAM;
-
-  retry = 50;
-  for (;;)
+  for (send_try = 0; send_try < DNS_SEND_TRIES; send_try++)
   {
-    todo = OS_WIZNETWRITE_UDP(&readStruct, &dnsaddress);
-    if (OS_CALL_OK(todo))
-      break;
-    /* 35 = UART/lwIP busy. 40 = old firmware used EMSGSIZE for UDP send fail. */
-    if ((OS_CALL_ERR(todo) != ERR_EAGAIN && OS_CALL_ERR(todo) != ERR_EMSGSIZE) ||
-        retry == 0)
+    reqSize = dns_build_query(domainName, domainLng);
+    readStruct.socket = socket;
+    readStruct.BufAdr = (unsigned int)netbuf;
+    readStruct.bufsize = reqSize;
+    readStruct.protocol = SOCK_DGRAM;
+    retry = 50;
+    for (;;)
     {
-      putchar('\r');
-      errorPrint(OS_CALL_ERR(todo));
-      netShutDown(socket, 0);
-      return 0;
-    }
-    retry--;
-    YIELD();
-  }
-
-  readStruct.BufAdr = (unsigned int)netbuf;
-  readStruct.bufsize = DNS_PKT_MAX;
-  retry = 10;
-  do
-  {
-    todo = OS_WIZNETREAD_UDP(&readStruct, &dnsaddress);
-    if (!OS_CALL_OK(todo))
-    {
-      if (retry == 0)
+      todo = OS_WIZNETWRITE_UDP(&readStruct, &dnsaddress);
+      if (OS_CALL_OK(todo))
+        break;
+      /* 35 = UART/lwIP busy. 40 = old firmware used EMSGSIZE for UDP send fail. */
+      if ((OS_CALL_ERR(todo) != ERR_EAGAIN && OS_CALL_ERR(todo) != ERR_EMSGSIZE) ||
+          retry == 0)
       {
+        putchar('\r');
+        errorPrint(OS_CALL_ERR(todo));
         netShutDown(socket, 0);
         return 0;
       }
       retry--;
-      delayLong(80);
+      YIELD();
     }
-  } while (!OS_CALL_OK(todo));
 
-  netShutDown(socket, 0);
-
-  if ((netbuf[2] & 0x80) == 0 || (netbuf[3] & 0x0f) != 0)
-  {
-    return 0;
+    readStruct.BufAdr = (unsigned int)netbuf;
+    readStruct.bufsize = DNS_PKT_MAX;
+    for (recv_try = 0; recv_try < DNS_RECV_TRIES; recv_try++)
+    {
+      /* from, not dnsaddress: READ fills sender and must not clobber the NS. */
+      todo = OS_WIZNETREAD_UDP(&readStruct, &from);
+      if (OS_CALL_OK(todo) && todo >= 12)
+      {
+        if (dns_take_a(todo))
+        {
+          netShutDown(socket, 0);
+          return 1;
+        }
+        /* SERVFAIL/REFUSED/truncated: resend, do not treat as a final miss. */
+        delayLong(200);
+        break;
+      }
+      key = _low_level_get();
+      if (key == 27)
+      {
+        netShutDown(socket, 0);
+        return 0;
+      }
+      delayLong(DNS_RECV_MS);
+    }
   }
 
-  queryPos = 11;
-  do
-  {
-    queryPos++;
-  } while (netbuf[queryPos] != 0);
-
-  queryPos = queryPos + 7;
-  do
-  {
-    unsigned int queryLng;
-    if (queryPos > DNS_PKT_MAX - 11)
-    {
-      return 0;
-    }
-    queryType = netbuf[queryPos] * 256 + netbuf[queryPos + 1];
-
-    queryPos = queryPos + 8;
-
-    queryLng = netbuf[queryPos] * 256 + netbuf[queryPos + 1];
-    queryPos = queryPos + queryLng + 4;
-  } while (queryType != 1);
-
-  targetadr.b1 = netbuf[queryPos - 6];
-  targetadr.b2 = netbuf[queryPos - 5];
-  targetadr.b3 = netbuf[queryPos - 4];
-  targetadr.b4 = netbuf[queryPos - 3];
-
-  return 1;
+  netShutDown(socket, 0);
+  return 0;
 }
 #endif
 

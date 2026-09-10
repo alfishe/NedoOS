@@ -17,7 +17,7 @@
 #define screenHeight 23
 #define SCREEN_WIDTH 80
 #define MAX_PAGES_TOTAL 150
-#define NETBUF_SIZE 25500
+#define NETBUF_SIZE 24000
 
 unsigned int RBR_THR = 0xf8ef;
 unsigned int IER = 0xf9ef;
@@ -1372,6 +1372,8 @@ char getFileNet(unsigned char *fileNamePtr)
 	int socket;
 	unsigned long downloaded = 0;
 
+	clearStatus();
+	printf("DNS %s", link.host);
 	if (!dnsResolve(link.host))
 	{
 		clearStatus();
@@ -1445,6 +1447,8 @@ char getFileEspnet(unsigned char *fileNamePtr)
 	int socket;
 	unsigned long downloaded = 0;
 
+	clearStatus();
+	printf("DNS %s", link.host);
 	if (!EspDnsResolve((char *)link.host))
 	{
 		clearStatus();

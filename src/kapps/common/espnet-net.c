@@ -151,6 +151,36 @@ int EspRecvFrom(signed char socket, struct sockaddr_in *from)
 }
 #endif
 
+static unsigned char espnet_parse_ipv4(const char *host, unsigned char ip[4])
+{
+	unsigned int octet;
+	unsigned char idx;
+	const char *p;
+
+	p = host;
+	for (idx = 0; idx < 4; idx++)
+	{
+		if (*p < '0' || *p > '9')
+			return 0;
+		octet = 0;
+		while (*p >= '0' && *p <= '9')
+		{
+			octet = octet * 10u + (unsigned int)(*p - '0');
+			p++;
+		}
+		if (octet > 255)
+			return 0;
+		ip[idx] = (unsigned char)octet;
+		if (idx < 3)
+		{
+			if (*p != '.')
+				return 0;
+			p++;
+		}
+	}
+	return (*p == 0) ? 1 : 0;
+}
+
 unsigned char EspDnsResolve(const char *domainName)
 {
 	unsigned char ip[4];
@@ -159,8 +189,18 @@ unsigned char EspDnsResolve(const char *domainName)
 
 	if (domainName[0] == 0)
 		return 0;
-	/* After TCP close the ESP DNS resolver often fails for ~1s (lwIP). */
-	espnet_pause(15);
+	if (espnet_parse_ipv4(domainName, ip))
+	{
+		targetadr.family = AF_INET;
+		targetadr.b1 = ip[0];
+		targetadr.b2 = ip[1];
+		targetadr.b3 = ip[2];
+		targetadr.b4 = ip[3];
+		return 1;
+	}
+	/* After TCP close the ESP DNS resolver often fails for ~1s (lwIP).
+	 * 15 ticks (~300ms) was not enough; hostByName then returns immediately. */
+	espnet_pause(50);
 	for (try = 0; try < ESPNET_DNS_TRIES; try++)
 	{
 		r = OS_ESPDNSRESOLVE((unsigned char *)domainName, ip);
@@ -183,15 +223,23 @@ void EspGetDns(void)
 {
 	unsigned char ip[4];
 	unsigned int r;
+	unsigned char try;
 
-	r = OS_ESPGETDNS(ip);
-	if (!ESPNET_C_OK(r))
-		return;
-	dnsaddress.family = AF_INET;
-	dnsaddress.porth = 0;
-	dnsaddress.portl = 53;
-	dnsaddress.b1 = ip[0];
-	dnsaddress.b2 = ip[1];
-	dnsaddress.b3 = ip[2];
-	dnsaddress.b4 = ip[3];
+	for (try = 0; try < 3; try++)
+	{
+		r = OS_ESPGETDNS(ip);
+		if (ESPNET_C_OK(r))
+		{
+			dnsaddress.family = AF_INET;
+			dnsaddress.porth = 0;
+			dnsaddress.portl = 53;
+			dnsaddress.b1 = ip[0];
+			dnsaddress.b2 = ip[1];
+			dnsaddress.b3 = ip[2];
+			dnsaddress.b4 = ip[3];
+			return;
+		}
+		if (try + 1u < 3)
+			espnet_pause(25);
+	}
 }
