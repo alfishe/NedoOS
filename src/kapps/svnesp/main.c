@@ -109,6 +109,7 @@ static unsigned char str_ieq(const char *a, const char *b);
 #define PATH_MAXN 127
 static unsigned char dstk_path[128];
 static unsigned int dstk_n;
+static FILE *dstk_fp;
 
 static void path_copy_n(char *dst, const char *src, unsigned int max)
 {
@@ -203,6 +204,12 @@ static unsigned int dbg_filen = 0;
 static unsigned char fs_hok(FILE *fp)
 {
 	return (((int)fp) & 0xff) == 0;
+}
+
+/* Handles are encoded with low byte 0, so NULL also looks "ok" to fs_hok. */
+static unsigned char fs_isopen(FILE *fp)
+{
+	return fp != 0 && fs_hok(fp);
 }
 
 static unsigned int fs_hid(FILE *fp)
@@ -1668,6 +1675,10 @@ static void make_tmp_path(const char *local)
 static unsigned int locidx_n;
 static unsigned char locidx_ok;
 static unsigned char locidx_full;
+static unsigned int dirpack_off;
+static unsigned int dirpack_n;
+static unsigned char files_prechecked;
+static unsigned char need_any;
 static unsigned int qbuf_n;
 static unsigned int qbuf_i;
 static FILE *upd_qf;
@@ -1819,11 +1830,11 @@ static unsigned char local_needs_update(const char *local, const char *name, con
 		{
 			if (!locidx_full)
 				return 1;
-			if (OS_GETFILETIME((unsigned char *)local, &lfdate, &lftime) != 0)
+			if (!local || OS_GETFILETIME((unsigned char *)local, &lfdate, &lftime) != 0)
 				return 1;
 		}
 	}
-	else if (OS_GETFILETIME((unsigned char *)local, &lfdate, &lftime) != 0)
+	else if (!local || OS_GETFILETIME((unsigned char *)local, &lfdate, &lftime) != 0)
 		return 1;
 	if (rfdate != lfdate || rftime != lftime)
 		return 1;
@@ -1974,7 +1985,7 @@ static unsigned char upd_one_file(const char *remote, const char *name, const ch
 	if (!eff_date[0])
 		ra_svn_fetch_mtime(path, eff_date);
 
-	if (!local_needs_update(local, name, path, eff_date))
+	if (!files_prechecked && !local_needs_update(local, name, path, eff_date))
 	{
 		if (verbose)
 			printf("skip %s\r\n", local);
@@ -2035,6 +2046,11 @@ static void upd_cleanup_temps(void)
 	OS_DELETE(tmpPath);
 	join_path(tmpPath, (char *)localBase, "_svnesp_tmp");
 	OS_DELETE(tmpPath);
+	if (dstk_fp)
+	{
+		fs_close(dstk_fp);
+		dstk_fp = 0;
+	}
 	join_path(dstk_path, (char *)localBase, "_svnesp.d");
 	OS_DELETE(dstk_path);
 	dstk_n = 0;
@@ -2053,7 +2069,7 @@ static void upd_q_open(void)
 
 static void upd_q_close(void)
 {
-	if (fs_hok(upd_qf))
+	if (fs_isopen(upd_qf))
 		fs_close(upd_qf);
 	upd_qf = 0;
 }
@@ -2062,7 +2078,7 @@ static void upd_q_write(const char *line)
 {
 	unsigned int n;
 
-	if (((int)upd_qf) & 0xff)
+	if (!fs_isopen(upd_qf))
 		return;
 	n = strlen(line);
 	OS_WRITEHANDLE((unsigned char *)line, upd_qf, n);
@@ -2085,6 +2101,38 @@ static unsigned char upd_q_push_subdirs(void);
 static unsigned char upd_directory_level(void);
 static unsigned char upd_download_tree(void);
 
+static unsigned char dirpack_add(const char *name)
+{
+	unsigned int n = 0;
+	unsigned int off;
+
+	while (name[n])
+		n++;
+	if (n == 0 || n > 90)
+		return 0;
+	if (dirpack_off < locidx_n + n + 1)
+		return 0;
+	off = dirpack_off - (n + 1);
+	ra_file_buf[off] = (unsigned char)n;
+	memcpy(ra_file_buf + off + 1, name, n);
+	dirpack_off = off;
+	dirpack_n++;
+	return 1;
+}
+
+static void upd_need_open(void)
+{
+	if (fs_isopen(upd_qf))
+		return;
+	join_path(upd_q_path, (char *)localBase, "_svnesp.q");
+	OS_DELETE(upd_q_path);
+	upd_qf = fs_create(upd_q_path);
+	if (!fs_hok(upd_qf))
+		return;
+	fs_close(upd_qf);
+	upd_qf = fs_open(upd_q_path);
+}
+
 static void upd_collect(const char *name, unsigned char is_dir, const char *date_str)
 {
 	static char base[32];
@@ -2097,20 +2145,62 @@ static void upd_collect(const char *name, unsigned char is_dir, const char *date
 			return;
 		if ((unsigned int)strlen(name) > 90)
 			return;
-		sprintf(line, "D %s\r\n", name);
-		upd_q_write(line);
+		if (useCrc)
+		{
+			sprintf(line, "D %s\r\n", name);
+			upd_q_write(line);
+		}
+		else if (!dirpack_add(name))
+		{
+			join_path((char *)ra_out, (char *)svnPath, name);
+			join_path((char *)tmpPath, (char *)localBase, name);
+			OS_MKDIR(tmpPath);
+			upd_stk_push((char *)ra_out, (char *)tmpPath);
+		}
 	}
 	else
 	{
 		if ((unsigned int)strlen(name) > 90)
 			return;
-		sprintf(line, "F %s\r\n", name);
-		upd_q_write(line);
-		if (date_str[0] && (unsigned int)strlen(date_str) < 90)
-			sprintf(line, "T %s\r\n", date_str);
+		if (useCrc)
+		{
+			sprintf(line, "F %s\r\n", name);
+			upd_q_write(line);
+			if (date_str[0] && (unsigned int)strlen(date_str) < 90)
+				sprintf(line, "T %s\r\n", date_str);
+			else
+				path_copy_n(line, "T\r\n", 96);
+			upd_q_write(line);
+		}
 		else
-			path_copy_n(line, "T\r\n", 96);
-		upd_q_write(line);
+		{
+			if (exclude_match(name))
+			{
+				printf("%s... Skipped\r\n", name);
+				upd_q_count++;
+				return;
+			}
+			if (!local_needs_update(0, name, 0, date_str))
+			{
+				upd_q_count++;
+				return;
+			}
+			upd_need_open();
+			if (!fs_isopen(upd_qf))
+			{
+				printf("queue create failed\r\n");
+				upd_q_count++;
+				return;
+			}
+			sprintf(line, "F %s\r\n", name);
+			upd_q_write(line);
+			if (date_str[0] && (unsigned int)strlen(date_str) < 90)
+				sprintf(line, "T %s\r\n", date_str);
+			else
+				path_copy_n(line, "T\r\n", 96);
+			upd_q_write(line);
+			need_any = 1;
+		}
 	}
 	upd_q_count++;
 }
@@ -2151,26 +2241,26 @@ static unsigned char upd_stk_push(const char *sp, const char *lb)
 		rec[i] = 0;
 	path_copy((char *)rec, sp);
 	path_copy((char *)(rec + 128), lb);
-	if (dstk_n == 0)
+	if (dstk_fp == 0)
 	{
-		OS_DELETE(dstk_path);
-		fp = fs_create(dstk_path);
+		if (dstk_n == 0)
+		{
+			OS_DELETE(dstk_path);
+			fp = fs_create(dstk_path);
+			if (!fs_hok(fp))
+				return 0;
+			fs_close(fp);
+		}
+		fp = fs_open(dstk_path);
 		if (!fs_hok(fp))
 			return 0;
-		fs_close(fp);
+		dstk_fp = fp;
 	}
-	fp = fs_open(dstk_path);
-	if (!fs_hok(fp))
-		return 0;
 	off = (unsigned long)dstk_n;
 	off = off << 8;
-	OS_SEEKHANDLE(fp, off);
-	if (OS_WRITEHANDLE(rec, fp, 256) != 256)
-	{
-		fs_close(fp);
+	OS_SEEKHANDLE(dstk_fp, off);
+	if (OS_WRITEHANDLE(rec, dstk_fp, 256) != 256)
 		return 0;
-	}
-	fs_close(fp);
 	dstk_n++;
 	return 1;
 }
@@ -2184,18 +2274,18 @@ static unsigned char upd_stk_pop(char *sp, char *lb)
 	if (dstk_n == 0)
 		return 0;
 	dstk_n--;
-	fp = fs_open(dstk_path);
-	if (!fs_hok(fp))
-		return 0;
+	if (dstk_fp == 0)
+	{
+		fp = fs_open(dstk_path);
+		if (!fs_hok(fp))
+			return 0;
+		dstk_fp = fp;
+	}
 	off = (unsigned long)dstk_n;
 	off = off << 8;
-	OS_SEEKHANDLE(fp, off);
-	if (OS_READHANDLE(rec, fp, 256) != 256)
-	{
-		fs_close(fp);
+	OS_SEEKHANDLE(dstk_fp, off);
+	if (OS_READHANDLE(rec, dstk_fp, 256) != 256)
 		return 0;
-	}
-	fs_close(fp);
 	path_copy(sp, (char *)rec);
 	path_copy(lb, (char *)(rec + 128));
 	return 1;
@@ -2206,56 +2296,19 @@ static unsigned char upd_q_process_files(void)
 	static char line[96];
 	static char name[64];
 	static char date[20];
-	FILE *nf;
-	unsigned char any;
 
 	upd_q_close();
+	if (!need_any && !useCrc)
+		return 1;
 	upd_q_pos = 0;
 	qbuf_reset();
-	join_path(ra_list_line, (char *)localBase, "_svnesp.n");
-	OS_DELETE((unsigned char *)ra_list_line);
-
-	/* -c CRC compares file bodies and uses ra_file_buf; keep the old one-pass. */
-	if (useCrc)
-	{
-		upd_qf = fs_open(upd_q_path);
-		if (!fs_hok(upd_qf))
-			return 0;
-		while (upd_q_readline(line, 96))
-		{
-			if (line[0] == 'F' && line[1] == ' ')
-			{
-				strncpy(name, line + 2, 63);
-				name[63] = 0;
-				date[0] = 0;
-				if (!upd_q_readline(line, 96))
-				{
-					upd_q_close();
-					return 0;
-				}
-				if (line[0] == 'T' && line[1] == ' ' && line[2])
-				{
-					strncpy(date, line + 2, 19);
-					date[19] = 0;
-				}
-				qbuf_sync();
-				if (!upd_one_file(0, name, date))
-				{
-					upd_q_close();
-					return 0;
-				}
-			}
-		}
-		upd_q_close();
-		return 1;
-	}
-
-	locidx_build();
 	upd_qf = fs_open(upd_q_path);
 	if (!fs_hok(upd_qf))
+	{
+		printf("need queue open failed\r\n");
 		return 0;
-	nf = 0;
-	any = 0;
+	}
+	files_prechecked = (unsigned char)(!useCrc);
 	while (upd_q_readline(line, 96))
 	{
 		if (line[0] == 'F' && line[1] == ' ')
@@ -2265,73 +2318,8 @@ static unsigned char upd_q_process_files(void)
 			date[0] = 0;
 			if (!upd_q_readline(line, 96))
 			{
+				files_prechecked = 0;
 				upd_q_close();
-				if (nf)
-					fs_close(nf);
-				OS_DELETE((unsigned char *)ra_list_line);
-				return 0;
-			}
-			if (line[0] == 'T' && line[1] == ' ' && line[2])
-			{
-				strncpy(date, line + 2, 19);
-				date[19] = 0;
-			}
-			if (exclude_match(name))
-			{
-				printf("%s... Skipped\r\n", name);
-				continue;
-			}
-			join_path((char *)ra_out, (char *)localBase, name);
-			if (!local_needs_update((char *)ra_out, name, (char *)ra_out, date))
-				continue;
-			if (!nf)
-			{
-				nf = fs_create((unsigned char *)ra_list_line);
-				if (!fs_hok(nf))
-				{
-					upd_q_close();
-					return 0;
-				}
-			}
-			sprintf(line, "F %s\r\n", name);
-			OS_WRITEHANDLE((unsigned char *)line, nf, (unsigned int)strlen(line));
-			if (date[0])
-				sprintf(line, "T %s\r\n", date);
-			else
-				path_copy_n(line, "T\r\n", 96);
-			OS_WRITEHANDLE((unsigned char *)line, nf, (unsigned int)strlen(line));
-			any = 1;
-		}
-	}
-	upd_q_close();
-	locidx_ok = 0;
-	if (nf)
-		fs_close(nf);
-	if (!any)
-	{
-		OS_DELETE((unsigned char *)ra_list_line);
-		return 1;
-	}
-
-	qbuf_reset();
-	upd_q_pos = 0;
-	upd_qf = fs_open((unsigned char *)ra_list_line);
-	if (!fs_hok(upd_qf))
-	{
-		OS_DELETE((unsigned char *)ra_list_line);
-		return 0;
-	}
-	while (upd_q_readline(line, 96))
-	{
-		if (line[0] == 'F' && line[1] == ' ')
-		{
-			strncpy(name, line + 2, 63);
-			name[63] = 0;
-			date[0] = 0;
-			if (!upd_q_readline(line, 96))
-			{
-				upd_q_close();
-				OS_DELETE((unsigned char *)ra_list_line);
 				return 0;
 			}
 			if (line[0] == 'T' && line[1] == ' ' && line[2])
@@ -2342,45 +2330,74 @@ static unsigned char upd_q_process_files(void)
 			qbuf_sync();
 			if (!upd_one_file(0, name, date))
 			{
+				files_prechecked = 0;
 				upd_q_close();
-				OS_DELETE((unsigned char *)ra_list_line);
 				return 0;
 			}
 		}
 	}
+	files_prechecked = 0;
 	upd_q_close();
-	OS_DELETE((unsigned char *)ra_list_line);
 	return 1;
 }
 
 static unsigned char upd_q_push_subdirs(void)
 {
-	static char line[96];
-	static char name[64];
+	static char name[92];
 	static char sub[128];
 	static char ldir[128];
+	unsigned int off;
+	unsigned char n;
 
-	upd_qf = fs_open(upd_q_path);
-	if (((int)upd_qf) & 0xff)
-		return 0;
-	qbuf_reset();
-	while (upd_q_readline(line, 96))
+	if (useCrc)
 	{
-		if (line[0] == 'D' && line[1] == ' ')
+		static char line[96];
+
+		upd_qf = fs_open(upd_q_path);
+		if (((int)upd_qf) & 0xff)
+			return 0;
+		qbuf_reset();
+		while (upd_q_readline(line, 96))
 		{
-			path_copy(name, line + 2);
-			join_path(sub, (char *)svnPath, name);
-			join_path(ldir, (char *)localBase, name);
-			OS_MKDIR((unsigned char *)ldir);
-			if (!upd_stk_push(sub, ldir))
+			if (line[0] == 'D' && line[1] == ' ')
 			{
-				upd_q_close();
-				return 0;
+				path_copy(name, line + 2);
+				join_path(sub, (char *)svnPath, name);
+				join_path(ldir, (char *)localBase, name);
+				OS_MKDIR((unsigned char *)ldir);
+				if (!upd_stk_push(sub, ldir))
+				{
+					upd_q_close();
+					printf("dir stack write failed\r\n");
+					return 0;
+				}
 			}
 		}
+		upd_q_close();
+		OS_DELETE(upd_q_path);
+		return 1;
 	}
-	upd_q_close();
-	OS_DELETE(upd_q_path);
+
+	off = dirpack_off;
+	while (off < RA_FILE_IO)
+	{
+		n = ra_file_buf[off];
+		if (n == 0 || off + 1 + n > RA_FILE_IO)
+			break;
+		if (n > 91)
+			n = 91;
+		memcpy(name, ra_file_buf + off + 1, n);
+		name[n] = 0;
+		off += 1 + (unsigned int)ra_file_buf[off];
+		join_path(sub, (char *)svnPath, name);
+		join_path(ldir, (char *)localBase, name);
+		OS_MKDIR((unsigned char *)ldir);
+		if (!upd_stk_push(sub, ldir))
+		{
+			printf("dir stack write failed\r\n");
+			return 0;
+		}
+	}
 	return 1;
 }
 
@@ -2389,7 +2406,11 @@ static unsigned char upd_directory_level(void)
 	const char *bn;
 
 	upd_q_count = 0;
-	/* Keep one TCP/SVN session for the whole tree — do not close/DNS/reopen
+	need_any = 0;
+	dirpack_n = 0;
+	dirpack_off = RA_FILE_IO;
+	files_prechecked = 0;
+	/* Keep one TCP/SVN session for the whole tree - do not close/DNS/reopen
 	 * per directory (that ate stack via dnsResolve buf[128] and desynced). */
 	if (!svn_ensure_open())
 	{
@@ -2399,12 +2420,17 @@ static unsigned char upd_directory_level(void)
 	bn = (const char *)localBase + strlen((char *)localBase);
 	while (bn > (const char *)localBase && *(bn - 1) != '/')
 		bn--;
-	upd_q_open();
-	if (((int)upd_qf) & 0xff)
+	if (useCrc)
 	{
-		printf("queue open failed\r\n");
-		return 0;
+		upd_q_open();
+		if (((int)upd_qf) & 0xff)
+		{
+			printf("queue open failed\r\n");
+			return 0;
+		}
 	}
+	else
+		locidx_build();
 	if (!ra_svn_list(svnPath, upd_collect))
 	{
 		upd_q_close();
@@ -2416,19 +2442,30 @@ static unsigned char upd_directory_level(void)
 		}
 		return 0;
 	}
+	upd_q_close();
+	locidx_ok = 0;
 	if (*bn)
 		printf("Checking dir %s (%u items)...\r\n", bn, upd_q_count);
 	else
 		printf("Checking dir %s (%u items)...\r\n", localBase, upd_q_count);
 	if (upd_q_count == 0)
 	{
-		upd_q_close();
 		OS_DELETE(upd_q_path);
 		return 1;
 	}
+	if (useCrc)
+	{
+		if (!upd_q_process_files())
+			return 0;
+		return upd_q_push_subdirs();
+	}
+	/* Push subdirs first: get-file reuses ra_file_buf (dir pack lives there). */
+	if (!upd_q_push_subdirs())
+		return 0;
 	if (!upd_q_process_files())
 		return 0;
-	return upd_q_push_subdirs();
+	OS_DELETE(upd_q_path);
+	return 1;
 }
 
 static unsigned char upd_download_tree(void)
@@ -2442,6 +2479,11 @@ static unsigned char upd_download_tree(void)
 	{
 		if (!upd_directory_level())
 			return 0;
+	}
+	if (dstk_fp)
+	{
+		fs_close(dstk_fp);
+		dstk_fp = 0;
 	}
 	OS_DELETE(dstk_path);
 	return 1;
@@ -2497,8 +2539,8 @@ static void cmd_upd(void)
 	{
 		if (!upd_download_tree())
 		{
-			printf("upd tree stop (%u) fd=%u/%u sk=%u/%u\r\n",
-				   ra_svn_get_diag(), dbg_nfile, dbg_nfile_max,
+			printf("upd stopped (local step, not svn). fd=%u/%u sk=%u/%u\r\n",
+				   dbg_nfile, dbg_nfile_max,
 				   dbg_nsock, dbg_nsock_max);
 		}
 	}
