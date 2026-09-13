@@ -53,7 +53,7 @@ ESPNET_ERR_NOTCONN      EQU 57
 ESPNET_ERR_HOSTUNREACH  EQU 65
 ; Timeouts (kernel: no YIELD, spin). Tune here:
 ; SOF_TICKS      - wait for 0xA5: each wrap of idle (256 polls) decrements deadline
-; SOF_TICKS_LONG - CONNECT / DNSRESOLVE / WIFI
+; SOF_TICKS_LONG - CONNECT / DNSRESOLVE / WIFI / WRITE (sndbuf wait)
 ; esp_spin/factor 65000 - per-byte wait in fill (and CTS inner loop)
 ; CTS kernel cap 20001 - esp_wait_cts
 ESPNET_SOF_TICKS        EQU 500
@@ -329,6 +329,10 @@ esp_umin_de
 
 ; ============================================================
 ; WRITE  A=sock DE=buf HL=size  (splits at HOST_MAX)
+; Loop only while firmware accepts bytes. Do not spin on EAGAIN
+; holding the UART lock (that starves lwIP). Firmware 1.24 waits
+; on sndbuf so WIZNET-style apps (3ws send() once per chunk) get
+; a full WRITE. Short write / 35 if the wait expires.
 ; ============================================================
 esp_write
         ld (esp_rs_sock),a
@@ -355,6 +359,8 @@ esp_wr_lp
         ld de,(esp_rs_dst)
         call esp_xfer
         jr z,esp_wr_ok
+        ; EAGAIN/error: short write if some frames went, else errno.
+esp_wr_part
         ld hl,(esp_sent)
         ld a,h
         or l
@@ -396,10 +402,8 @@ esp_wr_got
         ld de,(esp_chunk)
         or a
         sbc hl,de
-        ifndef ESPNET_KERNEL
         jr c,esp_wr_done
         jr esp_wr_lp
-        endif
 esp_wr_done
         ld hl,(esp_sent)
         xor a
@@ -846,6 +850,8 @@ esp_xf_sz
         jr z,esp_xf_long
         cp ESPNET_CMD_INFO
         jr z,esp_xf_long
+        cp ESPNET_CMD_WRITE
+        jr z,esp_xf_long
         cp ESPNET_CMD_WIFI_CONNECT
         jr nz,esp_xf_short
 esp_xf_long
@@ -1283,6 +1289,9 @@ esp_recv_fill
 
 ; Type 0 Kondratyev, no AFC: pulse MCR RTS while LSR is empty, then RBR.
 ; BC = LSR during the wait; MCR only when we actually pulse.
+; Hold-RTS (no off between polls) hung: on this path RTS is a byte strobe
+; (FPGA/ATmega), not ESP CTS level. ZX-WiFi fill0 is ~15% slower than fill2
+; but still far above Kondratyev type 0.
 esp_fill0
         di
         ld ix,(esp_dst)
@@ -1368,24 +1377,24 @@ esp_f1_ok
 ; BC holds the LSR port for the whole wait (address is constant).
 ; esp_spin is the per-byte timeout; reload it for each byte, not each poll.
 esp_fill2
-        di
+        ;di
         ld ix,(esp_dst)
         ld de,(esp_n)
         ld bc,(esp_LSR)
 esp_f2_next
         ld a,d
         or e
-        jr z,esp_f2_ok
+        jp z,esp_f2_ok
         ld hl,(esp_spin)
 esp_f2_wait
         ld a,h
         or l
-        jr z,esp_f0to
+        jp z,esp_f0to   ;timeout
         in a,(c)
         rrca
-        jr c,esp_f2_read
+        jp c,esp_f2_read
         dec hl
-        jr esp_f2_wait
+        jp esp_f2_wait
 esp_f2_read
         ld bc,(esp_RBR)
         in a,(c)
@@ -1393,9 +1402,9 @@ esp_f2_read
         inc ix
         dec de
         ld bc,(esp_LSR)
-        jr esp_f2_next
+        jp esp_f2_next
 esp_f2_ok
-        ei
+        ;ei
         xor a
         ret
 

@@ -121,13 +121,17 @@ the payload on Z80. A future host can turn it on without a firmware change.
   0x01  SOCKET        family (1)           arg = proto. ICMP => ERR_PROTOTYPE.
                                            UDP: WiFiUDP.begin(0) (WIZNET-style
                                            ephemeral port; sendto without BIND)
-  0x02  SHUTDOWN      empty                arg 0 = now, 1 = if TX empty
+  0x02  SHUTDOWN      empty                arg 0 = now, 1 = if TX empty.
+                                           sock 0xFF = close all (ZX reboot)
   0x03  CONNECT       sockaddr_in 15       blocking on ESP ~8s; family ignored
   0x04  ACCEPT        empty                new sock or EAGAIN
   0x05  BIND          sockaddr_in 15       UDP: skip if already begin(0) and port 0
-  0x06  LISTEN        empty
+  0x06  LISTEN        empty                frees any other slot already bound
+                                           to this port (stale after ZX reboot)
   0x07  READ          u16 maxlen           TCP: data. UDP: 15+data
-  0x08  WRITE         TCP: data            UDP: 15+data
+  0x08  WRITE         TCP: data            UDP: 15+data. TCP waits up to
+                                           ESPNET_WRITE_WAIT_MS for sndbuf
+                                           (WIZNET-style full send)
   0x09  GETDNS        empty                4-byte IP
   0x0A  DNSRESOLVE    hostname pad 64      4-byte IP (ESP hostByName ESPNET_DNS_MS
                                            25s; host SOF wait ~40s)

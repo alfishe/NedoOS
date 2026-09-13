@@ -14,7 +14,7 @@
  */
 
 #define ESPNET_VER_MAJOR 1
-#define ESPNET_VER_MINOR 20
+#define ESPNET_VER_MINOR 24
 
 #define ESPNET_SOF 0xA5
 
@@ -130,6 +130,8 @@
 #define ESPNET_WSTAT_F_HASIP 0x02
 
 #define ESPNET_CONNECT_MS 8000
+/* TCP WRITE: wait for sndbuf (3ws send() does not retry short writes). */
+#define ESPNET_WRITE_WAIT_MS 3000
 /* hostByName: ESP32 default is 5s and often NXDOMAIN/timeout on slow DNS. */
 #define ESPNET_DNS_MS 25000
 /* STA join + DHCP. Must stay below host ESPNET_SOF_TICKS_LONG (~40s). */

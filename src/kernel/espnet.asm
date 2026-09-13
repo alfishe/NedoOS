@@ -280,6 +280,10 @@ espk_setuart
         ld (esp_busy),a
         inc a
         ld (esp_inited),a
+        ; Drop ESP sockets left after a ZX reboot (firmware 1.23: sock=FF).
+        ld a,ESPNET_SOCK_NONE
+        ld e,0
+        call esp_shutdown
         xor a
         ld l,a
         ld h,a

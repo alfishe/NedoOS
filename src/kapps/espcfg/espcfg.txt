@@ -4,7 +4,7 @@ the 20-byte UART config (ports + pktMax) into the ESPNET kernel
 
 espcfg.com [-S] [-M n]
 
-No args: after SETUART, print kernel UART and ESP WiFi, IP, SSID.
+No args: after SETUART, print kernel UART, firmware version (GETINFO), WiFi, IP, SSID.
 -S     silent (for autoexec.bat)
 -M n   UART payload cap per BDOS (64..2048); overrides pktMax= in ini
        Default 192 (short DI). Use 2048 for apps that send large buffers.

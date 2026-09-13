@@ -8,6 +8,7 @@
 #if defined(ARDUINO_ARCH_ESP32)
 #include <WiFi.h>
 #include <lwip/sockets.h>
+#include <errno.h>
 #else
 #include <ESP8266WiFi.h>
 #endif
@@ -56,6 +57,47 @@ static void sa_fill(uint8_t *sa, IPAddress ip, uint16_t port)
 	sa[6] = ip[3];
 }
 
+/* WIZNET READ/WRITE succeed only in Sn_SSR==ESTABLISHED (0x17).
+ * Arduino WiFiClient.connected() is also true in CLOSE_WAIT (peer FIN).
+ * HTTP servers like 3ws then recv-loop EAGAIN and never ACCEPT the next
+ * browser socket (index.htm works, GET ?d= hangs). Empty ESTABLISHED
+ * still returns EAGAIN -- idle radio/getpic keep-alive is unchanged. */
+static int tcp_established(WiFiClient &c)
+{
+#if defined(ARDUINO_ARCH_ESP8266)
+	/* lwIP tcp_state ESTABLISHED=4; CLOSE_WAIT=7. */
+	return c.status() == 4;
+#else
+	int fd;
+	uint8_t dummy;
+	int r;
+#ifdef TCP_INFO
+	struct tcp_info ti;
+	socklen_t tlen;
+#endif
+
+	(void)c.available();
+	if (!c.connected())
+		return 0;
+	fd = c.fd();
+	if (fd < 0)
+		return 1;
+#ifdef TCP_INFO
+	/* lwIP tcpi_state ESTABLISHED=4. MSG_PEEK often stays EAGAIN in CLOSE_WAIT. */
+	memset(&ti, 0, sizeof(ti));
+	tlen = sizeof(ti);
+	if (getsockopt(fd, IPPROTO_TCP, TCP_INFO, &ti, &tlen) == 0)
+		return ti.tcpi_state == 4;
+#endif
+	r = ::recv(fd, &dummy, 1, MSG_PEEK | MSG_DONTWAIT);
+	if (r == 0)
+		return 0;
+	if (r < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
+		return 0;
+	return 1;
+#endif
+}
+
 static void tcp_tune(WiFiClient &c)
 {
 	c.setNoDelay(true);
@@ -98,6 +140,8 @@ static void slot_free(uint8_t i)
 		s->srv->stop();
 		delete s->srv;
 		s->srv = 0;
+		/* lwIP needs a beat before the same TCP port can bind again. */
+		delay(20);
 	}
 	s->state = ST_FREE;
 	s->proto = 0;
@@ -321,6 +365,11 @@ static uint16_t do_shutdown(const uint8_t *req, uint8_t *rsp)
 	uint8_t sock = req[ESPNET_REQ_SOCK];
 	uint8_t arg = req[ESPNET_REQ_ARG];
 
+	/* sock 0xFF: ZX reboot forgets ids; drop leftover LISTEN/TCP/UDP. */
+	if (sock == ESPNET_SOCK_NONE) {
+		sockets_close_all();
+		return rsp_hdr(rsp, ESPNET_CMD_SHUTDOWN, sock, 0, seq, 0, 0);
+	}
 	if (!sock_ok(sock))
 		return rsp_err(rsp, ESPNET_CMD_SHUTDOWN, sock, seq, ESPNET_ERR_NOTSOCK);
 	if (arg == 1 && s_slot[sock].state == ST_TCP && s_slot[sock].tcp.connected()) {
@@ -433,15 +482,37 @@ static uint16_t do_listen(const uint8_t *req, uint8_t *rsp)
 		return rsp_err(rsp, ESPNET_CMD_LISTEN, sock, seq, ESPNET_ERR_ALREADY);
 	if (s->local_port == 0)
 		return rsp_err(rsp, ESPNET_CMD_LISTEN, sock, seq, ESPNET_ERR_NOTSOCK);
+	/* After ZX reboot the kernel owner table is empty, but ESP still has
+	 * the old WiFiServer. A second LISTEN on another slot then blackholes
+	 * SYNs (port 80 RST, 4444 timeout). Steal that port first. */
+	{
+		uint8_t i;
+		for (i = 0; i < ESPNET_MAX_SOCKS; i++) {
+			if (i == sock)
+				continue;
+			if (s_slot[i].srv && s_slot[i].local_port == s->local_port) {
+				slog("LISTEN steal port=%u from sock=%u",
+				     (unsigned)s->local_port, (unsigned)i);
+				slot_free(i);
+			}
+		}
+	}
 	if (s->srv) {
 		s->srv->stop();
 		delete s->srv;
 		s->srv = 0;
 	}
+#if defined(ARDUINO_ARCH_ESP32)
+	s->srv = new WiFiServer(s->local_port, (uint8_t)ESPNET_MAX_SOCKS);
+#else
 	s->srv = new WiFiServer(s->local_port);
+#endif
 	if (!s->srv)
 		return rsp_err(rsp, ESPNET_CMD_LISTEN, sock, seq, ESPNET_ERR_NFILE);
 	s->srv->begin();
+#if defined(ARDUINO_ARCH_ESP8266)
+	s->srv->setNoDelay(true);
+#endif
 	s->state = ST_LISTEN;
 	return rsp_hdr(rsp, ESPNET_CMD_LISTEN, sock, 0, seq, 0, 0);
 }
@@ -528,7 +599,7 @@ static uint16_t do_read(const uint8_t *req, uint16_t req_n, uint8_t *rsp)
 	if (s->rx_len == 0) {
 		/* WiFi blip: keep the PCB. Host waits with EAGAIN until
 		 * lwIP says the TCP is gone (server drop / RTO). */
-		if (s->state != ST_TCP || !s->tcp.connected())
+		if (s->state != ST_TCP || !tcp_established(s->tcp))
 			return rsp_err(rsp, ESPNET_CMD_READ, sock, seq, ESPNET_ERR_NOTCONN);
 		return rsp_err(rsp, ESPNET_CMD_READ, sock, seq, ESPNET_ERR_EAGAIN);
 	}
@@ -582,22 +653,50 @@ static uint16_t do_write(const uint8_t *req, uint16_t req_n, uint8_t *rsp)
 		return rsp_hdr(rsp, ESPNET_CMD_WRITE, sock, 0, seq, dlen, 0);
 	}
 
-	if (s->state != ST_TCP || !s->tcp.connected())
+	if (s->state != ST_TCP || !tcp_established(s->tcp))
 		return rsp_err(rsp, ESPNET_CMD_WRITE, sock, seq, ESPNET_ERR_NOTCONN);
 	data = req + ESPNET_REQ_HDR;
 	dlen = plen;
 	if (dlen == 0)
 		return rsp_err(rsp, ESPNET_CMD_WRITE, sock, seq, ESPNET_ERR_EMSGSIZE);
+	/* WIZNET send() accepts the whole buffer. 3ws directory chunks call
+	 * send() once and ignore a short count, so a clipped WRITE splices the
+	 * next HTTP chunk into JSON. Wait for sndbuf; delay() yields lwIP. */
 	{
-		int room = s->tcp.availableForWrite();
-		if (room > 0 && dlen > (uint16_t)room)
-			dlen = (uint16_t)room;
+		uint16_t sent = 0;
+		uint32_t t0 = millis();
+
+		while (sent < dlen) {
+			int room;
+			uint16_t n;
+
+			if (!tcp_established(s->tcp))
+				break;
+			room = s->tcp.availableForWrite();
+			if (room <= 0) {
+				if ((millis() - t0) >= (uint32_t)ESPNET_WRITE_WAIT_MS)
+					break;
+				delay(1);
+				continue;
+			}
+			n = (uint16_t)(dlen - sent);
+			if (n > (uint16_t)room)
+				n = (uint16_t)room;
+			w = s->tcp.write(data + sent, n);
+			if (w == 0) {
+				if ((millis() - t0) >= (uint32_t)ESPNET_WRITE_WAIT_MS)
+					break;
+				delay(1);
+				continue;
+			}
+			sent = (uint16_t)(sent + (uint16_t)w);
+			t0 = millis();
+		}
+		if (sent == 0)
+			return rsp_err(rsp, ESPNET_CMD_WRITE, sock, seq, ESPNET_ERR_EAGAIN);
+		stats_wifi_tx(sent);
+		return rsp_hdr(rsp, ESPNET_CMD_WRITE, sock, 0, seq, sent, 0);
 	}
-	w = s->tcp.write(data, dlen);
-	if (w == 0)
-		return rsp_err(rsp, ESPNET_CMD_WRITE, sock, seq, ESPNET_ERR_EAGAIN);
-	stats_wifi_tx((uint16_t)w);
-	return rsp_hdr(rsp, ESPNET_CMD_WRITE, sock, 0, seq, (uint16_t)w, 0);
 }
 
 static uint16_t do_getdns(const uint8_t *req, uint8_t *rsp)

@@ -283,6 +283,12 @@ static void print_wifi(unsigned char *p)
 	char *ssid;
 	unsigned char st;
 
+	kv_begin("fw");
+	printf("%u.%u",
+	       (unsigned int)p[ESPNET_INFO_VER_MAJOR],
+	       (unsigned int)p[ESPNET_INFO_VER_MINOR]);
+	sgr(SGR_DIM);
+	printf("\r\n");
 	st = p[ESPNET_INFO_WIFI];
 	kv_s("WiFi", wifi_name(st), wifi_valcol(st));
 	putchar(' ');
@@ -340,7 +346,7 @@ C_task main(int argc, char *argv[])
 		else if (s[1] == 'H' || s[1] == 'h') {
 			puts("Usage: espcfg.com [-S] [-M n]");
 			puts("Read /ini/espcom.ini, init 16550, write UART+pktMax to kernel.");
-			puts("No args: print kernel UART and WiFi/IP/SSID.");
+			puts("No args: print kernel UART, firmware version, WiFi/IP/SSID.");
 			puts("-S  silent (autoexec)");
 			puts("-M n  payload cap 64..2048 (overrides pktMax= in ini)");
 			exit(0);
