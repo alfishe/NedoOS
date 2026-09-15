@@ -21,7 +21,7 @@ set C_OPTIONS=-S -v0 -ml -uua -q -e -K -gA -z9 -t4 -T -Llist\ -Olist\ -Alist\ -I
 rem %ICCZ80% %C_OPTIONS% ccsbcs.c 
 %AZ80% -S -Olist\ -uu mylib.asm
 
-%XLINK% ff mylib -f link.lnk
+%XLINK% ff mylib -f link.lnk -xehinms 
 
 echo ;FatFS calls > ..\kernel\ffsfunc.asm
 echo ffsfunc >> ..\kernel\ffsfunc.asm

@@ -1525,7 +1525,7 @@ void get_fileinfo (		/* No return code */
 	TCHAR *p, c;
 
 
-	p = fno->fname;
+	*(p = fno->fname) = 0;
 	if (dj->sect) {
 		dir = dj->dir;
 		nt = dir[DIR_NTres];		/* NT flag */
@@ -1533,7 +1533,7 @@ void get_fileinfo (		/* No return code */
 			c = dir[i];
 			if (c == ' ') break;
 			if (c == NDDE) c = (TCHAR)DDE;
-			if (_USE_LFN && (nt & NS_BODY) && IsUpper(c)) c += 0x20;
+			if ((nt & NS_BODY) && IsUpper(c)) c += 0x20;
 			*p++ = c;
 		}
 		if (dir[8] != ' ') {		/* Copy name extension */
@@ -1541,31 +1541,24 @@ void get_fileinfo (		/* No return code */
 			for (i = 8; i < 11; i++) {
 				c = dir[i];
 				if (c == ' ') break;
-				if (_USE_LFN && (nt & NS_EXT) && IsUpper(c)) c += 0x20;
+				if ((nt & NS_EXT) && IsUpper(c)) c += 0x20;
 				*p++ = c;
 			}
 		}
+		*p = 0;		/* Terminate SFN str by a \0 */
+	
 		fno->fattrib = dir[DIR_Attr];				/* Attribute */
-		memcpy(&fno->fsize, dir+DIR_FileSize, sizeof(DWORD));	/* Size */
-		// fno->fsize = LD_DWORD(dir+DIR_FileSize);	/* Size */
+		fno->fsize = LD_DWORD(dir+DIR_FileSize);	/* Size */
 		fno->fdate = LD_WORD(dir+DIR_WrtDate);		/* Date */
 		fno->ftime = LD_WORD(dir+DIR_WrtTime);		/* Time */
-	}
-	*p = 0;		/* Terminate SFN str by a \0 */
+	
 
-#if _USE_LFN
-/*	if (fno->lfname && fno->lfsize)*/ 
-	{
-
-		if (dj->sect && dj->lfn_idx != 0xFFFF) {/* Get LFN if available */
+		if (dj->lfn_idx != 0xFFFF) {/* Get LFN if available */
 			TCHAR *tp = fno->lfname;
 			BYTE b;
 			WCHAR *lfn = dj->lfn;
 			i = 0;
 			while ((b = unicode_to_cp866(*lfn++)) != 0) {			/* Get an LFN char */
-#if !_LFN_UNICODE
-				if (!b) { i = 0; break; }		/* Could not convert, no LFN */
-#endif
 				if (i >= _MAX_LFN) { i = 0; break; }	/* Buffer overflow, no LFN */
 				tp[i++] = b;
 			}
@@ -1576,7 +1569,6 @@ void get_fileinfo (		/* No return code */
 			fs_strcpy(fno->lfname, fno->fname);
 		}
 	}
-#endif
 }
 #endif /* _FS_MINIMIZE <= 1 */
 
@@ -1747,12 +1739,9 @@ FRESULT chk_mounted (	/* FR_OK(0): successful, !=0: any error occurred */
 	if (LD_WORD(fs->win+BPB_BytsPerSec) != SS(fs))		/* (BPB_BytsPerSec must be equal to the physical sector size) */
 		return FR_NO_FILESYSTEM;
 
-	memcpy(&fasize, fs->win+BPB_FATSz16, 4);				/* Number of sectors per FAT */
-	// fasize = LD_WORD(fs->win+BPB_FATSz16);				/* Number of sectors per FAT */
-	if (!fasize) memcpy(&fasize, fs->win+BPB_FATSz32, 4);
-	// if (!fasize) fasize = LD_DWORD(fs->win+BPB_FATSz32);
-	memcpy(&fs->fsize, &fasize, 4);
-	//fs->fsize = fasize;
+	fasize = LD_WORD(fs->win+BPB_FATSz16);				/* Number of sectors per FAT */
+	if (!fasize) fasize = LD_DWORD(fs->win+BPB_FATSz32);
+	fs->fsize = fasize;
 
 	fs->n_fats = b = fs->win[BPB_NumFATs];				/* Number of FAT copies */
 	if (b != 1 && b != 2) return FR_NO_FILESYSTEM;		/* (Must be 1 or 2) */
@@ -1977,8 +1966,7 @@ FRESULT f_open (
 		}
 		if (res == FR_OK && (mode & FA_CREATE_ALWAYS)) {	/* Truncate it if overwrite mode */
 			get_fattime(&dw);					/* Created time */
-			memcpy(dir+DIR_CrtTime, &dw, 4);
-			// ST_DWORD(dir+DIR_CrtTime, dw);
+			ST_DWORD(dir+DIR_CrtTime, dw);
 			dir[DIR_Attr] = 0;					/* Reset attribute */
 			ST_DWORD(dir+DIR_FileSize, 0);		/* size = 0 */
 			cl = LD_CLUST(dir);					/* Get start cluster */
@@ -2196,17 +2184,12 @@ FRESULT f_write (
 				if (clst == 0xFFFFFFFF) ABORT(fp->fs, FR_DISK_ERR);
 				fp->clust = clst;			/* Update current cluster */
 			}
-#if _FS_TINY
-			if (fp->fs->winsect == fp->dsect && move_window(fp->fs, 0))	/* Write-back sector cache */
-				ABORT(fp->fs, FR_DISK_ERR);
-#else
 			if (fp->flag & FA__DIRTY) {		/* Write-back sector cache */
 				SET_DIO_PAR(fp->fs->drv, fp->buf, fp->dsect, 1);
 				if (drv_calls.write_from_buf() != RES_OK)
 					ABORT(fp->fs, FR_DISK_ERR);
 				fp->flag &= ~FA__DIRTY;
 			}
-#endif
 			sect = clust2sect(fp->fs, fp->clust);	/* Get current sector */
 			if (!sect) ABORT(fp->fs, FR_INT_ERR);
 			sect += csect;
@@ -2217,26 +2200,13 @@ FRESULT f_write (
 				SET_DIO_PAR(fp->fs->drv, wbuff, sect, (BYTE)cc);
 				if (drv_calls.write_from_uspace() != RES_OK)
 					ABORT(fp->fs, FR_DISK_ERR);
-#if _FS_TINY
-				if (fp->fs->winsect - sect < cc) {	/* Refill sector cache if it gets invalidated by the direct write */
-					drv_calls.memcpy_usp2buf(fp->fs->win, wbuff + ((fp->fs->winsect - sect) * SS(fp->fs)), SS(fp->fs));
-					fp->fs->wflag = 0;
-				}
-#else
 				if (fp->dsect - sect < cc) { /* Refill sector cache if it gets invalidated by the direct write */
 					drv_calls.memcpy_usp2buf(fp->buf, wbuff + ((fp->dsect - sect) * SS(fp->fs)), SS(fp->fs));
 					fp->flag &= ~FA__DIRTY;
 				}
-#endif
 				wcnt = SS(fp->fs) * cc;		/* Number of bytes transferred */
 				continue;
 			}
-#if _FS_TINY
-			if (fp->fptr >= fp->fsize) {	/* Avoid silly cache filling at growing edge */
-				if (move_window(fp->fs, 0)) ABORT(fp->fs, FR_DISK_ERR);
-				fp->fs->winsect = sect;
-			}
-#else
 			if (fp->dsect != sect) {		/* Fill sector cache with file data */
 				
 				SET_DIO_PAR(fp->fs->drv, fp->buf, sect, 1);
@@ -2244,20 +2214,12 @@ FRESULT f_write (
 					drv_calls.read_to_buf() != RES_OK)
 						ABORT(fp->fs, FR_DISK_ERR);
 			}
-#endif
 			fp->dsect = sect;
 		}
 		wcnt = SS(fp->fs) - (fp->fptr % SS(fp->fs));/* Put partial sector into file I/O buffer */
 		if (wcnt > btw) wcnt = btw;
-#if _FS_TINY
-		if (move_window(fp->fs, fp->dsect))	/* Move sector window */
-			ABORT(fp->fs, FR_DISK_ERR);
-		drv_calls.memcpy_usp2buf(&fp->fs->win[fp->fptr % SS(fp->fs)], wbuff, wcnt);	/* Fit partial sector */
-		fp->fs->wflag = 1;
-#else
 		drv_calls.memcpy_usp2buf(&fp->buf[fp->fptr % SS(fp->fs)], wbuff, wcnt);	/* Fit partial sector */
 		fp->flag |= FA__DIRTY;
-#endif
 	}
 
 	if (fp->fptr > fp->fsize) fp->fsize = fp->fptr;	/* Update file size if needed */
