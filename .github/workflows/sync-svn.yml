@@ -1,0 +1,57 @@
+name: Nightly SVN Sync
+
+on:
+  schedule:
+    # Run every day at 03:00 UTC (nightly)
+    - cron: '0 3 * * *'
+  workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: Sync Upstream SVN
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Install Subversion and rsync
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y subversion rsync
+
+      - name: Restore SVN Working Copy Cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/nedoos-svn-wc
+          key: nedoos-svn-wc-cache-${{ runner.os }}
+          restore-keys: |
+            nedoos-svn-wc-cache-
+
+      - name: Configure Git Committer
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run SVN Sync Script
+        env:
+          SVN_CACHE_DIR: /tmp/nedoos-svn-wc
+        run: |
+          python3 scripts/sync-svn.py
+
+      - name: Push updates to GitHub
+        run: |
+          # Only push if new commits were created
+          LOCAL=$(git rev-parse HEAD)
+          REMOTE=$(git rev-parse origin/main)
+          if [ "$LOCAL" != "$REMOTE" ]; then
+            echo "Pushing new commits to origin/main..."
+            git push origin main
+          else
+            echo "No new commits to push."
+          fi
