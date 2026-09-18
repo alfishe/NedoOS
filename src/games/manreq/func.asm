@@ -286,137 +286,46 @@ ebank3 equ $-1
 
 ;---------------------
 load_mus
-
-        ld b,0
-old_mus EQU $-1
-        cp b
+        cp 0xff
         ret z
-        ld (old_mus),a
-        add a,"0"
-
+        ld (load_mus+1),a
+        
+		push af
+		call set_music_pages
+		ld a,(plr_page)
+		ld hl,p_play
+		OS_SETMUSIC
+		
+		pop af
         push af
-                
-        call no_mus
+		call p_init
+		pop af
+		call p_init
+		jp unset_music_pages
+
+
+no_mus:
+		call set_music_pages
+                 call p_mute
+;                 ld a,(plr_page)
+;                 ld hl,0
+;                 OS_SETMUSIC
+		jp unset_music_pages
+
+
+set_p_mod:
+		call set_music_pages
+                call p_mod
+		jp unset_music_pages
 		
-		ld a,(curpgc000)
-		ld (aaor),a
-		
-        ld hl,t_s98_file00_pages_list+$FF 
-        call free_s98_file
-
-
-        ;generate path to music file in 'buf'
-        ld hl,mus_path1
-        ld de,buf
-        call copystr_hlde ;'copy path  'mus/' '
-        ld a,(mus_mode)
-        ld hl,f_name
-        call sel_word
-        call copystr_hlde ;copy "aym / tfm
-        pop af
-        ld (de),a
-        inc de
-        ld a,(mus_mode)
-        ld hl,ext_name
-        call sel_word
-        call copystr_hlde ;".s98"
-        xor a
-        ld (de),a  ;string terminator
-
-        ld de,buf
-        call openstream_file
-                                        ;        or a
-                                        ;        jp nz,fileopenerror
-        ld hl,t_s98_file00_pages_list
-        ld (load_s98_file_number),hl
-
-load_s98_file_number_haddr = $+2 :
-load_s98_file_number = $+1 :
-                ld bc,t_s98_file00_pages_list
-                push bc
-                                
-read_file_loop:
-                OS_NEWPAGE              ;out: a=0 (OK)/!=0 (fail), e=page
-                pop bc ;file tab
-;                or a
-;                jp nz,memoryerror
-                ld a,e
-1               ld (bc),a
-                inc c  
-                push bc ;file tab
-                SETPGC000
-        
-                ld de,$C000
-                ld hl,$4000
-        
-                call readstream_file    ;DE = Buffer address, HL = Number of bytes to read
-                                ;hl=actual size
-                ld a,h
-                cp $40
-                jr nc,read_file_loop    ;>= $40
-        
-read_file_exit
-
-                pop bc ;file tab
-                ld a,c
-
-                ld c,$FF
-                ld (bc),a
-
-                call closestream_file                                
-;-------------------------------------------------
-aaor = $+1
-				ld a,0
-				SETPGC000
-				
-				call set_music_pages
-				ld hl,t_s98_file00_pages_list
-				ld de,0x4100         ;0x5000
-				ld bc,256
-				ldir
-
-				ld hl,t_s98_file00_pages_list
-				ld a,(hl)
-				SETPGC000
-
-				ld hl,module
-				ld (0x4001),hl
-				call PLR_INIT        ;init music
-				
-				ld a,(plr_page3)
-				SETPGC000
-
-				ld a,(plr_page)
-				ld hl,PLR_PLAY
-				OS_SETMUSIC
-				jp unset_music_pages
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-free_s98_file:
-			    ld a,(hl)
-				and a
-				ret z
-               ld l,(hl)
-.free_s98_loop
-                dec l
-                ld e,(hl)
-                push af
-                push hl
-                OS_DELPAGE
-                pop hl
-                pop af
-               jr nz,.free_s98_loop
-               ret     
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-no_mus
-         call set_music_pages
-                 call PLR_MUTE
-                 ld a,(plr_page)
-                 ld hl,0
-                 OS_SETMUSIC
-         call unset_music_pages
-         halt
-         ret 
+advance_music:
+                call set_music_pages
+                call p_advance
+                jp unset_music_pages
+music_till_end:
+                call set_music_pages
+                call p_tillend
+                jp unset_music_pages
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 getkey
         ld a,(keyreg)
@@ -431,12 +340,8 @@ check_space_key
 		ld (SCROLL_LOCK),a		
 		call unset_music_pages
 		
-		call no_mus
-		ld hl,t_s98_file00_pages_list+$FF 
-        call free_s98_file
-		
+		call no_mus		
 		jp ze_start
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 NumToHex    ld c, a   ; a = number to convert
@@ -1135,3 +1040,116 @@ wait_for_key_input:
 				ret
 				
 ;---
+;------------------
+draw_image_stripes
+                ld hl,gfdpal
+                ld de,pal
+                ld bc,32
+                ldir 
+                ld a,1
+                ld (setpalflag),a
+
+				ld a,(curpgc000)
+				push af
+				ld a,(curpg8000)
+				push af
+
+				
+                ld      hl, 08006h
+                ld      bc, 0
+                ld      xh, 0Dh
+
+.loc_AE73:                 
+				xor a
+				ld (.rety),a
+                push    bc
+                push    hl
+;				halt
+.loc_AE75:               
+				push bc
+				ld a,(user_scr0_low)
+				SETPGC000
+				ld a,(load_buf2)
+				SETPG8000
+                ld a,(hl)
+				set 6,h
+				ld (hl),a
+				res 6,h
+				
+				ld a,(user_scr0_high)
+				SETPGC000
+				ld a,(load_buf1)
+				SETPG8000
+                ld a,(hl)
+				set 6,h
+				ld (hl),a
+				res 6,h
+				pop bc
+				
+                ld      de, 6
+                add     hl, de
+				nextcolumnhl
+.rety	= $+1			
+				ld a,0				
+                add     a, c
+                add     a, e
+                ld      c, a
+				push af
+				ld a,(.rety)
+				xor 1
+				ld (.rety),a
+				pop af
+                sub     29+6			;3Ah ; ':'
+                jr      c, .loc_AE75
+				
+                ld      c, a
+                ld      de, 11-6	;16h
+                add     hl, de
+                inc     b
+                ld      a, b
+                cp      9Ch
+                jr      c, .loc_AE75
+                pop     hl
+                pop     bc
+                ;inc     hl
+				nextcolumnhl
+                inc     c
+                dec     xh
+                jr      nz, .loc_AE73
+
+				pop af
+				SETPG8000
+				pop af
+				SETPGC000
+				ret
+;--------------
+load_gfd_direct:
+;in de-filename
+		call store_48c
+		ld a,(user_scr0_high)
+		SETPG8000
+		ld a,(user_scr0_low)
+                jr load_gfd.bp
+load_gfd:
+;in de-filename
+		call store_48c
+		ld a,(load_buf1)
+		SETPG8000
+		ld a,(load_buf2)
+.bp
+		SETPGC000
+		call openstream_file
+						;		or a
+						;		jp nz,fileopenerror
+		ld hl,0x8000 ;len
+		ld de,0x8000 ;addr
+		call readstream_file
+						;		or a
+						;		jp nz,filereaderror
+		ld hl,32 ;len
+		ld de,gfdpal ;addr
+		call readstream_file
+						;		or a
+						;		jp nz,filereaderror
+		call closestream_file
+		jp restore_48c

@@ -96,6 +96,7 @@ pal:     ds 32,0xff
 mempal:  ds 32,0xff
 temppal  ds 32,0xff
 blackpal  ds 32,0xff
+gfdpal  ds 32,0xff
 
 ;-------keyboard
 keyreg db 0
@@ -118,6 +119,15 @@ text_buffer_len = $-text_buffer
 init_fname	db "init.bin",0
 intro_fname	db "intro.bin",0
 outro_fname:    db "outro.bin",0
+
+
+i_1     		db "gfx/zx1f.gfd",0
+i_2     		db "gfx/zx2f.gfd",0
+i_3     		db "gfx/zx3f.gfd",0
+i_4     		db "gfx/zx4f.gfd",0
+i_5     		db "gfx/zx5f.gfd",0
+i_6     		db "gfx/zx6f.gfd",0
+i_7     		db "gfx/zx7f.gfd",0
 
 file_index:						    db 51h               ;0x8d1e
 

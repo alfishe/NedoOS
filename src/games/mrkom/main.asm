@@ -176,22 +176,14 @@ ze_start:	;fresh start after intro sequence
 		call sel_word
 		ex de,hl
 		call openstream_file
-;		or a
-;		jp nz,fileopenerror
+						;		or a : jp nz,fileopenerror
 		ld hl,0x8000 ;len
 		ld de,player_load ;addr
 		call readstream_file
-;		or a
-;		jp nz,filereaderror
+						;		or a : jp nz,fileopenerror
 		call closestream_file
-	
-        ld a,1
-		call p_init
 		call unset_music_pages
 ;<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<	
-		call load_card_image
-
-;------------------------------------------		
 ; load executable		
 	    ld a,(lang_mode)
 		ld hl,exe_z
@@ -209,13 +201,11 @@ ze_start:	;fresh start after intro sequence
 		ld (de),a
 		ld de,buf
 		call openstream_file
-						;		or a
-						;		jp nz,fileopenerror
+						;		or a : jp nz,fileopenerror
 		ld hl,0x8000 ;len
 		ld de,T_START ;addr
 		call readstream_file
-						;		or a
-						;		jp nz,filereaderror
+						;		or a : jp nz,fileopenerror
 		call closestream_file
 		call restore_48c
 		
@@ -227,13 +217,11 @@ ze_start:	;fresh start after intro sequence
 j_outro:
 		ld de,outro_fname
 		call openstream_file
-						;		or a
-						;		jp nz,fileopenerror
+						;		or a : jp nz,fileopenerror
 		ld hl,0x8000 ;len
 		ld de,T_START ;addr
 		call readstream_file
-						;		or a
-						;		jp nz,filereaderror
+						;		or a : jp nz,fileopenerror
 		call closestream_file
 		call T_START
 

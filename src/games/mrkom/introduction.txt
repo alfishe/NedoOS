@@ -19,27 +19,58 @@
 稀代の宝石とともに、消えた。
 彼女を愛した者たちの 『青い嘆き』を、この街に残して。
 
-
+;1 zx1
 Manhattan Streets Awaiting the New Year
 People bustle back and forth, 
 and the lights of the skyscrapers cast a glow like a fleeting illusion.
 Late on the night of December 30, 1987, she was murdered.
+;2 zx7
 In an apartment on West 10th Street in Greenwich Village,
+;3 zx2
 with a bright red rose laid at her feet.
+;4 zx3
 Sarah Shields, age 24.
 Cause of death: a fracture to the back of the skull caused by blunt force trauma.
 In this city,
 she chased her dreams,
 was shattered by them,
 and died, swept up in a whirlpool of desire.
+;5 zx4
 A desert of steel and concrete.
+;6 ;zx5
 A paradise of skyscrapers and crowds.
 In this city, when ideals perish, illusions multiply.
 And people lose their primal memories
+;7 zx_empty
 and begin to harbor murderous intent.
+;8 zx6
 On December 30, 1987, amid the clamor, a woman who sought solace
 vanished along with a jewel of unparalleled beauty.
+;9 zx_empty
 Leaving behind in this city the “Blue Lament” of those who loved her.
+;===========
+Манхэттен в ожидании Нового года
+Люди суетятся,
+а огни небоскребов отбрасывают мимолетное, иллюзорное сияние.
+В ночь на 30 декабря 1987 года она была убита.
+В своей квартире на Вест-10-й улице в Гринвич-Виллидж.
+В окружении ярко-красных роз.
+Сара Шилдс, 24 года.
+Причина смерти: перелом заднего отдела черепа, вызванный ударом тупым предметом.
+В этом городе
+она гналась за своими мечтами
+потерпела крах
+попала в водоворот страстей и умерла.
+Пустыня из железа и бетона.
+Рай небоскребов и толп.
+В этом городе, когда идеалы гибнут, иллюзии множатся.
+И люди теряют свои бурные воспоминания
+и начинают питать убийственные намерения.
+30 декабря 1987 года, среди шума, женщина, искавшая покоя,
+исчезла вместе с редким драгоценным камнем.
+Оставив в этом городе 'Синюю скорбь' тех, кто её любил.
+
+
 
 
 ;-------------------------------------------------------------

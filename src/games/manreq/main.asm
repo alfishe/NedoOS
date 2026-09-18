@@ -42,14 +42,19 @@ G_BUFFER1 = 0x8000
 G_BUFFER2 = G_BUFFER1+6384*2
 		
 DEFAULT_DELAY = 0x0ff
-SCROLL_LOCK = 0x400b
-
-PLR_INIT  = 0x4000
-PLR_PLAY  = 0x4005
-PLR_MUTE  = 0x4008
 
 module 		= 0xc000
+
 player_load = 0x4000
+p_init = 0x4000
+p_play = 0x4002
+p_mute = 0x4005
+mus_end = 0x4008
+p_mod   = 0x4009
+p_advance = 0x400c
+p_unmod   = 0x400f
+p_tillend   = 0x4012
+SCROLL_LOCK = 0x4015
 
 IMG_BUFFER = 0x4000
 
@@ -119,13 +124,11 @@ start:
 		
 		ld de,buf
 		call openstream_file
-						;		or a
-						;		jp nz,fileopenerror
+						;		or a : jp nz,fileopenerror
 		ld hl,0x8000 ;len
 		ld de,T_START ;addr
 		call readstream_file
-						;		or a
-						;		jp nz,filereaderror
+						;		or a : jp nz,fileopenerror
 		call closestream_file
 		call T_START
 ;------------------------------------------	
@@ -142,8 +145,19 @@ ze_start:	;fresh start after intro sequence
 		call store_48c
 		call clear_loc_screen
 
-		call load_card_image
-
+		call set_music_pages
+		ld a,(mus_mode)
+		ld hl,plr_tabl_game
+		call sel_word
+		ex de,hl
+		call openstream_file
+						;		or a : jp nz,fileopenerror
+		ld hl,0x8000 ;len
+		ld de,player_load ;addr
+		call readstream_file
+						;		or a : jp nz,fileopenerror
+		call closestream_file
+		call unset_music_pages
 
 ;------------------------------------------		
 ; load executable		
@@ -163,13 +177,11 @@ ze_start:	;fresh start after intro sequence
 		ld (de),a
 		ld de,buf
 		call openstream_file
-						;		or a
-						;		jp nz,fileopenerror
+						;		or a : jp nz,fileopenerror
 		ld hl,0x8000 ;len
 		ld de,T_START ;addr
 		call readstream_file
-						;		or a
-						;		jp nz,filereaderror
+						;		or a : jp nz,fileopenerror
 		call closestream_file
 		call restore_48c
 ;------------------------------------------		
@@ -197,13 +209,17 @@ ze_start:	;fresh start after intro sequence
 		call T_START
 
 		call no_mus
+
+                call set_music_pages
+                ld a,(plr_page)
+                ld hl,0
+                OS_SETMUSIC
+                call unset_music_pages
+
         ld e,6+0x80
         OS_SETGFX
 
         call int_reset
-
-        ld hl,t_s98_file00_pages_list+$FF 
-        call free_s98_file
 
         ld b,pagestbllen
         ld hl,pagestbl
@@ -214,6 +230,7 @@ ze_start:	;fresh start after intro sequence
         pop hl,bc
         inc hl
         djnz .getpagesloop
+
         QUIT 
 		
 		
@@ -244,17 +261,12 @@ cmd_end:
 		include "init.asm"
 		include "intro_j.asm" ;jp version
 		include "intro_r.asm" ;ru version
+
 		include "outro_j.asm" ;jp version
 		include "outro_r.asm" ;ru version
-
 		
 		include "exec_j.asm" ;jp version
 		include "exec_r.asm" ;ru version
-
-;		include "page4000j.asm" ;
-;		include "page4000r.asm" ;
-		LABELSLIST "..\..\..\us\user.l",1
-
 
 
 		display "T_START: ",/d,T_START
@@ -262,8 +274,14 @@ cmd_end:
 		
         savebin "jb2manreq.com",cmd_begin,cmd_end-cmd_begin
 
+        org PROGSTART
+		include "opn_plr1.asm" ;OPN player for intro
+		include "opn_plr.asm" ;OPN player for game
+		include "ay_plr1.asm" ;AY player for intro
+		include "ay_plr.asm" ;AY player for game
 
 
+		LABELSLIST "..\..\..\us\user.l",1
 
 
 

@@ -1,3 +1,0 @@
-src/evsummer/importres/video/opening.ogv filter=lfs diff=lfs merge=lfs -text
-src/evsummer/importres/images/bg/bg.zip filter=lfs diff=lfs merge=lfs -text
-src/evsummer/importres/images/sprites/sprites.zip filter=lfs diff=lfs merge=lfs -text

@@ -7,6 +7,7 @@ textprep\fasm   textprep\r_mdl3.asm kissofmurder\r_mdl3.bin
 textprep\fasm   textprep\r_mdl4.asm kissofmurder\r_mdl4.bin
 textprep\fasm   textprep\r_mdl5.asm kissofmurder\r_mdl5.bin
 textprep\fasm   textprep\r_mdl6.asm kissofmurder\r_mdl6.bin
+textprep\fasm   textprep\r_mdl7.asm kissofmurder\r_mdl7.bin
 textprep\fasm   textprep\j_mdl1.asm kissofmurder\j_mdl1.bin
 textprep\fasm   textprep\j_mdl2.asm kissofmurder\j_mdl2.bin
 textprep\fasm   textprep\j_mdl3.asm kissofmurder\j_mdl3.bin

@@ -5,13 +5,17 @@ lang_mode	db 0
 scr0high	db 0
 scr0low		db 0
 ;------------------------
-mus_path1:
-        db "mus/",0
+plr_tabl_intro
+			dw plr1_intro
+			dw plr2_intro	
+plr1_intro:		db "ay_plr1.bin",0
+plr2_intro:		db "opn_plr1.bin",0
 
-plr_tabl
-			dw plr1
-			dw plr1	
-plr1:		db "s98_plr.bin",0
+plr_tabl_game
+			dw plr1_game
+			dw plr2_game	
+plr1_game:		db "ay_plr.bin",0
+plr2_game:		db "opn_plr.bin",0
 ;------------------------
 
 ext_name	dw e_name_ay
@@ -103,6 +107,7 @@ stdpal:  STANDARDPAL
 pal:     ds 32,0xff 
 mempal:  ds 32,0xff
 temppal  ds 32,0xff
+gfdpal  ds 32,0xff
 
 ;-------keyboard
 keyreg db 0
@@ -180,7 +185,19 @@ text_buffer			  ds 512
 text_buffer_len = $-text_buffer
 init_fname	db "init.bin",0
 
-
+i_1     		db "gfx/zx1.gfd",0
+i_2     		db "gfx/zx2.gfd",0
+i_3     		db "gfx/zx3.gfd",0
+i_4     		db "gfx/zx4.gfd",0
+i_5     		db "gfx/zx5.gfd",0
+i_6     		db "gfx/zx6.gfd",0
+i_7     		db "gfx/zx7.gfd",0
+i_8     		db "gfx/zx8.gfd",0
+i_9     		db "gfx/zx9.gfd",0
+i_a     		db "gfx/zxa.gfd",0
+i_b     		db "gfx/zxb.gfd",0
+i_c     		db "gfx/zxc.gfd",0
+i_d     		db "gfx/zxd.gfd",0
 ;=====================================
 				display "table_dialogue_questions_index_buffer_8D5D :",/d,$
 table_dialogue_questions_index_buffer_8D5D:

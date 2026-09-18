@@ -105,6 +105,7 @@ txt_setup:
 			db 0x0A,"J.B. Harold's Case File #4 - Kiss of Murder, Another Story of Manhattan Requiem",0x0D,0x0A
 			db "(c) 1988 Riverhill Soft Inc.",0x0D,0x0A
 			db "(L) 2026 Zorba",0x0D,0x0A
+			db "Ver 1.01",0x0D,0x0A
 			db "----------------------------------------",0x0D,0x0A
 			db "language setup",0x0D,0x0A
 			db 0x0D,0x0A

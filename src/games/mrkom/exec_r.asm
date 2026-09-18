@@ -1,10 +1,74 @@
 	MODULE exec_r
 ri_start:
-		DISP T_START		
-				ld a,1
-				call load_mus
-				ld a,4
-				call load_text_module  ;modules_loader
+		DISP T_START
+                ld      hl,0xc000+65*40+12 	;0D468h
+                ld      (text_screen_address), hl
+                ld      a, 0x0F+4
+                ld      (characters_in_text_line), a
+                
+                ld      hl, MSG_I1
+                ld a,7
+                call    sub_AE69
+                ld      hl, MSG_I2
+                ld a,7
+                call    sub_AE69
+                ld      hl, MSG_I3
+                ld a,7
+                call    sub_AE69
+pre_loop1
+                xor     a
+                call    wait_for_key_input
+                dec     a
+                cp      3
+                jr      c, _1_3_is_pressed
+                jr      pre_loop1
+_1_3_is_pressed:
+                and a
+                jp z,game_intro0
+
+                add a,"0"
+                ld (saveslot),a
+                ld de,savename
+                call openstream_file
+                or a
+                jp nz,pre_loop1	;no file
+                ld hl,gamestate_len
+                ld de,gamestate
+                call readstream_file
+                                ;or a                ;jp nz,filereaderror 
+                call closestream_file
+                jp resume_investigation
+
+
+sub_AE69:
+                ld      (symbol_color), a
+                push    hl
+                ld      hl, (text_screen_address)
+                ld      de, 9*40 		;370h        ; adress offset
+                add     hl, de
+                ld      (text_screen_address), hl
+                pop     hl
+                jp    print_text_line
+                
+
+return_to_city0
+                call clear_loc_screen
+                call load_card_image
+                
+;        call set_music_pages
+;        ld a,1
+;		call p_init
+;        call unset_music_pages
+                
+                
+                
+                
+
+return_to_city2:		
+                ld a,1
+                call load_mus
+                ld a,4
+                call load_text_module  ;modules_loader
 				
                 call    location_in_front_of_jed_office_gamestart
 hot_return_to_city:		
@@ -20,21 +84,27 @@ loc_AAF4:
                 jr      loc_AAF4
 
 A650_strings:
-		include "_rus/r_A650.asm"
-menu_strings_table:		;строки текста для вывода меню
-		include "_rus/r_menu.asm"
-
+                include "_rus/r_A650.asm"
+menu_strings_table:             ;строки текста для вывода меню
+                include "_rus/r_menu.asm"
+ 
 msg_AF45:       db "Какой ФАЙЛ нужно СОХРАНИТЬ?",0xff
 msg_AF55:       db "Меню 'Перерыв в расследовании'", 0FFh
-unk_AF52		db 0AFh, 0B0h, 0B1h
-
+unk_AF52                db 0AFh, 0B0h, 0B1h
+ 
 MSG_AF5E:       db "Сбор информации", 0FFh ;MSG_B307:
 MSG_AF64:       db "Сбор информации", 0FFh ;MSG_B30C:
 MSG_AF6A:       db "Найдено улик   ", 0FFh ;MSG_B312:
 MSG_AF70:       db "Опрошено людей ", 0FFh ;MSG_B317:
 MSG_AF75:       db "Общий прогресс ", 0FFh ;MSG_B31C:
+ 
+MSG_AF7B:               db "  Кто, по вашему мнению, виновен?", 0FFh
 
-MSG_AF7B:		db "  Кто, по вашему мнению, виновен?", 0FFh
+
+MSG_I1          db "1. Новая игра      ",0xff
+MSG_I2          db "2. Загрузить ФАЙЛ 1",0xff
+MSG_I3          db "3. Загрузить ФАЙЛ 2",0xff
+
 load_music:
 				ld      a, 0
 				or      a
@@ -169,10 +239,10 @@ BS_PRT_OFS = 8 ;offset on overlay to draw portrait
 				ex de,hl
 				ld bc,BS_WDTH-PRTRT_WDTH
 				add hl,bc
-				ex de, hl		;передвинули de на нужное место (вторая часть Экрана)
+				ex de, hl		;редули de  ужн тво (тпатгм ран)
 				ld bc,PRTRT_WDTH
 				ldir
-				;теперь скопирована строка 
+				;тепскаскоров тга 
 				ld bc,PRTRT_WDTH*2
 				add hl,bc			;next portrait pixels position
 				pop de
@@ -453,7 +523,7 @@ restore_background_load_image:
 print_text_at_location:
 ;clear bottom part of window based on 'keep_top_text_line' default = 0 clear whole
 		ld hl,0xc000+167*40+1	
-		ld bc,0x2127		;39*2 = 78 знакомест.  высота - 33 линии
+		ld bc,0x2127		;39*2 = 78 тао  ьботЮа- 33 
 		ld a,(keep_top_text_line)
 		or a
 		jr nz,.kp_top_line
@@ -467,6 +537,7 @@ print_text_at_location:
 		
 		ld hl,0xc000+168*40+2				;text scr addr
 		ld (text_screen_address),hl
+.repl = $+1
 		ld a,7
 		ld (symbol_color),a
 		
@@ -503,8 +574,8 @@ print_text_at_location:
 		cp 3
 		jr c,.loc_90d7			;code 2 code 3
 		
-		push bc,de				;!!!!!!! нужно закрыть text pages и иметь в буфере строку для отображения
-		ld de,text_buffer
+        push bc,de                              ;!!!!!!! нужно закрыть text pages и иметь в буфере строку для отображения
+        ld de,text_buffer
 		ld bc,text_buffer_len
 		ldir
 		call unset_text_pages
@@ -798,17 +869,17 @@ inverse_menu_selection:
                 ld      l, a
                 ld      h, 0x6e			;0DCh pc-88
                 call    mul_h_l
-                ld      de, 0xc000+0*40+58/2		;		0C03Ah      ; выбор экранной строки
+                ld      de, 0xc000+0*40+58/2            ;               0C03Ah      ; выбор экранной строки
                                                         ; выбранная кнопка *4 *  0xDC байт
-                add     hl, de			        ;hl - screen address
+                add     hl, de                          ;hl - screen address
                 ld      (revert_line_inv_lock_1.hl+1), hl ; экранный адрес начала строки, которую надо инвертировать
                 xor     a
 .entr:
                 ;in a- lock
                 ;hl - scr addr
-                ; - 			does B should be unchanged ?
+                ; -                     does B should be unchanged ?
                 ld      (revert_line_inv_lock_1), a
-				
+                               
                 ld      a, 0x16          ; invert selected line
 invert_custom_line:
                 push af,bc
@@ -817,12 +888,12 @@ invert_custom_line:
                 ld a,(user_scr0_high)
                 SETPGC000
                 pop bc,af
-
+ 
                 ld      (invert_line+1), a
                 ld      c, 8            ; 0Bh          ; vertical lines to invert     8 lines for non jp version
                 ld      de, 0x4E/2+1    ; значение для перевода к началу следующей строки
-.loop                               
-		call    invert_line
+.loop                              
+                call    invert_line
                 add     hl, de
                 dec     c
                 jr      nz,.loop
@@ -1117,17 +1188,17 @@ print_menu_with_frame:
                                         ; 1 - c190
                                         ; --2 устанавливается принудительно по центру экрана
                                         ; 2 - c198
-                ld      hl, 0xc000+5*40+8			;0C1A0h - pc-88
+                ld      hl, 0xc000+5*40+8                       ;0C1A0h - pc-88
                 or      a
                 jr      z, 1f
-                ld      l,5*40 							;90h
+                ld      l,5*40                                                  ;90h
                 dec     a
                 jr      z, 1f
-                ld      l, 5*40+4						;98h
+                ld      l, 5*40+4                                               ;98h
 1
                 ld      (frame_screen_address), hl
 loc_8F89:
-                ld      hl, G_BUFFER1					;133Ch
+                ld      hl, G_BUFFER1                                   ;133Ch
                 ld      (screen_buffer_address), hl
                 call    render_message_frame
                 ld      a, 0xC9
@@ -1135,7 +1206,7 @@ loc_8F89:
                 pop     bc
                 ld      c, 0
                 ld      hl, table_dialogue_questions_index_buffer
-sub_8E93: 
+sub_8E93:
                 ld      a, 14h
                 ld      (characters_to_print), a
                 ld      (characters_in_text_line), a
@@ -1143,22 +1214,22 @@ sub_8E93:
                 dec     b
                 ret     z
                 push    hl
-
+ 
 ;!!!!!!!!!! TODO TODO TODO вычисление экранного адреса для атм экрана
 loop_8E9F:  
                 ld      a, c            ; c - текущий отображаемый пункт в меню (который сейчас пишется на экран)
                 and     0xFE            ; a = 0 / 1  - нечетный / четный столбец по регистру С
                 add     a, a
                 ld      l, a            ; l - 0 / 2
-                ld      h, 0x6e			;??????          0DCh-pc-88
+                ld      h, 0x6e                 ;??????          0DCh-pc-88
                 call    mul_h_l         ; hl = 0 / 0xb8
-				
-                ld      de, 5*40+1		;??????         192h=5*80  pc-88		;нечетный столбец
+                               
+                ld      de, 5*40+1              ;??????         192h=5*80  pc-88                ;нечетный столбец
                 ld      a, c
                 and     1
                 jr      z, _loc_8EB4
-                ld      de,	5*40+10+0x2000			;??? 1A5h        ; нечётный столбец  0x1a5-0x192 =  0x13; 
-				
+                ld      de,     5*40+10+0x2000                  ;??? 1A5h        ; нечётный столбец  0x1a5-0x192 =  0x13;
+                               
 _loc_8EB4:
                 add     hl, de
                 ld      de, (frame_screen_address)
@@ -1174,7 +1245,7 @@ loc_8EC8:
                 ;add     a, 0x10
                 add     a,"A"
                 call    print_char
-                ld      a, ":"		;79h ; 'y'
+                ld      a, ":"          ;79h ; 'y'
                 call    print_char
                 pop     hl
                 ld      e, (hl)
@@ -1192,20 +1263,20 @@ loc_8EC8:
                 ret
 ;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 render_message_frame:
-				ld      a, (can_use_letters)
-				inc     a
-				ld      (can_use_letters), a
+                                ld      a, (can_use_letters)
+                                inc     a
+                                ld      (can_use_letters), a
                 xor     a
                 call    store_background ; копируем в буффер часть экрана, где будет рисоваться рамка и меню.
                 ld      hl, (frame_screen_address)
-                ld      de, FRAME_BOX_WIDTH/2			;2Ah  - pc-88
+                ld      de, FRAME_BOX_WIDTH/2                   ;2Ah  - pc-88
                 add     hl, de
-				
+                               
                 xor     a
                 ld      d, a
                 ld      e, a
                 call    draw_frame_line
-                ld      de,0x07E0		;d - левый бортик e - правй бортик рамки
+                ld      de,0x07E0               ;d - левый бортик e - правй бортик рамки
                 dec     a
                 call    draw_frame_line
                 ld      de, 1FF8h
@@ -1228,24 +1299,24 @@ render_message_frame:
                 xor     a
                 ld      d, a
                 ld      e, a
-
+ 
 draw_frame_line:
 ; линия длиной 24 байта из которых 2 - граница
 ; e - байт описывающий левую границу
 ; d - байт описывающий правую границу
 ; a - байт описывающий заливку самого окна.
-				set 5,h
+                                set 5,h
                 ld      (.setaddr2+1), hl
-				ld      (.setaddr4+1), hl
-				res 5,h
-				ld 		(.setaddr1+1),hl
-				ld 		(.setaddr3+1),hl
-				ld l,a
-				push af
-				ld a,(curpgc000)
-				push af
-				ld a,(user_scr0_high)
-				SETPGC000
+                                ld      (.setaddr4+1), hl
+                                res 5,h
+                                ld              (.setaddr1+1),hl
+                                ld              (.setaddr3+1),hl
+                                ld l,a
+                                push af
+                                ld a,(curpgc000)
+                                push af
+                                ld a,(user_scr0_high)
+                                SETPGC000
                 ld      (.storesp+1), sp
                 di
 .setaddr2:
@@ -1468,6 +1539,7 @@ show_msg_hit_return_key
                 ld      hl, 0xc000+157*40+18			;0F134h
                 ld      (text_screen_address), hl
                 ld      hl, msg_hit_return_key
+.repl=$+1
                 ld      a, 2
                 ld      (characters_to_print), a
                 ld      (symbol_color), a
@@ -2101,7 +2173,7 @@ load_saved_state:
 				jp      loc_AB18
 				
 msg_file_to_load: db "Какой ФАЙЛ нужно ЗАГРУЗИТЬ?",0xff
-;msg_data_error	  db "ФАЙЛ ИСПОРЧЕН",0xff				
+;msg_data_error   db "ФАЙЛ ИСПОРЧЕН",0xff 				
 
 location_B100:
                 ld      hl, loc_B143
@@ -3045,7 +3117,7 @@ loc_B842:
                 call    load_item_image
                 ld      a, (load_text_module+1)	
                 cp      5
-                jr      nz, loc_B801	;если не 5 то текстовый модуль допроса не подключён. допрос не разрешен
+               jr      nz, loc_B801    ;если не 5 то текстовый модуль допроса не подключён. допрос не разрешен
                 call    get_pointer_to__gamestate_by_temp_location_id
                 push    hl
                 sub     65h ; 'e'
@@ -3915,7 +3987,135 @@ location_B968
 				
 				ld sp,sp_main
 				ret
-						
+print_text_and_advance2:
+				ld      hl, (txt_string_id)
+				inc     hl
+				ld      (txt_string_id), hl
+				call    print_text_at_location
+				call    show_msg_hit_return_key
+				ret
+
+gfd_ldr
+                dec a
+                call sel_i_tbl
+                call load_gfd
+
+                ld hl,gfdpal
+                ld de,pal
+                ld bc,32
+                ldir 
+                ld a,1
+                ld (setpalflag),a
+
+                jp draw_image_stripes                
+
+sel_i_tbl:
+                add a,a
+                ld h,0
+                ld l,a
+                ld de,i_tbl
+                add hl, de
+                ld e,(hl)
+                inc hl
+                ld d,(hl)
+                ret
+
+game_intro0
+                ld a,7
+                call load_text_module  ;modules_loader
+                ld a,1
+                call load_mus
+                ld      a, 1
+                ld      (print_text_at_location.repl),a
+                ld a,2
+                ld      (show_msg_hit_return_key.repl),a
+                ld hl,0
+                ld      (txt_string_id), hl
+
+
+                ld a,1
+                call gfd_ldr
+                ld b,4
+1               push bc
+                call print_text_and_advance2
+                pop bc
+                djnz 1b
+
+                ld a,7
+                call gfd_ldr
+                call print_text_and_advance2
+
+                ld a,2
+                call gfd_ldr
+                call print_text_and_advance2
+
+                ld a,3
+                call gfd_ldr
+                ld b,6
+1               push bc
+                call print_text_and_advance2
+                pop bc
+                djnz 1b
+
+                ld a,4
+                call gfd_ldr
+                call print_text_and_advance2
+
+
+                ld a,5
+                call gfd_ldr
+                ld b,3
+1               push bc
+                call print_text_and_advance2
+                pop bc
+                djnz 1b
+
+                call clear_buf_screen
+                call draw_image_stripes
+                call print_text_and_advance2
+
+                ld a,6
+                call gfd_ldr
+                ld b,2
+1               push bc
+                call print_text_and_advance2
+                pop bc
+                djnz 1b
+
+
+                call clear_buf_screen
+                call draw_image_stripes
+                call print_text_and_advance2
+
+                call clear_buf_screen
+                call draw_image_stripes
+
+
+                ld de,pal
+                ld hl,stdpal+16
+                ld bc,16
+                ldir
+                ld hl,stdpal
+                ld bc,16
+                ldir
+                ld a,1
+                ld (setpalflag),a
+                
+                ld      a, 7
+                ld      (print_text_at_location.repl),a
+                ld a,2
+                ld      (show_msg_hit_return_key.repl),a
+                jp return_to_city0
+
+i_tbl
+                dw i_1
+                dw i_2
+                dw i_3
+                dw i_4
+                dw i_5
+                dw i_6
+                dw i_7
+
 		
 		display "exec_ru_code_ends: ",/d,$
 font	        incbin "_rus/intro_font.bin"

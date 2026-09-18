@@ -53,8 +53,6 @@ setup_mus_lp:
         jr nc,setup_mus_lp
 		sub "1"
 		ld (mus_mode),a
-		ld a,0xff
-		ld (old_mus),a
 ;-----------------------------------------
 		ld e,2+0x80  //set HW multicolor mode keep
 		OS_SETGFX
@@ -65,25 +63,17 @@ setup_mus_lp:
 		call set_music_pages
 
 		ld a,(mus_mode)
-
-		ld hl,plr_tabl
+		ld hl,plr_tabl_intro
 		call sel_word
-		ld de,buf
-		call copystr_hlde
-		
-		xor a
-		ld (de),a
-		ld de,buf
+		ex de,hl
 		call openstream_file
-;		or a
-;		jp nz,fileopenerror
+;		or a :jp nz,fileopenerror
 		ld hl,0x8000 ;len
 		ld de,player_load ;addr
 		call readstream_file
-;		or a
-;		jp nz,filereaderror
+;		or a : jp nz,filereaderror
 		call closestream_file
-.bypass_plr_load:
+
 		call unset_music_pages
 ;----------------------------------------------------
 ;set PC-88 pALETTE
@@ -104,13 +94,10 @@ setup_mus_lp:
 
 
 txt_setup:
-			db 0x0A," J.B. Harold Series #2: Manhattan Requiem - Angels Flying in the Dark",0x0D,0x0A
+			db 0x0A," J.B. Harold Series #2: Manhattan Requiem - Angels Flying in the Dark v1.01",0x0D,0x0A
 			db "(c) 1987 Riverhill Soft Inc.",0x0D,0x0A
 			db "(L) 2026 Zorba",0x0D,0x0A
 			db "----------------------------------------",0x0D,0x0A
-			db "Music powered by:",0x0D,0x0A
-			db "> TurbosoundFM S98 driver by NEO SPECTRUMAN",0x0D,0x0A
-			db "----------------------------------------",0x0D,0x0A,0x0D,0x0A
 			db "language setup",0x0D,0x0A
 			db 0x0D,0x0A
 			db "1. Japanese (original)",0x0D,0x0A

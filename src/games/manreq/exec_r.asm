@@ -2,7 +2,59 @@
 ri_start:
 
 		DISP T_START		
-;		call load_card_image
+            ; pre_start
+				ld      hl,0xc000+65*40+12 	;0D468h
+				ld      (text_screen_address), hl
+				ld      a, 0x0F+4
+				ld      (characters_in_text_line), a
+                
+                ld      hl, MSG_I1
+                ld a,7
+                call    sub_AE69
+                ld      hl, MSG_I2
+                ld a,7
+                call    sub_AE69
+                ld      hl, MSG_I3
+                ld a,7
+                call    sub_AE69
+pre_loop1
+                xor     a
+                call    wait_for_key_input
+                dec     a
+                cp      3
+                jr      c, _1_3_is_pressed
+                jr      pre_loop1
+_1_3_is_pressed:
+                and a
+                jp z,game_intro0
+
+				add a,"0"
+				ld (saveslot),a
+				ld de,savename
+				call openstream_file
+				or a
+				jp nz,pre_loop1	;no file
+				ld hl,gamestate_len
+				ld de,gamestate
+                call readstream_file
+                ;or a
+                ;jp nz,filereaderror 
+                call closestream_file
+                jp resume_investigation
+
+return_to_city0
+        call clear_loc_screen
+		call load_card_image
+
+;        call set_music_pages
+;        ld a,1
+;		call p_init
+;        call unset_music_pages
+return_to_city2:
+			ld a,1
+			call load_mus
+			ld a,4
+			call load_text_module  ;modules_loader
 return_to_city:		
 		call location_in_front_of_jed_office_gamestart
 hot_return_to_city:
@@ -31,6 +83,10 @@ MSG_B321:       db "Для выбора  используйте ENTER", 0FFh
 MSG_B33F:       db " Имя", 0FFh
 MSG_B344:       db " Местоположение", 0FFh
 MSG_B34A:       db " Район", 0FFh		
+
+MSG_I1          db "1. Новая игра      ",0xff
+MSG_I2          db "2. Загрузить ФАЙЛ 1",0xff
+MSG_I3          db "3. Загрузить ФАЙЛ 2",0xff
 ;===================================
 sub_AF67:
                 call    get_pointer_to__gamestate_main_by_8D27value
@@ -244,8 +300,7 @@ menu_choose_file_to_load:               ; CODE XREF: seg004:AD7Ep
                 ld      de, 5*40+2	;194h
                 add     hl, de
                 ld      (text_screen_address), hl
-
-loc_964F:                               ; DATA XREF: seg003:9625w
+loc_964F:
                 ld      hl, 0
                 call    print_text_line
                 ld      a, 0x0E
@@ -277,12 +332,11 @@ _1_or_2_is_pressed:
                 call    highlight_letter_selection
                 pop     af
                 pop     hl
-sub_969F:                               ; CODE XREF: seg003:96AAp
+sub_969F:
                 ld      (frame_screen_address), hl
                 or      a
                 ret
-SPACE_is_pressed:                       ; CODE XREF: seg003:968Aj
-                                        ; seg003:9690j
+SPACE_is_pressed:
                 pop     hl
                 call    sub_969F
                 scf
@@ -306,6 +360,7 @@ print_text_at_location:
 		
 		ld hl,0xc000+168*40+2				;text scr addr
 		ld (text_screen_address),hl
+.repl = $+1
 		ld a,7
 		ld (symbol_color),a
 		
@@ -967,10 +1022,6 @@ sub_AE99:
 ;===========================================================================================
 
 location_in_front_of_jed_office_gamestart:
-			ld a,1
-			call load_mus
-			ld a,4
-			call load_text_module  ;modules_loader
 			;in front of J.B. office
 			ld a,0x51
 			call load_image
@@ -2305,10 +2356,12 @@ location_B926:
                 jr      .loc_B990
 
 ;wait_enter_key
+show_msg_hit_return_key:
 sub_928C:
                 ld      hl, 0xc000+157*40+18			;0F134h
                 ld      (text_screen_address), hl
                 ld      hl, msg_hit_return_key
+.repl = $+1                
                 ld      a, 2
                 ld      (characters_to_print_byte_8D53), a
                 ld      (symbol_color), a
@@ -3001,7 +3054,8 @@ load_saved_state:
                 ld      de, text_byte_BA9E
                 call    menu_choose_file_to_load
                 jp      c, loc_ADF2     ; SPACE pressed. restore screen
-				
+.inss				
+                 
 				add a,"1"
 				ld (saveslot),a
 				ld de,savename
@@ -3055,7 +3109,7 @@ location_investigation_break:
 				ld (load_card_image+1),a
 				ld (print_location_menu.loc_8f39+1),a
 loc_AD68:
-                call    sub_B244				
+                call    sub_B244
 loc_AD6B:
                 call    sub_B292
                 ld      hl, (loc_9029+1)
@@ -3124,6 +3178,7 @@ investigation_statistcs:
 				call    print_text_line
 				ld      hl,0xc000+66*40+7			;0D4AEh
 				ld      (text_screen_address), hl
+
 				ld      hl, MSG_B307
 				ld      a, 3
 				call    sub_AE69
@@ -3133,48 +3188,51 @@ investigation_statistcs:
 				push    hl
 				ld      a, 9Bh
 				call    display_percentage
-				ld      hl, MSG_B30C
-                ld      a, 6
-                call    sub_AE69
-                ld      hl, func_AEBC
-                ld      de, 0
-                call    loc_AE7C
-				
-                push    hl
-                ld      a, 0x48
-                call    display_percentage
-                ld      hl, MSG_B312
-                ld      a, 1
-                call    sub_AE69
-                ld      hl, func_AED2
-                ld      de, 0FFFEh 
-                call    loc_AE7C
-                push    hl
-                ld      a, 49h ; 'I'
-                call    display_percentage
-                ld      hl, MSG_B317
-                ld      a, 4
-                call    sub_AE69
-                ld      hl, loc_AEE0
-                ld      de, 0FFF1h
-                call    loc_AE7C
-                push    hl
-                ld      a, 54h ; 'T'
-                call    display_percentage
-                ld      hl, MSG_B31C
-                ld      a, 2
-                call    sub_AE69
-                pop     hl
-                pop     de
-                add     hl, de
-                pop     de
-                add     hl, de
-                pop     de
-                add     hl, de
-                ld      a, 2
-                call    div_hl_a
-                ld      a, 0C0h
-                call    display_percentage
+
+                                ld      hl, MSG_B30C
+                                ld      a, 6
+                                call    sub_AE69
+                                ld      hl, func_AEBC
+                                ld      de, 0
+                                call    loc_AE7C                                	
+                                push    hl
+                                ld      a, 0x48
+                                call    display_percentage
+
+                                ld      hl, MSG_B312
+                                ld      a, 1
+                                call    sub_AE69
+                                ld      hl, func_AED2
+                                ld      de, 0FFFEh 
+                                call    loc_AE7C
+                                push    hl
+                                ld      a, 49h ; 'I'
+                                call    display_percentage
+
+                                ld      hl, MSG_B317
+                                ld      a, 4
+                                call    sub_AE69
+                                ld      hl, loc_AEE0
+                                ld      de, 0FFF1h
+                                call    loc_AE7C
+                                push    hl
+                                ld      a, 54h ; 'T'
+                                call    display_percentage
+
+                                ld      hl, MSG_B31C
+                                ld      a, 2
+                                call    sub_AE69
+                                pop     hl
+                                pop     de
+                                add     hl, de
+                                pop     de
+                                add     hl, de
+                                pop     de
+                                add     hl, de
+                                ld      a, 2
+                                call    div_hl_a
+                                ld      a, 0C0h
+                                call    display_percentage
 .loop
                 xor     a
                 call    wait_for_key_input
@@ -3377,8 +3435,11 @@ sub_B244:
                 ld      a, "A"
                 ld      (loc_8EC8+1), a
                 ret
+
+
+;wait for user
 sub_B292:
-                ld      hl, 0xc000+17*40+1			;0C552h
+                ld      hl, 0xc000+17*40+1			;0C552h         
                 ld      (frame_screen_address), hl
 .loc_B29B:
                 xor     a
@@ -3811,12 +3872,12 @@ module_9d:
                 call    display_answ_image
                 call    wait_enter_key
                 call    print_answer_text_String
-                ;call    sub_AE49        ; что-то с управлением музыкой
+                call    advance_music       ; что-то с управлением музыкой
                 call    wait_enter_key
                 call    print_answer_text_String
                 call    wait_enter_key
                 call    print_answer_text_String
-                ;call    sub_AE49        ; что-то с управлением музыкой
+                call    advance_music        ; что-то с управлением музыкой
                 call    wait_enter_key
                 call    print_answer_text_String
                 call    sub_8a0c
@@ -3829,16 +3890,19 @@ module_9d:
                 add     a, 1Fh
                 call    load_portrait_image
                 call    display_answ_image
-                ;call    sub_AE49
+                call    advance_music
                 ld      b, 5
 				call some_strings
-                ;call    sub_AE49
+                call    advance_music
                 ld      b, 5
 				call some_strings
-                ;call    sub_AE49
+                call    advance_music
                 call    wait_enter_key
                 call    print_text_at_location
+
 				call wait_enter_key
+
+                call music_till_end
 
 				ld a,(curpgc000)
 				push af
@@ -3891,7 +3955,7 @@ module_9d:
 				pop af
 				SETPGC000
 
-                jp      return_to_city			
+                jp      return_to_city2			
 
 				
 module_9f:
@@ -3920,24 +3984,24 @@ module_9f:
 				ld      a, 3
 				call    load_image
 				call    print_answer_text_String
-				;call    rsub_AE14
+				call    advance_music
 				ld      b, 4
 				call    some_strings
-				;call    rsub_AE14
+				call    advance_music
 				ld      b, 4
 				call    some_strings
-				;call    rsub_AE14
+				call    advance_music
 				ld      b, 4
 				call    some_strings
 				ld      a, 8
 				call    load_image
-				;call    sub_AE14
+				call    advance_music
 				ld      b, 1
 				call    some_strings
-				;call    sub_AE14
+				call    advance_music
 				ld      b, 2
 				call    some_strings
-				;call    sub_AE14
+				call    advance_music
 				ld      b, 2
 				call    some_strings
 				ld      hl, 0xC001
@@ -3946,20 +4010,189 @@ module_9f:
 				call    load_image
 				call    wait_enter_key
 				call    print_answer_text_String
-				;call    sub_AE14
+				call    advance_music
 				call    wait_enter_key
 				call    print_answer_text_String
-				;call    sub_AE14
+				call    advance_music
 				call    wait_enter_key
-				
+				call    music_till_end
 				ld sp,sp_main
 				ret
 ;				ld      a, 64h ; 'd'
 ;				ld      (loc_AE82+1), a
 ;				ld      (loc_AE8C+1), a
+print_text_and_advance:
+				ld      hl, (txt_string_id)
+				inc     hl
+				ld      (txt_string_id), hl
+				call    print_text_at_location
+				call    show_msg_hit_return_key
+				ret
+game_intro0:
+                ld a,6
+                call load_text_module  ;modules_loader
+                ld a,1
+                call load_mus
+                ld      a, 1
+                ld      (print_text_at_location.repl),a
+                ld a,15
+                ld      (sub_928C.repl),a
+                ld hl,0
+				ld      (txt_string_id), hl
+                
+                ;0
+                ld a,0
+                call gfd_ldr
+                call print_text_and_advance
+                ;1
+                ld a,1
+                call gfd_ldr
+                call print_text_and_advance
+                ;2
+                ld a,2
+                call gfd_ldr
+                ld b,2
+1               push bc
+                call print_text_and_advance
+                pop bc
+                djnz 1b
+                ;3
+                ld a,3
+                call gfd_ldr
+                ld b,2
+1               push bc
+                call print_text_and_advance
+                pop bc
+                djnz 1b
+                ;4
+                ld a,4
+                call gfd_ldr
+                ld b,2
+1               push bc
+                call print_text_and_advance
+                pop bc
+                djnz 1b
+                ;5
+                ld a,5
+                call gfd_ldr
+                ld b,3
+1               push bc
+                call print_text_and_advance
+                pop bc
+                djnz 1b
+                ;6
+                ld a,6
+                call gfd_ldr
+                ld b,6
+1               push bc
+                call print_text_and_advance
+                pop bc
+                djnz 1b
+                ;7
+                ld a,8
+                call gfd_ldr
+                call print_text_and_advance
+                ;8                
+                ld a,7
+                call gfd_ldr
+                ld b,7
+1               push bc
+                call print_text_and_advance
+                pop bc
+                djnz 1b                
+                ;9
+                ld a,9
+                call gfd_ldr
+                ld b,9
+1               push bc
+                call print_text_and_advance
+                pop bc
+                djnz 1b                                
+                ;10
+                ld a,10
+                call gfd_ldr
+                ld b,3
+1               push bc
+                call print_text_and_advance
+                pop bc
+                djnz 1b                  
+                ;11
+                ld a,11
+                call gfd_ldr
+                ld b,2
+1               push bc
+                call print_text_and_advance
+                pop bc
+                djnz 1b                                  
+                ;12
+                ld a,8
+                call gfd_ldr
+                ld b,5
+1               push bc
+                call print_text_and_advance
+                pop bc
+                djnz 1b                                  
+                ;13
+                ld a,6
+                call gfd_ldr
+                ld b,6
+1               push bc
+                call print_text_and_advance
+                pop bc
+                djnz 1b                                                  
+                ;14
+                ld a,12
+                call gfd_ldr
+                call print_text_and_advance                
+                 
+                call clear_loc_screen
+                
+                ld de,pal
+                ld hl,stdpal+16
+                ld bc,16
+                ldir
+                ld hl,stdpal
+                ld bc,16
+                ldir
+                ld a,1
+                ld (setpalflag),a
+                
+                ld      a, 7
+                ld      (print_text_at_location.repl),a
+                ld a,2
+                ld      (sub_928C.repl),a
+                jp return_to_city0
+   
 
 
-
+gfd_ldr
+                call sel_i_tbl
+                call load_gfd
+                jp draw_image_stripes                
+sel_i_tbl:
+                add a,a
+                ld h,0
+                ld l,a
+                ld de,i_tbl
+                add hl, de
+                ld e,(hl)
+                inc hl
+                ld d,(hl)
+                ret
+i_tbl
+                dw i_1
+                dw i_2
+                dw i_3
+                dw i_4
+                dw i_5
+                dw i_6
+                dw i_7
+                dw i_8
+                dw i_9
+                dw i_a
+                dw i_b
+                dw i_c
+                dw i_d
 		display "exec_ru_code_ends: ",/d,$
 font	        incbin "_rus/intro_font.bin"
                 display "exec_ru_full_ends: ",/d,$

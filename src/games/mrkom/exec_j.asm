@@ -2,10 +2,12 @@
 ri_start:
 
 		DISP T_START		
-				ld a,1
-				call load_mus
-				ld a,4
-				call load_text_module  ;modules_loader
+                call load_card_image
+                
+                ld a,1
+                call load_mus
+                ld a,4
+                call load_text_module  ;modules_loader
 				
                 call    location_in_front_of_jed_office_gamestart
 hot_return_to_city:

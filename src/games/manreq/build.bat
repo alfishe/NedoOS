@@ -6,13 +6,13 @@ textprep\fasm   textprep\r_mdl2.asm jb2manreq\r_mdl2.bin
 textprep\fasm   textprep\r_mdl3.asm jb2manreq\r_mdl3.bin
 textprep\fasm   textprep\r_mdl4.asm jb2manreq\r_mdl4.bin
 textprep\fasm   textprep\r_mdl5.asm jb2manreq\r_mdl5.bin
+textprep\fasm   textprep\r_mdl6.asm jb2manreq\r_mdl6.bin
 textprep\fasm   textprep\j_mdl1.asm jb2manreq\j_mdl1.bin
 textprep\fasm   textprep\j_mdl2.asm jb2manreq\j_mdl2.bin
 textprep\fasm   textprep\j_mdl3.asm jb2manreq\j_mdl3.bin
 textprep\fasm   textprep\j_mdl4.asm jb2manreq\j_mdl4.bin
 textprep\fasm   textprep\j_mdl5.asm jb2manreq\j_mdl5.bin
 
-sjasmplus --nologo --msg=war  players\s98_plr.asm
 sjasmplus --nologo --msg=war main.asm
 
 

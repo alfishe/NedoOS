@@ -2,6 +2,13 @@
 ri_start:
 
 		DISP T_START		
+return_to_city2:
+            call load_card_image
+
+			ld a,1
+			call load_mus
+			ld a,4
+			call load_text_module  ;modules_loader
 ;		call load_card_image		
 return_to_city:
 		call location_in_front_of_jed_office_gamestart
@@ -1083,10 +1090,6 @@ sub_AE99:
 ;---------------------------------------------------				
 location_in_front_of_jed_office_gamestart:
 			;in front of J.B. office
-			ld a,1
-			call load_mus
-			ld a,4
-			call load_text_module  ;modules_loader
 			ld a,0x51
 			call load_image
 			ld a,1
@@ -3903,12 +3906,12 @@ wait_enter_key = sub_928C
                 call    display_answ_image
                 call    wait_enter_key
                 call    print_answer_text_String
-                ;call    sub_AE49        ; что-то с управлением музыкой
+                call    advance_music       ; что-то с управлением музыкой
                 call    wait_enter_key
                 call    print_answer_text_String
                 call    wait_enter_key
                 call    print_answer_text_String
-                ;call    sub_AE49        ; что-то с управлением музыкой
+                call    advance_music       ; что-то с управлением музыкой
                 call    wait_enter_key
                 call    print_answer_text_String
                 call    sub_8a0c
@@ -3921,7 +3924,7 @@ wait_enter_key = sub_928C
                 add     a, 1Fh
                 call    load_portrait_image
                 call    display_answ_image
-                ;call    sub_AE49
+                call    advance_music
                 ld      b, 5
 .loc_ADEA:
                 push    bc
@@ -3929,7 +3932,7 @@ wait_enter_key = sub_928C
                 call    print_answer_text_String
                 pop     bc
                 djnz    .loc_ADEA
-                ;call    sub_AE49
+                call    advance_music
                 ld      b, 5
 .loc_ADF9:
                 push    bc
@@ -3937,11 +3940,12 @@ wait_enter_key = sub_928C
                 call    print_answer_text_String
                 pop     bc
                 djnz    .loc_ADF9
-                ;call    sub_AE49
+                call    advance_music
                 call    wait_enter_key
                 call    print_text_at_location
-				call wait_enter_key
-				
+                call wait_enter_key
+                call music_till_end
+
 				ld a,(curpgc000)
 				push af
 				ld a,(user_scr0_low)
@@ -3993,7 +3997,7 @@ wait_enter_key = sub_928C
 				pop af
 				SETPGC000
 
-                jp      return_to_city	
+                jp      return_to_city2	
 				
 module_9f:
 				call 	no_mus
@@ -4021,24 +4025,24 @@ module_9f:
 				ld      a, 3
 				call    load_image
 				call    print_answer_text_String
-				;call    rsub_AE14
+				call    advance_music
 				ld      b, 4
 				call    some_strings
-				;call    rsub_AE14
+				call    advance_music
 				ld      b, 4
 				call    some_strings
-				;call    rsub_AE14
+				call    advance_music
 				ld      b, 4
 				call    some_strings
 				ld      a, 8
 				call    load_image
-				;call    sub_AE14
+				call    advance_music
 				ld      b, 1
 				call    some_strings
-				;call    sub_AE14
+				call    advance_music
 				ld      b, 2
 				call    some_strings
-				;call    sub_AE14
+				call    advance_music
 				ld      b, 2
 				call    some_strings
 				ld      hl, 0xC001
@@ -4047,12 +4051,12 @@ module_9f:
 				call    load_image
 				call    wait_enter_key
 				call    print_answer_text_String
-				;call    sub_AE14
+				call    advance_music
 				call    wait_enter_key
 				call    print_answer_text_String
-				;call    sub_AE14
+				call    advance_music
 				call    wait_enter_key
-				
+				call    music_till_end
 				ld sp,sp_main
 				ret
 ;				ld      a, 64h ; 'd'

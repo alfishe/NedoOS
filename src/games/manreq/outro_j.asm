@@ -1,12 +1,11 @@
 			MODULE outro_j
 ji_start
 EXT_RTN = 0x5800
-FLAG_STOP = 0x4200
-UNBL_FLAG = 0x4201
-SCR0HIGH_  = 0x4202
-SCR0LOW_  = 0x4203
-SCROLL_LOCK = 0x400b
-
+FLAG_STOP = 0x4008      ;is_music_ended
+SCROLL_LOCK = 0x4015    ;exit_routine
+UNBL_FLAG = 0x4019
+SCR0HIGH_  = 0x401a
+SCR0LOW_  = 0x401b
 
 		DISP T_START
 		call clear_loc_screen

@@ -383,8 +383,38 @@ clear_loc_screen:
 		ld a,0
 		SETPGC000
 		ret
+
+clear_buf_screen:
+		ld a,(curpgc000)
+		ld (.pgc0000stor1),a
+
+		ld a,(load_buf1)
+		SETPGC000
 		
+		ld hl,0xc000
+		ld de,0xc001
+		ld bc,16383
+		ld (hl),0
+		ldir
+
+		ld a,(load_buf2)
+		SETPGC000
+		
+		ld hl,0xc000
+		ld de,0xc001
+		ld bc,16383
+		ld (hl),1
+		ldir
+		
+.pgc0000stor1 = $+1
+		ld a,0
+		SETPGC000
+		ret
+
 load_mus
+        cp 0xff
+        ret z
+        ld (load_mus+1),a
 		push af
 		call set_music_pages
 		ld a,(plr_page)
@@ -1615,6 +1645,11 @@ load_gfd:
 						;		jp nz,fileopenerror
 		ld hl,0x8000 ;len
 		ld de,0x8000 ;addr
+		call readstream_file
+						;		or a
+						;		jp nz,filereaderror
+		ld hl,32 ;len
+		ld de,gfdpal ;addr
 		call readstream_file
 						;		or a
 						;		jp nz,filereaderror
