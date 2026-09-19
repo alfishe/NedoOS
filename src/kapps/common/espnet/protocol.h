@@ -10,11 +10,12 @@
  * After SOF the receiver takes exactly header+LEN bytes; no destuff, no
  * mid-frame resync. A lost byte desyncs the frame (drain + next SOF).
  * Optional CRC-8 (cmd bit7 / ESPNET_F_CRC) is implemented on the ESP.
- * The NedoOS host driver never sets the bit.
+ * The NedoOS host never sets the bit, never checks CRC, and compares
+ * cmd as-is (no 0x7F mask). UART RTS/CTS already keeps frames aligned.
  */
 
 #define ESPNET_VER_MAJOR 1
-#define ESPNET_VER_MINOR 24
+#define ESPNET_VER_MINOR 25
 
 #define ESPNET_SOF 0xA5
 

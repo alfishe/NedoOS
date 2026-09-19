@@ -22,6 +22,7 @@ static unsigned int comType = 0;
 static unsigned int pktMax = 192;
 
 static unsigned char cfg[20];
+static unsigned char oldcfg[20];
 static unsigned char info[ESPNET_INFO_SIZE];
 static unsigned char oldpath[256];
 static unsigned char ini_val[32];
@@ -122,7 +123,7 @@ static void uart_init(unsigned char div)
 		input(((unsigned int)div << 8) | 0x00fe);
 		input(0x55fe);
 		input(0x43fe);
-		input(0x00fe);
+		input(0x03fe); /* DTR+RTS stay on: ESP GPIO15 CTS */
 		enable_interrupt();
 		break;
 	case 3:
@@ -367,19 +368,24 @@ C_task main(int argc, char *argv[])
 		pktMax = m_val;
 	clamp_pktmax();
 
-	uart_init((unsigned char)divider);
-	settle();
 	pack_cfg();
-	OS_SETUART(cfg);
-	settle();
+	memset(oldcfg, 0, 20);
+	OS_GETUART(oldcfg);
+	if (memcmp(oldcfg, cfg, 20) != 0) {
+		uart_init((unsigned char)divider);
+		settle();
+		OS_SETUART(cfg);
+		settle();
+	}
 
 	if (!silent) {
 		memset(cfg, 0, 20);
 		OS_GETUART(cfg);
 		print_cfg(cfg);
-		if (OS_GETINFO(info) != 0) {
+		i = (int)OS_GETINFO(info);
+		if (i != 0) {
 			sgr(SGR_ERR);
-			puts("no reply");
+			printf("no reply GETINFO=%d\r\n", i);
 			sgr(SGR_DIM);
 		} else
 			print_wifi(info);

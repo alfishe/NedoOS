@@ -33,6 +33,17 @@ unsigned int OS_GETUART(void * addr);
 /* 53-byte ESP CMD_INFO: wifi, rssi, ip[4], ssid[33], ... ; 0=ok */
 unsigned int OS_GETINFO(void * addr);
 
+/* 45-byte WIFI_STATUS; 0=ok */
+unsigned int OS_WIFISTATUS(void * addr);
+
+/* Scan into 24*42-byte buf; HL=AP count or -1 */
+unsigned int OS_WIFISCAN(void * buf);
+
+/* ssid[33]+pass[65] packed; 0=ok */
+unsigned int OS_WIFICONNECT(void * pay98);
+
+unsigned int OS_WIFIDISC(void);
+
 unsigned int OS_NETSOCKET(unsigned int);
 //	D - семейство адресов, беззнаковое 8-битное число, допускается только значение 2 (AF_INET).
 //  E - протокол соединения(0x01 tcp/ip, 0x02 icmp, 0x03 udp/ip)

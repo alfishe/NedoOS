@@ -1406,7 +1406,7 @@ char getFileNet(unsigned char *fileNamePtr)
 	{
 		return false;
 	}
-	todo = tcpSend(socket, (unsigned int)&link.path, strlen(link.path), 1);
+	todo = tcpSend(socket, (unsigned int)&link.path, strlen(link.path), 5);
 	if (todo < 0)
 	{
 		return false;

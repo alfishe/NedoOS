@@ -11,7 +11,6 @@
 #include <tcp.h>
 #include <osfs.h>
 #include "crc32.h"
-#include <../common/terminal.c>
 
 #define true 1
 #define false 0
@@ -19,7 +18,7 @@
 #define NETBUF_BYTES 5120
 #define RA_BUF_SIZE 2048
 #define RA_OUT_SIZE 512
-#define RA_FILE_IO 8192
+#define RA_FILE_IO 8000
 #define RA_CHUNK_MAX 65536
 #define RA_FILL_MAX 2000
 #define PROG_DOT_BYTES 16384UL

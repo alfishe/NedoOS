@@ -374,8 +374,13 @@ static uint16_t do_shutdown(const uint8_t *req, uint8_t *rsp)
 		return rsp_err(rsp, ESPNET_CMD_SHUTDOWN, sock, seq, ESPNET_ERR_NOTSOCK);
 	if (arg == 1 && s_slot[sock].state == ST_TCP && s_slot[sock].tcp.connected()) {
 #if defined(ARDUINO_ARCH_ESP32)
-		if (s_slot[sock].tcp.availableForWrite() < 1024)
-			return rsp_err(rsp, ESPNET_CMD_SHUTDOWN, sock, seq, ESPNET_ERR_EAGAIN);
+		/* NetworkClient inherits Print::availableForWrite()==0. Only
+		 * delay SHUTDOWN when the core actually reports a small sndbuf. */
+		{
+			int aw = s_slot[sock].tcp.availableForWrite();
+			if (aw > 0 && aw < 1024)
+				return rsp_err(rsp, ESPNET_CMD_SHUTDOWN, sock, seq, ESPNET_ERR_EAGAIN);
+		}
 #endif
 		s_slot[sock].tcp.flush();
 	}
@@ -672,15 +677,14 @@ static uint16_t do_write(const uint8_t *req, uint16_t req_n, uint8_t *rsp)
 
 			if (!tcp_established(s->tcp))
 				break;
-			room = s->tcp.availableForWrite();
-			if (room <= 0) {
-				if ((millis() - t0) >= (uint32_t)ESPNET_WRITE_WAIT_MS)
-					break;
-				delay(1);
-				continue;
-			}
 			n = (uint16_t)(dlen - sent);
-			if (n > (uint16_t)room)
+			room = s->tcp.availableForWrite();
+			/* ESP32 Arduino 3.x NetworkClient does not override
+			 * Print::availableForWrite() (always 0 = "write may block").
+			 * Waiting on room<=0 never called write(), so CONNECT worked
+			 * but every HTTP/gopher WRITE came back EAGAIN 35. Clip only
+			 * when the core reports a real sndbuf. */
+			if (room > 0 && n > (uint16_t)room)
 				n = (uint16_t)room;
 			w = s->tcp.write(data + sent, n);
 			if (w == 0) {

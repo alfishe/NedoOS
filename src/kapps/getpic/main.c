@@ -207,6 +207,13 @@ void printHelp(void)
   printf("----------------------------------------------------------\n\r");
   printf("-----GETPIC [%s] zxart.ee picture viewer for NedoNET-----\n\r", ver);
   printf("----------------------------------------------------------\n\r");
+  OS_SETCOLOR(70);
+  printf("        /\\_/\\\n\r");
+  printf("       ( o.o )\n\r");
+  printf("        > ^ <\n\r");
+  printf("       /|   |\\\n\r");
+  printf("      (_|   |_)\n\r");
+  OS_SETCOLOR(6);
   printf(" Управление:\n\r");
   printf("   'ESC' - выход из программы;\n\r");
   printf("   '<-' или 'B' к последним картинкам;\n\r");
@@ -1748,6 +1755,9 @@ void init(void)
     verbose = 0;
     get_dns();
     clearStatus();
+    /* Before printHelp the screen is blank: a stuck 8952 TX wait
+     * looked like a hang. Show DNS so a long resolve is visible. */
+    printf("DNS zxart.ee\r\n");
     dnsResolve("zxart.ee");
     break;
   case 1:

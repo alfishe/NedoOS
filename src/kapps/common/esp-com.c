@@ -197,9 +197,9 @@ void uart_init(unsigned char divisor)
 		input(0x55fe);
 		input(0xc3fe);
 		input((divisor << 8) | 0x00fe);
-		input(0x55fe); // Переход в режим команд
-		input(0x43fe); // Команда установить статус
-		input(0x00fe); // Снимаем готовность DTR и RTS
+		input(0x55fe);
+		input(0x43fe);
+		input(0x03fe);
 		enable_interrupt();
 		break;
 	case 3:

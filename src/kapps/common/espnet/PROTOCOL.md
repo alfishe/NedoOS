@@ -96,22 +96,22 @@ Response (8-byte header + payload):
 
 Max payload 2048. READ/WRITE never return 0 bytes: no data => ERR_EAGAIN (35).
 
-### Optional CRC (off by default)
+### Optional CRC (firmware only)
 
-CRC is optional. NedoOS does **not** use it.
+CRC is optional. NedoOS host does **not** use it: no CRC-8 on Z80, no
+`cmd bit7`, no extra byte after the payload, cmd compared as-is.
 
 - Default on the wire: cmd bit7 = 0, no CRC byte, no check.
-- NedoOS host (`espnet.c`, `_sdk/espnet.asm`) never sets `ESPNET_F_CRC`
-  and has no CRC code.
-- Firmware still implements CRC if a host sets bit7. `CMD_INFO.caps` bit0
-  (`ESPNET_CAP_CRC`) means "ESP can check/emit CRC", not "CRC is on".
+- Firmware still implements CRC if some other host sets bit7.
+  `CMD_INFO.caps` bit0 (`ESPNET_CAP_CRC`) means "ESP can check/emit CRC",
+  not "CRC is on".
 - If the request has bit7: CRC-8 is XOR of every header and payload byte
   (not SOF, not the CRC byte). It is not counted in `len`. Opcode is
   `cmd & 0x7F`. The ESP mirrors the flag: CRC request -> CRC reply;
   plain request -> plain reply.
 
-UART RTS/CTS already keeps frames aligned. CRC would be a second pass over
-the payload on Z80. A future host can turn it on without a firmware change.
+UART RTS/CTS already keeps frames aligned. A Z80 CRC pass would cost about
+as much as the UART transfer itself, so the host never turns it on.
 
 
 ## Commands

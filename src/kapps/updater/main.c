@@ -611,8 +611,8 @@ char delete(char *target_dir_ptr)
 
 unsigned char getFileEspNet(const unsigned char *fileLink, unsigned char *fileNamePtr)
 {
-	int todo;
-	char socket, firstPacket;
+	int todo, socket;
+	char firstPacket;
 	unsigned int fileSize1;
 	unsigned long downloaded = 0;
 	unsigned int down;

@@ -7,6 +7,7 @@
 ; 16550 is programmed by espcfg.com, not here.
 
         DEFINE ESPNET_KERNEL
+espnet_code_start=$
         include "../_sdk/espnet.asm"
 
 ESPNET_CFG_SIZE         EQU 20
@@ -155,6 +156,14 @@ wiznet_open
         jp z,espk_getuart
         dec l
         jp z,espk_getinfo
+        dec l
+        jp z,espk_wifistatus
+        dec l
+        jp z,espk_wifiscan
+        dec l
+        jp z,espk_wificonn
+        dec l
+        jp z,espk_wifidisc
         ld a,ESPNET_ERR_INTR
         ld hl,-1
         ret
@@ -258,6 +267,16 @@ espk_getdns
 espk_setuart
         call espk_mapde
         ld a,(de)
+        if ESPNET_UART_KOND=0
+        ; ATM2 kernel has no Kondratyev: 0/2 would dispatch as type 3.
+        or a
+        jr z,espk_ct_atm2
+        cp 2
+        jr nz,espk_ct_ok
+espk_ct_atm2
+        ld a,1
+espk_ct_ok
+        endif
         ld (esp_comType),a
         inc de
         ld a,(de)
@@ -268,7 +287,11 @@ espk_setuart
         ex de,hl
         ldir
         call espk_pktmax_fromhl
+        if ESPNET_UART_ATM2
         call esp_ports_ready
+        endif
+        ld a,(esp_inited)
+        push af
         ld a,(esp_div)
         call esp_uart_init
         xor a
@@ -280,10 +303,14 @@ espk_setuart
         ld (esp_busy),a
         inc a
         ld (esp_inited),a
-        ; Drop ESP sockets left after a ZX reboot (firmware 1.23: sock=FF).
+        pop af
+        or a
+        jr nz,espk_su_ok
+        ; First SETUART only: drop ESP sockets left after a ZX reboot.
         ld a,ESPNET_SOCK_NONE
         ld e,0
         call esp_shutdown
+espk_su_ok
         xor a
         ld l,a
         ld h,a
@@ -367,4 +394,24 @@ wiznet_write
         ld bc,espk_sa
         jp esp_write_udp
 
-        display "espnet kernel end=",$
+; L=12 DE=45-byte WIFI_STATUS  L=13 DE=scan buf  L=14 DE=ssid[33]+pass[65]
+; L=15 disconnect
+espk_wifistatus
+        call espk_mapde
+        jp esp_wifi_status
+espk_wifiscan
+        call espk_mapde
+        ld hl,ESPNET_SCAN_MAX*ESPNET_SCAN_REC
+        jp esp_wifi_scan
+espk_wificonn
+        call espk_mapde
+        ld hl,esp_wifi_pay
+        ld bc,ESPNET_WIFI_CONN_SIZE
+        ldir
+        ld hl,esp_wifi_pay
+        ld de,esp_wifi_pay+ESPNET_SSID_SIZE
+        jp esp_wifi_connect
+espk_wifidisc
+        jp esp_wifi_disc
+
+        display "espnet kernel end=",$," size=",/h,$-espnet_code_start

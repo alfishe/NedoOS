@@ -11,13 +11,14 @@
  * #define NET_NO_UDP before include to drop dnsResolve (EspDnsResolve-only apps).
  * Do not gate this on ESPNET_NO_UDP: dual-stack apps still need WIZNET DNS. */
 #define DNS_PKT_MAX 512
-/* One UDP query + 10*80ms (~0.8s) was too short: 8.8.4.4 often arrives
- * later or the datagram is lost, and a SERVFAIL/empty read looked instant. */
+/* Wait for the A record with short EAGAIN polls. Do not treat UART
+ * timeout (INTR) as "try again": each missed SOF used to sit ~10s, and
+ * 4*25 of those looked like a hang instead of a DNS error. */
 #ifndef DNS_SEND_TRIES
-#define DNS_SEND_TRIES 4
+#define DNS_SEND_TRIES 3
 #endif
 #ifndef DNS_RECV_TRIES
-#define DNS_RECV_TRIES 25
+#define DNS_RECV_TRIES 12
 #endif
 #ifndef DNS_RECV_MS
 #define DNS_RECV_MS 100
@@ -283,6 +284,8 @@ int tcpSend(signed char socket, unsigned int messageadr, unsigned int size, unsi
   readStruct.BufAdr = messageadr;
   readStruct.bufsize = size;
   readStruct.protocol = SOCK_STREAM;
+  if (retry == 0)
+    retry = 1;
   while (retry != 0)
   {
     todo = OS_WIZNETWRITE(&readStruct);
@@ -291,6 +294,12 @@ int tcpSend(signed char socket, unsigned int messageadr, unsigned int size, unsi
       return todo;
     }
 
+    /* 35 = UART busy or firmware sndbuf. YIELD so another task can drop
+     * the lock; do not treat the first EAGAIN as a hard fail. */
+    if (OS_CALL_ERR(todo) == ERR_EAGAIN)
+    {
+      YIELD();
+    }
     retry--;
     if (retry != 0)
     {
@@ -473,6 +482,11 @@ unsigned char dnsResolve(const char *domainName)
         }
         /* SERVFAIL/REFUSED/truncated: resend, do not treat as a final miss. */
         delayLong(200);
+        break;
+      }
+      if (!OS_CALL_OK(todo) && OS_CALL_ERR(todo) != ERR_EAGAIN)
+      {
+        /* INTR/desync: next send, do not sit out the rest of the recv loop. */
         break;
       }
       key = _low_level_get();

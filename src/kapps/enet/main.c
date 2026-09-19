@@ -1,15 +1,18 @@
 /*
  * enet - ESPNET WiFi setup for NedoOS
  * UI chrome follows ngsplay (title / double frame / hint).
- * UART: esp-com.c. Binary protocol: espnet.c (not AT / network.c).
+ * UART init: esp-com.c. Protocol via kernel BDOS (same as espcfg), not userland UART.
  */
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <oscalls.h>
 #include <osfs.h>
+#include <tcp.h>
 #include <espnet.h>
 #include <intrz80.h>
+
+#define NET_OK(v) ((int)(v) >= 0)
 
 #define true 1
 #define false 0
@@ -63,7 +66,7 @@
 unsigned char netbuf[1024];
 unsigned char curPath[128];
 const unsigned char gotWiFi[] = "WIFI GOT IP";
-unsigned char uVer[] = "1.1";
+unsigned char uVer[] = "1.2";
 
 unsigned int RBR_THR = 0xf8ef;
 unsigned int IER = 0xf9ef;
@@ -85,8 +88,9 @@ void clearStatus(void)
 }
 
 #include "../common/esp-com.c"
-#include "../common/espnet.c"
 
+static unsigned char g_cfg[20];
+static unsigned char g_wpay[ESPNET_WIFI_CONN_SIZE];
 static unsigned char g_info[ESPNET_INFO_SIZE];
 static unsigned char g_scan[ESPNET_SCAN_MAX * ESPNET_SCAN_REC];
 static unsigned char g_wst[ESPNET_WIFI_STATUS_SIZE];
@@ -162,7 +166,9 @@ static void set_msg_err(unsigned int r)
 {
 	unsigned char e;
 
-	e = ESPNET_C_ERR(r);
+	e = (unsigned char)r;
+	if ((int)r < 0)
+		e = ESPNET_ERR_INTR;
 	if (e == ESPNET_ERR_INTR)
 		sprintf((char *)g_msg, "Error %u UART timeout (no ESP reply)", (unsigned int)e);
 	else if (e == ESPNET_ERR_HOSTUNREACH)
@@ -242,20 +248,60 @@ static void draw_status(void)
 	       comType, com_name(comType), com_baud(divider), divider);
 }
 
+static void put_le16(unsigned char *p, unsigned int v)
+{
+	p[0] = (unsigned char)v;
+	p[1] = (unsigned char)(v >> 8);
+}
+
+static void settle(void)
+{
+	long start;
+	unsigned int guard;
+
+	start = time();
+	guard = 0;
+	while ((time() - start) < 25L) {
+		YIELD();
+		if (++guard == 0)
+			break;
+	}
+}
+
+/* Port screen only. Startup must not SETUART: it re-inits the UART,
+ * drops ESP sockets, and GETINFO right after that times out (espcfg waits). */
+static void apply_uart(void)
+{
+	OS_GETUART(g_cfg);
+	g_cfg[0] = (unsigned char)comType;
+	g_cfg[1] = (unsigned char)divider;
+	put_le16(g_cfg + 2, RBR_THR);
+	put_le16(g_cfg + 4, IER);
+	put_le16(g_cfg + 6, IIR_FCR);
+	put_le16(g_cfg + 8, LCR);
+	put_le16(g_cfg + 10, MCR);
+	put_le16(g_cfg + 12, LSR);
+	put_le16(g_cfg + 14, MSR);
+	put_le16(g_cfg + 16, SR);
+	uart_init((unsigned char)divider);
+	OS_SETUART(g_cfg);
+	settle();
+}
+
 static void fetch_net(void)
 {
 	unsigned int r;
 
 	g_info_ok = 0;
 	g_wifi_ok = 0;
-	r = OS_ESPINFO(g_info);
-	if (!ESPNET_C_OK(r)) {
+	r = OS_GETINFO(g_info);
+	if (!NET_OK(r)) {
 		set_msg_err(r);
 		return;
 	}
 	g_info_ok = 1;
-	r = OS_ESPWIFI_STATUS(g_wst);
-	if (ESPNET_C_OK(r))
+	r = OS_WIFISTATUS(g_wst);
+	if (NET_OK(r))
 		g_wifi_ok = 1;
 }
 
@@ -626,8 +672,8 @@ static void do_scan(void)
 
 	set_msg("Scanning...");
 	draw_status();
-	n = OS_ESPWIFI_SCAN(g_scan, sizeof(g_scan));
-	if (!ESPNET_C_OK(n)) {
+	n = OS_WIFISCAN(g_scan);
+	if (!NET_OK(n)) {
 		g_scan_n = 0;
 		set_msg_err(n);
 		g_scr = SCR_HOME;
@@ -669,8 +715,11 @@ static void do_connect_sel(void)
 	}
 	sprintf((char *)g_msg, "Connecting to %.32s ...", g_ssid);
 	draw_status();
-	r = OS_ESPWIFI_CONNECT(g_ssid, g_pass);
-	if (!ESPNET_C_OK(r)) {
+	memset(g_wpay, 0, ESPNET_WIFI_CONN_SIZE);
+	strncpy((char *)g_wpay, (char *)g_ssid, ESPNET_SSID_SIZE - 1);
+	strncpy((char *)(g_wpay + ESPNET_SSID_SIZE), (char *)g_pass, ESPNET_PASS_SIZE - 1);
+	r = OS_WIFICONNECT(g_wpay);
+	if (!NET_OK(r)) {
 		set_msg_err(r);
 		fetch_net();
 		g_scr = SCR_HOME;
@@ -692,8 +741,8 @@ static void do_disc(void)
 
 	set_msg("Disconnecting...");
 	draw_status();
-	r = OS_ESPWIFI_DISC();
-	if (!ESPNET_C_OK(r))
+	r = OS_WIFIDISC();
+	if (!NET_OK(r))
 		set_msg_err(r);
 	else
 		set_msg("Disconnected.");
@@ -775,20 +824,8 @@ static void do_port_key(unsigned int key)
 			g_edit_div = next_div(g_edit_div, (unsigned char)(key == KEY_RIGHT));
 	} else if (key == KEY_ENTER) {
 		comType = g_edit_type;
-		if (g_edit_div != divider) {
-			if (OS_ESPUART(com_baud(g_edit_div), 1) != 0) {
-				set_msg("ESP baud unchanged (need fw 1.10). ZX not switched.");
-				g_scr = SCR_HOME;
-				draw_chrome();
-				redraw();
-				return;
-			}
-			divider = g_edit_div;
-			uart_init((unsigned char)divider);
-			uart_setrts(0);
-			factor = 0;
-			uartBench();
-		}
+		divider = g_edit_div;
+		apply_uart();
 		if (!saveEspConfig())
 			set_msg("espcom.ini write error");
 		else
@@ -821,10 +858,13 @@ C_task main(void)
 	g_scr = SCR_HOME;
 	g_port_f = 0;
 
+	loadEspConfig();
+	OS_GETUART(g_cfg);
+	comType = g_cfg[0];
+	divider = g_cfg[1];
 	draw_chrome();
-	set_msg("Init UART...");
+	set_msg("Query ESP...");
 	draw_status();
-	OS_ESPINIT();
 	fetch_net();
 	if (g_info_ok)
 		set_msg("Ready.");

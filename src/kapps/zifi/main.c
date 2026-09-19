@@ -119,7 +119,7 @@ unsigned char g_save_dir[128];
 unsigned char cmd[256];
 unsigned char crlf[2] = {13, 10};
 const unsigned char gotWiFi[] = "WIFI GOT IP";
-unsigned char netbuf[4096];
+unsigned char netbuf[4000];
 struct sockaddr_in targetadr;
 struct readstructure readStruct;
 struct sockaddr_in dnsaddress;

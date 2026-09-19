@@ -78,3 +78,4 @@ espk_sa_user    dw 0            ; user sockaddr ptr
 espk_buf_user   dw 0            ; user payload ptr (UDP IX)
 esp_host_max    dw 0            ; pktMax from SETUART (0 -> 192)
 esp_busy        db 0            ; UART lock (0 free; else this BDOS call, EAGAIN 35)
+esp_wifi_pay    ds ESPNET_WIFI_CONN_SIZE

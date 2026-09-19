@@ -467,4 +467,72 @@ OS_GETINFO:
 	pop ix
 	ret
 ENDMOD
+
+MODULE OS_WIFISTATUS
+PUBLIC OS_WIFISTATUS
+#include "sysdefs.asm"
+RSEG CODE
+OS_WIFISTATUS:
+	ld l,0x0c
+	push ix
+	push iy
+	ld a,c
+	ex af,af'
+	ld c,CMD_WIZNETOPEN
+	call BDOS
+	pop iy
+	pop ix
+	ret
+ENDMOD
+
+MODULE OS_WIFISCAN
+PUBLIC OS_WIFISCAN
+#include "sysdefs.asm"
+RSEG CODE
+OS_WIFISCAN:
+	ld l,0x0d
+	push ix
+	push iy
+	ld a,c
+	ex af,af'
+	ld c,CMD_WIZNETOPEN
+	call BDOS
+	pop iy
+	pop ix
+	ret
+ENDMOD
+
+MODULE OS_WIFICONNECT
+PUBLIC OS_WIFICONNECT
+#include "sysdefs.asm"
+RSEG CODE
+OS_WIFICONNECT:
+	ld l,0x0e
+	push ix
+	push iy
+	ld a,c
+	ex af,af'
+	ld c,CMD_WIZNETOPEN
+	call BDOS
+	pop iy
+	pop ix
+	ret
+ENDMOD
+
+MODULE OS_WIFIDISC
+PUBLIC OS_WIFIDISC
+#include "sysdefs.asm"
+RSEG CODE
+OS_WIFIDISC:
+	ld l,0x0f
+	push ix
+	push iy
+	ld a,c
+	ex af,af'
+	ld c,CMD_WIZNETOPEN
+	call BDOS
+	pop iy
+	pop ix
+	ret
+ENDMOD
 END

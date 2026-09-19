@@ -169,6 +169,12 @@ static unsigned char rx_poll(void)
 		input(0x55fe);
 		if (input(0xc2fe) == 0)
 		{
+			input(0x55fe);
+			input(0x43fe);
+			input(0x03fe);
+			input(0x55fe);
+			input(0x43fe);
+			input(0x00fe);
 			enable_interrupt();
 			return 0;
 		}
@@ -208,7 +214,9 @@ static int recv_sof(void)
 	unsigned char idle;
 	unsigned char ct;
 
-	uart_setrts(0);
+	/* Type 1: AT uartReadBlock does not hold RTS; pulse is in rx_poll. */
+	if ((unsigned char)comType != 1)
+		uart_setrts(0);
 	r_spin = (unsigned int)factor;
 	if (r_spin == 0)
 		r_spin = 20000;
@@ -252,7 +260,10 @@ static int recv_sof(void)
 			YIELD();
 		}
 		if ((long)(until - now) < 0)
+		{
+			uart_setrts(0);
 			return -1;
+		}
 	}
 }
 
@@ -290,29 +301,37 @@ static int recv_fill(unsigned char *dst, unsigned int n)
 		enable_interrupt();
 		return 0;
 	case 1:
+		disable_interrupt();
 		while (r_n)
 		{
 			r_left = r_spin;
 			for (;;)
 			{
-				disable_interrupt();
 				input(0x55fe);
 				if (input(0xc2fe) != 0)
 				{
 					input(0x55fe);
 					r_uart = input(0x02fe);
-					enable_interrupt();
 					break;
 				}
-				enable_interrupt();
 				r_left--;
 				if (r_left == 0)
+				{
+					enable_interrupt();
 					return -1;
+				}
+				input(0x55fe);
+				input(0x43fe);
+				input(0x03fe);
+				input(0x55fe);
+				input(0x43fe);
+				input(0x00fe);
 			}
 			*r_dst = r_uart;
 			r_dst++;
 			r_n--;
 		}
+		enable_interrupt();
 		return 0;
 	case 2:
 		/* AFC: hardware RTS. DR already set after the timed wait;
@@ -412,7 +431,7 @@ static void rx_drain(void)
 
 	silent = 0;
 	spins = 0;
-	uart_setrts(0);
+	uart_setrts(comType == 1 ? 1 : 0);
 	while (spins < 1000 && silent < 80)
 	{
 		if (rx_poll() == 0)
@@ -421,6 +440,7 @@ static void rx_drain(void)
 			silent = 0;
 		spins++;
 	}
+	uart_setrts(0);
 }
 
 /* SOF + 8-byte header. 0 = cmd/seq match, *plen_out set. Else 0xFFxx. */
@@ -438,7 +458,7 @@ static unsigned int recv_hdr(unsigned char cmd, unsigned int *plen_out)
 		rx_drain();
 		return ESPNET_FAIL(ESPNET_ERR_INTR);
 	}
-	if ((g_rsp[ESPNET_RSP_CMD] & ESPNET_CMD_MASK) != cmd ||
+	if (g_rsp[ESPNET_RSP_CMD] != cmd ||
 		g_rsp[ESPNET_RSP_SEQ] != g_seq)
 	{
 		rx_drain();
@@ -516,7 +536,8 @@ static void send_cmd2(unsigned char cmd, unsigned char sock, unsigned char arg,
 	g_req[ESPNET_REQ_ARG] = arg;
 	g_req[ESPNET_REQ_SEQ] = g_seq;
 	put_u16(g_req + ESPNET_REQ_LEN, plen);
-	uart_setrts(0);
+	if ((unsigned char)comType != 1)
+		uart_setrts(0);
 	putb(ESPNET_SOF);
 	send_bytes(g_req, ESPNET_REQ_HDR);
 	if (n2 && p2)
@@ -578,7 +599,7 @@ static unsigned int xfer(unsigned char cmd, unsigned char sock, unsigned char ar
 		rx_drain();
 		return ESPNET_FAIL(ESPNET_ERR_INTR);
 	}
-	if ((g_rsp[ESPNET_RSP_CMD] & ESPNET_CMD_MASK) != cmd || g_rsp[ESPNET_RSP_SEQ] != g_seq)
+	if (g_rsp[ESPNET_RSP_CMD] != cmd || g_rsp[ESPNET_RSP_SEQ] != g_seq)
 		return ESPNET_FAIL(ESPNET_ERR_INTR);
 	if (g_rsp[ESPNET_RSP_STATUS] != 0)
 		return ESPNET_FAIL(g_rsp[ESPNET_RSP_STATUS]);
@@ -849,7 +870,7 @@ unsigned int OS_ESPWRITE_UDP(struct readstructure *rs, struct sockaddr_in *to)
 		rx_drain();
 		return ESPNET_FAIL(ESPNET_ERR_INTR);
 	}
-	if ((g_rsp[ESPNET_RSP_CMD] & ESPNET_CMD_MASK) != ESPNET_CMD_WRITE ||
+	if (g_rsp[ESPNET_RSP_CMD] != ESPNET_CMD_WRITE ||
 		g_rsp[ESPNET_RSP_SEQ] != g_seq)
 		return ESPNET_FAIL(ESPNET_ERR_INTR);
 	if (g_rsp[ESPNET_RSP_STATUS] != 0)
