@@ -760,6 +760,26 @@ __1=$
         ld c,CMD_WIZNETOPEN
 	CALLBDOS
         endm
+        macro OS_WIFISTATUS;DE= ptr to 45-byte WIFI_STATUS
+	ld l,0x0c
+        ld c,CMD_WIZNETOPEN
+	CALLBDOS
+        endm
+        macro OS_WIFISCAN;DE= ptr to scan buf (24*42)
+	ld l,0x0d
+        ld c,CMD_WIZNETOPEN
+	CALLBDOS
+        endm
+        macro OS_WIFICONNECT;DE= ptr to ssid[33]+pass[65]
+	ld l,0x0e
+        ld c,CMD_WIZNETOPEN
+	CALLBDOS
+        endm
+        macro OS_WIFIDISC
+	ld l,0x0f
+        ld c,CMD_WIZNETOPEN
+	CALLBDOS
+        endm
         macro OS_WIZNETCLOSE;A=SOCKET
         ld c,CMD_WIZNETCLOSE
 	CALLBDOS

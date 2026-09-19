@@ -28,7 +28,8 @@ ESPNET_RSP_MAX          EQU 256
 ESPNET_REQ_HDR          EQU 6
 ESPNET_RSP_HDR          EQU 8
 ESPNET_SOCKADDR_SIZE    EQU 15
-ESPNET_CMD_MASK         EQU 0x7F
+; Host never sets cmd bit7 (ESPNET_F_CRC). Firmware may CRC for other
+; hosts; we compare cmd as-is and do not compute or skip a CRC byte.
 ESPNET_CMD_SOCKET       EQU 0x01
 ESPNET_CMD_SHUTDOWN     EQU 0x02
 ESPNET_CMD_CONNECT      EQU 0x03
@@ -53,18 +54,37 @@ ESPNET_ERR_NOTCONN      EQU 57
 ESPNET_ERR_HOSTUNREACH  EQU 65
 ; Timeouts (kernel: no YIELD, spin). Tune here:
 ; SOF_TICKS      - wait for 0xA5: each wrap of idle (256 polls) decrements deadline
-; SOF_TICKS_LONG - CONNECT / DNSRESOLVE / WIFI / WRITE (sndbuf wait)
+; SOF_TICKS_LONG - CONNECT / INFO / TCP WRITE (sndbuf wait)
+; SOF_TICKS_UDP  - UDP READ/WRITE: firmware replies at once (EAGAIN or sendto).
+;                  500 (~10s) made a missed ATM2 frame look like a DNS hang.
 ; esp_spin/factor 65000 - per-byte wait in fill (and CTS inner loop)
 ; CTS kernel cap 20001 - esp_wait_cts
 ESPNET_SOF_TICKS        EQU 500
 ESPNET_SOF_TICKS_LONG   EQU 3000
+ESPNET_SOF_TICKS_UDP    EQU 75
 ESPNET_INFO_SIZE        EQU 53
 ESPNET_WIFI_STATUS_SIZE EQU 45
 ESPNET_WIFI_CONN_SIZE   EQU 98
 ESPNET_SSID_SIZE        EQU 33
 ESPNET_PASS_SIZE        EQU 65
+ESPNET_SCAN_REC         EQU 42
+ESPNET_SCAN_MAX         EQU 24
 ESPNET_UART_SIZE        EQU 8
 ESPNET_DNS_NAME         EQU 64
+; Kernel keeps only this machine's UART. Userland (espcfg) keeps all four.
+; atm 2/3: ATM2 COM + ATM2IOESP. Evo/Pentagon: Kondratyev 0/2.
+ESPNET_UART_ATM2        = 0
+ESPNET_UART_KOND        = 0
+        ifdef ESPNET_KERNEL
+         if atm==2 or atm==3
+ESPNET_UART_ATM2        = 1
+         else
+ESPNET_UART_KOND        = 1
+         endif
+        else
+ESPNET_UART_ATM2        = 1
+ESPNET_UART_KOND        = 1
+        endif
 
 ; ============================================================
 ; Init: espcom.ini, UART, 0.5s settle
@@ -83,7 +103,9 @@ esp_init
         ifndef ESPNET_KERNEL
         call esp_load_ini
         endif
+        if ESPNET_UART_ATM2
         call esp_ports_ready
+        endif
         ld a,(esp_div)
         call esp_uart_init
         xor a
@@ -209,12 +231,14 @@ esp_read
         ld (esp_pay2),a
         ld a,(esp_rs_want+1)
         ld (esp_pay2+1),a
+        ifndef ESPNET_KERNEL
         ld a,(esp_armed)
         or a
         jr z,esp_rd_send
         xor a
         ld (esp_armed),a
         jr esp_rd_hdr
+        endif
 esp_rd_send
         ld a,(esp_rs_sock)
         ld c,a
@@ -505,9 +529,19 @@ esp_ok0
         ld l,a
         ld h,a
         ret
+        endif
+
+; WIFI: kernel BDOS + userland enet. ECHO stays userland-only.
+        ifdef ESPNET_KERNEL
+esp_ok0
+        xor a
+        ld l,a
+        ld h,a
+        ret
+        endif
 
 ; ============================================================
-; WIFI / ECHO / UART (caller buffers)
+; WIFI / UART (caller buffers)
 ; ============================================================
 esp_wifi_scan
         ; DE=buf HL=bufsize  out HL=result count or -1
@@ -611,6 +645,7 @@ esp_ws_z
         ldir
         jp esp_ok0
 
+        ifndef ESPNET_KERNEL
 esp_echo
         ; DE=data HL=len  out HL=echoed len
         ld (esp_rs_dst),de
@@ -662,6 +697,8 @@ esp_read_udp
         ld a,h
         ld (esp_pay2+1),a
         call esp_drop_armed
+        ld hl,ESPNET_SOF_TICKS_UDP
+        ld (esp_sof_ticks),hl
         ld a,(esp_rs_sock)
         ld c,a
         ld b,0
@@ -671,6 +708,10 @@ esp_read_udp
         call esp_send_cmd
         ld a,ESPNET_CMD_READ
         call esp_recv_hdr
+        push af
+        ld hl,ESPNET_SOF_TICKS
+        ld (esp_sof_ticks),hl
+        pop af
         ret nz
         ld hl,(esp_rsp+4)
         ld (esp_rs_n),hl
@@ -767,6 +808,8 @@ esp_wu_big
         jp esp_fail
 esp_wu_oksz
         call esp_drop_armed
+        ld hl,ESPNET_SOF_TICKS_UDP
+        ld (esp_sof_ticks),hl
         ld de,(esp_udp_sa)
         ld (esp_p2),de
         ld hl,ESPNET_SOCKADDR_SIZE
@@ -781,9 +824,12 @@ esp_wu_oksz
         ld a,ESPNET_CMD_WRITE
         call esp_send_cmd2
         call esp_recv_rsp
+        push af
+        ld hl,ESPNET_SOF_TICKS
+        ld (esp_sof_ticks),hl
+        pop af
         jr nz,esp_wu_bad
         ld a,(esp_rsp)
-        and ESPNET_CMD_MASK
         cp ESPNET_CMD_WRITE
         jr nz,esp_wu_bad
         ld a,(esp_rsp+3)
@@ -801,7 +847,6 @@ esp_wu_bad
         ld a,ESPNET_ERR_INTR
         jp esp_fail
 
-        ifndef ESPNET_KERNEL
 esp_copyz
         ; HL=src DE=dst B=max
         ld a,(hl)
@@ -812,7 +857,6 @@ esp_copyz
         inc de
         djnz esp_copyz
         ret
-        endif
 
 ; ============================================================
 ; Framing
@@ -844,15 +888,17 @@ esp_xf_big
 esp_xf_sz
         call esp_drop_armed
         ld a,(esp_xcmd)
+        ifndef ESPNET_KERNEL
         cp ESPNET_CMD_DNSRESOLVE
         jr z,esp_xf_long
+        cp ESPNET_CMD_WIFI_CONNECT
+        jr z,esp_xf_long
+        endif
         cp ESPNET_CMD_CONNECT
         jr z,esp_xf_long
         cp ESPNET_CMD_INFO
         jr z,esp_xf_long
         cp ESPNET_CMD_WRITE
-        jr z,esp_xf_long
-        cp ESPNET_CMD_WIFI_CONNECT
         jr nz,esp_xf_short
 esp_xf_long
         ld hl,ESPNET_SOF_TICKS_LONG
@@ -877,7 +923,6 @@ esp_xf_send
         pop af
         jr nz,esp_xf_bad
         ld a,(esp_rsp)
-        and ESPNET_CMD_MASK
         ld hl,esp_xcmd
         cp (hl)
         jr nz,esp_xf_bad
@@ -925,8 +970,17 @@ esp_send_cmd2
         ld (esp_req+4),a
         ld a,h
         ld (esp_req+5),a
+        if ESPNET_UART_ATM2
+        ; AT sendcommand does not touch RTS. Type 1 pulse is in fill/rx only.
+        ld a,(esp_comType)
+        dec a
+        jr nz,esp_sc_rts
+        jr esp_sc_tx
+        endif
+esp_sc_rts
         xor a
         call esp_setrts
+esp_sc_tx
         ld a,ESPNET_SOF
         call esp_putb
         ld hl,esp_req
@@ -961,6 +1015,7 @@ esp_send_raw
         ld a,b
         or c
         ret z
+esp_sr_gen
         ld a,(hl)
         push hl
         push bc
@@ -972,6 +1027,11 @@ esp_send_raw
         jr esp_send_raw
 
 esp_drop_armed
+        ifdef ESPNET_KERNEL
+        xor a
+        ld (esp_armed),a
+        ret
+        else
         ld a,(esp_armed)
         or a
         ret z
@@ -991,6 +1051,7 @@ esp_drop_armed
         ret z
 esp_da_dr
         jp esp_rx_drain
+        endif
 
 ; recv 8-byte hdr + payload into esp_rsp (plen<=RSP_MAX)
 ; out Z ok
@@ -1035,7 +1096,6 @@ esp_recv_hdr
         call esp_recv_fill
         jr nz,esp_rh_bad
         ld a,(esp_rsp)
-        and ESPNET_CMD_MASK
         ld hl,esp_xcmd
         cp (hl)
         jr nz,esp_rh_bad
@@ -1123,7 +1183,11 @@ esp_sk2
         jr esp_sk2
 
 esp_rx_drain
+        if ESPNET_UART_ATM2
+        call esp_rts_rxlevel
+        else
         xor a
+        endif
         call esp_setrts
         ld hl,0
         ld (esp_left),hl
@@ -1134,10 +1198,10 @@ esp_dr_lp
         ld de,1000
         or a
         sbc hl,de
-        ret nc
+        jr nc,esp_dr_done
         ld a,(esp_silent)
         cp 80
-        ret nc
+        jr nc,esp_dr_done
         call esp_rx_poll
         jr nz,esp_dr_got
         ld a,(esp_silent)
@@ -1152,6 +1216,9 @@ esp_dr_inc
         inc hl
         ld (esp_left),hl
         jr esp_dr_lp
+esp_dr_done
+        xor a
+        jp esp_setrts
 
 ; ============================================================
 ; SOF wait. Type 0 pulses RTS while empty. YIELD on timer change
@@ -1159,8 +1226,14 @@ esp_dr_inc
 ; out: Z=got SOF, NZ=timeout
 ; ============================================================
 esp_recv_sof
+        if ESPNET_UART_ATM2
+        call esp_rts_rxlevel
+        or a
+        jr nz,esp_sof_afterrts
+        endif
         xor a
         call esp_setrts
+esp_sof_afterrts
         ld hl,(esp_factor)
         ld a,h
         or l
@@ -1182,14 +1255,28 @@ esp_sof_sp
         xor a
         ld (esp_idle),a
 esp_sof_lp
+        if ESPNET_UART_KOND
         ld a,(esp_comType)
         or a
         jr z,esp_sof_t0
+         if ESPNET_UART_ATM2
         cp 2
         jr z,esp_sof_t2
         call esp_rx_poll
         jr z,esp_sof_idle
         ld a,(esp_rb)
+        cp ESPNET_SOF
+        ret z
+        jr esp_sof_idle
+         endif
+esp_sof_t2
+        ld bc,(esp_LSR)
+        in a,(c)
+        rrca
+        jr nc,esp_sof_idle
+        ld bc,(esp_RBR)
+        in a,(c)
+        ld (esp_rb),a
         cp ESPNET_SOF
         ret z
         jr esp_sof_idle
@@ -1213,17 +1300,14 @@ esp_sof_t0empty
         out (c),a
         ei
         jr esp_sof_idle
-esp_sof_t2
-        ld bc,(esp_LSR)
-        in a,(c)
-        rrca
-        jr nc,esp_sof_idle
-        ld bc,(esp_RBR)
-        in a,(c)
-        ld (esp_rb),a
+        else
+        call esp_rx_poll
+        jr z,esp_sof_idle
+        ld a,(esp_rb)
         cp ESPNET_SOF
         ret z
         jr esp_sof_idle
+        endif
 esp_sof_idle
         ld a,(esp_idle)
         inc a
@@ -1266,19 +1350,25 @@ esp_sof_tochk
         jp nc,esp_sof_lp
         endif
 esp_sof_to
+        xor a
+        call esp_setrts
         ld a,1
         or a
         ret
+        ifndef ESPNET_KERNEL
 esp_sof_q
         ld a,1
         ld (esp_qflag),a
         jr esp_sof_to
+        endif
 
 ; DE=dst HL=n  out Z ok
 esp_recv_fill
         ld (esp_dst),de
         ld (esp_n),hl
         ld a,(esp_comType)
+        if ESPNET_UART_KOND
+        if ESPNET_UART_ATM2
         or a
         jp z,esp_fill0
         dec a
@@ -1286,7 +1376,18 @@ esp_recv_fill
         dec a
         jp z,esp_fill2
         jp esp_fill3
+        else
+        or a
+        jp z,esp_fill0
+        jp esp_fill2
+        endif
+        else
+        dec a
+        jp z,esp_fill1
+        jp esp_fill3
+        endif
 
+        if ESPNET_UART_KOND
 ; Type 0 Kondratyev, no AFC: pulse MCR RTS while LSR is empty, then RBR.
 ; BC = LSR during the wait; MCR only when we actually pulse.
 ; Hold-RTS (no off between polls) hung: on this path RTS is a byte strobe
@@ -1329,6 +1430,7 @@ esp_f0_ok
         ei
         xor a
         ret
+        endif
 esp_f0to
         ei
 esp_fill_to
@@ -1336,8 +1438,13 @@ esp_fill_to
         or a
         ret
 
-; Type 1 ATM2 COM: command 55FE, count C2FE, data 02FE. C stays 0xFE.
+        if ESPNET_UART_ATM2
+; Type 1 = IAR getdataEsp. Whole fill under DI. IN A,(C) not IN D:
+; DE is the remaining count (IAR keeps that in statics). Empty path
+; matches the listing: ADD HL,-1 then 55/43/03 + 55/43/00. Do not
+; tighten the RTS pulse ? short strobes lose bytes on 8952.
 esp_fill1
+        di
         ld ix,(esp_dst)
         ld de,(esp_n)
 esp_f1_next
@@ -1346,33 +1453,59 @@ esp_f1_next
         jr z,esp_f1_ok
         ld hl,(esp_spin)
 esp_f1_wait
-        di
+        ld a,h
+        or l
+        jr z,esp_f1to
         ld bc,0x55fe
         in a,(c)
-        ld b,0xc2
+        ld bc,0xc2fe
         in a,(c)
         or a
         jr z,esp_f1_empty
-        ld b,0x55
+        ld bc,0x55fe
         in a,(c)
-        ld b,0x02
+        ld bc,0x02fe
         in a,(c)
-        ei
         ld (ix),a
         inc ix
         dec de
         jr esp_f1_next
 esp_f1_empty
-        ei
-        dec hl
-        ld a,h
-        or l
-        jr nz,esp_f1_wait
-        jr esp_fill_to
+        ld bc,65535
+        add hl,bc
+        ld bc,0x55fe
+        in a,(c)
+        ld bc,0x43fe
+        in a,(c)
+        ld bc,0x03fe
+        in a,(c)
+        ld bc,0x55fe
+        in a,(c)
+        ld bc,0x43fe
+        in a,(c)
+        ld bc,0x00fe
+        in a,(c)
+        jr esp_f1_wait
 esp_f1_ok
+        ei
         xor a
         ret
+esp_f1to
+        ei
+        jr esp_fill_to
+; E=0x03 DTR+RTS on, E=0 off. Caller holds DI.
+esp_atm2_mcr
+        ld bc,0x55fe
+        in a,(c)
+        ld bc,0x43fe
+        in a,(c)
+        ld b,e
+        ld c,0xfe
+        in a,(c)
+        ret
+        endif
 
+        if ESPNET_UART_KOND
 ; Type 2 AFC: hardware RTS. One wait on LSR DR, then RBR.
 ; BC holds the LSR port for the whole wait (address is constant).
 ; esp_spin is the per-byte timeout; reload it for each byte, not each poll.
@@ -1407,7 +1540,9 @@ esp_f2_ok
         ;ei
         xor a
         ret
+        endif
 
+        if ESPNET_UART_ATM2
 ; Type 3 ATM2IOESP: 16550 behind FB=index / FA=data. LSR stays selected
 ; between bytes. Empty: pulse MCR RTS, select LSR again, retry.
 esp_fill3
@@ -1454,6 +1589,7 @@ esp_f3_ok
         ei
         xor a
         ret
+        endif
 
 ; ============================================================
 ; UART
@@ -1466,10 +1602,17 @@ esp_putb
         call esp_wait_cts
 esp_uart_write
         ld a,(esp_comType)
+        if ESPNET_UART_ATM2
         cp 1
         jr z,esp_wr1
+         if ESPNET_UART_KOND
         cp 3
         jr z,esp_wr3
+         else
+        jr esp_wr3
+         endif
+        endif
+        if ESPNET_UART_KOND
 esp_wr02
         ld bc,(esp_LSR)
         ld hl,(esp_factor)
@@ -1486,24 +1629,34 @@ esp_wr02g
         ld a,(esp_txb)
         out (c),a
         ret
-
+        endif
+        if ESPNET_UART_ATM2
+; IAR uart_write case 1 listing (iccz80 -s7). DI one byte, no timeout,
+; IN E,(C), BIT 5,E, then the compiler's (data<<8)|0xFE shuffle so 03FE
+; to data-strobe is ~50T. Tight IN A / AND 32 / whole-frame DI hung espcfg.
 esp_wr1
-        di
-        ld bc,0x55fe
-esp_wr1w
-        in a,(c)
-        ld bc,0x42fe
-        in a,(c)
-        and 32
-        ld bc,0x55fe
-        jr z,esp_wr1w
-        in a,(c)
-        ld bc,0x03fe
-        in a,(c)
         ld a,(esp_txb)
-        ld b,a
-        ld c,0xfe
-        in a,(c)
+        ld d,a
+        di
+esp_wr1w
+        ld bc,0x55fe
+        in e,(c)
+        ld bc,0x42fe
+        in e,(c)
+        bit 5,e
+        jr z,esp_wr1w
+        ld bc,0x55fe
+        in e,(c)
+        ld bc,0x03fe
+        in e,(c)
+        ld c,d
+        ld b,0
+        ld b,c
+        ld c,0
+        ld a,c
+        or 254
+        ld c,a
+        in e,(c)
         ei
         ret
 
@@ -1534,24 +1687,40 @@ esp_in3
         in a,(0xfa)
         ei
         ret
+        endif
 
 esp_wait_cts
         ld a,(esp_comType)
+        if ESPNET_UART_ATM2
         cp 1
         ret z
+        endif
+        if ESPNET_UART_KOND
         cp 2
         ret z
+        endif
         ld hl,0
 esp_cts_lp
+        if ESPNET_UART_ATM2
         ld a,(esp_comType)
         cp 3
         jr z,esp_cts3
+         if ESPNET_UART_KOND=0
+        jr esp_cts3
+         endif
+        endif
+        if ESPNET_UART_KOND
         ld bc,(esp_MSR)
         in a,(c)
+         if ESPNET_UART_ATM2
         jr esp_cts_chk
+         endif
+        endif
+        if ESPNET_UART_ATM2
 esp_cts3
         ld a,(esp_rMSR)
         call esp_in3
+        endif
 esp_cts_chk
         and 0x10
         ret nz
@@ -1595,12 +1764,24 @@ esp_cts_q
 esp_setrts
         ld (esp_rtsmode),a
         ld a,(esp_comType)
+        if ESPNET_UART_KOND
+        if ESPNET_UART_ATM2
         or a
         jr z,esp_rts0
         dec a
         jr z,esp_rts1
         dec a
         ret z
+        else
+        or a
+        ret nz
+        endif
+        endif
+        if ESPNET_UART_KOND=0
+        dec a
+        jr z,esp_rts1
+        endif
+        if ESPNET_UART_ATM2
 esp_rts3
         ld a,(esp_rtsmode)
         cp 1
@@ -1632,7 +1813,8 @@ esp_rts3off
         out (0xfa),a
         ei
         ret
-
+        endif
+        if ESPNET_UART_KOND
 esp_rts0
         ld a,(esp_rtsmode)
         cp 1
@@ -1655,7 +1837,8 @@ esp_rts0off
         xor a
         out (c),a
         ret
-
+        endif
+        if ESPNET_UART_ATM2
 esp_rts1
         ld a,(esp_rtsmode)
         cp 1
@@ -1663,49 +1846,41 @@ esp_rts1
         or a
         jr z,esp_rts1off
         di
-        ld bc,0x55fe
-        in a,(c)
-        ld bc,0x43fe
-        in a,(c)
-        ld bc,0x03fe
-        in a,(c)
-        ld bc,0x55fe
-        in a,(c)
-        ld bc,0x43fe
-        in a,(c)
-        ld bc,0x00fe
-        in a,(c)
-        ei
-        ret
-esp_rts1on
-        di
-        ld bc,0x55fe
-        in a,(c)
-        ld bc,0x43fe
-        in a,(c)
-        ld bc,0x03fe
-        in a,(c)
+        ld e,0x03
+        call esp_atm2_mcr
+        ld e,0
+        call esp_atm2_mcr
         ei
         ret
 esp_rts1off
         di
-        ld bc,0x55fe
-        in a,(c)
-        ld bc,0x43fe
-        in a,(c)
-        ld bc,0x00fe
-        in a,(c)
+        ld e,0
+        call esp_atm2_mcr
         ei
         ret
+esp_rts1on
+        di
+        ld e,0x03
+        call esp_atm2_mcr
+        ei
+        ret
+        endif
 
 ; A=divisor
 esp_uart_init
         ld (esp_div),a
         ld a,(esp_comType)
+        if ESPNET_UART_ATM2
         cp 1
         jr z,esp_ui1
+         if ESPNET_UART_KOND
         cp 3
         jr z,esp_ui3
+         else
+        jr esp_ui3
+         endif
+        endif
+        if ESPNET_UART_KOND
         ld bc,(esp_IIR)
         ld a,0x87
         out (c),a
@@ -1728,6 +1903,8 @@ esp_uart_init
         ld a,0x2f
         out (c),a
         ret
+        endif
+        if ESPNET_UART_ATM2
 esp_ui1
         di
         ld bc,0x55fe
@@ -1742,7 +1919,8 @@ esp_ui1
         in a,(c)
         ld bc,0x43fe
         in a,(c)
-        ld bc,0x00fe
+        ; Keep DTR+RTS on: ESP32 CTS is 8952 RTS (GPIO15). Off => ESP never TXes.
+        ld bc,0x03fe
         in a,(c)
         ei
         ret
@@ -1779,16 +1957,30 @@ esp_out3
         out (0xfa),a
         ei
         ret
+        endif
 
 ; 1=byte in esp_rb, 0=empty (RTS pulse on 0/3)
 esp_rx_poll
         ld a,(esp_comType)
+        if ESPNET_UART_KOND
+        if ESPNET_UART_ATM2
         or a
         jr z,esp_rp0
         dec a
         jr z,esp_rp1
         dec a
         jr z,esp_rp2
+        else
+        or a
+        jr z,esp_rp0
+        jr esp_rp2
+        endif
+        endif
+        if ESPNET_UART_KOND=0
+        dec a
+        jr z,esp_rp1
+        endif
+        if ESPNET_UART_ATM2
 esp_rp3
         ld a,(esp_rLSR)
         out (0xfb),a
@@ -1813,6 +2005,8 @@ esp_rp3empty
         ei
         xor a
         ret
+        endif
+        if ESPNET_UART_KOND
 esp_rp0
         ld bc,(esp_LSR)
         in a,(c)
@@ -1845,6 +2039,9 @@ esp_rp2
         ld a,1
         or a
         ret
+        endif
+        if ESPNET_UART_ATM2
+; ATM2 COM: AT uartReadBlock. Pulse on empty, no hold-RTS.
 esp_rp1
         di
         ld bc,0x55fe
@@ -1863,9 +2060,30 @@ esp_rp1
         or a
         ret
 esp_rp1e
+        ld bc,0x55fe
+        in a,(c)
+        ld bc,0x43fe
+        in a,(c)
+        ld bc,0x03fe
+        in a,(c)
+        ld bc,0x55fe
+        in a,(c)
+        ld bc,0x43fe
+        in a,(c)
+        ld bc,0x00fe
+        in a,(c)
         ei
         xor a
         ret
+; A=1 if comType==1 (ATM2 COM RX level), else 0.
+esp_rts_rxlevel
+        ld a,(esp_comType)
+        dec a
+        ld a,0
+        ret nz
+        inc a
+        ret
+        endif
 
 ; ============================================================
 ; Ports / ini
@@ -1892,7 +2110,7 @@ esp_cfg_default
         ; Kernel ATM2: ATM2 COM (type 1). Evo/userland: Kondratyev (0).
         ; espcfg OS_SETUART overrides this after -S.
         ifdef ESPNET_KERNEL
-        if atm==2
+        if atm==2 or atm==3
         ld a,1
         else
         xor a
@@ -1909,6 +2127,7 @@ esp_cfg_default
         ld (esp_sof_ticks),hl
         ret
 
+        if ESPNET_UART_ATM2
 esp_ports_ready
         ld hl,(esp_RBR)
         call esp_reg8
@@ -1943,6 +2162,7 @@ esp_reg8
 esp_reg8lo
         ld a,l
         ret
+        endif
 
         ifndef ESPNET_KERNEL
 esp_load_ini
