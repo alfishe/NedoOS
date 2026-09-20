@@ -6,7 +6,9 @@
 #define ESPNET_BAUD 115200
 #define ESPNET_WEB_USER "espnet"
 #define ESPNET_WEB_PASS "espnet"
-
+/*
+190 - ATM2COM - 38400!
+*/
 /*
  * ESP8266 host UART. ESP-12F and D1 mini are the same chip; wiring cannot
  * be detected at runtime. Force a layout, or leave both commented for auto:

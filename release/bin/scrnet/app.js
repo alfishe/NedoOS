@@ -755,7 +755,7 @@ function hex2(n) {
 
 var kseq = 0;
 var keyInflight = 0;
-var KEY_INFLIGHT_MAX = 2;
+var KEY_INFLIGHT_MAX = 1;
 var keyQ = [];
 var KEY_QMAX = 2;
 var KEY_REPEAT_DELAY = 400;

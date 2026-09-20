@@ -4,6 +4,8 @@
 ; HTTP remote screen. No SETGFX, does not take the CRT.
 ; Listen stays open. Port 2324.
 ; /ini/network.ini currentNetwork: 0=WIZNET, 2=ESPNET; else print and QUIT.
+; Kernel ESPNET (GETUART ok): currentNetwork=2 still uses OS_* sockets.
+; Userland esp_init on the same UART hangs ATM2 COM after HIDEFROMPARENT.
 ; GET /           -> /bin/scrnet/index.htm
 ; GET /stream     -> chunked binary frames
 ;   text 80x25: WIZNET type1 raw 4000; ESPNET / low-bw: type1 key / type2 XOR-RLE
@@ -45,6 +47,7 @@ iobuf   EQU xorbuf+SCRSZ
 SOCK_STREAM EQU 0x01
 AF_INET EQU 2
 ERR_EAGAIN EQU 35
+ERR_INTR EQU 4
 ERR_EMSGSIZE EQU 40
 
 FR_KEY EQU 1
@@ -68,6 +71,7 @@ EGASZ EQU 32768
 EGAPREV EQU 0x4000
 ; Real Wiznet TX ~MTU; emulator accepts any size. Keep <=1500.
 SENDMAX EQU 1500
+SENDMAX_ESP EQU 192
 RLEBUFSZ EQU SENDMAX
 
         org PROGSTART
@@ -122,6 +126,15 @@ mainloop
         ld a,(soc_client)
         inc a
         jr nz,have_cli
+        ; Firmware ACCEPT with no client is EAGAIN at once. One UART
+        ; shot per 50Hz tick; the old and-15 (~320ms) made the first
+        ; HTTP GET look dead while the stream WRITE path stayed alive.
+        OS_GETTIMER
+        ld a,l
+        ld hl,acc_tick
+        cp (hl)
+        jr z,mainloop
+        ld (hl),a
         call try_accept
         jr mainloop
 
@@ -134,6 +147,11 @@ have_cli
 
 do_stream
         call try_input
+        ; Incoming GET /k/ sits on soc_post. Do not spend the UART on
+        ; stream READ/WRITE until that request is in (ti_wait_req).
+        ld a,(ti_wait_req)
+        or a
+        jr nz,do_stream_end
         call stream_rx
         ld a,(soc_client)
         inc a
@@ -164,12 +182,14 @@ do_stream_end
 try_accept
         ld a,(soc)
         call net_accept
+        or a
+        jr nz,acc_idle
         bit 7,l
         jr z,got_cli
-        cp ERR_EAGAIN
-        ret z
-        pop hl
-        jp gotostart
+acc_idle
+        ; No client. Do not rebuild SOCKET/BIND/LISTEN: that is another
+        ; 30s SOF wait inside BDOS with the DOS prompt frozen.
+        ret
 got_cli
         ld a,l
         ld (soc_client),a
@@ -190,6 +210,8 @@ close_client
         call net_shutdown
         ld a,NOSOCK
         ld (soc_post),a
+        xor a
+        ld (ti_wait_req),a
 cc_cli
         ld a,(soc_client)
         inc a
@@ -208,19 +230,41 @@ cc_cli
         ret
 
 ; Second TCP client while /stream is up. GET /k/ccff or /f/t/s/e[/b].
-; One shot + close (keep-alive desynced the browser and ate Wiznet sockets).
-; If ACCEPT wins before the GET arrives, keep soc_post and retry next loop.
+; WIZNET: one shot + close (keep-alive ate sockets). ESPNET/low_bw: keep
+; the TCP so the next key is READ, not ACCEPT+SHUTDOWN on the 8952.
+; Nested send_data from the 204 must not re-enter.
 try_input
+        ld a,(ti_busy)
+        or a
+        ret nz
+        ld a,1
+        ld (ti_busy),a
+        call try_input_go
+        xor a
+        ld (ti_busy),a
+        ret
+try_input_go
         ld a,(soc_post)
         inc a
         jr nz,ti_read
+        OS_GETTIMER
+        ld a,l
+        ld hl,ti_acc_tick
+        cp (hl)
+        ret z
+        ld (hl),a
         ld a,(soc)
         call net_accept
+        or a
+        ret nz
         bit 7,l
         ret nz
         ld a,l
         ld (soc_post),a
-        xor a
+        ld a,1
+        ld (ti_wait_req),a
+        OS_GETTIMER
+        ld a,l
         ld (ti_age),a
 ti_read
         ld a,(soc_post)
@@ -230,11 +274,15 @@ ti_read
         bit 7,h
         jr z,ti_got
         cp ERR_EAGAIN
+        jr z,ti_again
+        cp ERR_INTR
         jr nz,ti_drop
-        ld a,(ti_age)
-        inc a
-        ld (ti_age),a
-        cp 25
+ti_again
+        OS_GETTIMER
+        ld a,l
+        ld hl,ti_age
+        sub (hl)
+        cp 125
         ret c
         jr ti_drop
 ti_got
@@ -247,13 +295,30 @@ ti_got
         ld a,(soc_post)
         ld (soc_client),a
         ld de,hdr_204
+        ld a,(low_bw)
+        or a
+        jr z,ti_204
+        ld de,hdr_204_ka
+ti_204
         call send_str
         ld a,(soc_saved)
         ld (soc_client),a
         ld a,1
         ld (is_stream),a
-        jr ti_drop
+        xor a
+        ld (ti_wait_req),a
+        ld a,(low_bw)
+        or a
+        jr z,ti_drop
+        ; Keep the key TCP. Next GET /k/ is a READ, not ACCEPT+SHUTDOWN.
+        ; WIZNET still closes: keep-alive ate sockets there.
+        OS_GETTIMER
+        ld a,l
+        ld (ti_age),a
+        ret
 ti_drop
+        xor a
+        ld (ti_wait_req),a
         ld a,(soc_post)
         inc a
         ret z
@@ -264,6 +329,7 @@ ti_drop
         ld (soc_post),a
         xor a
         ld (ti_age),a
+        ld (ti_wait_req),a
         ret
 
 ; rlebuf = first TCP payload. Prefer GET /k/ccff in the request line.
@@ -467,6 +533,19 @@ send_data_go
 send_data0
         push de
         push hl
+        ld a,(low_bw)
+        or a
+        jr z,sd_wizcap
+        ld a,h
+        or a
+        jr nz,sd_espcap
+        ld a,l
+        cp SENDMAX_ESP+1
+        jr c,sd_now
+sd_espcap
+        ld hl,SENDMAX_ESP
+        jr sd_now
+sd_wizcap
         ld a,h
         cp SENDMAX/256
         jr c,sd_now
@@ -484,7 +563,12 @@ sd_now
         pop hl
         pop de
         cp ERR_EMSGSIZE
+        jr z,sd_retry
+        cp ERR_EAGAIN
+        jr z,sd_retry
+        cp ERR_INTR
         jr nz,sd_dead
+sd_retry
         push de
         push hl
         YIELD
@@ -509,6 +593,16 @@ sd_wrote
         ld a,h
         or l
         ret z
+        ld a,(low_bw)
+        or a
+        jr z,sd_noy
+        push de
+        push hl
+        YIELD
+        call try_input
+        pop hl
+        pop de
+sd_noy
         ld a,(sd_yield)
         or a
         jr z,send_data0
@@ -525,7 +619,7 @@ sd_wrote
 sd_same
         pop hl
         pop de
-        jr send_data0
+        jp send_data0
 sd_dead
         call close_client
         scf
@@ -541,7 +635,7 @@ send_data_yield
         ld (sd_tick),a
         pop hl
         pop de
-        jr send_data_go
+        jp send_data_go
 
 send_str
         push de
@@ -594,6 +688,8 @@ http_serve
         bit 7,h
         jr z,hr_got
         cp ERR_EAGAIN
+        ret z
+        cp ERR_INTR
         ret z
         jp close_client
 hr_got
@@ -996,6 +1092,15 @@ start_stream
         jp stream_frame
 
 stream_rx
+        ; Empty READ on the stream socket is a UART round-trip. Doing it
+        ; every loop starved ACCEPT of the /k/ connection (firmware even
+        ; warns: recv-loop EAGAIN and never ACCEPT the next browser socket).
+        OS_GETTIMER
+        ld a,l
+        ld hl,srx_tick
+        cp (hl)
+        ret z
+        ld (hl),a
         ld a,(soc_client)
         ld de,netin
         ld hl,NETIN_SZ
@@ -1003,6 +1108,8 @@ stream_rx
         bit 7,h
         jr z,srx_ok
         cp ERR_EAGAIN
+        ret z
+        cp ERR_INTR
         ret z
         jp close_client
 srx_ok
@@ -2563,12 +2670,17 @@ soc             db NOSOCK
 soc_client      db NOSOCK
 soc_post        db NOSOCK
 soc_saved       db 0
+acc_tick        db 0
 net_drv         db 0
 low_bw          db 0
 txt_need        db 0
 net_a           db 0
 net_fh          db 0
 ti_age          db 0
+ti_busy         db 0
+ti_acc_tick     db 0
+ti_wait_req     db 0
+srx_tick        db 0
 is_stream       db 0
 hdr_st          db 0
 line_done       db 0
@@ -2638,6 +2750,7 @@ hdr_end         db 13,10,"Connection: close",13,10,13,10,0
 hdr_404         db "HTTP/1.1 404 Not Found",13,10,"Content-Length: 0",13,10,"Connection: close",13,10,13,10,0
 hdr_400         db "HTTP/1.1 400 Bad Request",13,10,"Content-Length: 0",13,10,"Connection: close",13,10,13,10,0
 hdr_204         db "HTTP/1.1 204 No Content",13,10,"Connection: close",13,10,13,10,0
+hdr_204_ka      db "HTTP/1.1 204 No Content",13,10,"Content-Length: 0",13,10,13,10,0
 hdr_stream      db "HTTP/1.1 200 OK",13,10
                 db "Content-Type: application/octet-stream",13,10
                 db "Cache-Control: no-store",13,10
@@ -2708,6 +2821,19 @@ ln_rd
 ln_esp
         ld a,1
         ld (low_bw),a
+        ; Kernel ESPNET already owns the COM. Do not esp_init here:
+        ; two stacks + type1 wr1 (DI until 8952 THRE) freeze the machine
+        ; after the DOS prompt returns. ATM2IOESP only looked slow.
+        ld de,net_inibuf
+        OS_GETUART
+        ld a,h
+        or l
+        jr nz,ln_esp_user
+        xor a
+        ld (net_drv),a
+        xor a
+        ret
+ln_esp_user
         call esp_init
         call net_reap
         xor a

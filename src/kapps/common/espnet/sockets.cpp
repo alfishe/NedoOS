@@ -82,18 +82,20 @@ static int tcp_established(WiFiClient &c)
 	fd = c.fd();
 	if (fd < 0)
 		return 1;
-#ifdef TCP_INFO
-	/* lwIP tcpi_state ESTABLISHED=4. MSG_PEEK often stays EAGAIN in CLOSE_WAIT. */
-	memset(&ti, 0, sizeof(ti));
-	tlen = sizeof(ti);
-	if (getsockopt(fd, IPPROTO_TCP, TCP_INFO, &ti, &tlen) == 0)
-		return ti.tcpi_state == 4;
-#endif
+	/* FIN: recv=0. Check before TCP_INFO ? ESP32 3.x can still report
+	 * ESTABLISHED in CLOSE_WAIT, and 3ws then recv-loops EAGAIN forever
+	 * (never ACCEPT the next png/js). Scrnet streams stay ESTABLISHED. */
 	r = ::recv(fd, &dummy, 1, MSG_PEEK | MSG_DONTWAIT);
 	if (r == 0)
 		return 0;
 	if (r < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
 		return 0;
+#ifdef TCP_INFO
+	memset(&ti, 0, sizeof(ti));
+	tlen = sizeof(ti);
+	if (getsockopt(fd, IPPROTO_TCP, TCP_INFO, &ti, &tlen) == 0)
+		return ti.tcpi_state == 4;
+#endif
 	return 1;
 #endif
 }
@@ -528,34 +530,25 @@ static uint16_t do_accept(const uint8_t *req, uint8_t *rsp)
 	uint8_t sock = req[ESPNET_REQ_SOCK];
 	WiFiClient c;
 	int id;
-	Slot *s;
 
 	if (!sock_ok(sock) || s_slot[sock].state != ST_LISTEN || !s_slot[sock].srv)
 		return rsp_err(rsp, ESPNET_CMD_ACCEPT, sock, seq, ESPNET_ERR_NOTSOCK);
+	/* Slot first: srv->available() dequeues. No free id used to steal
+	 * the listen socket (id 0); 3ws treats datasoc==0 as "no client". */
+	id = find_free();
+	if (id < 0)
+		return rsp_err(rsp, ESPNET_CMD_ACCEPT, sock, seq, ESPNET_ERR_EAGAIN);
 	c = s_slot[sock].srv->available();
 	if (!c)
 		return rsp_err(rsp, ESPNET_CMD_ACCEPT, sock, seq, ESPNET_ERR_EAGAIN);
-	id = find_free();
-	if (id >= 0) {
-		s_slot[id].proto = ESPNET_SOCK_STREAM;
-		s_slot[id].state = ST_TCP;
-		s_slot[id].tcp = c;
-		s_slot[id].tcp.setNoDelay(true);
-		tcp_tune(s_slot[id].tcp);
-		s_slot[id].rx_len = 0;
-		s_slot[id].local_port = 0;
-		return rsp_hdr(rsp, ESPNET_CMD_ACCEPT, (uint8_t)id, 0, seq, 0, 0);
-	}
-	/* No free slot: listen socket becomes the connection (api_net). */
-	s = &s_slot[sock];
-	s->srv->stop();
-	delete s->srv;
-	s->srv = 0;
-	s->tcp = c;
-	tcp_tune(s->tcp);
-	s->state = ST_TCP;
-	s->rx_len = 0;
-	return rsp_hdr(rsp, ESPNET_CMD_ACCEPT, sock, 0, seq, 0, 0);
+	s_slot[id].proto = ESPNET_SOCK_STREAM;
+	s_slot[id].state = ST_TCP;
+	s_slot[id].tcp = c;
+	s_slot[id].tcp.setNoDelay(true);
+	tcp_tune(s_slot[id].tcp);
+	s_slot[id].rx_len = 0;
+	s_slot[id].local_port = 0;
+	return rsp_hdr(rsp, ESPNET_CMD_ACCEPT, (uint8_t)id, 0, seq, 0, 0);
 }
 
 static uint16_t do_read(const uint8_t *req, uint16_t req_n, uint8_t *rsp)

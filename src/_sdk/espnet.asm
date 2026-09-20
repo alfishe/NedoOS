@@ -59,9 +59,19 @@ ESPNET_ERR_HOSTUNREACH  EQU 65
 ;                  500 (~10s) made a missed ATM2 frame look like a DNS hang.
 ; esp_spin/factor 65000 - per-byte wait in fill (and CTS inner loop)
 ; CTS kernel cap 20001 - esp_wait_cts
+; SOF_TICKS_WRITE - Type 1 WRITE: firmware may wait sndbuf (~3s). 24 polls
+;                  timed out, the late ACK desynced the UART, 3ws send()
+;                  of a 4K file looked like a hang. Type 3 still uses LONG.
+; ACCEPT_POLLS   - Type 1 only: wait for the UART reply frame, not for
+;                  a TCP client. Firmware already sent EAGAIN. 500*256
+;                  empty 8952 polls was ~30s inside BDOS (no YIELD).
+;                  Type 3 must not use this count (24 polls is ~0.2ms).
 ESPNET_SOF_TICKS        EQU 500
 ESPNET_SOF_TICKS_LONG   EQU 3000
 ESPNET_SOF_TICKS_UDP    EQU 75
+ESPNET_SOF_TICKS_WRITE  EQU 16
+ESPNET_ACCEPT_POLLS     EQU 24
+ESPNET_HDR_SPIN         EQU 800
 ESPNET_INFO_SIZE        EQU 53
 ESPNET_WIFI_STATUS_SIZE EQU 45
 ESPNET_WIFI_CONN_SIZE   EQU 98
@@ -364,11 +374,13 @@ esp_write
         ld (esp_rs_want),hl
         ld hl,0
         ld (esp_sent),hl
+        xor a
+        ld (esp_wr_try),a
 esp_wr_lp
         ld hl,(esp_rs_want)
         ld a,h
         or l
-        jr z,esp_wr_done
+        jp z,esp_wr_done
         ifdef ESPNET_KERNEL
         call esp_ld_hostmax
         else
@@ -383,7 +395,17 @@ esp_wr_lp
         ld de,(esp_rs_dst)
         call esp_xfer
         jr z,esp_wr_ok
-        ; EAGAIN/error: short write if some frames went, else errno.
+        ; 3ws send() once per 4K and ignores a short count. Retry EAGAIN
+        ; in-kernel so the syscall looks like WIZNET. Scrnet still YIELDs
+        ; between its own 192-byte sends.
+        ld a,(esp_errno)
+        cp ESPNET_ERR_EAGAIN
+        jr nz,esp_wr_part
+        ld a,(esp_wr_try)
+        inc a
+        ld (esp_wr_try),a
+        cp 8
+        jr c,esp_wr_lp
 esp_wr_part
         ld hl,(esp_sent)
         ld a,h
@@ -409,6 +431,8 @@ esp_wr_emsg
         ld a,ESPNET_ERR_EMSGSIZE
         jp esp_fail
 esp_wr_got
+        xor a
+        ld (esp_wr_try),a
         ld (esp_chunk_got),hl
         ld de,(esp_sent)
         add hl,de
@@ -427,7 +451,7 @@ esp_wr_got
         or a
         sbc hl,de
         jr c,esp_wr_done
-        jr esp_wr_lp
+        jp esp_wr_lp
 esp_wr_done
         ld hl,(esp_sent)
         xor a
@@ -894,14 +918,28 @@ esp_xf_sz
         cp ESPNET_CMD_WIFI_CONNECT
         jr z,esp_xf_long
         endif
+        cp ESPNET_CMD_ACCEPT
+        jr z,esp_xf_poll
         cp ESPNET_CMD_CONNECT
         jr z,esp_xf_long
         cp ESPNET_CMD_INFO
         jr z,esp_xf_long
         cp ESPNET_CMD_WRITE
         jr nz,esp_xf_short
+        ld a,(esp_comType)
+        dec a
+        jr nz,esp_xf_long
+        ld hl,ESPNET_SOF_TICKS_WRITE
+        ld (esp_sof_ticks),hl
+        jr esp_xf_send
 esp_xf_long
         ld hl,ESPNET_SOF_TICKS_LONG
+        ld (esp_sof_ticks),hl
+        jr esp_xf_send
+; Firmware ACCEPT is EAGAIN with no client. Do not sit the full SOF
+; budget (kernel cannot YIELD inside BDOS) or the DOS prompt looks dead.
+esp_xf_poll
+        ld hl,ESPNET_SOF_TICKS_UDP
         ld (esp_sof_ticks),hl
         jr esp_xf_send
 esp_xf_short
@@ -936,6 +974,19 @@ esp_xf_send
         ld (esp_errno),a
         jp esp_fail
 esp_xf_bad
+        ld a,(esp_comType)
+        dec a
+        jr nz,esp_xf_drain
+        ld a,(esp_xcmd)
+        cp ESPNET_CMD_ACCEPT
+        jr z,esp_xf_eagain
+        cp ESPNET_CMD_WRITE
+        jr z,esp_xf_eagain
+        jr esp_xf_drain
+esp_xf_eagain
+        ld a,ESPNET_ERR_EAGAIN
+        jp esp_fail
+esp_xf_drain
         call esp_rx_drain
         ld a,ESPNET_ERR_INTR
         ld (esp_errno),a
@@ -1059,8 +1110,7 @@ esp_recv_rsp
         call esp_recv_sof
         jr nz,esp_rr_fail
         ld de,esp_rsp
-        ld hl,ESPNET_RSP_HDR
-        call esp_recv_fill
+        call esp_recv_hdr8
         jr nz,esp_rr_fail
         ld hl,(esp_rsp+6)
         ld a,h
@@ -1086,14 +1136,30 @@ esp_rr_fail
         or a
         ret
 
+; 8-byte UART header. Full fill1 spin (65000) after a stray 0xA5 was
+; ~seconds per missing byte under DI. Header bytes follow SOF at once.
+esp_recv_hdr8
+        ld a,(esp_comType)
+        dec a
+        ld hl,ESPNET_RSP_HDR
+        jp nz,esp_recv_fill
+        ld hl,(esp_spin)
+        push hl
+        ld hl,ESPNET_HDR_SPIN
+        ld (esp_spin),hl
+        ld hl,ESPNET_RSP_HDR
+        call esp_recv_fill
+        pop hl
+        ld (esp_spin),hl
+        ret
+
 ; A=expected cmd  out Z ok, esp_plen set. NZ A=errno HL=-1
 esp_recv_hdr
         ld (esp_xcmd),a
         call esp_recv_sof
         jr nz,esp_rh_bad
         ld de,esp_rsp
-        ld hl,ESPNET_RSP_HDR
-        call esp_recv_fill
+        call esp_recv_hdr8
         jr nz,esp_rh_bad
         ld a,(esp_rsp)
         ld hl,esp_xcmd
@@ -1220,12 +1286,54 @@ esp_dr_done
         xor a
         jp esp_setrts
 
+; Firmware ACCEPT/READ/WRITE with nothing to do replies at once (EAGAIN
+; or a short ACK). That is not "listen for a TCP client for 30s".
+; Kernel does one UART xfer and returns; 3ws/scrnet retry. Type 1 only:
+; if the 0xA5 never shows (8952 drop), fail quick as EAGAIN. Do not
+; change wr1/fill1/rp1 to "help" this. Type 3 sees SOF immediately so
+; the long deadline is unused.
+esp_sof_accept
+        ld b,ESPNET_ACCEPT_POLLS
+esp_sa_lp
+        push bc
+        call esp_rx_poll
+        pop bc
+        jr z,esp_sa_nx
+        ld a,(esp_rb)
+        cp ESPNET_SOF
+        ret z
+esp_sa_nx
+        djnz esp_sa_lp
+        ld a,1
+        or a
+        ret
+
 ; ============================================================
 ; SOF wait. Type 0 pulses RTS while empty. YIELD on timer change
 ; after 256 idle polls (unsigned wrap of idle).
 ; out: Z=got SOF, NZ=timeout
 ; ============================================================
 esp_recv_sof
+        ; 24 empty polls is ~30ms on 8952 and ~0.2ms on 16550. ATM2IOESP
+        ; then times out before ESP replies; ACCEPT never completes.
+        ld a,(esp_comType)
+        dec a
+        jr nz,esp_sof_std
+        ld a,(esp_xcmd)
+        cp ESPNET_CMD_SOCKET
+        jr z,esp_sof_accept
+        cp ESPNET_CMD_SHUTDOWN
+        jr z,esp_sof_accept
+        cp ESPNET_CMD_ACCEPT
+        jr z,esp_sof_accept
+        cp ESPNET_CMD_BIND
+        jr z,esp_sof_accept
+        cp ESPNET_CMD_LISTEN
+        jr z,esp_sof_accept
+        cp ESPNET_CMD_READ
+        jr z,esp_sof_accept
+        ; WRITE waits for firmware sndbuf ACK (ticks), not 24 polls.
+esp_sof_std
         if ESPNET_UART_ATM2
         call esp_rts_rxlevel
         or a
@@ -2525,4 +2633,5 @@ esp_pay2        ds 2            ; READ: le16 maxlen in CMD payload
 esp_rs_sock     db 0            ; current sock for READ/WRITE
 esp_fh          db 0            ; userland: ini file handle
 esp_errno       db 0            ; last errno (A on fail)
+esp_wr_try      db 0            ; WRITE EAGAIN retries in one syscall
         endif

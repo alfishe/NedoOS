@@ -15,7 +15,7 @@
  */
 
 #define ESPNET_VER_MAJOR 1
-#define ESPNET_VER_MINOR 25
+#define ESPNET_VER_MINOR 26
 
 #define ESPNET_SOF 0xA5
 

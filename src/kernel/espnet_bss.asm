@@ -73,6 +73,7 @@ esp_pay2        ds 2            ; READ maxlen le16
 esp_rs_sock     db 0            ; current READ/WRITE sock
 esp_fh          db 0            ; unused in kernel
 esp_errno       db 0            ; last fail A
+esp_wr_try      db 0            ; WRITE EAGAIN retries in one syscall
 espk_sa         ds 15           ; kernel copy of sockaddr (paged user)
 espk_sa_user    dw 0            ; user sockaddr ptr
 espk_buf_user   dw 0            ; user payload ptr (UDP IX)
