@@ -912,12 +912,13 @@ esp_xf_big
 esp_xf_sz
         call esp_drop_armed
         ld a,(esp_xcmd)
-        ifndef ESPNET_KERNEL
+        ; WIFI_CONNECT: firmware JOIN can take 35s before the UART ACK.
+        ; Kernel used to skip this (userland-only) so type 0/3 SOF_TICKS
+        ; ran out in a few seconds, host drained, late ACK lost the ESP.
         cp ESPNET_CMD_DNSRESOLVE
         jr z,esp_xf_long
         cp ESPNET_CMD_WIFI_CONNECT
         jr z,esp_xf_long
-        endif
         cp ESPNET_CMD_ACCEPT
         jr z,esp_xf_poll
         cp ESPNET_CMD_CONNECT

@@ -49,27 +49,6 @@ static void wifi_8266_radio(void)
 }
 #endif
 
-static int wifi_pick_scan(const char *ssid, const uint8_t **bssid, int32_t *chan)
-{
-	int i;
-	int best;
-
-	best = -1;
-	for (i = 0; i < (int)s_scan_n; i++) {
-		if (s_scan_ssid[i][0] == 0)
-			continue;
-		if (strcmp(s_scan_ssid[i], ssid) != 0)
-			continue;
-		if (best < 0 || s_scan_rssi[i] > s_scan_rssi[best])
-			best = i;
-	}
-	if (best < 0)
-		return 0;
-	*bssid = s_scan_bssid[best];
-	*chan = (int32_t)s_scan_ch[best];
-	return 1;
-}
-
 void wifi_cmd_begin(void)
 {
 	WiFi.persistent(true);
@@ -261,7 +240,14 @@ static uint16_t do_scan(const uint8_t *req, uint8_t *rsp)
 		s_scan_rssi[i] = (int8_t)WiFi.RSSI(i);
 	}
 	WiFi.scanDelete();
-	s_pause_sta = 1;
+	/* Scan had to drop STA. Bring the saved AP back in the background
+	 * and answer now ? do not leave autoReconnect off until power-on. */
+	s_pause_sta = 0;
+	if (!s_hold_disc) {
+		WiFi.setAutoReconnect(true);
+		WiFi.mode(WIFI_STA);
+		WiFi.begin();
+	}
 	slog("SCAN n=%d", n);
 	return rsp_hdr(rsp, ESPNET_CMD_WIFI_SCAN, ESPNET_SOCK_NONE, 0, seq, (uint16_t)n,
 		       (uint16_t)(n * ESPNET_SCAN_REC));
@@ -273,10 +259,8 @@ static uint16_t do_wconnect(const uint8_t *req, uint16_t req_n, uint8_t *rsp)
 	uint16_t plen = espnet_get_u16(req + ESPNET_REQ_LEN);
 	char ssid[ESPNET_SSID_SIZE];
 	char pass[ESPNET_PASS_SIZE];
-	uint32_t t0;
-	const uint8_t *bssid;
-	int32_t chan;
 	const char *psk;
+	unsigned passlen;
 
 	if (plen < ESPNET_WIFI_CONN_SIZE || req_n < ESPNET_REQ_HDR + ESPNET_WIFI_CONN_SIZE)
 		return rsp_err(rsp, ESPNET_CMD_WIFI_CONNECT, seq, ESPNET_ERR_EMSGSIZE);
@@ -284,49 +268,27 @@ static uint16_t do_wconnect(const uint8_t *req, uint16_t req_n, uint8_t *rsp)
 	memset(pass, 0, sizeof(pass));
 	memcpy(ssid, req + ESPNET_REQ_HDR, ESPNET_SSID_SIZE - 1);
 	memcpy(pass, req + ESPNET_REQ_HDR + ESPNET_SSID_SIZE, ESPNET_PASS_SIZE - 1);
+	passlen = 0;
+	while (pass[passlen] && passlen < ESPNET_PASS_SIZE - 1)
+		passlen++;
 	WiFi.persistent(true);
 	WiFi.setAutoReconnect(true);
 	s_hold_disc = 0;
 	s_pause_sta = 0;
-	bssid = 0;
-	chan = 0;
-	psk = pass[0] ? pass : 0;
-	(void)wifi_pick_scan(ssid, &bssid, &chan);
+	psk = passlen ? pass : 0;
+	/* No channel/BSSID lock: a stale scan lock failed here while
+	 * WiFi.begin() on boot (NVS, no BSSID) joined the same AP.
+	 * No join wait: the UART reply must leave before DHCP. */
 #if defined(ARDUINO_ARCH_ESP8266)
 	wifi_8266_radio();
-	WiFi.mode(WIFI_OFF);
-	delay(100);
 	WiFi.mode(WIFI_STA);
-	delay(200);
 #else
 	WiFi.mode(WIFI_STA);
 	WiFi.disconnect(false);
-	delay(300);
-	/* AT-Firmware NVS can leave a static 0.0.0.0 lease; force DHCP. */
 	WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
 #endif
-	if (chan > 0 && bssid)
-		WiFi.begin(ssid, psk, chan, bssid);
-	else
-		WiFi.begin(ssid, psk);
-	t0 = millis();
-	while ((millis() - t0) < (uint32_t)ESPNET_WIFI_JOIN_MS) {
-		if (WiFi.status() == WL_CONNECTED && wifi_has_ip())
-			break;
-		delay(50);
-		yield();
-	}
-	if (WiFi.status() != WL_CONNECTED || !wifi_has_ip()) {
-		{
-			IPAddress lip = WiFi.localIP();
-			slog("WCON fail ssid='%s' st=%d ip=%u.%u.%u.%u ch=%ld", ssid,
-			     (int)WiFi.status(),
-			     (unsigned)lip[0], (unsigned)lip[1],
-			     (unsigned)lip[2], (unsigned)lip[3], (long)chan);
-		}
-		return rsp_err(rsp, ESPNET_CMD_WIFI_CONNECT, seq, ESPNET_ERR_HOSTUNREACH);
-	}
-	slog("WCON ok ssid='%s'", ssid);
+	WiFi.begin(ssid, psk);
+	slog("WCON start ssid='%s' passlen=%u", ssid, passlen);
 	return rsp_hdr(rsp, ESPNET_CMD_WIFI_CONNECT, ESPNET_SOCK_NONE, 0, seq, 0, 0);
 }
 

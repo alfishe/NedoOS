@@ -15,7 +15,7 @@
  */
 
 #define ESPNET_VER_MAJOR 1
-#define ESPNET_VER_MINOR 26
+#define ESPNET_VER_MINOR 27
 
 #define ESPNET_SOF 0xA5
 
@@ -135,7 +135,9 @@
 #define ESPNET_WRITE_WAIT_MS 3000
 /* hostByName: ESP32 default is 5s and often NXDOMAIN/timeout on slow DNS. */
 #define ESPNET_DNS_MS 25000
-/* STA join + DHCP. Must stay below host ESPNET_SOF_TICKS_LONG (~40s). */
+/* STA join is asynchronous. WIFI_CONNECT only starts it and ACKs;
+ * the host polls WIFI_STATUS. A 35s block held the UART, the kernel
+ * reported INTR 4, and SCAN's disconnect left STA down until power-on. */
 #define ESPNET_WIFI_JOIN_MS 35000
 #define ESPNET_SCAN_MAX 24
 

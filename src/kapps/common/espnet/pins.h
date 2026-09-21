@@ -17,8 +17,8 @@
  *   Arduino board "LOLIN D1 mini" and others        -> ESP-AT, Serial.swap()
  */
 
-//#define ESPNET_BOARD_ZXWIFI
-#define ESPNET_BOARD_D1MINI
+#define ESPNET_BOARD_ZXWIFI
+//#define ESPNET_BOARD_D1MINI
 
 
 

@@ -405,12 +405,19 @@ espk_wifiscan
         jp esp_wifi_scan
 espk_wificonn
         call espk_mapde
+        ; DE=user ssid[33]+pass[65]. ldir is HL->DE: swap so we do not
+        ; wipe the caller's buffer and then CONNECT with an empty SSID
+        ; (firmware disconnects STA, begin("") can wedge UART until power).
         ld hl,esp_wifi_pay
+        ex de,hl
         ld bc,ESPNET_WIFI_CONN_SIZE
         ldir
-        ld hl,esp_wifi_pay
-        ld de,esp_wifi_pay+ESPNET_SSID_SIZE
-        jp esp_wifi_connect
+        ld a,ESPNET_CMD_WIFI_CONNECT
+        ld c,ESPNET_SOCK_NONE
+        ld b,0
+        ld de,esp_wifi_pay
+        ld hl,ESPNET_WIFI_CONN_SIZE
+        jp esp_xfer
 espk_wifidisc
         jp esp_wifi_disc
 

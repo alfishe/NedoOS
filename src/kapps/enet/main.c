@@ -104,6 +104,7 @@ static unsigned char g_scr;
 static unsigned char g_info_ok;
 static unsigned char g_wifi_ok;
 static unsigned char g_port_f;
+static unsigned char g_watch;
 static unsigned int g_edit_type;
 static unsigned int g_edit_div;
 
@@ -288,21 +289,31 @@ static void apply_uart(void)
 	settle();
 }
 
-static void fetch_net(void)
+static unsigned int g_fetch_err;
+
+static unsigned char fetch_quiet(void)
 {
 	unsigned int r;
 
 	g_info_ok = 0;
 	g_wifi_ok = 0;
+	g_fetch_err = 0;
 	r = OS_GETINFO(g_info);
 	if (!NET_OK(r)) {
-		set_msg_err(r);
-		return;
+		g_fetch_err = r;
+		return 0;
 	}
 	g_info_ok = 1;
 	r = OS_WIFISTATUS(g_wst);
 	if (NET_OK(r))
 		g_wifi_ok = 1;
+	return 1;
+}
+
+static void fetch_net(void)
+{
+	if (!fetch_quiet())
+		set_msg_err(g_fetch_err);
 }
 
 static void draw_home(void)
@@ -549,6 +560,30 @@ static void redraw(void)
 		draw_home();
 }
 
+static void watch_net(void)
+{
+	static unsigned char pace;
+	unsigned char ip0, flags;
+
+	if (!g_watch || g_scr != SCR_HOME)
+		return;
+	pace++;
+	if (pace & 15)
+		return;
+	ip0 = g_wst[ESPNET_WSTAT_IP];
+	flags = g_wst[ESPNET_WSTAT_FLAGS];
+	if (!fetch_quiet())
+		return;
+	if (g_wifi_ok && (g_wst[ESPNET_WSTAT_FLAGS] & ESPNET_WSTAT_F_HASIP)) {
+		g_watch = 0;
+		set_msg("Connected.");
+		redraw();
+		return;
+	}
+	if (g_wst[ESPNET_WSTAT_IP] != ip0 || g_wst[ESPNET_WSTAT_FLAGS] != flags)
+		redraw();
+}
+
 static void do_refresh(void)
 {
 	set_msg("Query firmware...");
@@ -653,7 +688,7 @@ static unsigned char edit_line(const char *title, unsigned char *dst, unsigned i
 				for (i = curs; i < n; i++)
 					dst[i] = dst[i + 1];
 				n--;
-			} else if (k >= 32 && k < 127 && n + 1 < maxn) {
+			} else if (k >= 32 && k < KEY_LEFT && n + 1 < maxn) {
 				for (i = n; i > curs; i--)
 					dst[i] = dst[i - 1];
 				dst[curs] = (unsigned char)k;
@@ -670,6 +705,7 @@ static void do_scan(void)
 {
 	unsigned int n;
 
+	g_watch = 0;
 	set_msg("Scanning...");
 	draw_status();
 	n = OS_WIFISCAN(g_scan);
@@ -713,11 +749,17 @@ static void do_connect_sel(void)
 		redraw();
 		return;
 	}
-	sprintf((char *)g_msg, "Connecting to %.32s ...", g_ssid);
+	sprintf((char *)g_msg, "Connecting to %.24s  (%u chars)", g_ssid,
+		(unsigned int)strlen((char *)g_pass));
 	draw_status();
 	memset(g_wpay, 0, ESPNET_WIFI_CONN_SIZE);
-	strncpy((char *)g_wpay, (char *)g_ssid, ESPNET_SSID_SIZE - 1);
-	strncpy((char *)(g_wpay + ESPNET_SSID_SIZE), (char *)g_pass, ESPNET_PASS_SIZE - 1);
+	{
+		unsigned int i;
+		for (i = 0; i < ESPNET_SSID_SIZE - 1 && g_ssid[i]; i++)
+			g_wpay[i] = g_ssid[i];
+		for (i = 0; i < ESPNET_PASS_SIZE - 1 && g_pass[i]; i++)
+			g_wpay[ESPNET_SSID_SIZE + i] = g_pass[i];
+	}
 	r = OS_WIFICONNECT(g_wpay);
 	if (!NET_OK(r)) {
 		set_msg_err(r);
@@ -726,11 +768,10 @@ static void do_connect_sel(void)
 		redraw();
 		return;
 	}
-	fetch_net();
-	if (g_wifi_ok && (g_wst[ESPNET_WSTAT_FLAGS] & ESPNET_WSTAT_F_HASIP))
-		set_msg("Connected.");
-	else
-		set_msg("Associated, waiting for DHCP...");
+	/* Join is already running on the ESP. Keep reading status from the
+	 * main loop so DHCP can fill IP without another key. */
+	g_watch = 1;
+	set_msg("Waiting for DHCP...");
 	g_scr = SCR_HOME;
 	redraw();
 }
@@ -741,6 +782,7 @@ static void do_disc(void)
 
 	set_msg("Disconnecting...");
 	draw_status();
+	g_watch = 0;
 	r = OS_WIFIDISC();
 	if (!NET_OK(r))
 		set_msg_err(r);
@@ -857,6 +899,7 @@ C_task main(void)
 	g_msg[0] = 0;
 	g_scr = SCR_HOME;
 	g_port_f = 0;
+	g_watch = 0;
 
 	loadEspConfig();
 	OS_GETUART(g_cfg);
@@ -872,6 +915,7 @@ C_task main(void)
 
 	for (;;) {
 		YIELD();
+		watch_net();
 		key = _low_level_get();
 		if (key == 0)
 			continue;
