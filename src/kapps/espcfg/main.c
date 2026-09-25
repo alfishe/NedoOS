@@ -283,6 +283,7 @@ static void print_wifi(unsigned char *p)
 {
 	char *ssid;
 	unsigned char st;
+	unsigned char dns[4];
 
 	kv_begin("fw");
 	printf("%u.%u",
@@ -303,6 +304,12 @@ static void print_wifi(unsigned char *p)
 	       (unsigned int)p[ESPNET_INFO_IP + 1],
 	       (unsigned int)p[ESPNET_INFO_IP + 2],
 	       (unsigned int)p[ESPNET_INFO_IP + 3]);
+	putchar(' ');
+	OS_GETDNS(dns);
+	kv_begin("DNS");
+	printf("%u.%u.%u.%u",
+	       (unsigned int)dns[0], (unsigned int)dns[1],
+	       (unsigned int)dns[2], (unsigned int)dns[3]);
 	sgr(SGR_DIM);
 	printf("\r\n");
 	ssid = (char *)(p + ESPNET_INFO_SSID);

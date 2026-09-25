@@ -245,8 +245,21 @@ static void draw_status(void)
 	OS_SETCOLOR(COL_STAT);
 	printf("%s", g_msg);
 	OS_SETXY(ST_X, ST_Y + 2);
-	printf("COM %u  %s  %lu baud  div %u",
-	       comType, com_name(comType), com_baud(divider), divider);
+	{
+		unsigned int t;
+		unsigned int d;
+
+		/* Port screen shows the choice now. comType changes only after init. */
+		if (g_scr == SCR_PORT) {
+			t = g_edit_type;
+			d = g_edit_div;
+		} else {
+			t = comType;
+			d = divider;
+		}
+		printf("COM %u  %s  %lu baud  div %u",
+		       t, com_name(t), com_baud(d), d);
+	}
 }
 
 static void put_le16(unsigned char *p, unsigned int v)
@@ -508,11 +521,11 @@ static void draw_scan(void)
 {
 	clear_win(WIN_X, WIN_Y, WIN_W, WIN_H, COL_LIST);
 	paint_row(WIN_X, WIN_Y, WIN_W, COL_LIST);
-	printf("Access points  %u   Enter=connect  Esc=back", g_scan_n);
+	printf("Access points  %u   Enter=connect  BS=back", g_scan_n);
 
 	if (g_scan_n == 0) {
 		paint_row(WIN_X, WIN_Y + 2, WIN_W, COL_LIST);
-		printf("No APs. Esc=back");
+		printf("No APs. BS=back");
 		draw_status();
 		return;
 	}
@@ -652,7 +665,7 @@ static unsigned char edit_line(const char *title, unsigned char *dst, unsigned i
 	OS_SETCOLOR(COL_STAT);
 	printf("%.42s", title);
 	OS_SETXY(DLG_X + 1, DLG_Y + 4);
-	printf("Enter=OK   Esc=cancel");
+	printf("Enter=OK   BS=cancel");
 
 	for (;;) {
 		if (curs < vis)
@@ -667,11 +680,18 @@ static unsigned char edit_line(const char *title, unsigned char *dst, unsigned i
 				continue;
 			if (k == KEY_ENTER)
 				return 1;
-			if (k == KEY_ESC) {
-				dst[0] = 0;
-				return 0;
-			}
-			if (k == KEY_LEFT && curs)
+			if (k == 8 || k == 127) {
+				if (n == 0) {
+					dst[0] = 0;
+					return 0;
+				}
+				if (curs) {
+					for (i = curs - 1; i < n; i++)
+						dst[i] = dst[i + 1];
+					n--;
+					curs--;
+				}
+			} else if (k == KEY_LEFT && curs)
 				curs--;
 			else if (k == KEY_RIGHT && curs < n)
 				curs++;
@@ -679,12 +699,7 @@ static unsigned char edit_line(const char *title, unsigned char *dst, unsigned i
 				curs = 0;
 			else if (k == KEY_END)
 				curs = n;
-			else if ((k == 8 || k == 127) && curs) {
-				for (i = curs - 1; i < n; i++)
-					dst[i] = dst[i + 1];
-				n--;
-				curs--;
-			} else if (k == KEY_DEL && curs < n) {
+			else if (k == KEY_DEL && curs < n) {
 				for (i = curs; i < n; i++)
 					dst[i] = dst[i + 1];
 				n--;
@@ -724,28 +739,32 @@ static void do_scan(void)
 	redraw();
 }
 
-static void do_connect_sel(void)
+static void refresh_link(const char *okmsg)
 {
-	unsigned char *rec;
-	unsigned int r;
+	fetch_net();
+	if (g_wifi_ok && (g_wst[ESPNET_WSTAT_FLAGS] & ESPNET_WSTAT_F_HASIP)) {
+		g_watch = 0;
+		set_msg(okmsg);
+	} else {
+		g_watch = 1;
+		set_msg("Link down");
+	}
+}
 
-	if (g_sel >= g_scan_n)
-		return;
-	rec = g_scan + g_sel * ESPNET_SCAN_REC;
-	memset(g_ssid, 0, ESPNET_SSID_SIZE);
-	memset(g_pass, 0, ESPNET_PASS_SIZE);
-	if (rec[0] == 0) {
-		if (!edit_line("SSID", g_ssid, ESPNET_SSID_SIZE, 0) || g_ssid[0] == 0) {
-			set_msg("Cancelled.");
-			redraw();
-			return;
-		}
-	} else
-		strncpy((char *)g_ssid, (char *)rec, ESPNET_SSID_SIZE - 1);
+static void scan_back(void)
+{
+	g_scr = SCR_HOME;
+	refresh_link("Ready.");
+	redraw();
+}
+
+static void do_connect_go(void)
+{
+	unsigned int r;
 
 	sprintf((char *)g_msg, "Password  %.20s  (empty=open)", g_ssid);
 	if (!edit_line((char *)g_msg, g_pass, ESPNET_PASS_SIZE, 1)) {
-		set_msg("Cancelled.");
+		refresh_link("Cancelled.");
 		redraw();
 		return;
 	}
@@ -774,6 +793,38 @@ static void do_connect_sel(void)
 	set_msg("Waiting for DHCP...");
 	g_scr = SCR_HOME;
 	redraw();
+}
+
+static void do_connect_sel(void)
+{
+	unsigned char *rec;
+
+	if (g_sel >= g_scan_n)
+		return;
+	rec = g_scan + g_sel * ESPNET_SCAN_REC;
+	memset(g_ssid, 0, ESPNET_SSID_SIZE);
+	memset(g_pass, 0, ESPNET_PASS_SIZE);
+	if (rec[0] == 0) {
+		if (!edit_line("SSID", g_ssid, ESPNET_SSID_SIZE, 0) || g_ssid[0] == 0) {
+			refresh_link("Cancelled.");
+			redraw();
+			return;
+		}
+	} else
+		strncpy((char *)g_ssid, (char *)rec, ESPNET_SSID_SIZE - 1);
+	do_connect_go();
+}
+
+static void do_connect_manual(void)
+{
+	memset(g_ssid, 0, ESPNET_SSID_SIZE);
+	memset(g_pass, 0, ESPNET_PASS_SIZE);
+	if (!edit_line("SSID", g_ssid, ESPNET_SSID_SIZE, 0) || g_ssid[0] == 0) {
+		refresh_link("Cancelled.");
+		redraw();
+		return;
+	}
+	do_connect_go();
 }
 
 static void do_disc(void)
@@ -867,6 +918,8 @@ static void do_port_key(unsigned int key)
 	} else if (key == KEY_ENTER) {
 		comType = g_edit_type;
 		divider = g_edit_div;
+		set_msg("Init UART...");
+		draw_status();
 		apply_uart();
 		if (!saveEspConfig())
 			set_msg("espcom.ini write error");
@@ -885,6 +938,7 @@ static void do_port_key(unsigned int key)
 		return;
 	}
 	draw_port_fields();
+	draw_status();
 }
 
 C_task main(void)
@@ -924,14 +978,13 @@ C_task main(void)
 			continue;
 		}
 		if (g_scr == SCR_SCAN) {
-			if (key == KEY_ESC) {
-				g_scr = SCR_HOME;
-				set_msg("Ready.");
-				redraw();
-			} else if (key == KEY_UP)
+			if (key == 8 || key == 127)
+				scan_back();
+			else if (key == KEY_UP)
 				scan_move(0);
 			else if (key == KEY_DOWN)
-				scan_move(1); else if (key == KEY_ENTER)
+				scan_move(1);
+			else if (key == KEY_ENTER)
 				do_connect_sel();
 			continue;
 		}
@@ -939,8 +992,10 @@ C_task main(void)
 			break;
 		if (key == 'r' || key == 'R')
 			do_refresh();
-		else if (key == 's' || key == 'S' || key == 'c' || key == 'C')
+		else if (key == 's' || key == 'S')
 			do_scan();
+		else if (key == 'c' || key == 'C')
+			do_connect_manual();
 		else if (key == 'd' || key == 'D')
 			do_disc();
 		else if (key == 'p' || key == 'P') {
