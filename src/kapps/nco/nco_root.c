@@ -433,9 +433,150 @@ void m_run_action_edit(PanelState *panel)
 	m_run_restore_ui(panel);
 }
 
+/* dmm.com keeps a short path buffer. NV feeds it drive:/8.3/dirs/8.3file.
+ * Other nv.ext tools keep the bare 8.3 file name. */
+static char s_dmm_path[80];
+static char s_dmm_comp[64];
+
+static void run_path_push(char *dst, unsigned int *n, unsigned int max, const char *s)
+{
+	unsigned int i;
+
+	i = 0u;
+	while (s[i] != 0 && *n + 1u < max)
+	{
+		dst[*n] = s[i];
+		(*n)++;
+		i++;
+	}
+	dst[*n] = 0;
+}
+
+static void run_path_push_sfn(char *dst, unsigned int *n, unsigned int max, const unsigned char *sfn)
+{
+	unsigned int i;
+	unsigned char c;
+
+	for (i = 0u; i < 12u; i++)
+	{
+		c = sfn[i];
+		if (c == 0 || c == ' ')
+			break;
+		if (*n + 1u >= max)
+			break;
+		dst[*n] = (char)c;
+		(*n)++;
+	}
+	dst[*n] = 0;
+}
+
+static unsigned char run_handler_is_dmm(const char *handler)
+{
+	static const char name[] = "dmm.com";
+	const char *s;
+	const char *base;
+	unsigned char i;
+	unsigned char c;
+
+	s = handler;
+	while (*s == ' ')
+		s++;
+	base = s;
+	while (*s != 0 && *s != ' ')
+	{
+		if (*s == '/' || *s == '\\')
+			base = s + 1;
+		s++;
+	}
+	for (i = 0u; name[i] != 0; i++)
+	{
+		c = (unsigned char)base[i];
+		if (c >= 'A' && c <= 'Z')
+			c = (unsigned char)(c - 'A' + 'a');
+		if (c != (unsigned char)name[i])
+			return 0u;
+	}
+	c = (unsigned char)base[i];
+	return (unsigned char)(c == 0 || c == ' ');
+}
+
+/* Parent path is already in s_dmm_path. Resolve one LFN component to 8.3. */
+static void run_dmm_push_dir(unsigned int *n)
+{
+	if (m_panel_chdir_only(s_dmm_path) &&
+		OS_GETFILINFO((unsigned char *)s_dmm_comp, (FILINFO *)&g_panel_fi) == 0u &&
+		g_panel_fi.fname[0] != 0)
+		run_path_push_sfn(s_dmm_path, n, sizeof(s_dmm_path), g_panel_fi.fname);
+	else
+		run_path_push(s_dmm_path, n, sizeof(s_dmm_path), s_dmm_comp);
+}
+
+static void run_build_dmm_arg(PanelState *panel)
+{
+	const char *path;
+	unsigned int i;
+	unsigned int n;
+	unsigned int a;
+	unsigned int k;
+	unsigned char ch;
+
+	path = panel->current_path;
+	n = 0u;
+	s_dmm_path[0] = 0;
+	i = 0u;
+	ch = (unsigned char)path[0];
+	if (((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')) && path[1] == ':')
+	{
+		s_dmm_path[n++] = (char)ch;
+		s_dmm_path[n++] = ':';
+		s_dmm_path[n] = 0;
+		i = 2u;
+	}
+	if (path[i] == '/')
+	{
+		s_dmm_path[n++] = '/';
+		s_dmm_path[n] = 0;
+		i++;
+	}
+	while (path[i] != 0)
+	{
+		a = i;
+		while (path[i] != 0 && path[i] != '/')
+			i++;
+		if (i > a)
+		{
+			k = 0u;
+			while (a < i && k < 63u)
+				s_dmm_comp[k++] = path[a++];
+			s_dmm_comp[k] = 0;
+			run_dmm_push_dir(&n);
+		}
+		if (path[i] == '/')
+		{
+			if (n + 1u < sizeof(s_dmm_path))
+			{
+				s_dmm_path[n++] = '/';
+				s_dmm_path[n] = 0;
+			}
+			i++;
+		}
+	}
+	if (n == 0u || s_dmm_path[n - 1u] != '/')
+	{
+		if (n + 1u < sizeof(s_dmm_path))
+		{
+			s_dmm_path[n++] = '/';
+			s_dmm_path[n] = 0;
+		}
+	}
+	run_path_push(s_dmm_path, &n, sizeof(s_dmm_path), g_run_name);
+	(void)m_panel_chdir_only(panel->current_path);
+}
+
 void m_run_action_selected(PanelState *panel)
 {
 	const char *ext;
+	const char *arg;
 	unsigned char is_dir;
 
 	if (!run_get_file(panel, &is_dir) || is_dir)
@@ -456,7 +597,13 @@ void m_run_action_selected(PanelState *panel)
 	}
 	else if (mb_nvext_find_handler(ext))
 	{
-		(void)run_cmd_direct(panel, g_run_handler, g_run_name, 1u);
+		arg = g_run_name;
+		if (run_handler_is_dmm(g_run_handler))
+		{
+			run_build_dmm_arg(panel);
+			arg = s_dmm_path;
+		}
+		(void)run_cmd_direct(panel, g_run_handler, arg, 1u);
 		m_run_restore_ui(panel);
 	}
 	else if (run_ext_cmp(ext, "com") == 0 || run_ext_cmp(ext, "bin") == 0)

@@ -269,15 +269,18 @@ static void ini_apply_key(const char *key, const char *val)
 		g_ini_cmd_flag = ini_parse_cmd_flag(val);
 }
 
+extern char g_ini_save_buf[NC_INI_BUF_SIZE];
+
 void nc_ini_load(void)
 {
 	FILE *fp;
 	int n;
 	unsigned int i;
-	char buf[NC_INI_BUF_SIZE];
-	char line[64];
-	char key[32];
-	char val[64];
+	unsigned int j;
+	char *line;
+	char *key;
+	char *val;
+	char *eq;
 
 	g_ini_hide_drives[0] = 0;
 	g_ini_viewer[0] = 0;
@@ -302,7 +305,8 @@ void nc_ini_load(void)
 		return;
 	}
 
-	n = (int)OS_READHANDLE((unsigned char *)buf, fp, NC_INI_BUF_SIZE - 1u);
+	/* g_ini_save_buf, not a 1 KB local: CSTACK is only 250 bytes. */
+	n = (int)OS_READHANDLE((unsigned char *)g_ini_save_buf, fp, NC_INI_BUF_SIZE - 1u);
 	OS_CLOSEHANDLE(fp);
 	if (n <= 0)
 	{
@@ -311,22 +315,23 @@ void nc_ini_load(void)
 		return;
 	}
 
-	buf[n] = 0;
+	g_ini_save_buf[n] = 0;
 	i = 0;
-	while (buf[i] != 0)
+	while (g_ini_save_buf[i] != 0)
 	{
-		char *eq;
-		unsigned int j;
-		unsigned int k;
-
-		j = 0;
-		while (buf[i] != 0 && buf[i] != '\r' && buf[i] != '\n' && j < sizeof(line) - 1u)
-			line[j++] = buf[i++];
-		line[j] = 0;
-		if (buf[i] == '\r')
+		line = g_ini_save_buf + i;
+		while (g_ini_save_buf[i] != 0 && g_ini_save_buf[i] != '\r' && g_ini_save_buf[i] != '\n')
 			i++;
-		if (buf[i] == '\n')
+		if (g_ini_save_buf[i] == '\r')
+		{
+			g_ini_save_buf[i] = 0;
 			i++;
+		}
+		if (g_ini_save_buf[i] == '\n')
+		{
+			g_ini_save_buf[i] = 0;
+			i++;
+		}
 
 		ini_rtrim(line);
 		j = 0;
@@ -341,21 +346,11 @@ void nc_ini_load(void)
 		if (*eq != '=')
 			continue;
 		*eq = 0;
-		strncpy(key, line + j, sizeof(key) - 1u);
-		key[sizeof(key) - 1u] = 0;
+		key = line + j;
 		ini_rtrim(key);
-		strncpy(val, eq + 1, sizeof(val) - 1u);
-		val[sizeof(val) - 1u] = 0;
-		j = 0;
-		while (val[j] == ' ' || val[j] == '\t')
-			j++;
-		if (j > 0)
-		{
-			k = 0;
-			while (val[j] != 0 && k < sizeof(val) - 1u)
-				val[k++] = val[j++];
-			val[k] = 0;
-		}
+		val = eq + 1;
+		while (*val == ' ' || *val == '\t')
+			val++;
 		ini_rtrim(val);
 		ini_apply_key(key, val);
 	}
