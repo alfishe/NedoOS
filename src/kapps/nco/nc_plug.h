@@ -281,6 +281,10 @@ extern const char g_ui_move_to[];
 extern const char g_ui_move_bad_dest[];
 extern const char g_ui_move_fail[];
 extern const char g_ui_moving[];
+extern const char g_ui_select[];
+extern const char g_ui_deselect[];
+extern const char g_ui_mask[];
+extern char g_mark_mask[32];
 
 extern char g_run_saved_cwd[64];
 extern char g_menu_app_line[24];

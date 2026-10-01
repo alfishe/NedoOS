@@ -272,6 +272,12 @@ C_task main(void)
 			else
 				mb_run_selected_file();
 		}
+		else if (!g_cmd_active && mb_panel_nav_key(key))
+		{
+			/* Mark keys (+ - * Ext+A) before cmdline steals printable chars. */
+			mb_fill_bottom_snap(&g_bottom_snap);
+			mb_draw_bottom_info(&g_bottom_snap);
+		}
 		else if (m_cmd_handle_key(key, active))
 		{
 			m_cmd_fill_bottom_snap();

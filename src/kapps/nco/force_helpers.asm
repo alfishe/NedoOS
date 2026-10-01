@@ -84,6 +84,11 @@
 	EXTERN g_ui_folder_pfx
 	EXTERN m_panel_chdir_only
 	EXTERN m_redraw_panels_full
+	EXTERN mb_ui_dialog_input
+	EXTERN g_ui_select
+	EXTERN g_ui_deselect
+	EXTERN g_ui_mask
+	EXTERN g_mark_mask
 	EXTERN OS_GETFILESIZE
 	EXTERN OS_GETFILETIME
 	EXTERN OS_SEEKHANDLE
@@ -188,6 +193,11 @@ force_helpers:
 	ld	hl,g_ui_folder_pfx
 	ld	hl,m_panel_chdir_only
 	ld	hl,m_redraw_panels_full
+	ld	hl,mb_ui_dialog_input
+	ld	hl,g_ui_select
+	ld	hl,g_ui_deselect
+	ld	hl,g_ui_mask
+	ld	hl,g_mark_mask
 	ld	hl,OS_GETFILESIZE
 	ld	hl,OS_GETFILETIME
 	ld	hl,OS_SEEKHANDLE

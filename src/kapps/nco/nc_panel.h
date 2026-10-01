@@ -67,7 +67,10 @@
 #define NC_KEY_F8 0xb8u
 #define NC_KEY_F9 0xb9u
 #define NC_KEY_MARK_INS 29u
-#define NC_KEY_MARK_STAR 42u
+#define NC_KEY_MARK_EXTA 1u  /* Ext+A / gray * : invert marks (nv) */
+#define NC_KEY_MARK_STAR 42u /* ASCII '*' : same invert */
+#define NC_KEY_MARK_PLUS 43u /* ssK / gray + : select by mask */
+#define NC_KEY_MARK_MINUS 45u /* ssJ / gray - : deselect by mask */
 #define NC_KEY_MOVE 94u
 
 #endif

@@ -18,9 +18,10 @@ OVL_SYMS := bdosputs printf strncpy strncat ?STRCMP_L11 ?STRCHR_L11 \
 	mb_read_panel_dir_at mb_draw_panel mb_panels_remap_bank_window mb_panels_reload_both \
 	mb_panels_paint_both mb_panels_draw_all mb_switch_file_page mb_panel_menu_apply \
 	mb_action_view mb_action_edit mb_run_selected_file mb_nvext_load mb_nvext_find_handler \
+	mb_ui_dialog_input \
 	panel_files_scroll_up panel_files_scroll_down \
 	g_cmd_active g_cmd_len g_cmd_cursor g_cmd_line g_nvext_size g_ncext_off g_ncext_size \
-	g_run_handler g_nvext_io g_ui_nv_ext
+	g_run_handler g_nvext_io g_ui_nv_ext g_ui_select g_ui_deselect g_ui_mask g_mark_mask
 # --------------------------------------------------------------------
 
 OUTDIR  := bin

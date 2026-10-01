@@ -133,6 +133,10 @@ const char g_ui_move_to[] = "Move to:";
 const char g_ui_move_bad_dest[] = "Destination path not found";
 const char g_ui_move_fail[] = "Cannot move to destination";
 const char g_ui_moving[] = "Moving";
+const char g_ui_select[] = "Select";
+const char g_ui_deselect[] = "Deselect";
+const char g_ui_mask[] = "Mask:";
+char g_mark_mask[32] = "*.*";
 
 char g_run_saved_cwd[64];
 char g_menu_app_line[24];

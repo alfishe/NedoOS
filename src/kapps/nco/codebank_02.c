@@ -3,6 +3,7 @@
 
 #include "nc_inc.h"
 #include "nc_plug.h"
+#include "mb_req.h"
 
 /*
  * Panel data is always mapped in the C000 window.  This overlay contains no
@@ -919,6 +920,228 @@ static void panel_mark_toggle(PanelState *p, unsigned char start_x)
 	draw_panel_footer(p, start_x);
 }
 
+/* DOS-style * / ? match, case-insensitive; no recursion (tiny stack). */
+static unsigned char panel_match_mask(const char *name, const char *mask)
+{
+	const char *star_m = 0;
+	const char *star_n = 0;
+	unsigned char nc, mc;
+
+	for (;;)
+	{
+		mc = panel_fold_char((unsigned char)*mask);
+		if (mc == '*')
+		{
+			while (*mask == '*')
+				mask++;
+			if (*mask == 0)
+				return 1u;
+			star_m = mask;
+			star_n = name;
+			continue;
+		}
+		nc = panel_fold_char((unsigned char)*name);
+		if (nc == 0u)
+		{
+			while (*mask == '*')
+				mask++;
+			return (unsigned char)(*mask == 0);
+		}
+		if (mc == 0u)
+		{
+			if (star_m != 0)
+			{
+				mask = star_m;
+				star_n++;
+				name = star_n;
+				continue;
+			}
+			return 0u;
+		}
+		if (mc == '?' || mc == nc)
+		{
+			name++;
+			mask++;
+			continue;
+		}
+		if (star_m != 0)
+		{
+			mask = star_m;
+			star_n++;
+			name = star_n;
+			continue;
+		}
+		return 0u;
+	}
+}
+
+static void panel_mark_set_phys(PanelState *p, unsigned char *b, unsigned int phys,
+								unsigned char want_on)
+{
+	unsigned char kind, on;
+	unsigned long fsize;
+
+	kind = b[PANEL_META_OFF_KIND + phys];
+	if (kind == PANEL_KIND_DOTDOT)
+		return;
+	on = b[PANEL_META_OFF_MARK + phys];
+	if (on == want_on)
+		return;
+	b[PANEL_META_OFF_MARK + phys] = want_on;
+	fsize = *(unsigned long *)(b + PANEL_META_OFF_SIZE + phys * 4u);
+	if (want_on)
+	{
+		p->marked_count++;
+		if (kind == PANEL_KIND_FILE)
+			p->marked_bytes += fsize;
+	}
+	else
+	{
+		if (p->marked_count != 0u)
+			p->marked_count--;
+		if (kind == PANEL_KIND_FILE)
+		{
+			if (p->marked_bytes >= fsize)
+				p->marked_bytes -= fsize;
+			else
+				p->marked_bytes = 0UL;
+		}
+	}
+}
+
+static void panel_mark_invert(PanelState *p, unsigned char start_x)
+{
+	unsigned char *b;
+	unsigned int vis, phys;
+
+	if (p->file_count == 0u)
+		return;
+	panel_meta_map(p);
+	b = (unsigned char *)BANK_WINDOW_ADDRESS;
+	for (vis = 0u; vis < p->file_count; vis++)
+	{
+		phys = panel_meta_idx_get(b, vis);
+		if (b[PANEL_META_OFF_KIND + phys] == PANEL_KIND_DOTDOT)
+			continue;
+		panel_mark_set_phys(p, b, phys, (unsigned char)(b[PANEL_META_OFF_MARK + phys] ? 0u : 1u));
+	}
+	r_draw_panel(p, start_x, PANEL_VIEW_ROWS);
+	draw_panel_footer(p, start_x);
+	r_fill_bottom_snap(&g_bottom_snap);
+}
+
+/* After +/- mask dialog: like invert ? full redraw of active panel only.
+ * Cover the centered dialog hole on the other panel (file rows only). */
+static void panel_mark_restore_ui(PanelState *p, unsigned char start_x)
+{
+	unsigned char y;
+	unsigned char row;
+	unsigned char other_x;
+	PanelState *other;
+
+	r_draw_panel(p, start_x, PANEL_VIEW_ROWS);
+	draw_panel_footer(p, start_x);
+
+	other = (p == &left_panel) ? &right_panel : &left_panel;
+	other_x = (start_x == 0u) ? 40u : 0u;
+	for (y = UI_DLG_INPUT_Y; y <= (unsigned char)(UI_DLG_INPUT_Y + UI_DLG_INPUT_H); y++)
+	{
+		if (y >= 3u && y < (unsigned char)(3u + PANEL_VIEW_ROWS))
+		{
+			row = (unsigned char)(y - 3u);
+			panel_draw_vis_row(other, other_x, row,
+							   other->scroll_offset + row);
+		}
+		OS_SETCOLOR(NC_COLOR_PANEL);
+		OS_SETXY(0u, y);
+		putchar(186);
+		OS_SETXY(39u, y);
+		putchar(186);
+		OS_SETXY(40u, y);
+		putchar(186);
+		OS_SETXY(79u, y);
+		putchar(186);
+	}
+	r_fill_bottom_snap(&g_bottom_snap);
+}
+
+static void panel_mark_by_mask(PanelState *p, unsigned char start_x, unsigned char want_on)
+{
+	unsigned char *b;
+	unsigned int vis, phys;
+	unsigned char page;
+	unsigned char kind;
+	fileInfo *fi;
+	const char *title;
+
+	title = want_on ? g_ui_select : g_ui_deselect;
+	strncpy(nc_set.temp_path, g_mark_mask, sizeof(nc_set.temp_path) - 1u);
+	nc_set.temp_path[sizeof(nc_set.temp_path) - 1u] = 0;
+	if (mb_ui_dialog_input(title, g_ui_mask) == D_RES_CANCEL)
+	{
+		panel_mark_restore_ui(p, start_x);
+		return;
+	}
+	{
+		unsigned int i, n;
+		n = 0u;
+		while (nc_set.temp_path[n] != 0 &&
+			   (nc_set.temp_path[n] == ' ' || nc_set.temp_path[n] == '\t'))
+			n++;
+		if (n != 0u)
+		{
+			i = 0u;
+			while (nc_set.temp_path[n] != 0 && i < sizeof(nc_set.temp_path) - 1u)
+				nc_set.temp_path[i++] = nc_set.temp_path[n++];
+			nc_set.temp_path[i] = 0;
+		}
+		n = 0u;
+		while (nc_set.temp_path[n] != 0)
+			n++;
+		while (n > 0u &&
+			   (nc_set.temp_path[n - 1u] == ' ' || nc_set.temp_path[n - 1u] == '\t'))
+		{
+			n--;
+			nc_set.temp_path[n] = 0;
+		}
+	}
+	if (nc_set.temp_path[0] == 0)
+	{
+		panel_mark_restore_ui(p, start_x);
+		return;
+	}
+	strncpy(g_mark_mask, nc_set.temp_path, sizeof(g_mark_mask) - 1u);
+	g_mark_mask[sizeof(g_mark_mask) - 1u] = 0;
+
+	if (p->file_count == 0u)
+	{
+		panel_mark_restore_ui(p, start_x);
+		return;
+	}
+	for (vis = 0u; vis < p->file_count; vis++)
+	{
+		panel_meta_map(p);
+		b = (unsigned char *)BANK_WINDOW_ADDRESS;
+		phys = panel_meta_idx_get(b, vis);
+		kind = b[PANEL_META_OFF_KIND + phys];
+		if (kind == PANEL_KIND_DOTDOT)
+			continue;
+		page = (unsigned char)(phys / FILES_PER_PAGE);
+		/* Meta was just mapped at C000 ? always remap the file page before
+		 * reading names, otherwise fi points into sort meta garbage. */
+		panel_file_map(p, page);
+		fi = &((fileInfo *)BANK_WINDOW_ADDRESS)[phys % FILES_PER_PAGE];
+		panel_copy_entry_name(fi, g_lfn_tie_a, 64u);
+		if (!panel_match_mask(g_lfn_tie_a, g_mark_mask) &&
+			!panel_match_mask((const char *)fi->fname, g_mark_mask))
+			continue;
+		panel_meta_map(p);
+		b = (unsigned char *)BANK_WINDOW_ADDRESS;
+		panel_mark_set_phys(p, b, phys, want_on);
+	}
+	panel_mark_restore_ui(p, start_x);
+}
+
 static void panel_nav_redraw(PanelState *p, unsigned char x,
 							 unsigned int old_idx, unsigned int old_scroll)
 {
@@ -1145,9 +1368,24 @@ unsigned char r_panel_nav_key(unsigned char key)
 		panel_enter_dir(p, start_x);
 		return 1u;
 	}
-	if (key == NC_KEY_MARK_INS || key == NC_KEY_MARK_STAR)
+	if (key == NC_KEY_MARK_INS)
 	{
 		panel_mark_toggle(p, start_x);
+		return 1u;
+	}
+	if (key == NC_KEY_MARK_EXTA || key == NC_KEY_MARK_STAR)
+	{
+		panel_mark_invert(p, start_x);
+		return 1u;
+	}
+	if (key == NC_KEY_MARK_PLUS)
+	{
+		panel_mark_by_mask(p, start_x, 1u);
+		return 1u;
+	}
+	if (key == NC_KEY_MARK_MINUS)
+	{
+		panel_mark_by_mask(p, start_x, 0u);
 		return 1u;
 	}
 	return 0u;

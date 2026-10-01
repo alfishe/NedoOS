@@ -46,7 +46,7 @@
   <div class="wrap">
     <header>
       <h1>NC &mdash; Nedo Commander</h1>
-      <p class="meta">Версия <strong>0.7</strong> &middot; программа <code>nc.com</code> &middot; настройки <code>../ini/nc.ini</code> &middot; ассоциации <code>../ini/nc.ext</code></p>
+      <p class="meta">Версия <strong>0.8</strong> &middot; программа <code>nc.com</code> &middot; настройки <code>../ini/nc.ini</code> &middot; ассоциации <code>../ini/nc.ext</code></p>
     </header>
 
     <p><strong>Nedo Commander</strong> &mdash; двухпанельный файловый менеджер для NedoOS. Интерфейс навеян классическим Norton Commander и <strong>nv.com</strong> (Nedovigator): левая и правая панели, строка подсказок, статусная строка с размером и именем файла, часы в правом верхнем углу активной панели.</p>
@@ -81,8 +81,15 @@
     </ul>
     <h3>Запуск программ</h3>
     <p>Цепочка: <code>term.com</code> &rarr; <code>cmd.com</code> &rarr; программа. Режим Cmd в F9: <code>none</code>, <code>/k</code>, <code>/p</code>.</p>
-    <h3>Отметка</h3>
-    <p><kbd>Insert</kbd> или <kbd>*</kbd>. F5, F8 и ^ работают с отмеченными.</p>
+            <h3>Отметка</h3>
+    <p>Как в Norton Commander. Отмеченные имена подсвечены жёлтым (кроме <code>..</code>). F5, F8 и ^ работают с отмеченными.</p>
+    <ul>
+      <li><kbd>Insert</kbd> &mdash; отметить/снять отметку с текущего файла или каталога.</li>
+      <li><kbd>*</kbd> или <kbd>Ext</kbd>+<kbd>A</kbd> &mdash; инвертировать отметки (все видимые имена, кроме <code>..</code>).</li>
+      <li><kbd>+</kbd> &mdash; отметить по маске: диалог ввода с шаблоном DOS (<code>*.*</code>, <code>*.md</code>, <code>a?c.txt</code>). Сравниваются LFN и короткое имя 8.3.</li>
+      <li><kbd>-</kbd> &mdash; снять отметки по такой же маске.</li>
+    </ul>
+    <p class="note">На клавиатуре Spectrum: <kbd>+</kbd> = <kbd>SS</kbd>+<kbd>K</kbd>, <kbd>-</kbd> = <kbd>SS</kbd>+<kbd>J</kbd>. После диалога маски перерисовывается только активная панель; вторая панель восстанавливается лишь в зоне под окном.</p>
     <h3>Диски</h3>
     <p><kbd>F1</kbd> / <kbd>F2</kbd> &mdash; выбор диска для левой и правой панели (A&ndash;D, IDE E&ndash;L, SD M, NeoGS N, USB O).</p>
     <h3>Командная строка</h3>
@@ -106,7 +113,10 @@
       <tr><td><kbd>PgUp</kbd> <kbd>PgDn</kbd></td><td>Страница</td></tr>
       <tr><td><kbd>Home</kbd> / <kbd>End</kbd></td><td><code>..</code> / последний файл</td></tr>
       <tr><td><kbd>Tab</kbd></td><td>Смена панели</td></tr>
-      <tr><td><kbd>Insert</kbd>, <kbd>*</kbd></td><td>Отметка файла</td></tr>
+            <tr><td><kbd>Insert</kbd></td><td>Отметить / снять отметку с текущего имени</td></tr>
+      <tr><td><kbd>*</kbd>, <kbd>Ext</kbd>+<kbd>A</kbd></td><td>Инвертировать отметки в активной панели</td></tr>
+      <tr><td><kbd>+</kbd></td><td>Отметить группу по маске (диалог)</td></tr>
+      <tr><td><kbd>-</kbd></td><td>Снять отметки по маске (диалог)</td></tr>
       <tr><td><kbd>Esc</kbd></td><td>Отмена; закрыть меню; прервать копирование</td></tr>
     </table>
     <p class="note">На клавиатуре Spectrum: <kbd>!</kbd> <kbd>@</kbd> <kbd>#</kbd> <kbd>$</kbd> <kbd>%</kbd> <kbd>&amp;</kbd> <kbd>'</kbd> <kbd>(</kbd> <kbd>)</kbd>, выход &mdash; <kbd>_</kbd>.</p>
@@ -178,7 +188,7 @@ Editor=texted.com</pre>
     <h2>Цвета</h2>
     <p><code>.COM</code> и hobeta <code>.$C</code> выделяются цветом, как в NV.</p>
 
-    <footer>NedoOS &middot; Nedo Commander v0.7 &middot; <code>nc.com</code></footer>
+    <footer>NedoOS &middot; Nedo Commander v0.8 &middot; <code>nc.com</code></footer>
   </div>
 </body>
 </html>
