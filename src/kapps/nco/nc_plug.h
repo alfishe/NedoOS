@@ -235,6 +235,7 @@ void nco_vram_text(void);
 void nco_vram_attr_begin(void);
 void nco_vram_attr(void);
 void nco_vram_end(void);
+unsigned int nco_readdir_n(fileInfo *buf, unsigned char n);
 extern char g_panel_rows[PANEL_VIEW_ROWS][PANEL_ROW_WIDTH];
 extern unsigned char g_panel_row_colors[PANEL_VIEW_ROWS];
 extern unsigned char g_panel_row_marked_row[PANEL_VIEW_ROWS];

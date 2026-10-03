@@ -1866,6 +1866,110 @@ BDOS_readdir_noFATFS
 		inc de
         ldir ;независимо от длины короткого имени он длинное затирает
         ret
+
+;Пакетное чтение каталога: один вход в FatFs на несколько FILINFO.
+;b=сколько записей (1..24), de=буфер. out: A=0 если пачка полная, иначе ошибка/конец; B=сколько реально записано.
+BDOS_readdir_n
+        ld a,b
+        or a
+        jp z,rdn_bad
+        cp 25
+        jr c,rdn_cntok
+        ld a,24
+rdn_cntok
+        ld (rdn_max),a
+        xor a
+        ld (rdn_got),a
+        ld (rdn_err),a
+        ld (rdn_base),de
+        ld iy,(appaddr)
+        CHECKVOLUMETRDOS
+        jp c,rdn_trdos
+        GETVOLUME
+        call call_ffs_bind
+rdn_fat_loop
+        ld a,(rdn_got)
+        ld hl,rdn_max
+        cp (hl)
+        jp z,rdn_done
+        ld iy,(appaddr)
+        call rdn_entry_de
+        call BDOS_preparedepage
+        ld (rdn_remap),de
+        call count_fdir
+        ld bc,(rdn_remap)
+        call ffsfunc.f_readdir
+        or a
+        jp nz,rdn_stop
+        ld hl,(rdn_remap)
+        ld de,FILINFO_FNAME
+        add hl,de
+        ld a,(hl)
+        or a
+        jp z,rdn_endname
+        ld hl,rdn_got
+        inc (hl)
+        jr rdn_fat_loop
+rdn_endname
+        ld a,4
+rdn_stop
+        ld (rdn_err),a
+        jp rdn_done
+rdn_trdos
+        ld a,(rdn_got)
+        ld hl,rdn_max
+        cp (hl)
+        jp z,rdn_done
+        ld iy,(appaddr)
+        call rdn_entry_de
+        call BDOS_preparedepage
+        call BDOS_setdepage
+        ld (rdn_remap),de
+        ld b,d
+        ld c,e
+        call BDOS_readdir_noFATFS
+        or a
+        jp nz,rdn_stop
+        ld hl,(rdn_remap)
+        ld de,FILINFO_FNAME
+        add hl,de
+        ld a,(hl)
+        or a
+        jp z,rdn_endname
+        ld hl,rdn_got
+        inc (hl)
+        jr rdn_trdos
+rdn_bad
+        ld b,0
+        ld a,0xff
+        ret
+rdn_done
+        ld a,(rdn_got)
+        ld b,a
+        ld a,(rdn_err)
+        ret
+
+;DE = rdn_base + rdn_got * FILINFO_sz
+rdn_entry_de
+        ld hl,(rdn_base)
+        ld a,(rdn_got)
+        or a
+        jr z,rdn_entry_de_z
+        ld de,FILINFO_sz
+rdn_entry_de_m
+        add hl,de
+        dec a
+        jr nz,rdn_entry_de_m
+rdn_entry_de_z
+        ex de,hl
+        ret
+
+rdn_base        dw 0
+rdn_remap       dw 0
+rdn_max         db 0
+rdn_got         db 0
+rdn_err         db 0
+
 ;FILINFO_FSIZE=0;	        DWORD		;/* FILE SIZE */
 ;FILINFO_FDATE=4;	        WORD		;/* LAST MODIFIED DATE */
 ;FILINFO_FTIME=6;	        WORD		;/* LAST MODIFIED TIME */
@@ -2723,17 +2827,22 @@ call_ffs_curvol
 call_ffs	;A=логический раздел, HL=функция 
 ;портит iy! но нельзя двигать стек! в нём параметры!
 		push hl
+		call call_ffs_bind
+		pop hl
+		jp (hl)		;уходим в фатфс
+
+;A=логический раздел, IY=app. Сохраняет BC. Страница FatFs и curr_dir уже выставлены, возврат сюда.
+call_ffs_bind
 		push bc
-        ld hl,fatfsarray ;вычисляем указатель на структуру fatfs
+        ld hl,fatfsarray
 		sub vol_trdos
-        ;or a
-        jr z,.fix_vol_dir
+        jr z,call_ffs_bind_fix
         ld bc,FATFS_sz
-.calcfatfs
+call_ffs_bind_mul
         add hl,bc
         dec a
-        jr nz,.calcfatfs
-.fix_vol_dir	;устанавливаем текущие fatfs и директорию
+        jr nz,call_ffs_bind_mul
+call_ffs_bind_fix
 		BDOSSETPGFATFS
         ld (fatfs_org+FFS_DRV.curr_fatfs),hl
          ld l,(iy+app.dircluster)
@@ -2742,9 +2851,9 @@ call_ffs	;A=логический раздел, HL=функция
          ld l,(iy+app.dircluster+2)
          ld h,(iy+app.dircluster+3)
         ld (fatfs_org+FFS_DRV.curr_dir2),hl
-		call BDOS_setpgstructs	
+		call BDOS_setpgstructs
 		pop bc
-		ret		;уходим в фатфс
+		ret
 
 		
 BDOS_mount

@@ -64,6 +64,7 @@ CMD_GETCHILDRESULT=0xcd ;hl=childresult
 CMD_RESERV_1=0xce
 CMD_OPENDIR=0xcf ;de=path
 CMD_READDIR=0xd0 ;de=buf for FILINFO (if no LNAME, use FNAME), 0x00 in FILINFO_FNAME = end dir
+CMD_READDIRN=0xc0 ;de=buf, b=max count (1..24). out: A=0 full batch, else error/end; B=entries stored (valid even if A!=0)
 CMD_HIDEFROMPARENT=0xd1 ;for tasks with their own screen handling ;hl=result
 CMD_SETSTDINOUT=0xd2 ;b=id, e=stdin, d=stdout, h=stderr
 CMD_GETSTDINOUT=0xd3 ;e=stdin, d=stdout, h=stderr, l=hgt of stdout

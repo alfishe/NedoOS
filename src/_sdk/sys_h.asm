@@ -586,6 +586,10 @@ __1=$
         ld c,CMD_READDIR
 	CALLBDOS_NOPARAM_A		;out in A=error(0 - no error, 4 - no more files, other - critical error)
         endm
+        macro OS_READDIRN ;de=buf for FILINFO[b], b=max count (kernel clamps to 1..24)
+        ld c,CMD_READDIRN
+	CALLBDOS_NOPARAM_A		;out: A=0 full batch, else error/end (4=no more); B=entries stored (valid even if A!=0). 0x00 in FNAME is not counted
+        endm
         macro OS_HIDEFROMPARENT ;for tasks with their own screen handling ;hl=результат программы (родитель его получает по WAITPID)
         ld c,CMD_HIDEFROMPARENT
 	CALLBDOS_NOPARAM_A

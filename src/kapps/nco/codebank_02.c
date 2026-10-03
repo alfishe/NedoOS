@@ -226,11 +226,7 @@ static void panel_fname_key(const unsigned char *name, unsigned char *out)
 
 static void panel_fi_copy(fileInfo *dst, const fileInfo *src)
 {
-	unsigned int i;
-	unsigned char *d = (unsigned char *)dst;
-	const unsigned char *s = (const unsigned char *)src;
-	for (i = 0u; i < FILINFO_RECORD_SIZE; i++)
-		d[i] = s[i];
+	memcpy(dst, src, FILINFO_RECORD_SIZE);
 }
 
 /* Meta page must already be mapped. fi must not live in the C000 window. */
@@ -298,22 +294,52 @@ static void panel_cache_entry_lfn_fi(PanelState *p, unsigned int idx, const file
 	*(unsigned short *)(b + PANEL_META_OFF_TIME + idx * 2u) = (unsigned short)ftime;
 }
 
-static void panel_flush_stage(PanelState *p, unsigned char page, unsigned int first_idx)
+static unsigned char panel_stage_keep(unsigned char nslot)
 {
-	unsigned char i;
+	unsigned char i, keep;
+
+	keep = 0u;
+	for (i = 0u; i < nslot; i++)
+	{
+		panel_normalize_fname(&g_panel_stage[i]);
+		if ((g_panel_stage[i].fname[0] == '.' && g_panel_stage[i].fname[1] == 0) ||
+			g_panel_stage[i].fname[0] == 0)
+			continue;
+		if (keep != i)
+			panel_fi_copy(&g_panel_stage[keep], &g_panel_stage[i]);
+		keep++;
+	}
+	return keep;
+}
+
+static void panel_store_kept(PanelState *p, unsigned char page, unsigned int idx, unsigned char keep)
+{
+	unsigned char i, is_dir;
 	unsigned int off;
 
-	if (g_panel_stage_n == 0u)
+	if (keep == 0u)
 		return;
+	panel_meta_map(p);
+	for (i = 0u; i < keep; i++)
+	{
+		is_dir = (g_panel_stage[i].fattrib & 0x10) ? 1u : 0u;
+		if (p->sort_lfn)
+			panel_cache_entry_lfn_fi(p, idx + (unsigned int)i, &g_panel_stage[i]);
+		else
+			panel_cache_entry_meta(p, idx + (unsigned int)i, &g_panel_stage[i]);
+		if (!is_dir)
+		{
+			p->files_only_count++;
+			p->total_bytes += g_panel_stage[i].fsize;
+		}
+	}
 	panel_file_map(p, page);
 	nc_set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
-	for (i = 0u; i < g_panel_stage_n; i++)
+	for (i = 0u; i < keep; i++)
 	{
-		off = (first_idx + (unsigned int)i) % FILES_PER_PAGE;
+		off = (idx + (unsigned int)i) % FILES_PER_PAGE;
 		panel_fi_copy(&nc_set.bank_array[off], &g_panel_stage[i]);
 	}
-	panel_meta_map(p);
-	g_panel_stage_n = 0u;
 }
 
 static int s_cmp_key4_off(unsigned char *base, unsigned int off_a, unsigned int off_b)
@@ -643,8 +669,8 @@ static unsigned char panel_find_by_name(PanelState *p, const char *name, unsigne
 
 unsigned char r_read_panel_dir_at(PanelState *p, const char *path, unsigned char preserve)
 {
-	unsigned int idx, off, old_cursor = 0u, old_scroll = 0u, restore, phys, stage_first;
-	unsigned char page = 0u, res, saved = 0u, is_dir;
+	unsigned int idx, off, old_cursor = 0u, old_scroll = 0u, restore, phys, pack;
+	unsigned char page = 0u, res, saved = 0u, batch = 1u, want, got, keep, room;
 	char req[64], saved_name[64];
 
 	if (!panel_banks_ok(p)) { p->file_count = 0u; p->files_only_count = 0u; p->total_bytes = 0UL; panel_clamp_scroll(p); return 0u; }
@@ -660,7 +686,7 @@ unsigned char r_read_panel_dir_at(PanelState *p, const char *path, unsigned char
 	}
 	if (!panel_chdir_for_read(req)) { p->file_count = p->files_only_count = 0u; p->total_bytes = 0UL; panel_clamp_scroll(p); panel_file_map(p, 0u); return 0u; }
 
-	idx = 0u; p->files_only_count = 0u; p->total_bytes = 0UL; g_panel_stage_n = 0u; stage_first = 0u;
+	idx = 0u; p->files_only_count = 0u; p->total_bytes = 0UL;
 	panel_meta_map(p); memset((void *)(BANK_WINDOW_ADDRESS + PANEL_META_OFF_MARK), 0, PANEL_META_MARK_BYTES);
 	p->marked_count = 0u; p->marked_bytes = 0UL;
 
@@ -669,35 +695,43 @@ unsigned char r_read_panel_dir_at(PanelState *p, const char *path, unsigned char
 		off = idx % FILES_PER_PAGE;
 		if (idx != 0u && off == 0u)
 		{
-			panel_flush_stage(p, page, stage_first);
 			if (++page >= PANEL_FILE_PAGES) break;
-			stage_first = idx;
+		}
+		room = (unsigned char)(FILES_PER_PAGE - off);
+		want = PANEL_READ_STAGE;
+		if (want > room) want = room;
+		if ((unsigned int)want > MAX_FILES_PER_PANEL - idx)
+			want = (unsigned char)(MAX_FILES_PER_PANEL - idx);
+		if (want == 0u) break;
+
+		if (!batch)
+		{
+			g_panel_stage[0].lfname[0] = 0;
+			res = OS_READDIR(&g_panel_stage[0]);
+			if (res != 0u) break;
+			got = 1u;
+		}
+		else
+		{
+			pack = nco_readdir_n(g_panel_stage, want);
+			res = (unsigned char)(pack >> 8);
+			got = (unsigned char)pack;
+			if (res == 0xffu && got == want)
+			{
+				batch = 0u;
+				continue;
+			}
+			if (got == 0u) break;
 		}
 
-		g_panel_fi.lfname[0] = 0;
-		res = OS_READDIR(&g_panel_fi);
-		if (res != 0u) break;
-		panel_normalize_fname(&g_panel_fi);
-		if ((g_panel_fi.fname[0] == '.' && g_panel_fi.fname[1] == 0) || g_panel_fi.fname[0] == 0) continue;
-
-		is_dir = (g_panel_fi.fattrib & 0x10) ? 1u : 0u;
-		panel_meta_map(p);
-		if (p->sort_lfn)
-			panel_cache_entry_lfn_fi(p, idx, &g_panel_fi);
-		else
-			panel_cache_entry_meta(p, idx, &g_panel_fi);
-		if (!is_dir) { p->files_only_count++; p->total_bytes += g_panel_fi.fsize; }
-
-		if (g_panel_stage_n == 0u)
-			stage_first = idx;
-		panel_fi_copy(&g_panel_stage[g_panel_stage_n], &g_panel_fi);
-		g_panel_stage_n++;
-		if (g_panel_stage_n >= PANEL_READ_STAGE || off + 1u >= FILES_PER_PAGE)
-			panel_flush_stage(p, page, stage_first);
-
-		idx++;
+		keep = panel_stage_keep(got);
+		if (keep != 0u)
+		{
+			panel_store_kept(p, page, idx, keep);
+			idx += keep;
+		}
+		if (batch && res != 0u) break;
 	}
-	panel_flush_stage(p, page, stage_first);
 
 	p->file_count = idx;
 	if (idx >= 2u)

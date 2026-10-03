@@ -23,7 +23,7 @@ OVL_SYMS := bdosputs printf strncpy strncat ?STRCMP_L11 ?STRCHR_L11 \
 	g_cmd_active g_cmd_len g_cmd_cursor g_cmd_line g_nvext_size g_ncext_off g_ncext_size \
 	g_run_handler g_nvext_io g_ui_nv_ext g_ui_select g_ui_deselect g_ui_mask g_mark_mask \
 	nco_vram_span nco_vram_begin nco_vram_text nco_vram_attr_begin nco_vram_attr nco_vram_end \
-	nco_vx nco_vy nco_vn nco_va nco_vp g_stat_line
+	nco_vx nco_vy nco_vn nco_va nco_vp g_stat_line nco_readdir_n
 # --------------------------------------------------------------------
 
 OUTDIR  := bin
@@ -35,7 +35,7 @@ CONSOLE := BDOS
 
 SRCC	:= main.c mb_core.c bank_call.c nco_data.c nco_root.c
 SRCH	:= mb_inc.h mb_plug.h mb_banks.h bank_jt.h nc_inc.h nc_plug.h nc_panel.h nc_colors.h mb_req.h
-SRCA	:= force_helpers.asm nco_vram.asm
+SRCA	:= force_helpers.asm nco_vram.asm nco_rdir.asm
 XCLFILE	:= lnk.xcl
 XCL_OVL	:= lnk_ovl.xcl
 

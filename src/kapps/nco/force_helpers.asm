@@ -123,6 +123,7 @@
 	EXTERN nco_vp
 	EXTERN g_stat_line
 	EXTERN panel_fmt_size10
+	EXTERN nco_readdir_n
 
 	RSEG CODE
 force_helpers:
@@ -245,6 +246,7 @@ force_helpers:
 	ld	hl,nco_vp
 	ld	hl,g_stat_line
 	ld	hl,panel_fmt_size10
+	ld	hl,nco_readdir_n
 	ret
 
 	END
