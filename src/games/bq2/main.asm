@@ -1,16 +1,17 @@
 ﻿        DEVICE ZXSPECTRUM128
         include "../../_sdk/sys_h.asm"
 
-scrbase=0x4000+4
+scrbase=0x4000;+4
 sprmaxwid=32
 sprmaxhgt=32
-scrwid=128;160 ;double pixels
-scrhgt=160;200
+scrwid=160;128;160 ;double pixels
+scrhgt=160+8;200
 
 STACK=0x3ff0
 tempsp=0x3f06 ;6 bytes for prspr
 INTSTACK=0x3f00
 
+scorey=168+8+8
 
 fx=1 ;где было определено?
 
@@ -19,42 +20,42 @@ msx=0;1
 ;ON16C=0;#01
 re=1
 border=0
-WORLDS=8 ;потом повторяются
+WORLDS=10 ;потом повторяются
 byting=1
 wallcode=%11 ;для byting=0
 maxlives=4
 beglives=4
 ;       IF msx
 ;SCRHGT=17
-;       ELSE 
+;       ELSE
 ;SCRHGT=20 ;24
-;       ENDIF 
-polY=#280; 368
-fallY=1024
-dieY=1280
+;       ENDIF
+polY=0x480;#280; 368
+fallY=0x800;1024
+dieY=0x880;1280
 potolY=48
 demorec=0 ;записать демо уровня (ловить на LOOQ)
 Lunit=11 ;длина информации о персонаже
-       IF msx
-HEROES=#0200
-       ELSE 
-HEROES=#9300 ;здесь обработчик прерыв-й двигает персонажей
-       ENDIF 
-LHEROES=#300    ;#200 bytes = max 46 персонажей
+;       IF msx
+;HEROES=#0200
+;       ELSE
+HEROES=0x8000;#9300 ;здесь обработчик прерыв-й двигает персонажей
+;       ENDIF
+LHEROES=0x1600;#300    ;#200 bytes = max 46 персонажей
        IF msx
 HEROESFROM=#0500
 scrloadaddr=#0800 ;ends #4CXX
 ballloadaddr=#6000-4726 ;=#4D8A
-       ELSE 
+       ELSE
 ;HEROESFROM=#9600 ;TODO
-       ENDIF 
-TNXTLN=#9900 ;256 bytes
-IMVEC=#9A00
-IMER=#9B9B
+       ENDIF
+;TNXTLN=#9900 ;256 bytes
+;IMVEC=#9A00
+;IMER=#9B9B
 PROUTBUF=#9B9E ;32 bytes спрайт символа
-SPROUTBUF=#9C00 ;#200 bytes = max 32*32 pix
+;SPROUTBUF=#9C00 ;#200 bytes = max 32*32 pix
                 ;спрайт, вытащенный из страницы
-TMASK=#9E00 ;256 bytes
+;TMASK=#9E00 ;256 bytes
 ;SPRS=#9F00 ;таблица выводимых спрайтов, создается offint
            ;256 bytes = max 51 спрайт видно одновременно
 RARS=#6000 ;для распаковки экранов
@@ -65,7 +66,7 @@ REBUF1WARNING=#AF00
 REBUF2=#B002 ;для 2-го экрана
 REBUF2WARNING=#BF00
                 ;#FFE bytes = max 8 * 32*28 pix
- ENDIF 
+ ENDIF
 
 ;f88=#C000
 
@@ -77,12 +78,12 @@ pgmuz=6;#16
 ;p1C=#19 ;экр0 слой0 (выводится экр1)
         MACRO xy2adr
 _a=_y*40+_x+#C004
-        ENDM 
+        ENDM
 pgsp2=pgmuz
-pgIQ=pgpic;pgspr
+pgIQ=7;pgpic;pgspr
 pgbmap=pgIQ ;ее юзает IQ.BOUNCE
 
-BMAP=#F000 ;карта препятствий (pgbmap)
+BMAP=0xc000;#F000 ;карта препятствий (pgbmap)
 
 
 
@@ -100,7 +101,7 @@ GO
         OS_CLS ;очистили текущий экран
 
         OS_GETMAINPAGES
-;dehl=pages in 0000,4000,8000,c000 
+;dehl=pages in 0000,4000,8000,c000
         ld a,e
         ld (pgmain4000),a
         ld a,h
@@ -122,24 +123,24 @@ GO
         ld (tpgs+6),a
         OS_NEWPAGE
         ld a,e
-        ld (tpgs+7),a 
+        ld (tpgs+7),a
         OS_NEWPAGE
         ld a,e
-        ld (tpgscrdata+0),a 
+        ld (tpgscrdata+0),a
         OS_NEWPAGE
         ld a,e
-        ld (tpgscrdata+1),a 
-        
+        ld (tpgscrdata+1),a
+
         ld de,path
         OS_CHDIR
-        
+
         ld a,pgpic
         call OUTA
         ld hl,wastileset
         ld de,tiledisp
         ld bc,sztileset
         ldir
-        
+
         ld a,pgspr2
         call OUTA
         ld hl,wasspr2
@@ -174,9 +175,30 @@ waitfreecpu0
         cp 5
         jr nz,waitfreecpu0
 
+	;определение TS
+	ld bc,#fffd	;чип 0
+	out (c),b
+	xor a		;регистр 0
+	out (c),a
+	ld b,#bf	;значение #bf
+	out (c),b
+	ld b,#ff	;чип 1
+	ld a,#fe
+	out (c),a
+	xor a		;регистр 0
+	out (c),a
+	ld b,#bf	;значение 0
+	out (c),a
+	ld b,#ff	;чип 0
+	out (c),b
+	xor a		;регистр 0
+	out (c),a
+	in a,(c)
+	ld (turboSound),a ;!=0 если есть TS
+
        LD HL,AFXBANK
        CALL AFXINIT
-        
+
         ld a,(pgmain4000)
         ld hl,music
         OS_SETMUSIC
@@ -184,10 +206,10 @@ waitfreecpu0
         ld de,pal
         OS_SETPAL
         jp BEGIN
-        
+
 tpgscrdata
         ds 2;*(1+8) ;title+levels
-        
+
 loadpic
         ld a,'0'
         ld (de),a
@@ -228,7 +250,7 @@ copypal0
         inc de
         djnz copypal0 ;скопировали палитру в pal (по 2 байта на цвет)
        endif
-        
+
         ld a,(tpgscrdata+1)
        ld (pgscrdata1),a
         SETPGC000 ;включили страницу с данными в c000
@@ -374,8 +396,8 @@ copyimgegacolumn0
         dec hx
         jr nz,copyimgega0
         pop hl
-        ret 
-        
+        ret
+
 pgscrdata0
         db 0
 pgscrdata1
@@ -392,12 +414,13 @@ joystate
 ;3 - Up (7)
 ;2 - Down (6)
 ;1 - Left (5)
-;0 - Right (8) 
+;0 - Right (8)
         db 0
 
 path
-        db "bq",0
-        
+        db "bq2",0
+
+       if 0
 findpicfilename_a
         ld hl,picfilenames
 findpicfilename_a0
@@ -410,9 +433,11 @@ findpicfilename_a0
         cpir ;hl = after 0
         pop af
         jr findpicfilename_a0
-        
+       endif
+
 titlefilename
         db "0title.bmpx",0
+       if 0
 picfilenames
         db "0pic1.bmpx",0
         db "0pic2.bmpx",0
@@ -423,13 +448,14 @@ picfilenames
         db "0pic7.bmpx",0
         db "0pic8.bmpx",0
         ;db 0
+       endif
 
 	include "mem.asm"
 	include "int.asm"
 
 	;include "spr.ast"
 	include "prspr.asm"
-        
+
         include "BQGAME.asm"
         INCLUDE "PRSPR16.asm"
         INCLUDE "BQTAB.asm"
@@ -453,7 +479,7 @@ mkeytail=$+1
         ld (hl),a
         inc l
         ld (mkeytail),hl
-        
+
        ld a,(showdemo)
        rla
        jr c,ON_INTnoshowdemo
@@ -492,7 +518,7 @@ oldH=$+1
         LD (HL),A
 noH
 
-RETER   RET 
+RETER   RET
 
 TIMEBACK
         LD HL,TTIME2+3-1
@@ -529,17 +555,17 @@ PRCLK
        IF msx
         LD A,1
         LD (fprtime),A
-        RET 
+        RET
 SHOWTIME
-       ENDIF 
+       ENDIF
         LD C,0
         LD HL,TTIME2
-_y=176
+_y=scorey;176
 _x=8
         xy2adr
        IF msx
         _a=136*3-160*128+_a
-       ENDIF 
+       ENDIF
         LD DE,_a ;#D0CE
         CALL PRTXT88
 OUTIQ
@@ -554,7 +580,7 @@ OUTA
         SETPGC000
         pop bc
         ret
-        
+
 ;curscr
         ;db 0
 
@@ -574,11 +600,51 @@ _l=0
         db ((_r&8)<<4)+((_r&7)<<3)+((_l&8)<<3)+(_l&7)
        edup
 
+        align 256
+TMASK0
+       dup 256
+;цвета в байте хранятся так: RLrrrlll
+;маска=0
+;если L=8, то маска|=%01000111
+;если R=8, то маска|=%10111000
+_b=$&0xff
+_r=((_b&0x80)>>4)+((_b&0x38)>>3)
+_l=((_b&0x40)>>3)+(_b&0x07)
+_mask=0
+       if _l==0
+_mask=_mask|%01000111
+       endif
+       if _r==0
+_mask=_mask|%10111000
+       endif
+        db _mask
+       edup
+
+        align 256
+TMASK8
+       dup 256
+;цвета в байте хранятся так: RLrrrlll
+;маска=0
+;если L=8, то маска|=%01000111 (сохранить левый пиксель в экране)
+;если R=8, то маска|=%10111000 (сохранить правый пиксель в экране)
+_b=$&0xff
+_r=((_b&0x80)>>4)+((_b&0x38)>>3)
+_l=((_b&0x40)>>3)+(_b&0x07)
+_mask=0
+       if _l==8
+_mask=_mask|%01000111
+       endif
+       if _r==8
+_mask=_mask|%10111000
+       endif
+        db _mask
+       edup
+
         display "tpgs=",$
 
         align 256
 tpgs
-        ds 8;256 
+        ds 8;256
 
 INCSCORE
 ;HL=сколько единиц прибавить к счету
@@ -591,7 +657,7 @@ INCSCORE
         ;CALL SHOWSCORE
         call INVALIDATESCORE_hl
         POP BC
-        RET 
+        RET
 
 INVALIDATEKEYS
         xor a ;"nop"
@@ -614,7 +680,7 @@ fkeys=$
         ;PUSH BC,DE,IX
 keys=$+1
         LD HL,0
-_y=168+8
+_y=scorey;168+8
 _x=15
         xy2adr
         LD DE,_a ;#D0B8
@@ -630,7 +696,7 @@ fscore=$
         ;PUSH BC,DE,IX
 score=$+1
         LD HL,0
-_y=168+8
+_y=scorey;168+8
 _x=22
         xy2adr
         LD DE,_a ;#D0B8
@@ -642,7 +708,7 @@ _x=22
         ;JP OUTA
 ;curpg
         ;db 0 ;TODO убрать
-        
+
 
 
 AFXPRAYVOL
@@ -680,20 +746,20 @@ muzbinNAME
 muzNAME
         DB "MUZ2.pt3",0
 muzmenuNAME
-        DB "SMR_PLTS.pt3",0
+        DB "muzmenu.pt3",0
 picNAME
         DB "0pic1.bmpx",0
 
 ;2:gameovers
 ANYKEY
        CALL OUTIQ
-ANYKY0  HALT 
+ANYKY0  HALT
         CALL INKEY
         LD A,C
-        CPL 
+        CPL
         AND %00111111
         jr Z,ANYKY0
-        RET 
+        RET
 
 ;2
 INKEY
@@ -708,9 +774,9 @@ INKEY
         RRA ;space
         JC $+4
         RES 0,C
-        RRA 
-        RRA 
-        RRA 
+        RRA
+        RRA
+        RRA
         RRA ;left
         JC $+4
         RES 5,C
@@ -769,11 +835,11 @@ INKEY
         RRA ;trigger A
         RET C
         RES 0,C
-        RET 
+        RET
        ELSE ;zx
         LD A,#FE
         IN A,(254)
-        RRA 
+        RRA
         LD A,#EF
         IN A,(254)
         JR C,UANOCAP
@@ -781,7 +847,7 @@ INKEY
         RRA     ;CS+"0" = "0"
         jr C,$+3
         DEC C
-        RRA 
+        RRA
         RRA     ;CS+"8"
         jr C,$+4
         RES 4,C
@@ -801,9 +867,9 @@ INKEY
         RES 1,C
         JR INKEYF
 UANOCAP
-        RRCA 
-        RLA 
-        RLA 
+        RRCA
+        RLA
+        RLA
         OR #C2
         LD C,A
         LD A,#DF
@@ -819,7 +885,7 @@ UANOCAP
         RRA     ;"Q"
         JR C,$+4
         RES 2,C
-        RRA 
+        RRA
         RRA     ;"E"
         JR C,$+4
         RES 1,C
@@ -830,61 +896,49 @@ UANOCAP
         RES 3,C
 INKEYF  LD A,#7F
         IN A,(254)
-        CPL 
+        CPL
         AND 31
         RET Z
         RES 0,C
-        RET 
-       ENDIF 
+        RET
+       ENDIF
 TRUNLINE
        IF msx
         DB " PRESS SPACE OR FIRE TO START GAME ^ "
         DB "USE ",34,"F5",34," TO EXIT GAME ^ "
         DB "USE ",34,"F3",34," TO TURN MUSIC ON/OFF ^ "
         DB "USE ",34,"F1",34," FOR PAUSE"
-       ELSE 
+       ELSE
         DB " PRESS ",34,"S",34," TO START SLOW GAME ^ "
         DB "PRESS ",34,"F",34," TO START FAST GAME ^ "
         DB "USE ",34,"T",34," TO TURN MUSIC ON/OFF ^ "
         DB "USE ",34,"H",34," FOR PAUSE"
-       ENDIF 
+       ENDIF
         DS 32,32
         DB -1
 TRUNLINE2
-       IF msx
         DB " IDEA & CODE: ALONE CODER ^ "
         DB "GFX: SHIRU, ALONE CODER, SURFIN' BIRD ^ "
-        DB "MUSIC: JEFFIE, PROG MASTER, "
-        DB "SHIRU, ALONE CODER, "
-        DB "BASIL, "
-        DB "JOHN SILVER, MACROS, FIRESTARTER, NIK-O ^ "
+        DB "MUSIC: SHIRU, ALONE CODER, BASIL, JOHN SILVER, MACROS, FIRESTARTER, NIK-O, C-JEFF, PROG MASTER ^ "
         DB "SFX PLAYER: SHIRU ^ "
         DB "LEVEL EDIT TOOL: SHIRU ^ "
-        DB "LEVELS: ALONE CODER, JOHN SILVER ^ "
-        DB "(ZX) 2006, (MSX) 2007 "
-       ELSE 
-        DB " IDEA & CODE: ALONE CODER ^ "
-        DB "GFX: SHIRU OTAKU, ALONE CODER, SURFIN' BIRD ^ "
-        DB "MUSIC COVERS: SHIRU OTAKU ^ "
-        DB "SFX PLAYER: SHIRU OTAKU ^ "
-        DB "LEVEL EDIT TOOL: SHIRU OTAKU ^ "
-        DB "LEVELS: ALONE CODER, JOHN SILVER ^ "
-        DB "2006 YEAR"
-       ENDIF 
+        DB "LEVELS: S-B (SASHA BYSTROV) ^ "
+        DB "2026 YEAR"
         DS 32,32
         DB -1
 DEMOSTART
 DEMO1
-        INCBIN "l4dem.C"
+        ;ds 3048
+        INCBIN "l5dem.C"
 DEMO2
         INCBIN "l2dem.C"
 DEMOEND
 
 SPRS
-        ds 256
+        ds 1024;256 bug
 
 HEROESFROM
-        incbin "LEV1.BIN" ;TODO load
+        ;incbin "LEV1.BIN" ;TODO load
         display $,"<0x3f00!!!!!!!!!!!!!!!!!!"
         ds 0x3f00-$
 HEROESFROMsz=$-HEROESFROM
@@ -919,11 +973,21 @@ tuneON=$
 muzer=$+1
         CALL C,muzRETER;muz+5;muzzam+5
        POP AF
+        call nc,SHUTAY_
         CALL AYFF_ ;AY #1(0)
-        CALL NC,SHUTAY_ ;если music off
+turboSound=$+1
+        ld a,0
+        or a
+        CALL nz,SHUTAY_ ;если TS ;CALL NC,SHUTAY_ ;если music off
        CALL AFXFRAME ;pgmuz!
 muzRETER
         ret
+
+SHUT2AY
+        CALL AYFE_ ;AY #2(1)
+        call SHUTAY_
+        CALL AYFF_ ;AY #1(0)
+        ;jp SHUTAY_
 
 SHUTAY_
         LD DE,#E00
@@ -934,27 +998,27 @@ SHUT0
         LD B,#BF
         OUT (C),E
         jr NZ,SHUT0
-        RET 
+        RET
 
 AYFE_
         LD A,#FE  ;AY #2(1))
        IF msx
        ;OUT (#A0),A ;хотя все равно на MSX нет TS
-       ELSE 
+       ELSE
         LD BC,#FFFD
         OUT (C),A ;AY #2(1)
-       ENDIF 
-        RET 
+       ENDIF
+        RET
 
 AYFF_
         LD A,#FF  ;AY #1(0)
        IF msx
        ;OUT (#A0),A ;хотя все равно на MSX нет TS
-       ELSE 
+       ELSE
         LD BC,#FFFD
         OUT (C),A ;AY #2(1)
-       ENDIF 
-        RET 
+       ENDIF
+        RET
 
 wastileset
 tiledisp=#C000
@@ -977,11 +1041,11 @@ Lmuz=$-#C000
 _Lmuz=Lmuz+255&#FF00+5
  DISPLAY "SAVE ~BQMUZ.C~ pg",pgmuz," #C000,",#4000;Lmuz
  DISPLAY "&pack by HRUST1 то ~BQMUZ  *.C~:DI,buf=#BF00,JP #C000"
-        DS #F8C0-$
+        DS (0x10000-1934-$);#F8C0-$
 maxmuz=$-muzmenu
 AFXBANK INCBIN "sound/bqiwo.afb"
        DISPLAY "SFXEND=",$
-	savebin "bq/bqmuz.bin",muz,$-muz
+	savebin "bq2/bqmuz.bin",muz,$-muz
         DS 0x10000-$
 
 fx=1
@@ -1057,8 +1121,8 @@ end
 	;display "End=",end
 	;display "Free after end=",/d,#c000-end
 	;display "Size ",/d,end-begin," bytes"
-	
-	savebin "bq.com",begin,end-begin
+
+	savebin "bq2.com",begin,end-begin
 	;savebin "bq/spr2.bin",0xc000,spr2end-0xc000
-	
+
 	LABELSLIST "../../../us/user.l",1
