@@ -1,7 +1,7 @@
 @echo off
 REM Assemble kernel (syssets already in ..\_sdk\syssets.asm).
-REM %1 = release basename WITHOUT .$c  (sd_boot, osatm2hd, osatm2hm, osatm2)
-REM %2 = esp  -> suffix before .$c  (osatm2hdesp.$c, sd_bootesp.$c)
+REM %1 = release basename WITHOUT .$C  (sd_boot, osatm2hd, osatm2hm, osatm2)
+REM %2 = esp  -> suffix before .$C  (osatm2hdesp.$C, sd_bootesp.$C)
 REM      sd   -> also put on VHD
 REM %3 = sd   -> VHD put when %2 is a suffix
 REM Nested call build.bat can clear %%1: keep names from the start.
@@ -24,26 +24,31 @@ cd /d "%~dp0"
 set "currentdir=%~dp0.."
 call "%~dp0build.bat"
 if errorlevel 1 exit /b 1
-if not exist "%~dp0nedoos.$c" (
+if not exist "%~dp0nedoos.$C" (
  echo ERROR: kernel build did not produce nedoos.$C
  exit /b 1
 )
 set "KREL=%~dp0..\..\release"
 if not exist "%KREL%" mkdir "%KREL%"
-set "KOUT=%KREL%\%KNAME%%KSUF%.$c"
-set "KVHD=/%KNAME%%KSUF%.$c"
-copy /Y "%~dp0nedoos.$c" "%KOUT%" > nul
+set "KOUT=%KREL%\%KNAME%%KSUF%.$C"
+set "KVHD=/%KNAME%%KSUF%.$C"
+REM copy /Y keeps the old NTFS spelling, so force .$C before overwrite.
+if exist "%KOUT%" (
+ ren "%KOUT%" "%KNAME%%KSUF%.tmp"
+ ren "%KREL%\%KNAME%%KSUF%.tmp" "%KNAME%%KSUF%.$C"
+)
+copy /Y "%~dp0nedoos.$C" "%KOUT%" > nul
 if errorlevel 1 (
  echo ERROR: failed to copy to %KOUT%
  exit /b 1
 )
 if /I "%KSD%"=="sd" (
  if exist "%~dp0..\..\us\sd_nedo.vhd" (
-  "%~dp0..\..\tools\dmimg.exe" "%~dp0..\..\us\sd_nedo.vhd" put "%~dp0nedoos.$c" %KVHD%
+  "%~dp0..\..\tools\dmimg.exe" "%~dp0..\..\us\sd_nedo.vhd" put "%~dp0nedoos.$C" %KVHD%
   echo put %KVHD% -^> us\sd_nedo.vhd
  )
  if exist "%~dp0..\..\us_ns\sd_nedo.vhd" (
-  "%~dp0..\..\tools\dmimg.exe" "%~dp0..\..\us_ns\sd_nedo.vhd" put "%~dp0nedoos.$c" %KVHD%
+  "%~dp0..\..\tools\dmimg.exe" "%~dp0..\..\us_ns\sd_nedo.vhd" put "%~dp0nedoos.$C" %KVHD%
   echo put %KVHD% -^> us_ns\sd_nedo.vhd
  )
 )

@@ -1,5 +1,5 @@
 @echo off
-REM ATM2+HD WIZNET kernel -> release\osatm2hd.$c
+REM ATM2+HD WIZNET kernel -> release\osatm2hd.$C
 cd /d "%~dp0"
 echo atm=2 > "%~dp0..\_sdk\syssets.asm"
 echo atm2clock=1 >> "%~dp0..\_sdk\syssets.asm"

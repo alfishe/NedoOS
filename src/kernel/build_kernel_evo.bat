@@ -1,5 +1,5 @@
 @echo off
-REM ZX Evolution WIZNET kernel -> release\sd_boot.$c
+REM ZX Evolution WIZNET kernel -> release\sd_boot.$C
 cd /d "%~dp0"
 echo atm=1 > "%~dp0..\_sdk\syssets.asm"
 echo atm2clock=0 >> "%~dp0..\_sdk\syssets.asm"
