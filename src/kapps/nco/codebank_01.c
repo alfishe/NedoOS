@@ -637,69 +637,14 @@ static void ui_print_hint_bar(unsigned char y, const char *s, unsigned char pad_
 	}
 }
 
-static void ui_res_fast_print_size(unsigned long size)
+static void stat_paint(void)
 {
-	unsigned int total_mb;
-	unsigned int whole;
-	unsigned int frac;
-	unsigned char d[6];
-	unsigned char i;
-	unsigned char lead;
-
-	if (size >= NC_SZ_100MB)
-	{
-		total_mb = (unsigned int)(size / NC_SZ_1MB);
-		whole = total_mb / 1024u;
-		frac = (total_mb % 1024u) * 100u / 1024u;
-		putchar((unsigned char)('0' + whole));
-		putchar('.');
-		putchar((unsigned char)('0' + frac / 10u));
-		putchar((unsigned char)('0' + frac % 10u));
-		putchar('G');
-		putchar(' ');
-		return;
-	}
-
-	if (size >= NC_SZ_1MB)
-	{
-		whole = (unsigned int)(size / NC_SZ_1MB);
-		frac = (unsigned int)(((size % NC_SZ_1MB) * 100UL) / NC_SZ_1MB);
-		if (whole >= 10u)
-			putchar((unsigned char)('0' + whole / 10u));
-		else
-			putchar(' ');
-		putchar((unsigned char)('0' + whole % 10u));
-		putchar('.');
-		putchar((unsigned char)('0' + frac / 10u));
-		putchar((unsigned char)('0' + frac % 10u));
-		putchar('M');
-		return;
-	}
-
-	d[5] = (unsigned char)(size % 10UL);
-	size /= 10UL;
-	d[4] = (unsigned char)(size % 10UL);
-	size /= 10UL;
-	d[3] = (unsigned char)(size % 10UL);
-	size /= 10UL;
-	d[2] = (unsigned char)(size % 10UL);
-	size /= 10UL;
-	d[1] = (unsigned char)(size % 10UL);
-	size /= 10UL;
-	d[0] = (unsigned char)(size % 10UL);
-
-	lead = 0;
-	for (i = 0; i < 5u; i++)
-	{
-		if (d[i] != 0u || lead)
-		{
-			putchar((unsigned char)('0' + d[i]));
-			lead = 1;
-		}
-		else
-			putchar(' ');
-	}
-	putchar((unsigned char)('0' + d[5]));
+	nco_vx = 0u;
+	nco_vy = NC_STATUS_ROW;
+	nco_vn = 80u;
+	nco_va = NC_COLOR_CMDLINE;
+	nco_vp = g_stat_line;
+	nco_vram_span();
 }
 
 void r_ui_begin_full_redraw(void)
@@ -808,72 +753,70 @@ static unsigned char ui_invert_attr(unsigned char attr)
 						   ((attr & 0x38) >> 3));
 }
 
+static void stat_pad(unsigned char *col, const char *s, unsigned char width)
+{
+	unsigned char i;
+
+	i = 0u;
+	while (s[i] != 0 && i < width && *col < 80u)
+	{
+		g_stat_line[*col] = s[i];
+		(*col)++;
+		i++;
+	}
+	while (i < width && *col < 80u)
+	{
+		g_stat_line[*col] = ' ';
+		(*col)++;
+		i++;
+	}
+}
+
 void r_draw_bottom_info(const NCBottomInfo *snap)
 {
-	/* FILE/EMPTY cover all 80 cols (3+10+3+64); CMD writes '>' + 79. No full-line clear. */
-	OS_SETCOLOR(NC_COLOR_CMDLINE);
-	OS_SETXY(0, NC_STATUS_ROW);
+	unsigned char i;
+	unsigned char col;
+
+	for (i = 0u; i < 80u; i++)
+		g_stat_line[i] = ' ';
 
 	if (snap->mode == NC_BOTTOM_CMD)
 	{
-		unsigned char i;
 		unsigned char len;
-		unsigned char ch;
 		unsigned char cursor_x;
-		const unsigned char base_color = NC_COLOR_CMDLINE;
-		const unsigned char cursor_color = ui_invert_attr(base_color);
+		const unsigned char cursor_color = ui_invert_attr(NC_COLOR_CMDLINE);
 
-		len = 0;
+		len = 0u;
 		while (snap->cmd_line[len] != 0 && len < 79u)
 			len++;
-
 		cursor_x = snap->cmd_cursor;
 		if (cursor_x > 79u)
 			cursor_x = 79u;
-
-		OS_SETCOLOR(base_color);
-		putchar('>');
-		for (i = 0; i < 79u; i++)
-		{
-			OS_SETXY((unsigned char)(1u + i), NC_STATUS_ROW);
-			if (i == cursor_x)
-			{
-				OS_SETCOLOR(cursor_color);
-				ch = (i < len) ? (unsigned char)snap->cmd_line[i] : (unsigned char)' ';
-			}
-			else
-			{
-				OS_SETCOLOR(base_color);
-				ch = (i < len) ? (unsigned char)snap->cmd_line[i] : (unsigned char)' ';
-			}
-			putchar(ch);
-		}
+		g_stat_line[0] = '>';
+		for (i = 0u; i < 79u; i++)
+			g_stat_line[1u + i] = (i < len) ? snap->cmd_line[i] : ' ';
+		stat_paint();
+		nco_vx = (unsigned char)(1u + cursor_x);
+		nco_vy = NC_STATUS_ROW;
+		nco_vn = 1u;
+		nco_va = cursor_color;
+		nco_vp = g_stat_line + 1u + cursor_x;
+		nco_vram_span();
 		return;
 	}
 
-	if (snap->mode == NC_BOTTOM_EMPTY)
-	{
-		ui_fast_print_str_pad("Sz:", 3);
-		ui_fast_print_str_pad("<DIR>", 10);
-		ui_fast_print_str_pad("Nm:", 3);
-		ui_fast_print_str_pad("", 64);
-		return;
-	}
-
-	ui_fast_print_str_pad("Sz:", 3);
-	if (snap->is_dir)
-		ui_fast_print_str_pad("<DIR>", 10);
+	col = 0u;
+	stat_pad(&col, "Sz:", 3u);
+	if (snap->mode == NC_BOTTOM_EMPTY || snap->is_dir)
+		stat_pad(&col, "<DIR>", 10u);
 	else
 	{
-		/* ui_res_fast_print_size writes 6 chars; pad to 10 for fixed layout. */
-		ui_res_fast_print_size(snap->f_size);
-		putchar(' ');
-		putchar(' ');
-		putchar(' ');
-		putchar(' ');
+		panel_fmt_size10(g_stat_line + col, snap->f_size);
+		col = (unsigned char)(col + 10u);
 	}
-	ui_fast_print_str_pad("Nm:", 3);
-	ui_fast_print_str_pad(snap->name, 64);
+	stat_pad(&col, "Nm:", 3u);
+	stat_pad(&col, snap->name, 64u);
+	stat_paint();
 }
 
 static void ui_res_print_centered(unsigned char x, unsigned char y, unsigned char width, const char *str)

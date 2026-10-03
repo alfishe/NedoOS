@@ -110,6 +110,19 @@
 	EXTERN strncpy
 	EXTERN panel_files_scroll_up
 	EXTERN panel_files_scroll_down
+	EXTERN nco_vram_span
+	EXTERN nco_vram_begin
+	EXTERN nco_vram_text
+	EXTERN nco_vram_attr_begin
+	EXTERN nco_vram_attr
+	EXTERN nco_vram_end
+	EXTERN nco_vx
+	EXTERN nco_vy
+	EXTERN nco_vn
+	EXTERN nco_va
+	EXTERN nco_vp
+	EXTERN g_stat_line
+	EXTERN panel_fmt_size10
 
 	RSEG CODE
 force_helpers:
@@ -219,6 +232,19 @@ force_helpers:
 	ld	hl,strncpy
 	ld	hl,panel_files_scroll_up
 	ld	hl,panel_files_scroll_down
+	ld	hl,nco_vram_span
+	ld	hl,nco_vram_begin
+	ld	hl,nco_vram_text
+	ld	hl,nco_vram_attr_begin
+	ld	hl,nco_vram_attr
+	ld	hl,nco_vram_end
+	ld	hl,nco_vx
+	ld	hl,nco_vy
+	ld	hl,nco_vn
+	ld	hl,nco_va
+	ld	hl,nco_vp
+	ld	hl,g_stat_line
+	ld	hl,panel_fmt_size10
 	ret
 
 	END

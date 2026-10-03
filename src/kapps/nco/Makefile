@@ -8,7 +8,7 @@ OVL_SYMS := bdosputs printf strncpy strncat ?STRCMP_L11 ?STRCHR_L11 \
 	OS_GETKEY OS_CHDIR OS_CHDRV OS_GETPATH OS_SETSYSDRV OS_OPENHANDLE OS_CLOSEHANDLE \
 	OS_READHANDLE OS_WRITEHANDLE OS_CREATEHANDLE OS_GETFILESIZE OS_GETFILETIME OS_SEEKHANDLE OS_SETFILETIME OS_GETFILINFO OS_OPENDIR OS_READDIR \
 	OS_DELETE OS_RENAME OS_MKDIR OS_NEWAPP OS_RUNAPP OS_WAITPID OS_DROPAPP YIELD \
-	panel_request_unique_page menu_close_and_redraw menu_apply_choice panel_fmt_size panel_fmt_size_brief \
+	panel_request_unique_page menu_close_and_redraw menu_apply_choice panel_fmt_size panel_fmt_size10 panel_fmt_size_brief \
 	draw_panel_frame draw_panel_background draw_panel_footer draw_bottom_info \
 	mb_panel_chdir_only mb_read_panel_dir_at mb_redraw_panels_full m_panel_chdir_only m_read_panel_dir_at m_panels_remap_bank_window m_redraw_panels_full \
 	m_panels_redraw_both m_draw_panel m_panel_sort_notice_show m_run_restore_ui \
@@ -21,7 +21,9 @@ OVL_SYMS := bdosputs printf strncpy strncat ?STRCMP_L11 ?STRCHR_L11 \
 	mb_ui_dialog_input \
 	panel_files_scroll_up panel_files_scroll_down \
 	g_cmd_active g_cmd_len g_cmd_cursor g_cmd_line g_nvext_size g_ncext_off g_ncext_size \
-	g_run_handler g_nvext_io g_ui_nv_ext g_ui_select g_ui_deselect g_ui_mask g_mark_mask
+	g_run_handler g_nvext_io g_ui_nv_ext g_ui_select g_ui_deselect g_ui_mask g_mark_mask \
+	nco_vram_span nco_vram_begin nco_vram_text nco_vram_attr_begin nco_vram_attr nco_vram_end \
+	nco_vx nco_vy nco_vn nco_va nco_vp g_stat_line
 # --------------------------------------------------------------------
 
 OUTDIR  := bin
@@ -33,7 +35,7 @@ CONSOLE := BDOS
 
 SRCC	:= main.c mb_core.c bank_call.c nco_data.c nco_root.c
 SRCH	:= mb_inc.h mb_plug.h mb_banks.h bank_jt.h nc_inc.h nc_plug.h nc_panel.h nc_colors.h mb_req.h
-SRCA	:= force_helpers.asm
+SRCA	:= force_helpers.asm nco_vram.asm
 XCLFILE	:= lnk.xcl
 XCL_OVL	:= lnk_ovl.xcl
 

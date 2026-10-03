@@ -226,6 +226,15 @@ extern struct setup nc_set;
 
 /* Panel-bank mutable workspaces live in root BSS, never an overlay. */
 extern char g_panel_row[PANEL_ROW_WIDTH];
+extern char g_stat_line[80];
+extern unsigned char nco_vx, nco_vy, nco_vn, nco_va;
+extern char *nco_vp;
+void nco_vram_span(void);
+void nco_vram_begin(void);
+void nco_vram_text(void);
+void nco_vram_attr_begin(void);
+void nco_vram_attr(void);
+void nco_vram_end(void);
 extern char g_panel_rows[PANEL_VIEW_ROWS][PANEL_ROW_WIDTH];
 extern unsigned char g_panel_row_colors[PANEL_VIEW_ROWS];
 extern unsigned char g_panel_row_marked_row[PANEL_VIEW_ROWS];
@@ -335,6 +344,7 @@ void ui_fill_chars(unsigned char x, unsigned char y, unsigned char sym, unsigned
 void panel_draw_footer(PanelState *panel, unsigned char start_x);
 /* Size formatters live in main (0100): callable while panel file page is mapped. */
 void panel_fmt_size(char *dst, unsigned long size, unsigned char is_dir);
+void panel_fmt_size10(char *dst, unsigned long size);
 void panel_fmt_size_brief(char *dst, unsigned long size, unsigned char is_dir);
 
 void draw_panel_frame(unsigned char start_x, unsigned char color);

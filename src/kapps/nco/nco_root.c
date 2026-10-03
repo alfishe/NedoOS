@@ -28,11 +28,38 @@ unsigned char panel_request_unique_page(unsigned char *page_out)
 	return 0u;
 }
 
+/* Subtract powers of ten. 32-bit div on Z80 is the slow part of a panel row. */
+static void panel_fmt_size_pow(char *dst, unsigned long size, unsigned char width,
+							   const unsigned long *pow)
+{
+	unsigned char i;
+	unsigned char dig;
+	unsigned char lead;
+
+	lead = 0u;
+	for (i = 0u; i < width; i++)
+	{
+		dig = 0u;
+		while (size >= pow[i])
+		{
+			size -= pow[i];
+			dig++;
+		}
+		if (dig != 0u || lead || (unsigned char)(i + 1u) == width)
+		{
+			dst[i] = (char)('0' + dig);
+			lead = 1u;
+		}
+		else
+			dst[i] = ' ';
+	}
+}
+
 void panel_fmt_size(char *dst, unsigned long size, unsigned char is_dir)
 {
-	unsigned char d[6];
-	unsigned char i;
-	unsigned char lead;
+	static const unsigned long pow6[6] = {
+		100000UL, 10000UL, 1000UL, 100UL, 10UL, 1UL
+	};
 
 	if (is_dir)
 	{
@@ -40,34 +67,77 @@ void panel_fmt_size(char *dst, unsigned long size, unsigned char is_dir)
 		dst[3] = 'D'; dst[4] = 'I'; dst[5] = 'R';
 		return;
 	}
-	for (i = 6u; i > 0u; i--)
+	if (size > 999999UL)
+		size = 999999UL;
+	panel_fmt_size_pow(dst, size, 6u, pow6);
+}
+
+/* Status line: 10 columns, same text as the old putchar size (G / M / bytes). */
+void panel_fmt_size10(char *dst, unsigned long size)
+{
+	unsigned char i;
+	unsigned long mb;
+	unsigned long frac;
+	unsigned int whole;
+
+	for (i = 0u; i < 10u; i++)
+		dst[i] = ' ';
+	if (size >= 104857600UL)
 	{
-		d[i - 1u] = (unsigned char)(size % 10UL);
-		size /= 10UL;
+		mb = size;
+		mb >>= 8;
+		mb >>= 8;
+		mb >>= 4;
+		whole = (unsigned int)(mb >> 10);
+		frac = (mb & 1023UL) * 100UL;
+		frac >>= 10;
+		if (whole > 9u)
+			whole = 9u;
+		dst[0] = (char)('0' + whole);
+		dst[1] = '.';
+		dst[2] = (char)('0' + (unsigned char)(frac / 10UL));
+		dst[3] = (char)('0' + (unsigned char)(frac % 10UL));
+		dst[4] = 'G';
+		dst[5] = ' ';
+		return;
 	}
-	lead = 0u;
-	for (i = 0u; i < 6u; i++)
+	if (size >= 1048576UL)
 	{
-		if (d[i] != 0u || lead || i == 5u) { dst[i] = (char)('0' + d[i]); lead = 1u; }
-		else dst[i] = ' ';
+		mb = size;
+		mb >>= 8;
+		mb >>= 8;
+		mb >>= 4;
+		whole = (unsigned int)mb;
+		frac = (size & 1048575UL) * 100UL;
+		frac >>= 8;
+		frac >>= 8;
+		frac >>= 4;
+		dst[0] = (whole >= 10u) ? (char)('0' + (whole / 10u)) : ' ';
+		dst[1] = (char)('0' + (whole % 10u));
+		dst[2] = '.';
+		dst[3] = (char)('0' + (unsigned char)(frac / 10UL));
+		dst[4] = (char)('0' + (unsigned char)(frac % 10UL));
+		dst[5] = 'M';
+		return;
 	}
+	panel_fmt_size(dst, size, 0u);
 }
 
 void panel_fmt_size_brief(char *dst, unsigned long size, unsigned char is_dir)
 {
-	unsigned char i;
-	unsigned char digits[NC_PANEL_BRIEF_SIZE_W];
-	unsigned char n = 0u;
+	static const unsigned long pow8[8] = {
+		10000000UL, 1000000UL, 100000UL, 10000UL, 1000UL, 100UL, 10UL, 1UL
+	};
+
 	if (is_dir)
 	{
-		for (i = 0u; i < NC_PANEL_BRIEF_SIZE_W; i++) dst[i] = ' ';
-		dst[3] = '<'; dst[4] = 'D'; dst[5] = 'I'; dst[6] = 'R'; dst[7] = '>';
+		dst[0] = ' '; dst[1] = ' '; dst[2] = ' '; dst[3] = '<';
+		dst[4] = 'D'; dst[5] = 'I'; dst[6] = 'R'; dst[7] = '>';
 		return;
 	}
-	if (size > 99999999UL) size = 99999999UL;
-	do { digits[n++] = (unsigned char)(size % 10UL); size /= 10UL; } while (size != 0UL && n < NC_PANEL_BRIEF_SIZE_W);
-	for (i = 0u; i < NC_PANEL_BRIEF_SIZE_W; i++) dst[i] = ' ';
-	for (i = 0u; i < n; i++) dst[NC_PANEL_BRIEF_SIZE_W - 1u - i] = (char)('0' + digits[i]);
+	if (size > 99999999UL)
+		size = 99999999UL;
+	panel_fmt_size_pow(dst, size, NC_PANEL_BRIEF_SIZE_W, pow8);
 }
 
 void draw_panel_frame(unsigned char start_x, unsigned char color)

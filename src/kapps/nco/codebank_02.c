@@ -737,31 +737,113 @@ static void fmt_pad(char *d, const char *s, unsigned char w)
 	unsigned char i = 0u; while (i < w && s[i] != 0) { d[i] = s[i]; i++; } while (i < w) d[i++] = ' ';
 }
 
+/* Two decimal digits, n = 0..99. No DIV. */
+static void fmt_2d(char *d, unsigned char n)
+{
+	unsigned char t;
+
+	if (n >= 100u)
+		n = 99u;
+	t = 0u;
+	if (n >= 50u) { n = (unsigned char)(n - 50u); t = 5u; }
+	if (n >= 30u) { n = (unsigned char)(n - 30u); t = (unsigned char)(t + 3u); }
+	if (n >= 20u) { n = (unsigned char)(n - 20u); t = (unsigned char)(t + 2u); }
+	if (n >= 10u) { n = (unsigned char)(n - 10u); t++; }
+	d[0] = (char)('0' + t);
+	d[1] = (char)('0' + n);
+}
+
 static void fmt_datetime(char *d, unsigned int date, unsigned int time)
 {
-	unsigned char m = (unsigned char)((date >> 5) & 15u);
-	d[0] = '0' + (date & 31u) / 10u; d[1] = '0' + (date & 31u) % 10u;
-	d[2] = m >= 1u && m <= 12u ? g_month_abbr[m - 1u][0] : '?'; d[3] = m >= 1u && m <= 12u ? g_month_abbr[m - 1u][1] : '?';
-	d[4] = '0' + (((date >> 9) + 80u) % 100u) / 10u; d[5] = '0' + (((date >> 9) + 80u) % 100u) % 10u;
-	d[6] = ' '; d[7] = '0' + ((time >> 11) & 31u) / 10u; d[8] = '0' + ((time >> 11) & 31u) % 10u;
-	d[9] = ':'; d[10] = '0' + ((time >> 5) & 63u) / 10u; d[11] = '0' + ((time >> 5) & 63u) % 10u;
+	unsigned char m;
+	unsigned int year;
+
+	fmt_2d(d, (unsigned char)(date & 31u));
+	m = (unsigned char)((date >> 5) & 15u);
+	if (m >= 1u && m <= 12u)
+	{
+		d[2] = g_month_abbr[m - 1u][0];
+		d[3] = g_month_abbr[m - 1u][1];
+	}
+	else
+	{
+		d[2] = '?';
+		d[3] = '?';
+	}
+	year = (unsigned int)((date >> 9) + 80u);
+	while (year >= 100u)
+		year = (unsigned int)(year - 100u);
+	fmt_2d(d + 4, (unsigned char)year);
+	d[6] = ' ';
+	fmt_2d(d + 7, (unsigned char)((time >> 11) & 31u));
+	d[9] = ':';
+	fmt_2d(d + 10, (unsigned char)((time >> 5) & 63u));
 }
 
 static void row_format(const fileInfo *fi, char *d, unsigned char *color)
 {
-	unsigned char i, is_dir = (fi->fattrib & 0x10) ? 1u : 0u;
+	unsigned char is_dir = (fi->fattrib & 0x10) ? 1u : 0u;
 	*color = is_dir ? NC_COLOR_PANEL : (panel_exec(fi) ? NC_COLOR_PANEL_EXEC : NC_COLOR_PANEL_FILE);
-	for (i = 0u; i < PANEL_ROW_WIDTH; i++) d[i] = ' ';
-	if (g_ini_panel_brief) { fmt_pad(d, panel_entry_name(fi), NC_PANEL_BRIEF_NAME_W); d[28] = 179; panel_fmt_size_brief(d + 29, fi->fsize, is_dir); }
-	else { fmt_pad(d, panel_entry_name(fi), 18u); d[18] = 179; panel_fmt_size(d + 19, fi->fsize, is_dir); d[25] = 179; fmt_datetime(d + 26, fi->fdate, fi->ftime); }
+	if (g_ini_panel_brief)
+	{
+		fmt_pad(d, panel_entry_name(fi), NC_PANEL_BRIEF_NAME_W);
+		d[28] = (char)179;
+		panel_fmt_size_brief(d + 29, fi->fsize, is_dir);
+		d[37] = ' ';
+	}
+	else
+	{
+		fmt_pad(d, panel_entry_name(fi), 18u);
+		d[18] = (char)179;
+		panel_fmt_size(d + 19, fi->fsize, is_dir);
+		d[25] = (char)179;
+		fmt_datetime(d + 26, fi->fdate, fi->ftime);
+	}
+}
+
+static unsigned char row_attr_of(const PanelState *p, unsigned int vis, unsigned char color, unsigned char marked)
+{
+	if (vis == p->cursor_idx && p->is_active)
+		return NC_COLOR_CURSOR;
+	if (marked)
+		return NC_COLOR_PANEL_MARK;
+	return color;
+}
+
+static void vram_set_row(unsigned char x, unsigned char row_y, const char *text, unsigned char attr)
+{
+	nco_vx = (unsigned char)(x + 1u);
+	nco_vy = (unsigned char)(row_y + 3u);
+	nco_vn = PANEL_ROW_WIDTH;
+	nco_va = attr;
+	nco_vp = (char *)text;
 }
 
 static void row_out(unsigned char x, unsigned char y, unsigned int vis, PanelState *p, const char *row, unsigned char color, unsigned char marked)
 {
-	unsigned char i; OS_SETXY((unsigned char)(x + 1u), (unsigned char)(y + 3u));
-	if (vis == p->cursor_idx && p->is_active) OS_SETCOLOR(marked ? NC_COLOR_CURSOR : NC_COLOR_CURSOR);
-	else OS_SETCOLOR(marked ? NC_COLOR_PANEL_MARK : color);
-	for (i = 0u; i < PANEL_ROW_WIDTH; i++) putchar((unsigned char)row[i]);
+	vram_set_row(x, y, row, row_attr_of(p, vis, color, marked));
+	nco_vram_span();
+}
+
+/* Text page once, attr page once, for a whole panel (left/right, PgUp/PgDn). */
+static void vram_rows(PanelState *p, unsigned char x, unsigned char height)
+{
+	unsigned char i;
+
+	nco_vram_begin();
+	for (i = 0u; i < height; i++)
+	{
+		vram_set_row(x, i, g_panel_rows[i], 0u);
+		nco_vram_text();
+	}
+	nco_vram_attr_begin();
+	for (i = 0u; i < height; i++)
+	{
+		vram_set_row(x, i, g_panel_rows[i],
+					 row_attr_of(p, p->scroll_offset + i, g_panel_row_colors[i], g_panel_row_marked_row[i]));
+		nco_vram_attr();
+	}
+	nco_vram_end();
 }
 
 static void row_format_empty(char *d, unsigned char *color)
@@ -1183,12 +1265,13 @@ void r_draw_panel(PanelState *p, unsigned char x, unsigned char height)
 	nc_set.bank_array = (fileInfo *)BANK_WINDOW_ADDRESS;
 	for (i = 0u; i < height; i++)
 	{
-		phys = g_panel_row_phys[i]; vis = p->scroll_offset + i;
+		phys = g_panel_row_phys[i];
 		if (phys == 0xffffu)
 			row_format_empty(g_panel_rows[i], &color);
 		else { pg = (unsigned char)(phys / FILES_PER_PAGE); if (pg != last) { panel_file_map(p, pg); last = pg; } row_format(&nc_set.bank_array[phys % FILES_PER_PAGE], g_panel_rows[i], &color); }
-		g_panel_row_colors[i] = color; row_out(x, i, vis, p, g_panel_rows[i], color, g_panel_row_marked_row[i]);
+		g_panel_row_colors[i] = color;
 	}
+	vram_rows(p, x, height);
 }
 
 void r_panels_reload_both(const char *l, const char *r)

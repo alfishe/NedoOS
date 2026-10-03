@@ -76,6 +76,9 @@ unsigned char g_drive_letters[15];
 
 /* Bank 02 panel workspace.  Keep it in root DATA: overlays are code-only. */
 char g_panel_row[PANEL_ROW_WIDTH];
+char g_stat_line[80];
+unsigned char nco_vx, nco_vy, nco_vn, nco_va;
+char *nco_vp;
 char g_panel_rows[PANEL_VIEW_ROWS][PANEL_ROW_WIDTH];
 unsigned char g_panel_row_colors[PANEL_VIEW_ROWS];
 unsigned char g_panel_row_marked_row[PANEL_VIEW_ROWS];
