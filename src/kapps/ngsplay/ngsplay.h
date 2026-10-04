@@ -67,6 +67,8 @@ extern unsigned long ngs_mp3_done;
 /* Stock GS MOD (destroys SoftSmpl/gscode; clear gs_ok after). */
 unsigned char ngs_mod_start(unsigned char *path, unsigned long filesize, ngs_mod_info *info);
 unsigned char ngs_mod_pump(void); /* 1=playing, 0=done */
+void ngs_mod_pause(void); /* #32 stop, module stays loaded */
+void ngs_mod_cont(void);  /* #33 continue after stop */
 void ngs_mod_stop(void);
 unsigned char ngs_mod_is_active(void);
 

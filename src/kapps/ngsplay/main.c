@@ -3,7 +3,7 @@
  * Main 0100-BFFF: browser paint, scan/sort, S3M load.
  * C000: CODE_RESIDENT chrome + list data pages + IOBUF during load.
  *
- * Keys: Up/Down browse, Enter open/play, Space pause, S stop, R refresh, Esc/Q quit
+ * Keys: Up/Down browse, Enter open/play, Space play/pause, S stop, R refresh, Esc/Q quit
  */
 #include <stdio.h>
 #include <string.h>
@@ -114,25 +114,31 @@ static void print_centered(const char *s, unsigned char width)
 		putchar(' ');
 }
 
-static void draw_one_btn(unsigned char x, unsigned char y, unsigned char label)
+/* Interior is 3 cells (BTN_W 5). c0..c2 are CP866 glyphs, space included. */
+static void draw_one_btn(unsigned char x, unsigned char y,
+						 unsigned char c0, unsigned char c1, unsigned char c2)
 {
 	unsigned char i;
+	unsigned char ymid;
+	unsigned char ybot;
 
 	/* No OS_SETCOLOR here; no (y+n) in OS_SETXY args ? IAR register spill rake. */
+	ymid = y;
+	ymid++;
+	ybot = ymid;
+	ybot++;
 	OS_SETXY(x, y);
 	putchar(218);
 	for (i = 0; i < (BTN_W - 2u); i++)
 		putchar(196);
 	putchar(191);
-	// y++;
-	OS_SETXY(x, y + 1);
+	OS_SETXY(x, ymid);
 	putchar(179);
-	putchar(' ');
-	putchar(label);
-	putchar(' ');
+	putchar(c0);
+	putchar(c1);
+	putchar(c2);
 	putchar(179);
-	// y++;
-	OS_SETXY(x, y + 2);
+	OS_SETXY(x, ybot);
 	putchar(192);
 	for (i = 0; i < (BTN_W - 2u); i++)
 		putchar(196);
@@ -145,17 +151,23 @@ void ui_draw_stat_buttons(void)
 	unsigned char x1;
 	unsigned char y0;
 	unsigned char y1;
+	unsigned char play_glyph;
 
 	x0 = btnPos.winX;
 	x1 = btnPos.winX + BTN_W + BTN_GAP;
 	y0 = btnPos.winY;
 	y1 = btnPos.winY + BTN_H;
+	/* Playing: pause bars. Paused or stopped: play triangle. */
+	if (is_playing && !is_paused)
+		play_glyph = 186;
+	else
+		play_glyph = 16;
 
 	OS_SETCOLOR(btnPos.color);
-	draw_one_btn(x0, y0, 17);  // Prev
-	draw_one_btn(x1, y0, 16);  // Next
-	draw_one_btn(x0, y1, 219); // Stop
-	draw_one_btn(x1, y1, 186); // Pause
+	draw_one_btn(x0, y0, ' ', 243, ' ');	 /* <| prev */
+	draw_one_btn(x1, y0, ' ', 242, ' ');	 /*  |> next */
+	draw_one_btn(x0, y1, ' ', 219, ' '); /* stop */
+	draw_one_btn(x1, y1, ' ', play_glyph, ' ');
 }
 
 void ui_draw_static_chrome(void)
@@ -1018,6 +1030,37 @@ static unsigned char select_prev_s3m(void)
 	return 0;
 }
 
+static unsigned char cursor_on_playable(void)
+{
+	ngs_fent e;
+
+	if (ui_selected >= entry_count)
+		return 0;
+	list_read_phys(vis_to_phys(ui_selected), &e);
+	if (e.flags & NGS_FENT_DIR)
+		return 0;
+	return is_playable_name(e.name);
+}
+
+/* First playable file in display order. 1 = cursor moved onto it. */
+static unsigned char select_first_playable(void)
+{
+	unsigned int i;
+	ngs_fent e;
+
+	for (i = 0; i < entry_count; i++)
+	{
+		list_read_phys(vis_to_phys(i), &e);
+		if ((e.flags & NGS_FENT_DIR) == 0 && is_playable_name(e.name))
+		{
+			ui_selected = i;
+			ensure_sel_visible();
+			return 1;
+		}
+	}
+	return 0;
+}
+
 static void move_sel(int delta)
 {
 	int ns;
@@ -1153,7 +1196,9 @@ static void handle_key(unsigned char key)
 		{
 			if (play_kind == 1)
 				(void)ngs_stop_play();
-			/* MP3/MOD: pause = freeze UI; MP3 stops feed, MOD keeps sounding. */
+			else if (play_kind == 3)
+				ngs_mod_pause();
+			/* MP3: pause freezes the feed in the UI loop. */
 			is_paused = 1;
 			mark_status_dirty();
 			ui_mouse_hide();
@@ -1164,12 +1209,24 @@ static void handle_key(unsigned char key)
 		{
 			if (play_kind == 1)
 				(void)ngs_cont_play();
+			else if (play_kind == 3)
+				ngs_mod_cont();
 			is_paused = 0;
 			is_playing = 1;
 			mark_status_dirty();
 			ui_mouse_hide();
 			ui_draw_status();
 			ui_mouse_show();
+		}
+		else
+		{
+			/* Stopped: selected track, else the first playable in the folder. */
+			if (!cursor_on_playable())
+			{
+				if (!select_first_playable())
+					return;
+			}
+			play_selected();
 		}
 	}
 	else if (key == 31)

@@ -15,7 +15,7 @@ void ui_mouse_poll(void);
 #define UI_MOUSE_HIT_BTN0 2 /* prev */
 #define UI_MOUSE_HIT_BTN1 3 /* next */
 #define UI_MOUSE_HIT_BTN2 4 /* stop */
-#define UI_MOUSE_HIT_BTN3 5 /* pause */
+#define UI_MOUSE_HIT_BTN3 5 /* play / pause */
 
 unsigned char ui_mouse_hit(void);
 unsigned char ui_mouse_list_row(void); /* valid if HIT_LIST */

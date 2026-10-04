@@ -104,7 +104,7 @@ void r_draw_hint_bar(void)
 	OS_SETXY(0, 23);
 	r_spaces(80);
 	OS_SETXY(0, 23);
-	r_print_static(" [Enter] Play  [N] Next  [Space] Pause  [S] Stop  [R] Refr  [Esc] Quit ");
+	r_print_static(" [Enter] Play  [N] Next  [Space] Play  [S] Stop  [R] Refr  [Esc] Quit ");
 }
 
 void r_clear_status_line(unsigned char row)

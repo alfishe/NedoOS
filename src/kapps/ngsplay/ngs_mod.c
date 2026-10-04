@@ -143,6 +143,22 @@ unsigned char ngs_mod_is_active(void)
 	return mod_active;
 }
 
+void ngs_mod_pause(void)
+{
+	if (!mod_active)
+		return;
+	/* ZX Format #06: #32 stops playback, module stays in GS memory. */
+	(void)mod_cmd(0x32);
+}
+
+void ngs_mod_cont(void)
+{
+	if (!mod_active)
+		return;
+	/* #33 continues the module after #32. */
+	(void)mod_cmd(0x33);
+}
+
 void ngs_mod_stop(void)
 {
 	if (mod_active)
