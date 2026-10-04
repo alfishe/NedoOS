@@ -40,7 +40,8 @@ static void fi_name(const fileInfo *fi, char *out)
 	unsigned int i;
 	const unsigned char *s;
 	s = fi->lfname[0] != 0 ? fi->lfname : fi->fname;
-	for (i = 0u; i < 63u && s[i] != 0 && s[i] != ' '; i++) out[i] = (char)s[i];
+	/* LFN may contain spaces ("System Volume Information"). Stop only at NUL. */
+	for (i = 0u; i < 63u && s[i] != 0; i++) out[i] = (char)s[i];
 	out[i] = 0;
 }
 
