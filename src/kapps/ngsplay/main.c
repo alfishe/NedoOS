@@ -617,10 +617,11 @@ static void draw_file_row(unsigned int vis, unsigned char selected)
 	if (q >= winPos.winH)
 		return;
 
-	if (winPos.winW > 10u)
-		name_w = (unsigned char)(winPos.winW - 9u);
+	/* 1 left margin + name + 1 gap + 8-digit size must stay inside winW. */
+	if (winPos.winW > 12u)
+		name_w = (unsigned char)(winPos.winW - 10u);
 	else
-		name_w = winPos.winW;
+		name_w = 1;
 
 	OS_SETXY(winPos.winX, winPos.winY + q);
 	if (vis >= entry_count)
@@ -664,7 +665,8 @@ static void draw_file_row(unsigned int vis, unsigned char selected)
 			putchar(' ');
 			i++;
 		}
-		printf("%6lu", e->size);
+		putchar(' ');
+		printf("%8lu", e->size);
 	}
 	bank_pop(saved);
 	ui_resident_map();
