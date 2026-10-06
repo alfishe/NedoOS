@@ -1,12 +1,19 @@
 ; tgvplay hot path ? one module: tables/blit + decode + flip/map.
 ; Inlined: blit in dec_do_chrx; IY restore + map_draw in tgv_flip.
 ;
+; A finished frame is switched in the top border. If an IRQ already arrived
+; while the frame was drawing, the beam has moved on and we switch at once.
+; Otherwise HALT, then SETSCREEN, so a fast frame is not cut mid-picture.
+;
 	MODULE tgv_hot
 	PUBLIC tgv_blit_tables_init
 	PUBLIC tgv_capture_task_iy
 	PUBLIC tgv_decode_sector
 	PUBLIC tgv_flip
 	PUBLIC tgv_map_draw
+	PUBLIC tgv_qwait_flush
+	PUBLIC tgv_int_hook
+	PUBLIC tgv_int_unhook
 	PUBLIC g_front
 	PUBLIC g_scr0_low
 	PUBLIC g_scr0_high
@@ -14,6 +21,7 @@
 	PUBLIC g_scr1_high
 	PUBLIC fmv_mounted
 	PUBLIC tgv_flip_halt
+	PUBLIC tgv_qmode
 	EXTERN secbase
 	EXTERN secpos
 	EXTERN frame_open
@@ -22,6 +30,7 @@
 FMV_SLOTS	EQU	113
 FMV_SECSIZE	EQU	2048
 FMV_TAIL	EQU	14
+QCAP		EQU	512
 
 ; ---------------------------------------------------------------------------
 ; UDATA
@@ -60,6 +69,16 @@ fmv_mounted:
 	DEFS 1
 tgv_flip_halt:
 	DEFS 1
+tgv_qmode:
+	DEFS 1
+tgv_vsync:
+	DEFS 1
+q_count:
+	DEFS 2
+q_ptr:
+	DEFS 2
+q_buf:
+	DEFS 2048
 
 	RSEG CODE
 
@@ -146,6 +165,11 @@ init_ty:
 	cp 24
 	jr nz,init_ty
 
+	xor a
+	ld (tgv_qmode),a
+	ld (tgv_vsync),a
+	ld (q_count),a
+	ld (q_count+1),a
 	pop ix
 	pop iy
 	ret
@@ -156,12 +180,11 @@ init_ty:
 tgv_decode_sector:
 	push iy				; IAR C: keep IX/IY; AF/BC/DE/HL free
 	push ix
-	di
-
 	ld iy,(secbase)
 	ld de,(secpos)
 	add iy,de
 	ld ixh,FMV_SLOTS
+	ei				; so the IRQ hook can see a field pass
 
 dec_loop:
 	ld a,(iy+0)
@@ -176,11 +199,7 @@ dec_loop:
 	ld a,(frame_open)
 	or a
 	jr z,dec_frame_mark
-	push iy
-	ei				; HALT needs INT; decode runs under DI
-	call tgv_flip
-	di
-	pop iy
+	call tgv_flip_sync
 dec_frame_mark:
 	ld a,1
 	ld (frame_open),a
@@ -232,6 +251,8 @@ dec_do_chrx:
 	ld l,e				; HL=dst0
 	ld (blit_dst0),hl
 	pop de				; DE=src
+dec_blit_sp:
+	di				; SP-blit must not take the IRQ hook
 	ld (task_sp_save),sp
 	ex de,hl			; HL=src, DE=dst0
 	ld sp,hl			; SP=src
@@ -284,6 +305,7 @@ dec_do_chrx:
 	ld (hl),d
 
 	ld sp,(task_sp_save)
+	ei
 	; --- end blit ---
 
 dec_next:
@@ -297,9 +319,7 @@ dec_end:
 	ld a,(frame_open)
 	or a
 	jr z,dec_eof
-	ei
-	call tgv_flip
-	di
+	call tgv_flip_sync
 	xor a
 	ld (frame_open),a
 dec_eof:
@@ -356,26 +376,92 @@ map_done:
 	ld (fmv_mounted),a
 	ret
 
-; AF/BC/DE/HL free to clobber. IX/IY saved around BDOS only.
-tgv_flip:
+; Preserves stream IX/IY. BDOS sees the C task IY.
+tgv_switch_screen:
+	push iy
+	push ix
 	ld a,(g_front)
 	xor 1
 	ld (g_front),a
 	ld e,a
 	ld iy,(task_iy_save)
-	push ix
-	push iy
 	ld c,CMD_SETSCREEN
 	call BDOS
-	pop iy
 	pop ix
+	pop iy
+	ret
+
+; Show the finished buffer.
+; If no IRQ landed while we were drawing, the beam is still in this
+; field: HALT, then SETSCREEN in the top border. If an IRQ already
+; landed, the frame ran long and we switch at once (no extra field).
+tgv_flip:
+tgv_flip_sync:
 	ld a,(tgv_flip_halt)
 	or a
-	jr z,flip_no_halt
-	ei				; never HALT under DI
+	jr z,sync_switch
+	ld a,(tgv_vsync)
+	or a
+	jr nz,sync_consume
+	ei
 	halt
-flip_no_halt:
-	; inline map_draw
+sync_consume:
+	xor a
+	ld (tgv_vsync),a
+sync_switch:
+	call tgv_switch_screen
+	jp tgv_map_back
+
+; C and asm. IX/IY preserved. Returns with EI.
+tgv_qwait_flush:
+	push ix
+	push iy
+	ld a,(tgv_vsync)
+	or a
+	jr nz,qwait_go
+	ei
+	halt
+qwait_go:
+	call tgv_qflush
+	ei
+	pop iy
+	pop ix
+	ret
+
+; DI on return. Maps the hidden buffer, then writes queued tiles.
+tgv_qflush:
+	di
+	xor a
+	ld (tgv_qmode),a
+	call tgv_map_back
+	ld hl,q_buf
+qflush_lp:
+	ld a,(q_count)
+	ld b,a
+	ld a,(q_count+1)
+	or b
+	ret z
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	inc hl
+	ld c,(hl)
+	inc hl
+	ld b,(hl)
+	inc hl
+	push hl
+	ld hl,(q_count)
+	dec hl
+	ld (q_count),hl
+	ld h,d
+	ld l,e
+	ld d,b
+	ld e,c
+	call blit_queued
+	pop hl
+	jr qflush_lp
+
+tgv_map_back:
 	ld a,(g_front)
 	xor 1
 	or a
@@ -394,6 +480,120 @@ flip_map_done:
 	ld a,1
 	ld (fmv_mounted),a
 	ret
+
+; HL = dst0, DE = src. DI. Clobbers AF/BC/DE/HL.
+blit_queued:
+	ld (blit_dst0),hl
+	ld (task_sp_save),sp
+	ex de,hl
+	ld sp,hl
+	ex de,hl
+	ld bc,40
+	pop de
+	ld (hl),e
+	add hl,bc
+	ld (hl),d
+	add hl,bc
+	pop de
+	ld (hl),e
+	add hl,bc
+	ld (hl),d
+	add hl,bc
+	pop de
+	ld (hl),e
+	add hl,bc
+	ld (hl),d
+	add hl,bc
+	pop de
+	ld (hl),e
+	add hl,bc
+	ld (hl),d
+	ld hl,(blit_dst0)
+	ld a,h
+	xor 020h
+	ld h,a
+	pop de
+	ld (hl),e
+	add hl,bc
+	ld (hl),d
+	add hl,bc
+	pop de
+	ld (hl),e
+	add hl,bc
+	ld (hl),d
+	add hl,bc
+	pop de
+	ld (hl),e
+	add hl,bc
+	ld (hl),d
+	add hl,bc
+	pop de
+	ld (hl),e
+	add hl,bc
+	ld (hl),d
+	ld sp,(task_sp_save)
+	ret
+
+; User IRQ is push af/bc/de then ld a; out (#FD). Swap those 3 bytes
+; with jp tgv_on_int. After the flag store, jp #003B enters the kernel.
+tgv_int_hook:
+	ld a,(tgv_hooked)
+	or a
+	ret nz
+	push ix
+	push iy
+	call tgv_int_swap
+	pop iy
+	pop ix
+	ld a,1
+	ld (tgv_hooked),a
+	xor a
+	ld (tgv_vsync),a
+	ret
+
+tgv_int_unhook:
+	ld a,(tgv_hooked)
+	or a
+	ret z
+	push ix
+	push iy
+	call tgv_int_swap
+	pop iy
+	pop ix
+	xor a
+	ld (tgv_hooked),a
+	ld (tgv_qmode),a
+	ret
+
+tgv_int_swap:
+	di
+	ld b,3
+	ld de,0038h
+	ld hl,tgv_oldimer
+tgv_swap0:
+	ld a,(de)
+	ld c,a
+	ld a,(hl)
+	ld (de),a
+	ld (hl),c
+	inc hl
+	inc de
+	djnz tgv_swap0
+	ei
+	ret
+
+tgv_on_int:
+	push af
+	ld a,1
+	ld (tgv_vsync),a
+	pop af
+	jp tgv_oldimer
+
+tgv_hooked:
+	DEFB 0
+tgv_oldimer:
+	jp tgv_on_int
+	jp 003Bh
 
 	ENDMOD
 	END

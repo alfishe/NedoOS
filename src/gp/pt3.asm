@@ -180,6 +180,7 @@ checkmiditurbosettings
 	ld a,d
 	or e
 	ret z
+	ld a,(de)
 	cp '0'
 	ret z
 	ld a,0xcd ;call opcode

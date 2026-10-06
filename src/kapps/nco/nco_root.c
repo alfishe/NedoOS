@@ -55,11 +55,31 @@ static void panel_fmt_size_pow(char *dst, unsigned long size, unsigned char widt
 	}
 }
 
+/* Hundredths 0..99, no 32-bit div (that was the slow part of a panel row). */
+static void panel_fmt_hundredths(unsigned char frac, unsigned char *tens, unsigned char *ones)
+{
+	unsigned char t;
+
+	t = 0u;
+	while (frac >= 10u)
+	{
+		frac = (unsigned char)(frac - 10u);
+		t++;
+	}
+	*tens = t;
+	*ones = frac;
+}
+
 void panel_fmt_size(char *dst, unsigned long size, unsigned char is_dir)
 {
 	static const unsigned long pow6[6] = {
 		100000UL, 10000UL, 1000UL, 100UL, 10UL, 1UL
 	};
+	unsigned long unit;
+	unsigned long frac;
+	unsigned int whole;
+	unsigned char ft;
+	unsigned char fo;
 
 	if (is_dir)
 	{
@@ -67,59 +87,59 @@ void panel_fmt_size(char *dst, unsigned long size, unsigned char is_dir)
 		dst[3] = 'D'; dst[4] = 'I'; dst[5] = 'R';
 		return;
 	}
-	if (size > 999999UL)
-		size = 999999UL;
-	panel_fmt_size_pow(dst, size, 6u, pow6);
-}
-
-/* Status line: 10 columns, same text as the old putchar size (G / M / bytes). */
-void panel_fmt_size10(char *dst, unsigned long size)
-{
-	unsigned char i;
-	unsigned long mb;
-	unsigned long frac;
-	unsigned int whole;
-
-	for (i = 0u; i < 10u; i++)
-		dst[i] = ' ';
+	/* 6 columns, same as nc: "x.xxG ", "xx.xxM" / " x.xxM", else bytes. */
 	if (size >= 104857600UL)
 	{
-		mb = size;
-		mb >>= 8;
-		mb >>= 8;
-		mb >>= 4;
-		whole = (unsigned int)(mb >> 10);
-		frac = (mb & 1023UL) * 100UL;
+		unit = size;
+		unit >>= 8;
+		unit >>= 8;
+		unit >>= 4;
+		whole = (unsigned int)(unit >> 10);
+		frac = (unit & 1023UL) * 100UL;
 		frac >>= 10;
 		if (whole > 9u)
 			whole = 9u;
+		panel_fmt_hundredths((unsigned char)frac, &ft, &fo);
 		dst[0] = (char)('0' + whole);
 		dst[1] = '.';
-		dst[2] = (char)('0' + (unsigned char)(frac / 10UL));
-		dst[3] = (char)('0' + (unsigned char)(frac % 10UL));
+		dst[2] = (char)('0' + ft);
+		dst[3] = (char)('0' + fo);
 		dst[4] = 'G';
 		dst[5] = ' ';
 		return;
 	}
 	if (size >= 1048576UL)
 	{
-		mb = size;
-		mb >>= 8;
-		mb >>= 8;
-		mb >>= 4;
-		whole = (unsigned int)mb;
+		unit = size;
+		unit >>= 8;
+		unit >>= 8;
+		unit >>= 4;
+		whole = (unsigned int)unit;
 		frac = (size & 1048575UL) * 100UL;
 		frac >>= 8;
 		frac >>= 8;
 		frac >>= 4;
-		dst[0] = (whole >= 10u) ? (char)('0' + (whole / 10u)) : ' ';
-		dst[1] = (char)('0' + (whole % 10u));
+		panel_fmt_hundredths((unsigned char)frac, &ft, &fo);
+		dst[0] = (whole >= 10u) ? (char)('0' + (unsigned char)(whole / 10u)) : ' ';
+		dst[1] = (char)('0' + (unsigned char)(whole % 10u));
 		dst[2] = '.';
-		dst[3] = (char)('0' + (unsigned char)(frac / 10UL));
-		dst[4] = (char)('0' + (unsigned char)(frac % 10UL));
+		dst[3] = (char)('0' + ft);
+		dst[4] = (char)('0' + fo);
 		dst[5] = 'M';
 		return;
 	}
+	if (size > 999999UL)
+		size = 999999UL;
+	panel_fmt_size_pow(dst, size, 6u, pow6);
+}
+
+/* Status line: 10 columns. First 6 match the panel size column. */
+void panel_fmt_size10(char *dst, unsigned long size)
+{
+	unsigned char i;
+
+	for (i = 0u; i < 10u; i++)
+		dst[i] = ' ';
 	panel_fmt_size(dst, size, 0u);
 }
 

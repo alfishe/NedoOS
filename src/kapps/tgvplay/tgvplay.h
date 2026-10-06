@@ -7,6 +7,10 @@ void tgv_map_draw(void);
 void tgv_unmount_draw(void);
 void tgv_flip(void);
 extern unsigned char tgv_flip_halt; /* 1=HALT after SETSCREEN, 0=skip */
+extern unsigned char tgv_qmode;
+void tgv_qwait_flush(void);
+void tgv_int_hook(void);
+void tgv_int_unhook(void);
 void tgv_text_mode(void);
 
 void tgv_blit_tables_init(void);

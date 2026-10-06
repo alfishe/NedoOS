@@ -103,10 +103,12 @@ void tgv_gfx_init(void)
 
 	OS_SETSCREEN(g_front);
 	tgv_map_draw();
+	tgv_int_hook();
 }
 
 void tgv_text_mode(void)
 {
+	tgv_int_unhook();
 	tgv_unmount_draw();
 	tgv_set_main();
 	OS_SETSCREEN(0u);
@@ -124,6 +126,9 @@ static int stream_load_sector(void)
 	secpos = 0;
 	if (batch_pos >= batch_end)
 	{
+		/* Queue holds pointers into secstore. Drain before the refill. */
+		if (tgv_qmode)
+			tgv_qwait_flush();
 		got = 0;
 		while (got < FMV_BATCH_SIZE)
 		{
