@@ -18,6 +18,9 @@ void tgv_capture_task_iy(void);
 int tgv_decode_sector(void);
 
 int tgv_fmv_play(const char *path);
+unsigned char gs_pcm_init(void);
+void gs_pcm_play(unsigned char *src, unsigned int len);
+void gs_pcm_stop(void);
 /* Set before tgv_fmv_play: 1 = no HALT in flip. */
 extern unsigned char tgv_fmv_no_halt;
 unsigned char tgv_fmv_aborted(void);

@@ -25,6 +25,10 @@
 	EXTERN secbase
 	EXTERN secpos
 	EXTERN frame_open
+	EXTERN tgv_pace_on
+	EXTERN tgv_pace_ticks
+	EXTERN tgv_pace_num
+	EXTERN tgv_pace_den
 	#include "sysdefs.asm"
 
 FMV_SLOTS	EQU	113
@@ -69,6 +73,18 @@ fmv_mounted:
 	DEFS 1
 tgv_flip_halt:
 	DEFS 1
+	PUBLIC tgv_frm_n
+	PUBLIC tgv_irq_n
+	PUBLIC tgv_irq_seen
+	PUBLIC tgv_pace_acc
+tgv_frm_n:
+	DEFS 2
+tgv_irq_n:
+	DEFS 2
+tgv_irq_seen:
+	DEFS 2
+tgv_pace_acc:
+	DEFS 2
 tgv_qmode:
 	DEFS 1
 tgv_vsync:
@@ -79,7 +95,6 @@ q_ptr:
 	DEFS 2
 q_buf:
 	DEFS 2048
-
 	RSEG CODE
 
 ; ===========================================================================
@@ -306,7 +321,6 @@ dec_blit_sp:
 
 	ld sp,(task_sp_save)
 	ei
-	; --- end blit ---
 
 dec_next:
 	dec ixh				; Z when slots exhausted
@@ -397,6 +411,10 @@ tgv_switch_screen:
 ; landed, the frame ran long and we switch at once (no extra field).
 tgv_flip:
 tgv_flip_sync:
+	ld hl,(tgv_frm_n)
+	inc hl
+	ld (tgv_frm_n),hl
+	call tgv_pace_wait
 	ld a,(tgv_flip_halt)
 	or a
 	jr z,sync_switch
@@ -411,6 +429,57 @@ sync_consume:
 sync_switch:
 	call tgv_switch_screen
 	jp tgv_map_back
+
+; Hold the frame for the detected fps. tgv_pace_* set from C once
+; a few sound blocks have been seen. 1024/175 ticks per sound block,
+; shared across the frames in that block.
+tgv_pace_wait:
+	ld a,(tgv_pace_on)
+	or a
+	ret z
+	ld a,(tgv_pace_ticks)
+	ld c,a
+	ld hl,(tgv_pace_acc)
+	ld de,(tgv_pace_num)
+	add hl,de
+	ld de,(tgv_pace_den)
+	ld a,d
+	or e
+	jr z,pace_no_extra
+	push hl
+	or a
+	sbc hl,de
+	pop hl
+	jr c,pace_no_extra
+	or a
+	sbc hl,de
+	inc c
+pace_no_extra:
+	ld (tgv_pace_acc),hl
+pace_tick:
+	ld a,c
+	or a
+	ret z
+	ld hl,(tgv_irq_n)
+	ld de,(tgv_irq_seen)
+	or a
+	sbc hl,de
+	ld a,h
+	or l
+	jr z,pace_halt
+	ld hl,(tgv_irq_seen)
+	inc hl
+	ld (tgv_irq_seen),hl
+	dec c
+	jr pace_tick
+pace_halt:
+	ei
+	halt
+	ld hl,(tgv_irq_seen)
+	inc hl
+	ld (tgv_irq_seen),hl
+	dec c
+	jr pace_tick
 
 ; C and asm. IX/IY preserved. Returns with EI.
 tgv_qwait_flush:
@@ -584,6 +653,11 @@ tgv_swap0:
 
 tgv_on_int:
 	push af
+	push hl
+	ld hl,(tgv_irq_n)
+	inc hl
+	ld (tgv_irq_n),hl
+	pop hl
 	ld a,1
 	ld (tgv_vsync),a
 	pop af

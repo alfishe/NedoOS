@@ -33,6 +33,14 @@ unsigned char secstore[FMV_BATCH_SIZE];
 unsigned int secbase;
 unsigned int secpos;
 unsigned char frame_open;
+unsigned char tgv_pace_on;
+unsigned char tgv_pace_ticks;
+unsigned int tgv_pace_num;
+unsigned int tgv_pace_den;
+extern unsigned int tgv_frm_n;
+extern unsigned int tgv_irq_n;
+extern unsigned int tgv_irq_seen;
+extern unsigned int tgv_pace_acc;
 
 static unsigned int batch_pos;
 static unsigned int batch_end;
@@ -41,6 +49,11 @@ static FILE *fmv_fp;
 static unsigned char fmv_open;
 static unsigned char user_abort;
 static unsigned char key_countdown;
+static unsigned char seen_snd;
+static unsigned char pace_locked;
+static unsigned int frm_mark;
+static unsigned int blk_n;
+static unsigned int frm_sum;
 unsigned char tgv_fmv_no_halt;
 
 static void map_pages(unsigned char lo, unsigned char hi)
@@ -108,6 +121,7 @@ void tgv_gfx_init(void)
 
 void tgv_text_mode(void)
 {
+	gs_pcm_stop();
 	tgv_int_unhook();
 	tgv_unmount_draw();
 	tgv_set_main();
@@ -188,9 +202,24 @@ static int video_play(void)
 		if (stream_load_sector() < 0)
 			break;
 
-		/* sectcycl=8: sectors 8,16,... = sound ? skip. */
+		/* sectcycl=8: 2048 samples at 17500 Hz, then video frames. */
 		if ((stream_sec_idx & 7u) == 0u)
+		{
+			if (seen_snd)
+			{
+				unsigned int d;
+
+				d = (unsigned int)(tgv_frm_n - frm_mark);
+				frm_sum = (unsigned int)(frm_sum + d);
+				blk_n++;
+				if (!pace_locked && blk_n >= 4u && frm_sum != 0u)
+					pace_locked = 1u;
+			}
+			seen_snd = 1u;
+			frm_mark = tgv_frm_n;
+			gs_pcm_play((unsigned char *)secbase, FMV_SECTOR_SIZE);
 			continue;
+		}
 
 		r = tgv_decode_sector();
 		if (r == FMV_CHUNK_EOF)
@@ -221,6 +250,12 @@ int tgv_fmv_play(const char *path)
 	batch_end = 0;
 	secbase = (unsigned int)secstore;
 	key_countdown = 0u;
+	tgv_pace_on = 0;
+	seen_snd = 0;
+	pace_locked = 0;
+	blk_n = 0;
+	frm_sum = 0;
+	tgv_frm_n = 0;
 
 	if (path == 0 || path[0] == 0)
 		return -1;
@@ -235,6 +270,7 @@ int tgv_fmv_play(const char *path)
 
 	tgv_gfx_init();
 	tgv_flip_halt = tgv_fmv_no_halt ? 0u : 1u;
+	gs_pcm_init();
 	return video_play();
 }
 

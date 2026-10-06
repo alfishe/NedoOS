@@ -7,7 +7,7 @@ CONSOLE := BDOS
 
 SRCC	:= main.c fmv.c
 SRCH	:= tgvplay.h
-SRCA	:= tgv_hot.asm
+SRCA	:= tgv_hot.asm gs_pcm.asm
 XCLFILE	:= lnk.xcl
 
 include ../iarlib/iar.mk
