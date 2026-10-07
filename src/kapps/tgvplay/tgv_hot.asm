@@ -21,6 +21,7 @@
 	PUBLIC g_scr1_high
 	PUBLIC fmv_mounted
 	PUBLIC tgv_flip_halt
+	PUBLIC tgv_ev_last
 	PUBLIC tgv_qmode
 	EXTERN secbase
 	EXTERN secpos
@@ -29,6 +30,17 @@
 	EXTERN tgv_pace_ticks
 	EXTERN tgv_pace_num
 	EXTERN tgv_pace_den
+	EXTERN tgv_ev_on
+	EXTERN tgv_ev_key
+	EXTERN tgv_ev_hit
+	EXTERN tgv_ev_fail
+	EXTERN tgv_ev_open
+	EXTERN tgv_ev_close
+	EXTERN tgv_snd_n
+	EXTERN tgv_cover
+	EXTERN tgv_hint
+	EXTERN tgv_mark_paint
+	EXTERN user_abort
 	#include "sysdefs.asm"
 
 FMV_SLOTS	EQU	113
@@ -422,8 +434,194 @@ sync_consume:
 	xor a
 	ld (tgv_vsync),a
 sync_switch:
+	ld a,(tgv_hint)
+	ld b,a
+	ld a,(tgv_cover)
+	or b
+	call nz,tgv_mark_paint
 	call tgv_switch_screen
-	jp tgv_map_back
+	call tgv_map_back
+	jp tgv_ev_poll
+
+; Once per displayed frame, and only while a choice window is open.
+; Outside that window this returns without touching the keyboard.
+tgv_ev_poll:
+	ld a,(tgv_ev_on)
+	or a
+	ret z
+	ld a,(tgv_ev_fail)
+	or a
+	ret nz
+	ld hl,(tgv_snd_n)
+	ld de,(tgv_ev_open)
+	or a
+	sbc hl,de
+	ret c
+	ld hl,(tgv_snd_n)
+	ld de,(tgv_ev_close)
+	or a
+	sbc hl,de
+	jr z,ev_key
+	jr c,ev_key
+	ld a,(tgv_ev_hit)
+	or a
+	ret nz
+	ld a,1
+	ld (tgv_ev_fail),a
+	xor a
+	ld (tgv_ev_on),a
+	ret
+
+; Called from the script when the sound frame has moved past the window.
+; The picture with the mark is still on screen: the key may be waiting.
+tgv_ev_last:
+	ld a,(tgv_ev_on)
+	or a
+	ret z
+	ld a,(tgv_ev_hit)
+	or a
+	ret nz
+	jp ev_key
+ev_key:
+	push ix
+	push iy
+	rst 0x08			; OS_GETKEY, key in A
+	ld b,a
+	cp 27				; Esc (space is the same code)
+	jr z,ev_esc
+	ld a,(tgv_ev_key)
+	cp 1				; 1 = fire: Enter, 0 or m
+	jr nz,ev_one
+	ld a,b
+	cp 13
+	jp z,ev_yes
+	cp '0'
+	jp z,ev_yes
+	cp 'm'
+	jp z,ev_yes
+	cp 'M'
+	jp z,ev_yes
+	jp ev_key_out
+ev_esc:
+	ld a,1
+	ld (user_abort),a
+	ld (tgv_ev_fail),a
+	xor a
+	ld (tgv_ev_on),a
+	jp ev_restore
+ev_one:
+	ld d,a			; expected cursor code
+	ld a,b
+	call ev_canon
+	cp d
+	jp z,ev_yes
+	or a
+	jp nz,ev_key_out	; a different direction
+	ld a,c			; key without the language shift
+	call ev_canon
+	cp d
+	jp z,ev_yes
+	or a
+	jp nz,ev_key_out
+	jp ev_restore		; not a direction, keep the window open
+
+; A = raw key. Returns the cursor code, or 0 if this is not a direction.
+; Original matrix: CS+5/6/7/8 and also O/P/Q/A (left/right/up/down).
+ev_canon:
+	cp 0xF8
+	ret z
+	cp 0xF9
+	ret z
+	cp 0xFA
+	ret z
+	cp 0xFB
+	ret z
+	cp 0xB5			; ext left
+	jr nz,ev_c6
+	ld a,0xF8
+	ret
+ev_c6:
+	cp 0xB6			; ext down
+	jr nz,ev_c8
+	ld a,0xF9
+	ret
+ev_c8:
+	cp 0xB8			; ext right
+	jr nz,ev_c7
+	ld a,0xFB
+	ret
+ev_c7:
+	cp 0xB7			; ext up
+	jr nz,ev_cq
+	ld a,0xFA
+	ret
+ev_cq:
+	cp 'q'
+	jr z,ev_as_up
+	cp 'Q'
+	jr z,ev_as_up
+	cp 0xA9			; ©
+	jr z,ev_as_up
+	cp 0x89			; ‰
+	jr z,ev_as_up
+	cp 'a'
+	jr z,ev_as_down
+	cp 'A'
+	jr z,ev_as_down
+	cp 0xE4			; ä
+	jr z,ev_as_down
+	cp 0x94			; ”
+	jr z,ev_as_down
+	cp 'o'
+	jr z,ev_as_left
+	cp 'O'
+	jr z,ev_as_left
+	cp 0xE9			; é
+	jr z,ev_as_left
+	cp 0x99			; ™
+	jr z,ev_as_left
+	cp 'p'
+	jr z,ev_as_right
+	cp 'P'
+	jr z,ev_as_right
+	cp 0xA7			; §
+	jr z,ev_as_right
+	cp 0x97			; ‡
+	jr z,ev_as_right
+	xor a
+	ret
+ev_as_up:
+	ld a,0xFA
+	ret
+ev_as_down:
+	ld a,0xF9
+	ret
+ev_as_left:
+	ld a,0xF8
+	ret
+ev_as_right:
+	ld a,0xFB
+	ret
+ev_yes:
+	ld a,(tgv_hint)
+	ld (tgv_cover),a
+	xor a
+	ld (tgv_hint),a
+	ld a,1
+	ld (tgv_ev_hit),a
+	jr ev_restore
+ev_key_out:
+	ld a,b
+	or a				; 0 = no key, keep waiting
+	jr z,ev_restore
+	ld a,1
+	ld (tgv_ev_fail),a
+	xor a
+	ld (tgv_ev_on),a
+ev_restore:
+	pop iy
+	pop ix
+	jp tgv_map_back		; GETKEY may have moved the pages
 
 ; Hold the frame for the detected fps. tgv_pace_* set from C once
 ; a few sound blocks have been seen. 1024/175 ticks per sound block,
