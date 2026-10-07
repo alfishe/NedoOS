@@ -17,7 +17,13 @@ TGVOBJ := $(abspath $(OBJ))
 OBJC += $(OBJ)/fmv.r01
 OBJA += $(OBJ)/tgv_hot.r01 $(OBJ)/gs_pcm.r01
 
-$(BIN): $(OBJ)/fmv.r01 $(OBJ)/tgv_hot.r01 $(OBJ)/gs_pcm.r01
+$(BIN): $(OBJ)/fmv.r01 $(OBJ)/tgv_hot.r01 $(OBJ)/gs_pcm.r01 timegal/gover
+
+# Amiga Game Over, 16 ATM colours, next to the clips.
+timegal/gover: gover.bin
+	$(CP) gover.bin timegal/gover
+	$(MKDIR) -p $(ROOTDIR)/release/$(INSTDIR)/timegal
+	$(CP) gover.bin $(ROOTDIR)/release/$(INSTDIR)/timegal/gover
 
 $(OBJ)/main.r01: main.c $(TGV)/tgvplay.h script.h | $(OBJ)
 	$(ICCZ80) -C -v0 -ml -s7 -S -uu -e -K -gA -O$(OBJ)/ -L$(OBJ)/ -A$(OBJ)/ -I$(IARINC) -I$(LIBDIR) -I"$(TGV)/" main.c

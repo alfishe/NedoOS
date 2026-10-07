@@ -11,6 +11,7 @@
 	PUBLIC tgv_decode_sector
 	PUBLIC tgv_flip
 	PUBLIC tgv_map_draw
+	PUBLIC tgv_setpal
 	PUBLIC tgv_qwait_flush
 	PUBLIC tgv_int_hook
 	PUBLIC tgv_int_unhook
@@ -397,6 +398,19 @@ map_s1:
 map_done:
 	ld a,1
 	ld (fmv_mounted),a
+	ret
+
+; DE = 32-byte DDp palette (IAR). Copied into the task, applied next frame.
+tgv_setpal:
+	push bc
+	push ix
+	push iy
+	ld c,CMD_SETPAL
+	call BDOS
+	pop iy
+	pop ix
+	pop bc
+	halt
 	ret
 
 ; Preserves stream IX/IY. BDOS sees the C task IY.

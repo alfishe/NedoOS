@@ -100,6 +100,104 @@ static void clear_mapped_vram(void)
 	memset((void *)TGV_VRAM_HI, 0, TGV_SCR_BYTES);
 }
 
+static void map_which(unsigned char which)
+{
+	if (which == 0u)
+		map_pages(g_scr0_low, g_scr0_high);
+	else
+		map_pages(g_scr1_low, g_scr1_high);
+}
+
+/* RLE: bit7 set = repeat (n&127)+1 of the next byte, else copy n+1 literals. */
+static const unsigned char *unrle(unsigned char *dst, const unsigned char *p,
+	unsigned int n)
+{
+	unsigned int i;
+	unsigned char c;
+	unsigned char k;
+	unsigned char v;
+
+	i = 0u;
+	while (i < n)
+	{
+		c = *p++;
+		if ((c & 0x80u) != 0u)
+		{
+			k = (unsigned char)((c & 0x7fu) + 1u);
+			v = *p++;
+			do
+				dst[i++] = v;
+			while (--k != 0u);
+		}
+		else
+		{
+			k = (unsigned char)(c + 1u);
+			do
+				dst[i++] = *p++;
+			while (--k != 0u);
+		}
+	}
+	return p;
+}
+
+static void paint_banks(const unsigned char *rle)
+{
+	rle = unrle((unsigned char *)TGV_VRAM_LO, rle, 8000u);
+	rle = unrle((unsigned char *)TGV_VRAM_HI, rle, 8000u);
+	rle = unrle((unsigned char *)0xA000u, rle, 8000u);
+	unrle((unsigned char *)0xE000u, rle, 8000u);
+}
+
+int tgv_show_still(const char *path)
+{
+	FILE *fp;
+	unsigned int got;
+	unsigned int n;
+	unsigned int len;
+	unsigned char front;
+	const unsigned char *rle;
+
+	if (path == 0 || path[0] == 0)
+		return -1;
+	fp = OS_OPENHANDLE((unsigned char *)path, 0x80);
+	if (((unsigned int)fp & 0xFFu) != 0u)
+		return -1;
+	got = 0u;
+	while (got < FMV_BATCH_SIZE)
+	{
+		n = OS_READHANDLE(secstore + got, fp,
+			(unsigned int)(FMV_BATCH_SIZE - got));
+		if (n == 0u || n > (unsigned int)(FMV_BATCH_SIZE - got))
+			break;
+		got = (unsigned int)(got + n);
+	}
+	OS_CLOSEHANDLE(fp);
+	if (got < 36u)
+		return -1;
+	len = secstore[0];
+	len = (unsigned int)(len | ((unsigned int)secstore[1] << 8));
+	if (len == 0u || (unsigned int)(34u + len) > got)
+		return -1;
+
+	/* Black both buffers before the palette moves, so the last frame
+	   does not flash in the new colours. Index 0 stays black. */
+	front = g_front;
+	map_which(front);
+	clear_mapped_vram();
+	map_which((unsigned char)(front ^ 1u));
+	clear_mapped_vram();
+	tgv_set_main();
+	tgv_setpal(secstore + 2);
+
+	rle = secstore + 34;
+	map_which((unsigned char)(front ^ 1u));
+	paint_banks(rle);
+	map_which(front);
+	paint_banks(rle);
+	tgv_set_main();
+	return 0;
+}
+
 void tgv_gfx_init(void)
 {
 	union APP_PAGES mp;

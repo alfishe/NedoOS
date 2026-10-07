@@ -152,6 +152,16 @@ C_task main(void)
 	}
 
 done:
+	/* Picture lives next to the clips. Text only if that file is not there. */
+	if (st == 3u && started)
+	{
+		make_path("gover");
+		if (tgv_show_still(path) == 0)
+		{
+			wait_key();
+			st = 4u;
+		}
+	}
 	if (started)
 		tgv_session_end();
 	OS_CLS(0);
@@ -169,7 +179,7 @@ done:
 	}
 	else if (st == 1u)
 		puts("Stopped.\r\n");
-	else
+	else if (st == 0u)
 		puts("The end.\r\n");
 	return 0;
 }

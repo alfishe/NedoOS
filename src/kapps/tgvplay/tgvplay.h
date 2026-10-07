@@ -58,4 +58,11 @@ unsigned char tgv_fmv_aborted(void);
 extern unsigned int tgv_frm_n;
 extern unsigned int tgv_snd_n;
 
+/* 32-byte DDp palette. The kernel puts it on screen at the next frame. */
+void tgv_setpal(const unsigned char *pal);
+/* Both EGA screens. File: le16 rle length, 32-byte palette, then RLE.
+   Four banks of 8000 bytes, column order 80/C0/A0/E0, pair-packed pixels.
+   0 = shown, -1 = the file is missing or short. */
+int tgv_show_still(const char *path);
+
 #endif
