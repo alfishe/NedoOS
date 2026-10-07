@@ -102,6 +102,7 @@ C_task main(void)
 
 	st = 0u;
 	started = 0u;
+	script_reset();
 	OS_HIDEFROMPARENT();
 	if (!clips_ready())
 	{
@@ -123,13 +124,22 @@ C_task main(void)
 
 	n = script_levels();
 	for (lv = 1u; lv < n; lv++) {
+		script_use_mirror(0u);
 		for (;;) {
 			script_bind(lv);
-			st = play_name(script_file(lv));
+			st = play_name(script_level_file(lv));
 			if (st != 0u)
 				goto done;
 			if (!script_failed())
+			{
+				script_use_mirror(0u);
 				break;
+			}
+			if (script_take_life() == 0u)
+			{
+				st = 3u;
+				goto done;
+			}
 			death = script_death();
 			if (death != 0) {
 				tgv_ev_disarm();
@@ -137,6 +147,7 @@ C_task main(void)
 				if (st != 0u)
 					goto done;
 			}
+			script_use_mirror(script_death_to_mirror());
 		}
 	}
 
@@ -147,6 +158,15 @@ done:
 	OS_SETCOLOR(7u);
 	if (st == 2u)
 		say_missing();
+	else if (st == 3u)
+	{
+		OS_SETGFX(6u);
+		OS_HALT();
+		OS_CLS(0);
+		OS_SETCOLOR(7u);
+		puts("\x86\x88\x87\x8D\x88 \x8A\x8E\x8D\x97\x88\x8B\x88\x91\x9C\r\n");
+		wait_key();
+	}
 	else if (st == 1u)
 		puts("Stopped.\r\n");
 	else

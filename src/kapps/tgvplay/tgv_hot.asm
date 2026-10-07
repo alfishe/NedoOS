@@ -40,6 +40,8 @@
 	EXTERN tgv_cover
 	EXTERN tgv_hint
 	EXTERN tgv_mark_paint
+	EXTERN tgv_time_on
+	EXTERN tgv_time_n
 	EXTERN user_abort
 	#include "sysdefs.asm"
 
@@ -446,6 +448,29 @@ sync_switch:
 ; Once per displayed frame, and only while a choice window is open.
 ; Outside that window this returns without touching the keyboard.
 tgv_ev_poll:
+	ld a,(tgv_time_on)
+	or a
+	jr z,ev_poll_hod
+	push ix
+	push iy
+	rst 0x08
+	ld b,a
+	pop iy
+	pop ix
+	ld a,b
+	cp 27
+	jr nz,ev_time_key
+	ld a,1
+	ld (user_abort),a
+	ld (tgv_ev_fail),a
+	jp tgv_map_back
+ev_time_key:
+	or a
+	jp z,tgv_map_back
+	ld hl,tgv_time_n
+	inc (hl)
+	jp tgv_map_back
+ev_poll_hod:
 	ld a,(tgv_ev_on)
 	or a
 	ret z

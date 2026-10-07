@@ -126,6 +126,11 @@ static const char *cur_death;
 static unsigned char failed;
 static unsigned char hint_on;
 static unsigned char got_good;
+static unsigned char lives;
+static unsigned char cur_mirror;
+static unsigned char stop_on;
+static unsigned char stop_done;
+static unsigned char stop_sel;
 
 static unsigned char hint_of(unsigned char key)
 {
@@ -152,15 +157,23 @@ static void marks_off(void)
 static void arm_at(unsigned char i)
 {
 	unsigned int fr;
+	unsigned char key;
 
 	cur_i = i;
 	cur_death = tabs[cur_lv][i].death;
 	fr = tabs[cur_lv][i].frame;
+	key = tabs[cur_lv][i].key;
+	if (cur_mirror != 0u)
+	{
+		if (key == K_LEFT)
+			key = K_RIGHT;
+		else if (key == K_RIGHT)
+			key = K_LEFT;
+	}
 	hint_on = 0u;
 	got_good = 0u;
 	tgv_hint = 0u;
-	tgv_ev_arm((unsigned int)(fr + TG_Z - TG_REACT), (unsigned int)(fr + TG_Z),
-		tabs[cur_lv][i].key);
+	tgv_ev_arm((unsigned int)(fr + TG_Z - TG_REACT), (unsigned int)(fr + TG_Z), key);
 }
 
 unsigned char script_levels(void)
@@ -171,6 +184,159 @@ unsigned char script_levels(void)
 const char *script_file(unsigned char level)
 {
 	return files[level];
+}
+
+static const char *const mirror_file[] = {
+	0, "mev1", 0, "mev3", 0, 0, "mev6", 0, 0, "mev9",
+	"meva", 0, 0, "mevd", 0, "mevf", 0
+};
+
+static const char *const mirror_death[] = {
+	"l1d2", "l1d5",
+	"l3d3", "l3d5", "l3d6", "l3d9", "l3da",
+	"l6d2", "l6d4", "l6d5", "l6d8",
+	"l9d1", "l9d4", "l9d5", "l9d7", "l9d9", "l9dc",
+	"lad1", "lad4", "lad5", "lad7",
+	"ldd2", "ldd5", "ldd6", "ldd8",
+	"lfd1", "lfd2", "lfd4"
+};
+
+struct stop {
+	unsigned int begin;
+	unsigned int end;
+	const char *s0;
+	const char *s1;
+	const char *s2;
+	const char *d0;
+	const char *d1;
+};
+
+static const struct stop stop_l2 = {
+	232, 291,
+	"\x82\x9B\x91\x92\x90\x85\x8B\x88\x92\x9C",
+	"\x93\x82\x85\x90\x8D\x93\x92\x9C\x91\x9F",
+	"\x8F\x8B\x9B\x92\x9C\x20\x82\x82\x85\x90\x95",
+	"l2d5", "l2d6"
+};
+static const struct stop stop_l3 = {
+	306, 366,
+	"\x82\x9B\x91\x92\x90\x85\x8B\x88\x92\x9C\x20\x82\x8E\x20\x82\x90\x80\x83\x8E\x82",
+	"\x8F\x8E\x89\x8C\x80\x92\x9C\x20\x82\x90\x80\x83\x8E\x82\x20\x91\x85\x92\x9C\x9E",
+	"\x8F\x85\x90\x85\x8F\x90\x9B\x83\x8D\x93\x92\x9C\x20\x82\x90\x80\x83\x8E\x82",
+	"l3d8", "l3d9"
+};
+static const struct stop stop_l8 = {
+	317, 377,
+	"\x8F\x90\x9B\x83\x8D\x93\x92\x9C\x20\x82\x20\x8B\x8E\x84\x8A\x93",
+	"\x8F\x90\x9B\x83\x8D\x93\x92\x9C\x20\x82\x20\x82\x8E\x84\x93",
+	"\x8F\x90\x9B\x83\x8D\x93\x92\x9C\x20\x8D\x80\x20\x8A\x8E\x90\x80\x81\x8B\x9C",
+	"l8d7", "l8d8"
+};
+static const struct stop stop_l9 = {
+	183, 243,
+	"\x8F\x90\x9B\x83\x8D\x93\x92\x9C\x20\x8D\x80\x20\x8A\x8E\x90\x80\x81\x8B\x9C",
+	"\x8C\x8E\x8B\x88\x92\x9C\x91\x9F",
+	"\x8F\x90\x9B\x83\x8D\x93\x92\x9C\x20\x82\x20\x82\x8E\x84\x93",
+	"l9db", "l9dc"
+};
+static const struct stop stop_la = {
+	325, 385,
+	"\x8B\x85\x87\x92\x9C\x20\x82\x82\x85\x90\x95",
+	"\x91\x8F\x90\x9B\x83\x8D\x93\x92\x9C\x20\x82\x8D\x88\x87",
+	"\x8F\x90\x9B\x83\x8D\x93\x92\x9C\x20\x8D\x80\x20\x82\x85\x90\x92\x8E\x8B\x85\x92",
+	"lad7", "lad8"
+};
+static const struct stop stop_lb = {
+	245, 305,
+	"\x91\x82\x85\x90\x8D\x93\x92\x9C\x20\x82\x20\x91\x92\x8E\x90\x8E\x8D\x93",
+	"\x90\x80\x87\x82\x85\x90\x8D\x93\x92\x9C\x91\x9F",
+	"\x85\x95\x80\x92\x9C\x20\x8F\x8E\x84\x20\x96\x88\x91\x92\x85\x90\x8D\x8E\x89",
+	"lbd6", "lbd7"
+};
+static const struct stop stop_ld = {
+	319, 378,
+	"\x91\x92\x90\x85\x8B\x9F\x92\x9C\x20\x82\x20\x90\x8E\x81\x8E\x92\x80",
+	"\x91\x8F\x90\x9B\x83\x8D\x93\x92\x9C\x20\x82\x8D\x88\x87",
+	"\x8F\x8E\x84\x8F\x90\x9B\x83\x8D\x93\x92\x9C\x20\x82\x82\x85\x90\x95",
+	"ldd8", "ldd9"
+};
+static const struct stop stop_le = {
+	244, 304,
+	"\x8F\x90\x9B\x83\x8D\x93\x92\x9C\x20\x82\x82\x85\x90\x95",
+	"\x91\x92\x90\x85\x8B\x9F\x92\x9C\x20\x8F\x8E\x20\x92\x90\x80\x93\x90\x80\x8C",
+	"\x8D\x80\x86\x80\x92\x9C\x20\x8A\x8D\x8E\x8F\x8A\x93\x20\x98\x8B\x9E\x87\x80",
+	"led8", "led9"
+};
+
+static const struct stop *const stop_tab[] = {
+	0, 0, &stop_l2, &stop_l3, 0, 0, 0, 0, &stop_l8, &stop_l9,
+	&stop_la, &stop_lb, 0, &stop_ld, &stop_le, 0, 0
+};
+
+static const char *stop_line(const struct stop *st)
+{
+	if (stop_sel == 0u)
+		return st->s0;
+	if (stop_sel == 1u)
+		return st->s1;
+	return st->s2;
+}
+
+static unsigned char timestop_tick(void)
+{
+	const struct stop *st;
+	unsigned char n;
+
+	if (cur_lv >= (unsigned char)(sizeof(stop_tab) / sizeof(stop_tab[0])))
+		return 0u;
+	st = stop_tab[cur_lv];
+	if (st == 0 || stop_done)
+		return 0u;
+	if (tgv_snd_n < st->begin)
+		return 0u;
+	if (tgv_snd_n < st->end)
+	{
+		if (!stop_on)
+		{
+			stop_on = 1u;
+			stop_sel = (unsigned char)((tgv_frm_n + tgv_snd_n) % 3u);
+			tgv_time_on = 1u;
+			tgv_time_n = 0u;
+			tgv_hint = 0u;
+		}
+		n = tgv_time_n;
+		if (n != 0u)
+		{
+			stop_sel = (unsigned char)((stop_sel + n) % 3u);
+			tgv_time_n = 0u;
+			tgv_bibik_good();
+		}
+		tgv_time_msg = stop_line(st);
+		return 1u;
+	}
+	tgv_time_on = 0u;
+	tgv_time_msg = 0;
+	tgv_time_n = 0u;
+	stop_on = 0u;
+	stop_done = 1u;
+	if (stop_sel == 0u)
+	{
+		cur_death = st->d0;
+		failed = 1u;
+		tgv_ev_fail = 1u;
+		tgv_bibik_bad();
+		return 1u;
+	}
+	if (stop_sel == 1u)
+	{
+		cur_death = st->d1;
+		failed = 1u;
+		tgv_ev_fail = 1u;
+		tgv_bibik_bad();
+		return 1u;
+	}
+	tgv_bibik_good();
+	return 0u;
 }
 
 void script_bind(unsigned char level)
@@ -184,6 +350,11 @@ void script_bind(unsigned char level)
 	tgv_hint = 0u;
 	tgv_cover = 0u;
 	tgv_cover_ttl = 0u;
+	stop_on = 0u;
+	stop_done = 0u;
+	tgv_time_on = 0u;
+	tgv_time_n = 0u;
+	tgv_time_msg = 0;
 	tgv_ev_disarm();
 	if (counts[level] != 0)
 		arm_at(0);
@@ -191,6 +362,8 @@ void script_bind(unsigned char level)
 
 void script_pump(void)
 {
+	if (timestop_tick())
+		return;
 	if (!tgv_ev_on && !tgv_ev_fail)
 		return;
 	if (tgv_ev_fail) {
@@ -258,4 +431,60 @@ unsigned char script_failed(void)
 const char *script_death(void)
 {
 	return cur_death;
+}
+
+static unsigned char same_name(const char *a, const char *b)
+{
+	unsigned char i;
+
+	if (a == 0 || b == 0)
+		return 0u;
+	for (i = 0u; a[i] != 0 || b[i] != 0; i++)
+	{
+		if (a[i] != b[i])
+			return 0u;
+	}
+	return 1u;
+}
+
+void script_reset(void)
+{
+	lives = 5u;
+	cur_mirror = 0u;
+}
+
+unsigned char script_take_life(void)
+{
+	if (lives != 0u)
+		lives--;
+	return lives;
+}
+
+unsigned char script_lives(void)
+{
+	return lives;
+}
+
+void script_use_mirror(unsigned char on)
+{
+	cur_mirror = on;
+}
+
+const char *script_level_file(unsigned char level)
+{
+	if (cur_mirror != 0u && mirror_file[level] != 0)
+		return mirror_file[level];
+	return files[level];
+}
+
+unsigned char script_death_to_mirror(void)
+{
+	unsigned char i;
+
+	for (i = 0u; i < (unsigned char)(sizeof(mirror_death) / sizeof(mirror_death[0])); i++)
+	{
+		if (same_name(cur_death, mirror_death[i]))
+			return 1u;
+	}
+	return 0u;
 }

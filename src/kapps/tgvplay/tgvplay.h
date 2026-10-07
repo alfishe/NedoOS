@@ -38,6 +38,9 @@ extern unsigned char tgv_hint;
 extern unsigned char tgv_cover;
 extern unsigned char tgv_cover_ttl;
 void tgv_mark_paint(void);
+extern unsigned char tgv_time_on;
+extern unsigned char tgv_time_n;
+extern const char *tgv_time_msg;
 /* Choice window in frame numbers. The flip polls a key only inside it. */
 void tgv_ev_arm(unsigned int open_frame, unsigned int close_frame, unsigned char key);
 void tgv_ev_disarm(void);
