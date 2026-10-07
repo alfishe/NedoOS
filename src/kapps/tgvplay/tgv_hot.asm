@@ -57,8 +57,6 @@ blit_dst0:
 	DEFS 2
 
 	RSEG UDATA0
-dec_chrx_b:
-	DEFS 1
 g_front:
 	DEFS 1
 g_scr0_low:
@@ -204,13 +202,13 @@ tgv_decode_sector:
 dec_loop:
 	ld a,(iy+0)
 	inc iy
+	ld ixl,a
+	bit 7,a
+	jr z,dec_do_chrx		; plain tile, the common case
 	cp 0xff
 	jp z,dec_end
-	ld ixl,a
-
-	add a,a				; bit7 ? C (4T vs bit 7,a = 8T)
-	jr nc,dec_do_chrx		; bit7 was 0 ? tile
-	jp m,dec_do_chrx		; was 11xxxxxx, not NEWPLANE (#80)
+	add a,a
+	jp m,dec_do_chrx		; 11xxxxxx is still a tile
 	ld a,(frame_open)
 	or a
 	jr z,dec_frame_mark
@@ -220,22 +218,16 @@ dec_frame_mark:
 	ld (frame_open),a
 
 dec_do_chrx:
-	ld a,(iy+0)			; chrx
-	inc iy
-	ld (dec_chrx_b),a
-	ld e,iyl
-	ld d,iyh			; DE=payload
-	ld bc,16
-	add iy,bc
-
 	ld a,ixl
 	and 31
+	ld c,a				; chry
 	cp 24
-	jp nc,dec_next
-	ld c,a				; C=chry
-	ld a,(dec_chrx_b)
-	cp 40
-	jp nc,dec_next
+	jr nc,dec_skip17
+	ld a,(iy+0)			; chrx, IY not moved yet
+	cp 36				; 4 columns of margin still fit in 40
+	jr nc,dec_skip17
+	inc iy
+	add a,4				; (320-256)/8 = 4, 32 pixels each side
 	add a,a
 	add a,a				; chrx*4
 	ld b,a
@@ -244,28 +236,27 @@ dec_do_chrx:
 	rlca
 	and 1				; bplane
 	add a,b
-	ld b,a				; pair0
-	; --- stack blit: SP?src, POP DE = 2 bytes; HL = VRAM +40 ---
-	; BUGFIX: addr calc must not kill DE=src; save dst0 (can't PUSH while SP=src).
-	; IY still needs +16 above ? POP only reads payload, does not advance IY.
-	push de				; src on real stack
+	ld b,a				; pair
 	ld h,HIGH ty40_lo
 	ld l,c
 	ld e,(hl)
-	ld h,HIGH ty40_hi
-	ld d,(hl)			; DE=ty (src is on stack)
+	inc h				; ty40_hi is the next page
+	ld d,(hl)
 	ld h,HIGH tx_lo
 	ld l,b
 	ld a,(hl)
 	add a,e
 	ld e,a
-	ld h,HIGH tx_hi
+	inc h				; tx_hi
 	ld a,(hl)
 	adc a,d
 	ld h,a
 	ld l,e				; HL=dst0
 	ld (blit_dst0),hl
-	pop de				; DE=src
+	ld e,iyl
+	ld d,iyh			; DE=payload
+	ld bc,16
+	add iy,bc
 dec_blit_sp:
 	di				; SP-blit must not take the IRQ hook
 	ld (task_sp_save),sp
@@ -294,7 +285,7 @@ dec_blit_sp:
 	add hl,bc
 	ld (hl),d
 
-	ld hl,(blit_dst0)		; exact plane0 base (no fragile ?280)
+	ld hl,(blit_dst0)
 	ld a,h
 	xor 020h
 	ld h,a
@@ -321,7 +312,11 @@ dec_blit_sp:
 
 	ld sp,(task_sp_save)
 	ei
+	jp dec_next
 
+dec_skip17:
+	ld bc,17			; chrx byte plus 16 of payload
+	add iy,bc
 dec_next:
 	dec ixh				; Z when slots exhausted
 	jp nz,dec_loop
