@@ -6,6 +6,8 @@ var uploadTotalCount = 0;
 var uploadDoneCount = 0;
 var uploadBatchTotalBytes = 0;
 var uploadBatchDoneBytes = 0;
+var uploadSpeedBps = 0;
+var UPLOAD_SPEED_KEY = '3ws-upload-bps';
 var deleteTotalCount = 0;
 var deleteDoneCount = 0;
 var selectedItems = {};
@@ -1797,18 +1799,97 @@ function uploadDisplayName(relativePath) {
 	return idx >= 0 ? relativePath.substring(idx + 1) : relativePath;
 }
 
+function loadUploadSpeed() {
+	try {
+		var saved = parseFloat(sessionStorage.getItem(UPLOAD_SPEED_KEY));
+		if (saved >= 200 && saved <= 5000000) {
+			uploadSpeedBps = saved;
+		}
+	} catch (e) {
+	}
+}
+
+loadUploadSpeed();
+
+function rememberUploadSpeed(bytes, ms) {
+	if (bytes < 2048 || ms < 200) {
+		return;
+	}
+	var bps = bytes * 1000 / ms;
+	if (bps < 100 || bps > 5000000) {
+		return;
+	}
+	if (uploadSpeedBps <= 0) {
+		uploadSpeedBps = bps;
+	} else {
+		uploadSpeedBps = uploadSpeedBps * 0.55 + bps * 0.45;
+	}
+	try {
+		sessionStorage.setItem(UPLOAD_SPEED_KEY, String(Math.round(uploadSpeedBps)));
+	} catch (e2) {
+	}
+}
+
+/* Browser upload events count the socket buffer, which often swallows a
+   whole file before 3ws has read it. Until the response arrives, follow a
+   measured byte rate instead of that buffer. 32KB/s is only the first-file guess. */
+var FALLBACK_UPLOAD_BPS = 32 * 1024;
+
+function estimateBps() {
+	return uploadSpeedBps > 0 ? uploadSpeedBps : FALLBACK_UPLOAD_BPS;
+}
+
+function expectedSentBytes(elapsedMs) {
+	if (elapsedMs <= 0) {
+		return 0;
+	}
+	return estimateBps() * elapsedMs / 1000;
+}
+
+function inflightByteEstimate(fileSize, elapsedMs) {
+	var bps;
+	var cap;
+	var linear;
+	var knee;
+	var expectedMs;
+	var extra;
+	var creep;
+	if (fileSize <= 0) {
+		return 0;
+	}
+	bps = estimateBps();
+	cap = fileSize * 0.96;
+	linear = bps * elapsedMs / 1000;
+	knee = fileSize * 0.8;
+	if (linear <= knee) {
+		return Math.min(cap, linear);
+	}
+	expectedMs = fileSize / bps * 1000;
+	extra = elapsedMs - expectedMs * 0.8;
+	creep = 1 - Math.exp(-extra / Math.max(expectedMs, 400));
+	return Math.min(cap, knee + (cap - knee) * creep);
+}
+
 function updateUploadProgress(relativePath, fileLoaded, fileTotal) {
 	var percent = 0;
+	var label;
 	if (uploadBatchTotalBytes > 0) {
 		percent = Math.round(((uploadBatchDoneBytes + fileLoaded) / uploadBatchTotalBytes) * 100);
 	} else if (uploadTotalCount > 0) {
 		var filePart = fileTotal > 0 ? fileLoaded / fileTotal : 0;
 		percent = Math.round(((uploadDoneCount + filePart) / uploadTotalCount) * 100);
 	}
-	var label = T.uploadProgress + ': ' + (uploadDoneCount + 1) + ' / ' + uploadTotalCount;
+	if (percent < 0) {
+		percent = 0;
+	}
+	if (percent > 99) {
+		percent = 99;
+	}
+	label = T.uploadProgress + ': ' + (uploadDoneCount + 1) + ' / ' + uploadTotalCount;
 	if (relativePath) {
 		label += ' \u2014 ' + uploadDisplayName(relativePath);
 	}
+	label += ' (' + percent + '%)';
 	setProgress(true, label, percent);
 }
 
@@ -1842,9 +1923,24 @@ function putFileAsync(relativePath, file) {
 		activeUploadXhr = xhr;
 		var settled = false;
 		var emptyWaits = 0;
+		var startedAt = 0;
+		var browserLoaded = 0;
+		var browserAhead = false;
+		var lastProgressLoaded = 0;
+		var lastProgressAt = 0;
+		var highSince = 0;
+		var highMark = -1;
+		var progressTimer = null;
+		var fileSize = file.size || 0;
 		function releaseUploadXhr() {
 			if (activeUploadXhr === xhr) {
 				activeUploadXhr = null;
+			}
+		}
+		function stopUploadTick() {
+			if (progressTimer) {
+				clearInterval(progressTimer);
+				progressTimer = null;
 			}
 		}
 		function doneOk() {
@@ -1852,6 +1948,10 @@ function putFileAsync(relativePath, file) {
 				return;
 			}
 			settled = true;
+			stopUploadTick();
+			if (startedAt) {
+				rememberUploadSpeed(fileSize, Date.now() - startedAt);
+			}
 			releaseUploadXhr();
 			finishUploadFile(file);
 			resolve();
@@ -1861,8 +1961,58 @@ function putFileAsync(relativePath, file) {
 				return;
 			}
 			settled = true;
+			stopUploadTick();
 			releaseUploadXhr();
 			reject(new Error(msg));
+		}
+		function noteBrowserAhead(loaded) {
+			var now = Date.now();
+			var elapsed = startedAt ? (now - startedAt) : 0;
+			var dt = lastProgressAt ? (now - lastProgressAt) : elapsed;
+			var jump = loaded - lastProgressLoaded;
+			var rate;
+			var limit;
+			var factor;
+			var slack;
+			if (dt < 1) {
+				dt = 1;
+			}
+			rate = jump * 1000 / dt;
+			limit = uploadSpeedBps > 0 ? Math.max(uploadSpeedBps * 4, 200 * 1024) : (200 * 1024);
+			factor = uploadSpeedBps > 0 ? 1.8 : 4;
+			slack = Math.max(4096, fileSize * 0.15);
+			if (fileSize >= 2048 && jump >= 32768 && rate > limit) {
+				browserAhead = true;
+			}
+			if (fileSize >= 16384 && jump >= fileSize * 0.3 && dt < 1200) {
+				browserAhead = true;
+			}
+			if (fileSize >= 2048 && loaded > expectedSentBytes(elapsed) * factor + slack) {
+				browserAhead = true;
+			}
+			lastProgressLoaded = loaded;
+			lastProgressAt = now;
+		}
+		function paintUpload() {
+			var elapsed = startedAt ? (Date.now() - startedAt) : 0;
+			var shown = browserLoaded;
+			if (!browserAhead && fileSize >= 2048 && browserLoaded >= fileSize * 0.85) {
+				if (browserLoaded > highMark) {
+					highMark = browserLoaded;
+					highSince = Date.now();
+				} else if (highSince && Date.now() - highSince > 500) {
+					browserAhead = true;
+				}
+			} else if (browserLoaded < fileSize * 0.85) {
+				highSince = 0;
+				highMark = -1;
+			}
+			if (browserAhead) {
+				shown = inflightByteEstimate(fileSize, elapsed);
+			} else if (fileSize > 0 && shown > fileSize * 0.97) {
+				shown = fileSize * 0.97;
+			}
+			updateUploadProgress(relativePath, shown, fileSize);
 		}
 		function waitResponse() {
 			if (uploadCancelled) {
@@ -1889,15 +2039,25 @@ function putFileAsync(relativePath, file) {
 			doneOk();
 		}
 		xhr.open('PUT', apiUrl(legacyTo866(target)), true);
-		xhr.timeout = REQUEST_TIMEOUT_MS;
-		updateUploadProgress(relativePath, 0, file.size || 0);
+		/* 60s dies at ~2.1MB on the ~35KB/s UART. Upload may take minutes. */
+		xhr.timeout = 0;
+		startedAt = Date.now();
+		updateUploadProgress(relativePath, 0, fileSize);
 		xhr.upload.onprogress = function(event) {
-			if (uploadCancelled) {
+			if (uploadCancelled || settled) {
 				return;
 			}
-			var total = event.lengthComputable ? event.total : (file.size || 0);
-			updateUploadProgress(relativePath, event.loaded || 0, total);
+			browserLoaded = event.loaded || 0;
+			noteBrowserAhead(browserLoaded);
+			paintUpload();
 		};
+		progressTimer = setInterval(function() {
+			if (uploadCancelled || settled) {
+				stopUploadTick();
+				return;
+			}
+			paintUpload();
+		}, 200);
 		xhr.upload.onload = waitResponse;
 		xhr.upload.onerror = function() {
 			if (uploadCancelled) {
@@ -1917,7 +2077,11 @@ function putFileAsync(relativePath, file) {
 		xhr.onabort = function() {
 			doneErr('Cancelled');
 		};
-		xhr.send(file);
+		try {
+			xhr.send(file);
+		} catch (sendErr) {
+			doneErr(sendErr.message || 'Network error');
+		}
 	});
 }
 
