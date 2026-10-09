@@ -8,7 +8,7 @@ SRCC	:= main.c
 
 SRCH	:=
 
-SRCA	:=
+SRCA	:= tv_paint.asm
 
 XCLFILE	:= lnk.xcl
 

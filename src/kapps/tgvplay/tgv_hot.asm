@@ -12,6 +12,7 @@
 	PUBLIC tgv_flip
 	PUBLIC tgv_map_draw
 	PUBLIC tgv_setpal
+	PUBLIC tgv_getpal
 	PUBLIC tgv_qwait_flush
 	PUBLIC tgv_int_hook
 	PUBLIC tgv_int_unhook
@@ -413,6 +414,18 @@ tgv_setpal:
 	halt
 	ret
 
+; DE = 32-byte buffer (IAR). Palette of the task that has the screen.
+tgv_getpal:
+	push bc
+	push ix
+	push iy
+	ld c,CMD_GETPAL
+	call BDOS
+	pop iy
+	pop ix
+	pop bc
+	ret
+
 ; Preserves stream IX/IY. BDOS sees the C task IY.
 tgv_switch_screen:
 	push iy
@@ -599,33 +612,33 @@ ev_cq:
 	jr z,ev_as_up
 	cp 'Q'
 	jr z,ev_as_up
-	cp 0xA9			; ©
+	cp 0xA9			; Ð¹
 	jr z,ev_as_up
-	cp 0x89			; ‰
+	cp 0x89			; Ð™
 	jr z,ev_as_up
 	cp 'a'
 	jr z,ev_as_down
 	cp 'A'
 	jr z,ev_as_down
-	cp 0xE4			; ä
+	cp 0xE4			; Ñ„
 	jr z,ev_as_down
-	cp 0x94			; ”
+	cp 0x94			; Ð¤
 	jr z,ev_as_down
 	cp 'o'
 	jr z,ev_as_left
 	cp 'O'
 	jr z,ev_as_left
-	cp 0xE9			; é
+	cp 0xE9			; Ñ‰
 	jr z,ev_as_left
-	cp 0x99			; ™
+	cp 0x99			; Ð©
 	jr z,ev_as_left
 	cp 'p'
 	jr z,ev_as_right
 	cp 'P'
 	jr z,ev_as_right
-	cp 0xA7			; §
+	cp 0xA7			; Ð·
 	jr z,ev_as_right
-	cp 0x97			; ‡
+	cp 0x97			; Ð—
 	jr z,ev_as_right
 	xor a
 	ret

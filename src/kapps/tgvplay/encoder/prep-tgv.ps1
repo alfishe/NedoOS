@@ -3,9 +3,10 @@
 # BMP 256x192 named <stem>00000.bmp and <stem>.wav (44 kHz stereo 16-bit)
 # sit in one folder. Paste the printed path into the converter.
 #
-#   .\prep-tgv.ps1 .\MyVideos
-#   .\prep-tgv.ps1 .\clip.mp4 -Fps 15
-#   .\prep-tgv.ps1 .\clip.mp4 -Mode fit -Start 12 -Duration 40
+# From Far, on the file under the cursor: prep-tgv.bat "!.!"
+#   prep-tgv.bat .\MyVideos
+#   prep-tgv.bat .\clip.mp4 -Fps 15
+#   prep-tgv.bat .\clip.mp4 -Mode fit -Start 12 -Duration 40
 #
 # -Mode crop  fill 256x192, cut the sides or the top (default)
 # -Mode fit   whole frame, black bars

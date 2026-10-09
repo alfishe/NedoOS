@@ -4,7 +4,7 @@
  * Builds display-line offset cache for WRAP/CHAR; RAW scans file on the fly.
  *
  * F1 Help  F2 Enc  F3 TEXT/HEX  F4 Wrap  F7 Find  F10/ESC Exit
- *       Left/Right horiz scroll in RAW (no-wrap) mode
+ *       Left/Right horiz scroll by 8 symbols in RAW (no-wrap) mode
  */
 
 #include <stdio.h>
@@ -119,13 +119,15 @@ static unsigned char g_path[80];
 static unsigned char g_enc;
 static unsigned char g_mode;
 static unsigned char g_wrapmode;
-static unsigned long g_view_col;   /* horiz scroll (display cols) in WRAP_NOLF */
+static unsigned long g_view_col;   /* horiz scroll, symbols, step 8, in WRAP_NOLF */
 static unsigned long g_view_ofs;   /* file offset of top line in RAW mode */
 static unsigned long g_raw_bot;    /* file offset of bottom visible line (RAW) */
 static unsigned long g_raw_max;    /* cached max top ofs for End */
 static unsigned char g_raw_max_ok;
 static unsigned long g_raw_row[VIEW_ROWS]; /* line starts on screen */
 static unsigned long g_raw_end[VIEW_ROWS]; /* exclusive ends */
+/* File offset of the left edge (symbol scroll) for each visible RAW row. */
+static unsigned long g_vis[VIEW_ROWS];
 
 static unsigned char g_pg_file[MAX_FILE_PAGES];
 static unsigned char g_npg_file;
@@ -153,7 +155,11 @@ static unsigned int g_find_pat_len;
 static unsigned char g_have_find;
 
 static unsigned char g_rowbuf[COLS + 1];
-static unsigned long g_lbatch[16];
+static unsigned long g_lbatch[64];
+
+extern unsigned char tv_scr_pg_text, tv_scr_pg_attr, tv_scr_home;
+extern unsigned char *tv_row_ptr;
+void tv_paint_row(unsigned char y, unsigned char attr);
 
 /* ---- tiny helpers ---- */
 
@@ -185,6 +191,14 @@ static void paint_row(unsigned char y, unsigned char color, unsigned char *s)
 	unsigned char i;
 	unsigned char c;
 
+	if (tv_scr_pg_text != 0u || tv_scr_pg_attr != 0u)
+	{
+		tv_scr_home = g_home_c000;
+		tv_row_ptr = s;
+		tv_paint_row(y, color);
+		g_map_doc = g_home_c000;
+		return;
+	}
 	restore_doc();
 	OS_SETCOLOR(color);
 	OS_SETXY(0, y);
@@ -224,6 +238,25 @@ static void status_msg(const char *msg)
 	flush_row(ROW_STATUS);
 }
 
+static void paint_span_row(unsigned char y, unsigned char x, unsigned char n,
+	unsigned char color)
+{
+	unsigned char i;
+
+	/* Span is built at g_rowbuf[0..n). Slide it to x and blank the rest. */
+	i = n;
+	while (i != 0u)
+	{
+		i--;
+		g_rowbuf[(unsigned char)(x + i)] = g_rowbuf[i];
+	}
+	for (i = 0; i < x; i++)
+		g_rowbuf[i] = ' ';
+	for (i = (unsigned char)(x + n); i < COLS; i++)
+		g_rowbuf[i] = ' ';
+	paint_row(y, color, g_rowbuf);
+}
+
 /* Progress dialog: framed window, % centered on the bar. */
 static void draw_progress(unsigned char pct, const char *label)
 {
@@ -249,7 +282,7 @@ static void draw_progress(unsigned char pct, const char *label)
 	k = 2u;
 	for (j = 0; label[j] && k < (unsigned char)(mw - 2u); j++, k++)
 		g_rowbuf[k] = (unsigned char)label[j];
-	paint_span(my, mx, g_rowbuf, mw, COL_MENU);
+	paint_span_row(my, mx, mw, COL_MENU);
 
 	/* body: º ÛÛÛÛ°45%°°°° º  (% overlaid on bar center) */
 	g_rowbuf[0] = 0xBA;
@@ -278,14 +311,14 @@ static void draw_progress(unsigned char pct, const char *label)
 	for (i = 0; i < tlen; i++)
 		g_rowbuf[tpos + i] = (unsigned char)tbuf[i];
 
-	paint_span((unsigned char)(my + 1u), mx, g_rowbuf, mw, COL_MENU);
+	paint_span_row((unsigned char)(my + 1u), mx, mw, COL_MENU);
 
 	/* bottom: ÈÍÍ¼ */
 	g_rowbuf[0] = 0xC8;
 	for (j = 1; j < mw - 1u; j++)
 		g_rowbuf[j] = 0xCD;
 	g_rowbuf[mw - 1u] = 0xBC;
-	paint_span((unsigned char)(my + 2u), mx, g_rowbuf, mw, COL_MENU);
+	paint_span_row((unsigned char)(my + 2u), mx, mw, COL_MENU);
 }
 
 static unsigned char key_is_enter(unsigned char ch)
@@ -478,20 +511,16 @@ static unsigned long raw_next_line(unsigned long ofs)
 {
 	unsigned int pi, off, room;
 	unsigned char *p;
-	unsigned char cur_pg;
+	unsigned long page_base;
 
 	if (ofs >= g_fsize)
 		return g_fsize;
-	cur_pg = 0xFFu;
-	while (ofs < g_fsize)
+	for (;;)
 	{
 		pi = (unsigned int)(ofs >> PAGE_SHIFT);
 		off = (unsigned int)ofs & PAGE_MASK;
-		if ((unsigned char)pi != cur_pg)
-		{
-			map_doc(g_pg_file[pi]);
-			cur_pg = (unsigned char)pi;
-		}
+		page_base = ofs & ~(unsigned long)PAGE_MASK;
+		map_doc(g_pg_file[pi]);
 		p = (unsigned char *)(DOC_WIN + off);
 		room = PAGE_SIZE - off;
 		if ((unsigned long)room > g_fsize - ofs)
@@ -499,12 +528,14 @@ static unsigned long raw_next_line(unsigned long ofs)
 		while (room != 0u)
 		{
 			if (*p++ == '\n')
-				return ofs + 1UL;
-			ofs++;
+				return page_base + (unsigned long)off + 1UL;
+			off++;
 			room--;
 		}
+		ofs = page_base + (unsigned long)PAGE_SIZE;
+		if (ofs >= g_fsize)
+			return g_fsize;
 	}
-	return g_fsize;
 }
 
 /* Start of line containing ofs. */
@@ -943,7 +974,7 @@ static void line_set_range(unsigned long idx0, unsigned long *vals, unsigned cha
 }
 
 /* Must be < 256: bn is unsigned char. */
-#define LINE_BATCH 16
+#define LINE_BATCH 64
 
 static void line_flush_batch(unsigned long batch_base, unsigned char bn, unsigned char file_pg)
 {
@@ -990,17 +1021,34 @@ static void prog_update(unsigned char pct, const char *label)
 	}
 }
 
+/* Redraw when the integer percent changes. 100 is reserved for the end. */
+static void index_prog(unsigned long pos)
+{
+	unsigned char pct;
+
+	if (g_fsize == 0UL)
+		return;
+	if (pos >= g_fsize)
+		pct = 99u;
+	else
+		pct = (unsigned char)((pos * 100UL) / g_fsize);
+	if (pct > 99u)
+		pct = 99u;
+	prog_update(pct, " Indexing...");
+}
+
 /*
- * Single-pass wrap cache for 1-byte encodings (CP866/1251/KOI8).
- * Walks file pages via pointer - no per-byte OS calls.
+ * Wrap cache for 1-byte encodings. Inner walk is 16-bit (page + offset).
+ * Progress follows bytes read, including a line that crosses a page.
  */
 static unsigned char fill_line_cache_sb(void)
 {
-	unsigned long ofs, idx, line_start, brk_pos;
-	unsigned char col, brk_col, b, glyph;
-	unsigned int pi, off, room;
+	unsigned long page_base, idx, line_abs;
+	unsigned int off, limit, brk_off, line_off, prog_at;
+	unsigned char col, brk_col, b, glyph, sp;
+	unsigned char pi, brk_pi, line_pi;
 	unsigned char *p;
-	unsigned char bn;
+	unsigned char bn, in_line, have_brk, rewound;
 	unsigned long batch_base;
 	unsigned char cur_pg;
 
@@ -1010,98 +1058,145 @@ static unsigned char fill_line_cache_sb(void)
 		return 1;
 	}
 
-	ofs = 0;
+	page_base = 0;
+	off = 0;
+	pi = 0;
 	idx = 0;
 	bn = 0;
 	batch_base = 0;
 	cur_pg = 0xFFu;
+	in_line = 0;
+	col = 0;
+	brk_col = 0;
+	brk_off = 0;
+	brk_pi = 0;
+	line_off = 0;
+	line_pi = 0;
+	have_brk = 0;
 	g_prog_last = 0xFFu;
 
-	while (ofs < g_fsize)
+	while (pi < g_npg_file && page_base < g_fsize)
 	{
-		pi = (unsigned int)(ofs >> PAGE_SHIFT);
-		if ((unsigned char)pi != cur_pg)
-		{
-			map_doc(g_pg_file[pi]);
-			cur_pg = (unsigned char)pi;
-			prog_update((unsigned char)((ofs * 100UL) / g_fsize), " Indexing...");
-			cur_pg = 0xFFu; /* progress bar restores screen at C000 */
-		}
+		if ((unsigned long)PAGE_SIZE < g_fsize - page_base)
+			limit = PAGE_SIZE;
+		else
+			limit = (unsigned int)(g_fsize - page_base);
 
-		line_start = ofs;
-		if (!index_push_line(line_start, &idx, &bn, &batch_base, &cur_pg))
-		{
-			printf("Not enough RAM for wrap cache\r\n");
-			free_line_pages();
-			return 0;
-		}
+		map_doc(g_pg_file[pi]);
+		index_prog(page_base + (unsigned long)off);
+		map_doc(g_pg_file[pi]);
+		cur_pg = pi;
+		p = (unsigned char *)DOC_WIN;
+		rewound = 0;
+		/* Next 2KB boundary inside this page. 16-bit compare, not per-line. */
+		prog_at = (unsigned int)((off & ~(2048u - 1u)) + 2048u);
 
-		col = 0;
-		brk_col = 0;
-		brk_pos = ofs;
-
-		while (col < TEXT_W && ofs < g_fsize)
+		while (off < limit || in_line)
 		{
-			pi = (unsigned int)(ofs >> PAGE_SHIFT);
-			off = (unsigned int)ofs & PAGE_MASK;
-			if ((unsigned char)pi != cur_pg)
+			if (!in_line)
 			{
+				if (off >= limit)
+					break;
+				line_abs = page_base + (unsigned long)off;
+				line_pi = pi;
+				line_off = off;
+				if (!index_push_line(line_abs, &idx, &bn, &batch_base, &cur_pg))
+				{
+					printf("Not enough RAM for wrap cache\r\n");
+					free_line_pages();
+					return 0;
+				}
+				if (bn == 0u)
+				{
+					map_doc(g_pg_file[pi]);
+					cur_pg = pi;
+					p = (unsigned char *)DOC_WIN;
+				}
+				col = 0;
+				brk_col = 0;
+				brk_off = off;
+				brk_pi = pi;
+				have_brk = 0;
+				in_line = 1;
+			}
+			if (off >= limit)
+				break;
+
+			b = p[off];
+			off++;
+			if (off >= prog_at)
+			{
+				index_prog(page_base + (unsigned long)off);
 				map_doc(g_pg_file[pi]);
-				cur_pg = (unsigned char)pi;
-				prog_update((unsigned char)((ofs * 100UL) / g_fsize), " Indexing...");
-				cur_pg = 0xFFu; /* progress bar restores screen at C000 */
-			}
-			p = (unsigned char *)(DOC_WIN + off);
-			room = PAGE_SIZE - off;
-			if ((unsigned long)room > g_fsize - ofs)
-				room = (unsigned int)(g_fsize - ofs);
-
-			while (room != 0u && col < TEXT_W)
-			{
-				b = *p;
-				p++;
-				room--;
-				ofs++;
-
-				if (g_enc == ENC_CP866)
-					glyph = b;
+				p = (unsigned char *)DOC_WIN;
+				cur_pg = pi;
+				if (prog_at <= (unsigned int)(65535u - 2048u))
+					prog_at = (unsigned int)(prog_at + 2048u);
 				else
-					glyph = map_byte(b);
-				if (glyph == '\r')
-					continue;
-				if (glyph == '\n')
-					goto line_done;
-				if (glyph == '\t')
+					prog_at = 65535u;
+			}
+			glyph = (g_enc == ENC_CP866) ? b : map_byte(b);
+			if (glyph == '\r')
+				continue;
+			if (glyph == '\n')
+			{
+				in_line = 0;
+				continue;
+			}
+			if (glyph == '\t')
+			{
+				sp = (unsigned char)(8u - (col & 7u));
+				if ((unsigned int)col + sp > TEXT_W)
 				{
-					unsigned char sp = (unsigned char)(8u - (col & 7u));
-					if ((unsigned int)col + sp > TEXT_W)
+					off--;
+					in_line = 0;
+					continue;
+				}
+				col = (unsigned char)(col + sp);
+				brk_off = off;
+				brk_pi = pi;
+				brk_col = col;
+				have_brk = 1;
+				continue;
+			}
+			if (glyph < 0x20u)
+				glyph = '.';
+			col++;
+			if (glyph == ' ')
+			{
+				brk_off = off;
+				brk_pi = pi;
+				brk_col = col;
+				have_brk = 1;
+			}
+			if (col >= TEXT_W)
+			{
+				if (g_wrapmode == WRAP_WORD && have_brk && brk_col > 0u &&
+					brk_col < TEXT_W &&
+					!(brk_pi == line_pi && brk_off == line_off))
+				{
+					if (brk_pi == pi)
+						off = brk_off;
+					else
 					{
-						ofs--;
-						goto line_done;
+						pi = brk_pi;
+						page_base = (unsigned long)pi << PAGE_SHIFT;
+						off = brk_off;
+						in_line = 0;
+						rewound = 1;
+						break;
 					}
-					col = (unsigned char)(col + sp);
-					brk_pos = ofs;
-					brk_col = col;
-					continue;
 				}
-				if (glyph < 0x20u)
-					glyph = '.';
-				col++;
-				if (glyph == ' ')
-				{
-					brk_pos = ofs;
-					brk_col = col;
-				}
-				if (col >= TEXT_W)
-				{
-					if (g_wrapmode == WRAP_WORD && brk_col > 0u && brk_col < TEXT_W && brk_pos > line_start)
-						ofs = brk_pos;
-					goto line_done;
-				}
+				in_line = 0;
 			}
 		}
-	line_done:
-		;
+
+		if (!rewound && (in_line || off >= limit))
+		{
+			pi++;
+			page_base += (unsigned long)PAGE_SIZE;
+			off = 0;
+		}
 	}
 
 	if (bn != 0u)
@@ -1112,7 +1207,7 @@ static unsigned char fill_line_cache_sb(void)
 			free_line_pages();
 			return 0;
 		}
-		line_flush_batch(batch_base, bn, cur_pg);
+		line_flush_batch(batch_base, bn, 0xFFu);
 	}
 	g_nlines = idx;
 	prog_update(100u, " Indexing...");
@@ -1342,41 +1437,62 @@ static const char *wrap_name(unsigned char mode)
 	return "WRAP";
 }
 
+static unsigned char app_str(unsigned char *d, unsigned char n, const char *s)
+{
+	while (*s && n < COLS)
+		d[n++] = (unsigned char)(*s++);
+	return n;
+}
+
+static unsigned char app_ul(unsigned char *d, unsigned char n, unsigned long v)
+{
+	unsigned char tmp[11];
+	unsigned char i;
+
+	i = 0;
+	do
+	{
+		tmp[i++] = (unsigned char)('0' + (unsigned char)(v % 10UL));
+		v /= 10UL;
+	} while (v != 0UL && i < 11u);
+	while (i != 0u && n < COLS)
+		d[n++] = tmp[--i];
+	return n;
+}
+
 static void draw_title(void)
 {
-	unsigned char i;
-	char tmp[COLS + 1];
-	unsigned int n;
+	unsigned char n;
 	unsigned long total;
 
-	total = (g_mode == MODE_HEX) ? hex_nlines() : g_nlines;
-	fill_spaces((unsigned char *)tmp, COLS);
+	fill_spaces(g_rowbuf, COLS);
+	n = app_str(g_rowbuf, 0, " TEXTVIEW ");
+	n = app_str(g_rowbuf, n, (const char *)g_path);
+	n = app_str(g_rowbuf, n, " [");
+	n = app_str(g_rowbuf, n, enc_name[g_enc]);
+	n = app_str(g_rowbuf, n, "][");
 	if (g_mode == MODE_TEXT && g_wrapmode == WRAP_NOLF)
 	{
-		sprintf(tmp, " TEXTVIEW %-10s [%s][TEXT][%s] O%lu C%lu ",
-				g_path,
-				enc_name[g_enc],
-				wrap_name(g_wrapmode),
-				g_view_ofs,
-				g_view_col + 1UL);
+		n = app_str(g_rowbuf, n, "TEXT][");
+		n = app_str(g_rowbuf, n, wrap_name(g_wrapmode));
+		n = app_str(g_rowbuf, n, "] O");
+		n = app_ul(g_rowbuf, n, g_view_ofs);
+		n = app_str(g_rowbuf, n, " C");
+		n = app_ul(g_rowbuf, n, g_view_col + 1UL);
 	}
 	else
 	{
-		sprintf(tmp, " TEXTVIEW %-14s [%s][%s][%s] L%lu/%lu ",
-				g_path,
-				enc_name[g_enc],
-				g_mode == MODE_HEX ? "HEX" : "TEXT",
-				g_mode == MODE_HEX ? "HEX" : wrap_name(g_wrapmode),
-				g_view_line + (total ? 1UL : 0UL),
-				total);
+		total = (g_mode == MODE_HEX) ? hex_nlines() : g_nlines;
+		n = app_str(g_rowbuf, n, g_mode == MODE_HEX ? "HEX][HEX] L" : "TEXT][");
+		if (g_mode != MODE_HEX)
+		{
+			n = app_str(g_rowbuf, n, wrap_name(g_wrapmode));
+			n = app_str(g_rowbuf, n, "] L");
+		}
+		n = app_ul(g_rowbuf, n, g_view_line + (total ? 1UL : 0UL));
+		n = app_str(g_rowbuf, n, "/");
+		n = app_ul(g_rowbuf, n, total);
 	}
-	n = (unsigned int)strlen(tmp);
-	if (n > COLS)
-		n = COLS;
-	for (i = 0; i < (unsigned char)n; i++)
-		g_rowbuf[i] = (unsigned char)tmp[i];
-	for (; i < COLS; i++)
-		g_rowbuf[i] = ' ';
 	paint_row(ROW_TITLE, COL_TITLE, g_rowbuf);
 }
 
@@ -1392,7 +1508,7 @@ static void draw_status(const char *msg)
 	const char *def;
 
 	if (g_mode == MODE_TEXT && g_wrapmode == WRAP_NOLF)
-		def = " F1 Help F2 Enc menu F3 HEX F4 mode Left/Right F7 Find ESC ";
+		def = " F1 Help F2 Enc menu F3 HEX F4 mode Left/Right +/-8 F7 Find ESC ";
 	else
 		def = " F1 Help F2 Enc menu F3 HEX F4 wrap menu F7 Find PgUp/Dn ESC ";
 
@@ -1666,6 +1782,99 @@ static void flush_view(void)
 {
 }
 
+/* Skip n symbols. CR is ignored. Stops on LF, pointing at that byte. */
+static unsigned long sym_skip(unsigned long ofs, unsigned long end, unsigned long n)
+{
+	unsigned int pi, off, room;
+	unsigned char *p;
+	unsigned long page_base;
+	unsigned char b;
+
+	if (n == 0UL || ofs >= end)
+		return ofs;
+	while (n != 0UL && ofs < end)
+	{
+		pi = (unsigned int)(ofs >> PAGE_SHIFT);
+		off = (unsigned int)ofs & PAGE_MASK;
+		page_base = ofs & ~(unsigned long)PAGE_MASK;
+		if (pi >= (unsigned int)g_npg_file)
+			return end;
+		map_doc(g_pg_file[pi]);
+		p = (unsigned char *)(DOC_WIN + off);
+		room = PAGE_SIZE - off;
+		if ((unsigned long)room > end - ofs)
+			room = (unsigned int)(end - ofs);
+		while (room != 0u && n != 0UL)
+		{
+			b = *p++;
+			room--;
+			off++;
+			if (b == '\r')
+				continue;
+			if (b == '\n')
+				return page_base + (unsigned long)off - 1UL;
+			n--;
+		}
+		ofs = page_base + (unsigned long)off;
+	}
+	return ofs;
+}
+
+/* Step back n symbols, not before line start. CR is ignored. */
+static unsigned long sym_back(unsigned long ofs, unsigned long line, unsigned char n)
+{
+	unsigned int pi, off, left;
+	unsigned char *p;
+	unsigned long page_base;
+	unsigned char b;
+
+	while (n != 0u && ofs > line)
+	{
+		pi = (unsigned int)((ofs - 1UL) >> PAGE_SHIFT);
+		off = (unsigned int)((ofs - 1UL) & PAGE_MASK);
+		page_base = (ofs - 1UL) & ~(unsigned long)PAGE_MASK;
+		if (pi >= (unsigned int)g_npg_file)
+			return line;
+		map_doc(g_pg_file[pi]);
+		p = (unsigned char *)(DOC_WIN + off);
+		left = off + 1u;
+		while (left != 0u && n != 0u && ofs > line)
+		{
+			b = *p;
+			if (b == '\n')
+				return ofs;
+			ofs--;
+			if (b != '\r')
+				n--;
+			if (ofs == page_base)
+				break;
+			p--;
+			left--;
+		}
+	}
+	return ofs;
+}
+
+static void raw_bind_row(unsigned char row)
+{
+	g_vis[row] = sym_skip(g_raw_row[row], g_raw_end[row], g_view_col);
+}
+
+static void raw_repaint(void)
+{
+	unsigned char row;
+
+	for (row = 0; row < VIEW_ROWS; row++)
+	{
+		if (g_raw_row[row] >= g_fsize)
+			fill_spaces(g_rowbuf, COLS);
+		else
+			text_fill_row_mem(g_vis[row], g_raw_end[row], 0UL);
+		paint_row((unsigned char)(ROW_TEXT0 + row), COL_TEXT, g_rowbuf);
+	}
+	update_title();
+}
+
 static void paint_view(void)
 {
 	unsigned char row;
@@ -1694,7 +1903,8 @@ static void paint_view(void)
 				g_raw_row[row] = ofs;
 				g_raw_end[row] = end;
 				g_raw_bot = ofs;
-				text_fill_row_mem(ofs, end, g_view_col);
+				raw_bind_row(row);
+				text_fill_row_mem(g_vis[row], end, 0UL);
 				ofs = end;
 			}
 			paint_row((unsigned char)(ROW_TEXT0 + row), color, g_rowbuf);
@@ -1747,14 +1957,16 @@ static void scroll_down_one(void)
 		{
 			g_raw_row[i] = g_raw_row[i + 1u];
 			g_raw_end[i] = g_raw_end[i + 1u];
+			g_vis[i] = g_vis[i + 1u];
 		}
 		end = raw_next_line(g_raw_bot);
 		g_raw_row[VIEW_ROWS - 1u] = g_raw_bot;
 		g_raw_end[VIEW_ROWS - 1u] = end;
+		raw_bind_row((unsigned char)(VIEW_ROWS - 1u));
 		restore_doc();
 		OS_SCROLLUP(OS_SCROLL_XY(ROW_TEXT0, 0), OS_SCROLL_WH(VIEW_ROWS, COLS));
 		color = COL_TEXT;
-		text_fill_row_mem(g_raw_bot, end, g_view_col);
+		text_fill_row_mem(g_vis[VIEW_ROWS - 1u], end, 0UL);
 		paint_row((unsigned char)(ROW_TEXT0 + VIEW_ROWS - 1u), color, g_rowbuf);
 		flush_row((unsigned char)(ROW_TEXT0 + VIEW_ROWS - 1u));
 		update_title();
@@ -1797,14 +2009,16 @@ static void scroll_up_one(void)
 		{
 			g_raw_row[i] = g_raw_row[i - 1u];
 			g_raw_end[i] = g_raw_end[i - 1u];
+			g_vis[i] = g_vis[i - 1u];
 		}
 		end = raw_next_line(g_view_ofs);
 		g_raw_row[0] = g_view_ofs;
 		g_raw_end[0] = end;
+		raw_bind_row(0);
 		restore_doc();
 		OS_SCROLLDOWN(OS_SCROLL_XY(ROW_TEXT0, 0), OS_SCROLL_WH(VIEW_ROWS, COLS));
 		color = COL_TEXT;
-		text_fill_row_mem(g_view_ofs, end, g_view_col);
+		text_fill_row_mem(g_vis[0], end, 0UL);
 		paint_row(ROW_TEXT0, color, g_rowbuf);
 		flush_row(ROW_TEXT0);
 		update_title();
@@ -1896,22 +2110,56 @@ static void goto_end(void)
 	paint_content();
 }
 
+#define HSCROLL_STEP 8u
+
 static void scroll_left(void)
 {
+	unsigned char row;
+	unsigned char step;
+	unsigned char at_nl;
+
 	if (g_mode != MODE_TEXT || g_wrapmode != WRAP_NOLF)
 		return;
 	if (g_view_col == 0UL)
 		return;
-	g_view_col--;
-	paint_content();
+	step = (g_view_col >= (unsigned long)HSCROLL_STEP) ? HSCROLL_STEP
+		: (unsigned char)g_view_col;
+	g_view_col -= (unsigned long)step;
+	for (row = 0; row < VIEW_ROWS; row++)
+	{
+		if (g_raw_row[row] >= g_fsize)
+			continue;
+		/* Past the end of a short line the edge sits on LF or EOF.
+		   Recompute from the start; that line is shorter than the step. */
+		at_nl = 0;
+		if (g_vis[row] >= g_raw_end[row])
+			at_nl = 1;
+		else if (file_byte(g_vis[row]) == '\n')
+			at_nl = 1;
+		if (at_nl)
+			g_vis[row] = sym_skip(g_raw_row[row], g_raw_end[row], g_view_col);
+		else
+			g_vis[row] = sym_back(g_vis[row], g_raw_row[row], step);
+	}
+	raw_repaint();
 }
 
 static void scroll_right(void)
 {
+	unsigned char row;
+
 	if (g_mode != MODE_TEXT || g_wrapmode != WRAP_NOLF)
 		return;
-	g_view_col++;
-	paint_content();
+	g_view_col += (unsigned long)HSCROLL_STEP;
+	for (row = 0; row < VIEW_ROWS; row++)
+	{
+		if (g_raw_row[row] >= g_fsize || g_vis[row] >= g_raw_end[row])
+			continue;
+		if (file_byte(g_vis[row]) == '\n')
+			continue;
+		g_vis[row] = sym_skip(g_vis[row], g_raw_end[row], (unsigned long)HSCROLL_STEP);
+	}
+	raw_repaint();
 }
 
 static void rebuild_wrap(void)
@@ -2315,7 +2563,7 @@ static void show_help(void)
 		" F4  wrap menu   F7 find   ESC exit",
 		"",
 		" Up/Dn line   PgUp/PgDn page   Home/End",
-		" RAW mode: no index, Left/Right horiz scroll",
+		" RAW mode: no index, Left/Right scroll by 8",
 		"",
 		" WRAP/CHAR build line cache after load/switch.",
 		" File must fit in free pages (minus 8 reserve).",
@@ -2474,7 +2722,7 @@ static void show_wrap_menu(void)
 	static const char *items[3] = {
 		"1  WRAP  word wrap at spaces",
 		"2  CHAR  hard wrap at 78 cols",
-		"3  RAW   lines, Left/Right scroll"
+		"3  RAW   lines, Left/Right by 8"
 	};
 	unsigned char sel;
 
@@ -2604,6 +2852,13 @@ C_task main(int argc, char *argv[])
 	g_map_doc = g_home_c000;
 
 	OS_SETGFX(0x86);
+	{
+		unsigned int scr;
+
+		scr = OS_GETSCR0();
+		tv_scr_pg_text = (unsigned char)(scr >> 8);
+		tv_scr_pg_attr = (unsigned char)(scr & 0xFFu);
+	}
 	restore_doc();
 	OS_CLS(COL_TEXT);
 	draw_progress(0, " Loading...");

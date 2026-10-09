@@ -18,9 +18,13 @@ void tgv_capture_task_iy(void);
 int tgv_decode_sector(void);
 
 int tgv_fmv_play(const char *path);
-/* One gfx/GS init for a chain of clips. tgv_fmv_play will not reset again. */
+/* One gfx/GS init for a chain of clips. Later plays keep the last frame
+   (no black clear / SETGFX). */
 void tgv_session_begin(void);
 void tgv_session_end(void);
+/* Set to 1 before tgv_fmv_play: next file is the next part of the same
+   stream (keep palette and frame/sound counters). Cleared after open. */
+extern unsigned char tgv_fmv_stream;
 /* Called once per sector from the play loop, never from the blit. */
 extern void (*tgv_on_sector)(void);
 extern unsigned char tgv_ev_on;
@@ -60,6 +64,8 @@ extern unsigned int tgv_snd_n;
 
 /* 32-byte DDp palette. The kernel puts it on screen at the next frame. */
 void tgv_setpal(const unsigned char *pal);
+/* Same 32 bytes, from the task that currently has the screen. */
+void tgv_getpal(unsigned char *pal);
 /* Both EGA screens. File: le16 rle length, 32-byte palette, then RLE.
    Four banks of 8000 bytes, column order 80/C0/A0/E0, pair-packed pixels.
    0 = shown, -1 = the file is missing or short. */
