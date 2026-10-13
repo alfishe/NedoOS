@@ -6,6 +6,52 @@
 #define SHELL_LOAD_TAIL (0x10000u - 0xC100u)
 #define SHELL_LOAD_FULL 0x4000u
 
+unsigned char nc_path_is_cd(const char *path)
+{
+	unsigned char c;
+
+	if (path == 0 || !g_ini_enable_cd_mount)
+		return 0u;
+	c = (unsigned char)path[0];
+	if (c >= 'a' && c <= 'z')
+		c = (unsigned char)(c - 'a' + 'A');
+	return (unsigned char)(c == (unsigned char)NC_CD_LETTER && path[1] == ':');
+}
+
+unsigned char nc_panel_is_cd(const PanelState *panel)
+{
+	if (panel == 0)
+		return 0u;
+	return nc_path_is_cd(panel->current_path);
+}
+
+/* Strip last component of P:/DIR/SUB/ -> P:/DIR/ */
+void nc_cd_path_parent(char *path)
+{
+	unsigned int n, cut, k;
+
+	if (path == 0)
+		return;
+	n = 0u;
+	while (path[n] != 0 && n < 63u)
+		n++;
+	while (n > 3u && path[n - 1u] == '/')
+		n--;
+	cut = 0u;
+	for (k = 3u; k < n; k++)
+		if (path[k] == '/')
+			cut = k;
+	if (cut >= 3u)
+		path[cut + 1u] = 0;
+	else
+	{
+		path[0] = (char)NC_CD_LETTER;
+		path[1] = ':';
+		path[2] = '/';
+		path[3] = 0;
+	}
+}
+
 unsigned char panel_request_unique_page(unsigned char *page_out)
 {
 	unsigned int page;
@@ -862,6 +908,10 @@ unsigned char m_panel_chdir_only(const char *path)
 {
 	char try_path[64];
 	unsigned int len;
+
+	/* Virtual CD volume: no BDOS cwd. */
+	if (nc_path_is_cd(path))
+		return 1u;
 
 	if (OS_CHDIR((unsigned char *)path) == 0)
 		return 1u;

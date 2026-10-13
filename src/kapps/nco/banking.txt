@@ -14,12 +14,19 @@ Banks
   02 panel    read/sort/draw/navigation
   03 fileops  copy/move/delete/rename/mkdir
   04 cold     nv.ext / view-edit-run + F9 Menu / Files
+  05 CDFS     ATAPI + ISO9660 (EnableCDmount=on -> P:)
 
 Pack
 ----
   bin/nco.com
-  bin/nco/codeB_01.bin .. codeB_04.bin
+  bin/nco/codeB_01.bin .. codeB_05.bin
   -> release/bin/ and /bin/nco/ on disk image
+
+CD-ROM PoC
+----------
+  nc.ini EnableCDmount=1 adds P: when ATAPI present.
+  Panel browse + file copy to FAT only; no view/edit/run/delete on CD.
+  Kernel pgcdfs later (loaded page, not in hobeta).
 
 Startup
 -------

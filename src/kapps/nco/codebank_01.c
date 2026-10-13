@@ -3,6 +3,7 @@
 
 #include "nc_inc.h"
 #include "nc_plug.h"
+#include "mb_req.h"
 
 /*
  * Resident code at C000 (window_3 / residentPg).
@@ -267,6 +268,8 @@ static void ini_apply_key(const char *key, const char *val)
 		g_ini_panel_brief = ini_parse_bool(val);
 	else if (strcmp(key, "CmdFlag") == 0 || strcmp(key, "cmd_flag") == 0)
 		g_ini_cmd_flag = ini_parse_cmd_flag(val);
+	else if (strcmp(key, "EnableCDmount") == 0 || strcmp(key, "enable_cd_mount") == 0)
+		g_ini_enable_cd_mount = ini_parse_bool(val);
 }
 
 extern char g_ini_save_buf[NC_INI_BUF_SIZE];
@@ -290,6 +293,7 @@ void nc_ini_load(void)
 	g_ini_read_on_focus = 0;
 	g_ini_panel_brief = 0;
 	g_ini_cmd_flag = NC_CMD_FLAG_NONE;
+	g_ini_enable_cd_mount = 0;
 
 	if (!ini_set_location())
 	{
@@ -481,6 +485,8 @@ void nc_ini_save(void)
 	ini_append(g_ini_save_buf, &pos, "# F3 viewer / F4 editor: .com launched with file path as argument\r\n");
 	ini_append_kv(g_ini_save_buf, &pos, "Viewer", g_ini_viewer);
 	ini_append_kv(g_ini_save_buf, &pos, "Editor", g_ini_editor);
+	ini_append(g_ini_save_buf, &pos, "# 1 = show P: CD-ROM in drive menu (ISO9660 browse/copy)\r\n");
+	ini_append_kv_u8(g_ini_save_buf, &pos, "EnableCDmount", g_ini_enable_cd_mount);
 
 	if (!ini_set_location())
 	{
@@ -587,6 +593,7 @@ void ui_fill_chars(unsigned char x, unsigned char y, unsigned char sym, unsigned
 #define NC_DRVF_NEOGS 1u
 #define NC_DRVF_ZXNET 2u
 #define NC_DRVF_TRDOS 4u
+#define NC_DRVF_CDROM 8u
 #define NC_PANEL_PORT_NEOGS_GSCFG 0x0Fu
 #define NC_PANEL_PORT_SL811_SEL 0xABu
 #define NC_SZ_1MB 1048576UL
@@ -688,7 +695,12 @@ void r_ui_nc_clock_draw(unsigned char force)
 
 void r_ui_draw_status_bar(void)
 {
-	ui_print_hint_bar(NC_HINT_ROW, (const char *)botMenu, NC_HINT_WIDTH);
+	PanelState *active;
+	const char *hint;
+
+	active = left_panel.is_active ? &left_panel : &right_panel;
+	hint = nc_panel_is_cd(active) ? (const char *)botMenuCd : (const char *)botMenu;
+	ui_print_hint_bar(NC_HINT_ROW, hint, NC_HINT_WIDTH);
 }
 
 void r_draw_panel_background(PanelState *panel, unsigned char start_x)
@@ -1109,28 +1121,69 @@ static const PanelDriveDef g_drive_table[] = {
 	{'M', "SD Z-controller", NC_DRVF_NONE},
 	{'N', "SD NeoGS", NC_DRVF_NEOGS},
 	{'O', "USB flash zx-net", NC_DRVF_ZXNET},
+	{NC_CD_LETTER, "CD-ROM", NC_DRVF_CDROM},
 };
 
 #define NC_PANEL_DRIVE_TABLE_LEN (sizeof(g_drive_table) / sizeof(g_drive_table[0]))
 
+/* IDE E-H = master unit, I-L = slave. FatFS sends ATA 0x20/0x91 there ?
+ * must not probe the unit occupied by ATAPI CD (emulator: unknown atapi cmd). */
+static unsigned char panel_drive_on_atapi_unit(unsigned char letter)
+{
+	if (g_cd_channel == (unsigned char)NC_CD_SLAVE)
+		return (unsigned char)(letter >= 'I' && letter <= 'L');
+	if (g_cd_channel == (unsigned char)NC_CD_MASTER)
+		return (unsigned char)(letter >= 'E' && letter <= 'H');
+	return 0u;
+}
+
 static unsigned char panel_drive_chdrv_ok(unsigned char letter)
 {
+	/* P: is virtual CDFS ? never hand it to BDOS SETDRV. */
+	if (letter == (unsigned char)NC_CD_LETTER)
+		return 0u;
+	if (panel_drive_on_atapi_unit(letter))
+		return 0u;
 	return (unsigned char)(OS_CHDRV(letter) == 0u);
+}
+
+/* Restore real BDOS cwd after CHDRV probes (panel path may be virtual P:). */
+static void panel_drive_restore_os_cwd(const char *os_path)
+{
+	unsigned char d;
+
+	if (os_path == 0 || os_path[0] == 0 || os_path[1] != ':')
+		return;
+	d = (unsigned char)os_path[0];
+	if (d >= 'a' && d <= 'z')
+		d = (unsigned char)(d - 'a' + 'A');
+	if (d == (unsigned char)NC_CD_LETTER || panel_drive_on_atapi_unit(d))
+		return;
+	(void)OS_CHDRV(d);
+	(void)m_panel_chdir_only(os_path);
 }
 
 static void panel_drive_build_list(const PanelState *panel)
 {
 	unsigned char i;
-	unsigned char saved;
 	unsigned char neogs;
 	unsigned char zxnet;
-	char saved_path[64];
+	unsigned char cd_ok;
+	char os_path[64];
 
-	strncpy(saved_path, panel->current_path, sizeof(saved_path) - 1u);
-	saved_path[sizeof(saved_path) - 1u] = 0;
-	saved = panel_drive_saved_letter(panel);
+	(void)panel;
+	/* BDOS cwd stays on last FAT volume while panel shows P: ? save that. */
+	os_path[0] = 0;
+	OS_GETPATH((unsigned char *)os_path);
 	neogs = panel_hw_neogs_sd_present();
 	zxnet = panel_hw_zxnet_present();
+	/* Detect CD before IDE CHDRV probes so we can skip master/slave unit. */
+	cd_ok = 0u;
+	if (g_ini_enable_cd_mount)
+	{
+		if (g_cd_mounted || mb_cdfs_present())
+			cd_ok = 1u;
+	}
 	g_drive_count = 0;
 
 	for (i = 0; i < NC_PANEL_DRIVE_TABLE_LEN; i++)
@@ -1141,7 +1194,14 @@ static void panel_drive_build_list(const PanelState *panel)
 			continue;
 		if (def->filter == NC_DRVF_ZXNET && zxnet == 0u)
 			continue;
-		if ((def->filter & (NC_DRVF_TRDOS | NC_DRVF_ZXNET)) == 0u && !panel_drive_chdrv_ok(def->letter))
+		if (def->filter == NC_DRVF_CDROM)
+		{
+			if (!cd_ok)
+				continue;
+		}
+		else if (cd_ok && panel_drive_on_atapi_unit(def->letter))
+			continue; /* no FAT partitions on the ATAPI device */
+		else if ((def->filter & (NC_DRVF_TRDOS | NC_DRVF_ZXNET)) == 0u && !panel_drive_chdrv_ok(def->letter))
 			continue;
 		if (nc_ini_drive_hidden(def->letter))
 			continue;
@@ -1152,8 +1212,7 @@ static void panel_drive_build_list(const PanelState *panel)
 			break;
 	}
 
-	OS_CHDRV(saved);
-	m_panel_chdir_only(saved_path);
+	panel_drive_restore_os_cwd(os_path);
 }
 
 static unsigned char panel_drive_popup_x_for(const PanelState *panel)
@@ -1241,12 +1300,19 @@ static unsigned char panel_drive_apply(PanelState *panel, unsigned char letter)
 	char saved_path[64];
 	unsigned char saved_letter;
 	unsigned char start_x;
+	unsigned char is_cd;
 
 	strncpy(saved_path, panel->current_path, sizeof(saved_path) - 1u);
 	saved_path[sizeof(saved_path) - 1u] = 0;
 	saved_letter = panel_drive_saved_letter(panel);
+	is_cd = (unsigned char)(letter == (unsigned char)NC_CD_LETTER);
 
-	if (OS_CHDRV(letter) != 0u)
+	if (!is_cd && OS_CHDRV(letter) != 0u)
+	{
+		panel_drive_msg(letter, "not available");
+		return 0;
+	}
+	if (is_cd && !mb_cdfs_present())
 	{
 		panel_drive_msg(letter, "not available");
 		return 0;
@@ -1262,7 +1328,8 @@ static unsigned char panel_drive_apply(PanelState *panel, unsigned char letter)
 	start_x = (panel == &left_panel) ? 0u : 40u;
 	if (!m_read_panel_dir_at(panel, path, 0))
 	{
-		OS_CHDRV(saved_letter);
+		if (saved_letter != (unsigned char)NC_CD_LETTER)
+			(void)OS_CHDRV(saved_letter);
 		m_read_panel_dir_at(panel, saved_path, 1);
 		m_panel_chdir_only(saved_path);
 		panel_drive_msg(letter, "cannot read");
@@ -1273,6 +1340,7 @@ static unsigned char panel_drive_apply(PanelState *panel, unsigned char letter)
 	m_panels_remap_bank_window();
 	r_draw_panel_background(panel, start_x);
 	m_draw_panel(panel, start_x, 18);
+	mb_ui_draw_status_bar();
 	return 0;
 }
 

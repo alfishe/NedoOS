@@ -12,16 +12,17 @@
 #define NC_PANEL_SORT_TIME 3u
 #define NC_MENU_LEVEL_TOP 0u
 #define NC_MENU_LEVEL_FILES 1u
-#define NC_MENU_FILES_ITEMS 9u
+#define NC_MENU_FILES_ITEMS 10u
 #define NC_MFI_SORT_BY 0u
 #define NC_MFI_SORT_DIR 1u
 #define NC_MFI_LFN_SORT 2u
 #define NC_MFI_READ_ON_FOCUS 3u
 #define NC_MFI_BRIEF 4u
-#define NC_MFI_CMD_FLAG 5u
-#define NC_MFI_VIEWER 6u
-#define NC_MFI_EDITOR 7u
-#define NC_MFI_SAVE 8u
+#define NC_MFI_CD_MOUNT 5u
+#define NC_MFI_CMD_FLAG 6u
+#define NC_MFI_VIEWER 7u
+#define NC_MFI_EDITOR 8u
+#define NC_MFI_SAVE 9u
 
 #define NC_CMD_FLAG_NONE 0u
 #define NC_CMD_FLAG_K    1u
@@ -153,7 +154,35 @@ typedef struct
 	unsigned char drawn;
 } NCCopyProg;
 
+#define NC_CD_LETTER 'P'
+/* ATAPI device/head select (g_cd_channel); IDE letters E-H=master, I-L=slave. */
+#define NC_CD_MASTER 0xA0u
+#define NC_CD_SLAVE  0xB0u
+
 extern unsigned char botMenu[];
+extern unsigned char botMenuCd[];
+extern unsigned char g_ini_enable_cd_mount;
+extern unsigned char g_cd_sec[2048];
+extern unsigned long g_cd_sec_lba;
+extern unsigned long g_cd_root_lba;
+extern unsigned long g_cd_root_size;
+extern unsigned long g_cd_dir_lba;
+extern unsigned long g_cd_dir_size;
+extern unsigned long g_cd_dir_off;
+extern unsigned char g_cd_mounted;
+extern unsigned int g_cd_stat, g_cd_cmd, g_cd_head, g_cd_cylhi, g_cd_cyllo;
+extern unsigned int g_cd_datlo, g_cd_dathi;
+extern unsigned char g_cd_channel;
+extern unsigned char g_cd_ports_ok;
+extern unsigned char g_cd_file_open;
+extern char g_cd_file_path[64];
+extern unsigned long g_cd_file_lba;
+extern unsigned long g_cd_file_size;
+
+unsigned char nc_path_is_cd(const char *path);
+unsigned char nc_panel_is_cd(const PanelState *panel);
+void nc_cd_path_parent(char *path);
+
 extern NCCopyProg copy_prog;
 extern char copy_prog_current_name[64];
 extern unsigned char g_delete_progress;
@@ -309,6 +338,9 @@ extern const char g_ui_nv_ext[];
 extern const char g_ui_viewer[];
 extern const char g_ui_editor[];
 extern const char g_ui_ini_app_prompt[];
+extern const char g_ui_cd_ro[];
+extern const char g_ui_cd_nodir[];
+extern const char g_ui_cd_noview[];
 
 extern unsigned int g_nvext_size;
 extern unsigned int g_ncext_off;

@@ -4,6 +4,29 @@
 
 unsigned char botMenu[] =
 	"{1}Left { 2}Right { 3}View  { 4}Edit  { 5}Copy  { 6}Rename{ 7}MkDir { 8}Delete{ 9}Menu  { 0}Quit  ";
+/* CD panel: only Copy (and drive/menu/quit) ? viewers cannot open P: paths. */
+unsigned char botMenuCd[] =
+	"{1}Left { 2}Right { 3}     { 4}     { 5}Copy  { 6}     { 7}     { 8}     { 9}Menu  { 0}Quit  ";
+
+unsigned char g_ini_enable_cd_mount;
+unsigned char g_cd_sec[2048];
+unsigned long g_cd_sec_lba;
+unsigned long g_cd_root_lba;
+unsigned long g_cd_root_size;
+unsigned long g_cd_dir_lba;
+unsigned long g_cd_dir_size;
+unsigned long g_cd_dir_off;
+unsigned char g_cd_mounted;
+/* ATAPI port state for bank05 (overlays cannot own DATA). */
+unsigned int g_cd_stat, g_cd_cmd, g_cd_head, g_cd_cylhi, g_cd_cyllo;
+unsigned int g_cd_datlo, g_cd_dathi;
+unsigned char g_cd_channel;
+unsigned char g_cd_ports_ok;
+/* Open-file cache: avoid re-walking ISO dirs on every copy chunk. */
+unsigned char g_cd_file_open;
+char g_cd_file_path[64];
+unsigned long g_cd_file_lba;
+unsigned long g_cd_file_size;
 
 NCCopyProg copy_prog;
 char copy_prog_current_name[64];
@@ -154,6 +177,9 @@ const char g_ui_nv_ext[] = "nv.ext";
 const char g_ui_viewer[] = "Viewer";
 const char g_ui_editor[] = "Editor";
 const char g_ui_ini_app_prompt[] = "Program:";
+const char g_ui_cd_ro[] = "CD is read-only";
+const char g_ui_cd_nodir[] = "CD folder copy not supported yet";
+const char g_ui_cd_noview[] = "Cannot view/edit on CD";
 
 unsigned int g_nvext_size;
 unsigned int g_ncext_off;

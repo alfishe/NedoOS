@@ -465,6 +465,9 @@ static void menu_draw_files_row(PanelState *active_p, unsigned char idx, unsigne
 	case NC_MFI_BRIEF:
 		menu_draw_item(menu_item_x(), y, NC_MENU_POPUP_INNER_W, cursor_on, "Brief view", g_ini_panel_brief);
 		break;
+	case NC_MFI_CD_MOUNT:
+		menu_draw_item(menu_item_x(), y, NC_MENU_POPUP_INNER_W, cursor_on, "Enable CD mount", g_ini_enable_cd_mount);
+		break;
 	case NC_MFI_CMD_FLAG:
 		menu_draw_item(menu_item_x(), y, NC_MENU_POPUP_INNER_W, cursor_on, menu_cmd_flag_label(), 0);
 		break;
@@ -559,6 +562,12 @@ static void menu_adjust_item(PanelState *active_p, signed char delta)
 	if (idx == NC_MFI_BRIEF)
 	{
 		g_ini_panel_brief = menu_cycle_val(g_ini_panel_brief, 2u, delta);
+		menu_draw_files_row(active_p, idx, 1);
+		return;
+	}
+	if (idx == NC_MFI_CD_MOUNT)
+	{
+		g_ini_enable_cd_mount = menu_cycle_val(g_ini_enable_cd_mount, 2u, delta);
 		menu_draw_files_row(active_p, idx, 1);
 		return;
 	}

@@ -33,6 +33,7 @@ typedef void (*mb_title_fn)(unsigned char, const char *);
 typedef void (*mb_text_fn)(const char *);
 typedef void (*mb_two_text_fn)(const char *, const char *);
 typedef unsigned char (*mb_u8_ret_fn)(unsigned char);
+typedef unsigned char (*mb_void_u8_ret_fn)(void);
 typedef unsigned char (*mb_text_ret_fn)(const char *);
 typedef unsigned char (*mb_two_text_ret_fn)(const char *, const char *);
 typedef unsigned char (*mb_overwrite_ret_fn)(unsigned char, const char *);
@@ -41,6 +42,8 @@ typedef void (*mb_panel_draw_fn)(PanelState *, unsigned char, unsigned char);
 typedef void (*mb_two_path_fn)(const char *, const char *);
 typedef void (*mb_switch_file_fn)(PanelState *, unsigned int);
 typedef void (*mb_fill_snap_fn)(NCBottomInfo *);
+typedef unsigned int (*mb_cdfs_read_fn)(const char *, unsigned long, unsigned char *, unsigned int);
+typedef unsigned char (*mb_fi_ret_fn)(fileInfo *);
 
 #define MB_CALL_VOID(slot, type, args) \
 	do { type fn; MB_BANK_SAVE() MB_BANK_ENTER(0u); \
@@ -193,6 +196,28 @@ void mb_run_bank(unsigned char idx0)
 		mb_ui_draw_status_bar();
 }
 
+/* Bank 05 CDFS */
+unsigned char mb_cdfs_present(void)
+{
+	mb_void_u8_ret_fn fn; unsigned char ret; MB_BANK_SAVE() MB_BANK_ENTER(4u);
+	fn = (mb_void_u8_ret_fn)MB_JT_ADDR(MB_JT5_CDFS_PRESENT); ret = fn(); MB_BANK_LEAVE(); return ret;
+}
+unsigned char mb_cdfs_opendir(const char *path)
+{
+	mb_text_ret_fn fn; unsigned char ret; MB_BANK_SAVE() MB_BANK_ENTER(4u);
+	fn = (mb_text_ret_fn)MB_JT_ADDR(MB_JT5_CDFS_OPENDIR); ret = fn(path); MB_BANK_LEAVE(); return ret;
+}
+unsigned char mb_cdfs_readdir(fileInfo *fi)
+{
+	mb_fi_ret_fn fn; unsigned char ret; MB_BANK_SAVE() MB_BANK_ENTER(4u);
+	fn = (mb_fi_ret_fn)MB_JT_ADDR(MB_JT5_CDFS_READDIR); ret = fn(fi); MB_BANK_LEAVE(); return ret;
+}
+unsigned int mb_cdfs_read(const char *path, unsigned long off, unsigned char *buf, unsigned int len)
+{
+	mb_cdfs_read_fn fn; unsigned int ret; MB_BANK_SAVE() MB_BANK_ENTER(4u);
+	fn = (mb_cdfs_read_fn)MB_JT_ADDR(MB_JT5_CDFS_READ); ret = fn(path, off, buf, len); MB_BANK_LEAVE(); return ret;
+}
+
 /* mbgen:banks-begin */
 void bank1(void)
 {
@@ -212,5 +237,10 @@ void bank3(void)
 void bank4(void)
 {
 	mb_run_bank(3u);
+}
+
+void bank5(void)
+{
+	mb_run_bank(4u);
 }
 /* mbgen:banks-end */

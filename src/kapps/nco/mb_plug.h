@@ -64,6 +64,7 @@ void bank1(void);
 void bank2(void);
 void bank3(void);
 void bank4(void);
+void bank5(void);
 /* mbgen:banks-end */
 
 typedef void (*bank_entry_fn)(void);

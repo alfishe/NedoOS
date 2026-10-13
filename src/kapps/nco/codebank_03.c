@@ -386,12 +386,63 @@ static unsigned char copy_overwrite(const char *dst)
 	return mb_copy_overwrite_resolve(mb_copy_dest_exists(dst), g_copy_ow_msg);
 }
 
+static unsigned char copy_file_cd(const char *src, const char *dst, unsigned int date, unsigned int time)
+{
+	FILE *out;
+	unsigned long total, off;
+	unsigned int got, put, chunk;
+	unsigned char tick, res;
+
+	res = copy_overwrite(dst);
+	if (res == NC_COPY_FILE_SKIP || res == NC_COPY_FILE_ABORT) return res;
+	out = OS_CREATEHANDLE((unsigned char *)dst, 0x80u);
+	if (((int)out) & 0xff) return NC_COPY_FILE_ERR;
+	off = 0UL;
+	tick = 0u;
+	total = 0UL;
+	for (;;)
+	{
+		if (g_fileop_abort) { OS_CLOSEHANDLE(out); OS_DELETE((unsigned char *)dst); return NC_COPY_FILE_ABORT; }
+		OS_SETPGC000(g_copy_io_page);
+		chunk = COPY_IO_CHUNK;
+		got = mb_cdfs_read(src, off, COPY_IO_ADDR, chunk);
+		if (got == 0u)
+			break;
+		/* size known after first open inside mb_cdfs_read */
+		if (total == 0UL)
+			total = g_cd_file_size;
+		put = OS_WRITEHANDLE(COPY_IO_ADDR, out, got);
+		if (put != got) { OS_CLOSEHANDLE(out); OS_DELETE((unsigned char *)dst); return NC_COPY_FILE_ERR; }
+		off += got;
+		tick++;
+		if ((tick & 3u) == 0u || got < chunk)
+			mb_copy_progress_draw_bar(total == 0UL ? 100u : (unsigned char)((off * 100UL) / total));
+		poll_abort();
+		YIELD();
+		if (got < chunk)
+			break;
+	}
+	(void)date;
+	(void)time;
+	OS_SEEKHANDLE(out, total);
+	OS_CLOSEHANDLE(out);
+	if (date != 0u || time != 0u)
+		OS_SETFILETIME((unsigned char *)dst, date, time);
+	mb_copy_progress_draw_bar(100u);
+	return NC_COPY_FILE_OK;
+}
+
 static unsigned char copy_file(const char *src, const char *dst, unsigned int date, unsigned int time)
 {
 	FILE *in, *out;
 	unsigned long total, left;
 	unsigned int got, put, chunk;
 	unsigned char tick, res;
+
+	if (nc_path_is_cd(dst))
+		return NC_COPY_FILE_ERR;
+	if (nc_path_is_cd(src))
+		return copy_file_cd(src, dst, date, time);
 
 	res = copy_overwrite(dst);
 	if (res == NC_COPY_FILE_SKIP || res == NC_COPY_FILE_ABORT) return res;
@@ -560,6 +611,12 @@ void r_action_copy(void)
 	src = left_panel.is_active ? &left_panel : &right_panel;
 	dst = left_panel.is_active ? &right_panel : &left_panel;
 	if (src->file_count == 0u) return;
+	if (nc_panel_is_cd(dst))
+	{
+		mb_ui_error_dialog(g_ui_copy, g_ui_cd_ro);
+		redraw_after_dialog_cancel();
+		return;
+	}
 	snap_panels();
 	strncpy(nc_set.temp_path, dst->current_path, 63u); nc_set.temp_path[63] = 0;
 	len = 0u;
@@ -583,6 +640,12 @@ void r_action_copy(void)
 		path_join(r_src_full, src->current_path, r_action_name);
 		path_join(r_dst_full, nc_set.temp_path, r_action_name);
 		progress_name(r_action_name, is_dir);
+		if (is_dir && nc_path_is_cd(src->current_path))
+		{
+			mb_ui_error_dialog(g_ui_copy, g_ui_cd_nodir);
+			g_copy_tree_failed = 1u;
+			break;
+		}
 		if (is_dir)
 		{
 			if (OS_MKDIR((unsigned char *)r_dst_full) != 0u)
@@ -957,3 +1020,4 @@ void r_action_move(void)
 	else
 		finish_move_success(src, dst);
 }
+

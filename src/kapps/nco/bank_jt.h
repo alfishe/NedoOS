@@ -74,4 +74,10 @@
 #define MB_JT4_MENU_HANDLE_KEY         6u
 #define MB_JT4_MENU_DRAW_OVERLAY       7u
 
+/* Slots in bank_jt5.asm only (CDFS). */
+#define MB_JT5_CDFS_PRESENT            0u
+#define MB_JT5_CDFS_OPENDIR            1u
+#define MB_JT5_CDFS_READDIR            2u
+#define MB_JT5_CDFS_READ               3u
+
 #endif

@@ -170,6 +170,10 @@ static unsigned char panel_chdir_for_read(const char *path)
 {
 	char try_path[64];
 	unsigned int n;
+
+	if (nc_path_is_cd(path))
+		return mb_cdfs_opendir(path);
+
 	if (OS_CHDIR((unsigned char *)path) == 0u) { OS_OPENDIR(""); return 1u; }
 	strncpy(try_path, path, 63u); try_path[63] = 0;
 	n = 0u; while (try_path[n] != 0) n++;
@@ -704,7 +708,16 @@ unsigned char r_read_panel_dir_at(PanelState *p, const char *path, unsigned char
 			want = (unsigned char)(MAX_FILES_PER_PANEL - idx);
 		if (want == 0u) break;
 
-		if (!batch)
+		if (nc_path_is_cd(req))
+		{
+			/* CDFS: one entry at a time (no BDOS batch). */
+			batch = 0u;
+			g_panel_stage[0].lfname[0] = 0;
+			res = mb_cdfs_readdir(&g_panel_stage[0]);
+			if (res != 0u) break;
+			got = 1u;
+		}
+		else if (!batch)
 		{
 			g_panel_stage[0].lfname[0] = 0;
 			res = OS_READDIR(&g_panel_stage[0]);
@@ -1366,8 +1379,13 @@ static void panel_enter_dir(PanelState *p, unsigned char start_x)
 	if (panel_entry_is_dotdot(fi))
 	{
 		panel_path_basename(p, nc_set.exited_dir_name);
-		OS_CHDIR((unsigned char *)"..");
-		panel_sync_path(p);
+		if (nc_path_is_cd(p->current_path))
+			nc_cd_path_parent(p->current_path);
+		else
+		{
+			OS_CHDIR((unsigned char *)"..");
+			panel_sync_path(p);
+		}
 		r_read_panel_dir_at(p, p->current_path, 1u);
 		if (nc_set.exited_dir_name[0] != 0)
 		{

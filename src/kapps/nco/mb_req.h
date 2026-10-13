@@ -63,4 +63,9 @@ void mb_run_selected_file(void);
 void mb_nvext_load(void);
 unsigned char mb_nvext_find_handler(const char *ext);
 
+unsigned char mb_cdfs_present(void);
+unsigned char mb_cdfs_opendir(const char *path);
+unsigned char mb_cdfs_readdir(fileInfo *fi);
+unsigned int mb_cdfs_read(const char *path, unsigned long off, unsigned char *buf, unsigned int len);
+
 #endif

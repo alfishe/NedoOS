@@ -1,6 +1,7 @@
 #include "mb_inc.h"
 #include "mb_plug.h"
 #include "mb_req.h"
+#include "nc_plug.h"
 #include "nc_colors.h"
 
 /*
@@ -218,20 +219,36 @@ C_task main(void)
 			mb_panel_drive_open(&left_panel);
 		else if (key == NC_KEY_SS2)
 			mb_panel_drive_open(&right_panel);
-		else if (key == NC_KEY_SS3)
-			mb_action_view();
-		else if (key == NC_KEY_SS4)
-			mb_action_edit();
+		else if (key == NC_KEY_SS3 || key == NC_KEY_SS4)
+		{
+			if (nc_panel_is_cd(active))
+			{
+				mb_ui_error_dialog(g_ui_viewer, g_ui_cd_noview);
+				mb_redraw_panels_full();
+			}
+			else if (key == NC_KEY_SS3)
+				mb_action_view();
+			else
+				mb_action_edit();
+		}
 		else if (key == NC_KEY_SS5)
 			mb_action_copy();
-		else if (key == NC_KEY_SS6)
-			mb_action_rename();
-		else if (key == NC_KEY_SS7)
-			mb_action_mkdir();
-		else if (key == NC_KEY_SS8)
-			mb_action_delete();
-		else if (key == NC_KEY_MOVE)
-			mb_action_move();
+		else if (key == NC_KEY_SS6 || key == NC_KEY_SS7 || key == NC_KEY_SS8 || key == NC_KEY_MOVE)
+		{
+			if (nc_panel_is_cd(active))
+			{
+				mb_ui_error_dialog(g_ui_copy, g_ui_cd_ro);
+				mb_redraw_panels_full();
+			}
+			else if (key == NC_KEY_SS6)
+				mb_action_rename();
+			else if (key == NC_KEY_SS7)
+				mb_action_mkdir();
+			else if (key == NC_KEY_SS8)
+				mb_action_delete();
+			else
+				mb_action_move();
+		}
 		else if (key == NC_KEY_SS9)
 			mb_menu_open();
 		else if (g_cmd_active && (key == NC_KEY_PGUP || key == NC_KEY_PGDN))
@@ -268,8 +285,9 @@ C_task main(void)
 			{
 				mb_fill_bottom_snap(&g_bottom_snap);
 				mb_draw_bottom_info(&g_bottom_snap);
+				mb_ui_draw_status_bar();
 			}
-			else
+			else if (!nc_panel_is_cd(active))
 				mb_run_selected_file();
 		}
 		else if (!g_cmd_active && mb_panel_nav_key(key))
@@ -277,6 +295,7 @@ C_task main(void)
 			/* Mark keys (+ - * Ext+A) before cmdline steals printable chars. */
 			mb_fill_bottom_snap(&g_bottom_snap);
 			mb_draw_bottom_info(&g_bottom_snap);
+			mb_ui_draw_status_bar();
 		}
 		else if (m_cmd_handle_key(key, active))
 		{

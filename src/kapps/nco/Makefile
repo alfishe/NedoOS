@@ -1,13 +1,19 @@
 # nco ? NC on Plan JT multibank (scaffold).
 # Pack: bin/nco.com + bin/nco/codeB_XX.bin
 #
-# Bank roles: 01 UI | 02 panel | 03 fileops | 04 cold+menu
-BANKS := 01 02 03 04
-OVL_SYMS := bdosputs printf strncpy strncat ?STRCMP_L11 ?STRCHR_L11 \
+# Bank roles: 01 UI | 02 panel | 03 fileops | 04 cold+menu | 05 CDFS
+BANKS := 01 02 03 04 05
+OVL_SYMS := bdosputs printf strncpy strncat memcpy ?STRCMP_L11 ?STRCHR_L11 \
 	OS_GETMAINPAGES OS_GETAPPMAINPAGES OS_NEWPAGE OS_DELPAGE OS_SETPG8000 OS_SETPGC000 OS_SETXY OS_SETCOLOR OS_CLS OS_GETTIME \
 	OS_GETKEY OS_CHDIR OS_CHDRV OS_GETPATH OS_SETSYSDRV OS_OPENHANDLE OS_CLOSEHANDLE \
 	OS_READHANDLE OS_WRITEHANDLE OS_CREATEHANDLE OS_GETFILESIZE OS_GETFILETIME OS_SEEKHANDLE OS_SETFILETIME OS_GETFILINFO OS_OPENDIR OS_READDIR \
-	OS_DELETE OS_RENAME OS_MKDIR OS_NEWAPP OS_RUNAPP OS_WAITPID OS_DROPAPP YIELD \
+	OS_DELETE OS_RENAME OS_MKDIR OS_NEWAPP OS_RUNAPP OS_WAITPID OS_DROPAPP YIELD OS_GETCONFIG \
+	g_cd_sec g_cd_sec_lba g_cd_root_lba g_cd_root_size g_cd_dir_lba g_cd_dir_size g_cd_dir_off g_cd_mounted \
+	g_cd_stat g_cd_cmd g_cd_head g_cd_cylhi g_cd_cyllo g_cd_datlo g_cd_dathi g_cd_channel g_cd_ports_ok \
+	g_cd_file_open g_cd_file_path g_cd_file_lba g_cd_file_size \
+	g_ini_enable_cd_mount botMenuCd nc_path_is_cd nc_panel_is_cd nc_cd_path_parent \
+	g_ui_cd_ro g_ui_cd_nodir g_ui_cd_noview \
+	mb_cdfs_present mb_cdfs_opendir mb_cdfs_readdir mb_cdfs_read \
 	panel_request_unique_page menu_close_and_redraw menu_apply_choice panel_fmt_size panel_fmt_size10 panel_fmt_size_brief \
 	draw_panel_frame draw_panel_background draw_panel_footer draw_bottom_info \
 	mb_panel_chdir_only mb_read_panel_dir_at mb_redraw_panels_full m_panel_chdir_only m_read_panel_dir_at m_panels_remap_bank_window m_redraw_panels_full \
@@ -73,6 +79,10 @@ $(OBJ)/bank_jt03.r01: bank_jt3.asm | $(OBJ)
 $(OBJ)/bank_jt04.r01: bank_jt4.asm | $(OBJ)
 	$(AZ80) -uu -S -v0 -O$(OBJ)/ -I$(OSSDK) bank_jt4.asm
 	$(CP) $(OBJ)/bank_jt4.r01 $@
+
+$(OBJ)/bank_jt05.r01: bank_jt5.asm | $(OBJ)
+	$(AZ80) -uu -S -v0 -O$(OBJ)/ -I$(OSSDK) bank_jt5.asm
+	$(CP) $(OBJ)/bank_jt5.r01 $@
 
 define BANK_template
 $$(OBJ)/codebank_$(1).r01: codebank_$(1).c $$(SRCH) $$(LIBH) | $$(OBJ)
