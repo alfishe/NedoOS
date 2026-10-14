@@ -9,6 +9,7 @@ OVL_SYMS := bdosputs printf strncpy strncat memcpy ?STRCMP_L11 ?STRCHR_L11 \
 	OS_READHANDLE OS_WRITEHANDLE OS_CREATEHANDLE OS_GETFILESIZE OS_GETFILETIME OS_SEEKHANDLE OS_SETFILETIME OS_GETFILINFO OS_OPENDIR OS_READDIR \
 	OS_DELETE OS_RENAME OS_MKDIR OS_NEWAPP OS_RUNAPP OS_WAITPID OS_DROPAPP YIELD OS_GETCONFIG \
 	g_cd_sec g_cd_sec_lba g_cd_root_lba g_cd_root_size g_cd_dir_lba g_cd_dir_size g_cd_dir_off g_cd_mounted \
+	g_cd_joliet g_cd_at_root g_cd_tmpname \
 	g_cd_stat g_cd_cmd g_cd_head g_cd_cylhi g_cd_cyllo g_cd_datlo g_cd_dathi g_cd_channel g_cd_ports_ok \
 	g_cd_file_open g_cd_file_path g_cd_file_lba g_cd_file_size \
 	g_ini_enable_cd_mount botMenuCd nc_path_is_cd nc_panel_is_cd nc_cd_path_parent \
@@ -29,7 +30,7 @@ OVL_SYMS := bdosputs printf strncpy strncat memcpy ?STRCMP_L11 ?STRCHR_L11 \
 	g_cmd_active g_cmd_len g_cmd_cursor g_cmd_line g_nvext_size g_ncext_off g_ncext_size \
 	g_run_handler g_nvext_io g_ui_nv_ext g_ui_select g_ui_deselect g_ui_mask g_mark_mask \
 	nco_vram_span nco_vram_begin nco_vram_text nco_vram_attr_begin nco_vram_attr nco_vram_end \
-	nco_vx nco_vy nco_vn nco_va nco_vp g_stat_line nco_readdir_n
+	nco_vx nco_vy nco_vn nco_va nco_vp g_stat_line
 # --------------------------------------------------------------------
 
 OUTDIR  := bin
@@ -41,7 +42,7 @@ CONSOLE := BDOS
 
 SRCC	:= main.c mb_core.c bank_call.c nco_data.c nco_root.c
 SRCH	:= mb_inc.h mb_plug.h mb_banks.h bank_jt.h nc_inc.h nc_plug.h nc_panel.h nc_colors.h mb_req.h
-SRCA	:= force_helpers.asm nco_vram.asm nco_rdir.asm
+SRCA	:= force_helpers.asm nco_vram.asm
 XCLFILE	:= lnk.xcl
 XCL_OVL	:= lnk_ovl.xcl
 

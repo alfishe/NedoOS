@@ -673,8 +673,8 @@ static unsigned char panel_find_by_name(PanelState *p, const char *name, unsigne
 
 unsigned char r_read_panel_dir_at(PanelState *p, const char *path, unsigned char preserve)
 {
-	unsigned int idx, off, old_cursor = 0u, old_scroll = 0u, restore, phys, pack;
-	unsigned char page = 0u, res, saved = 0u, batch = 1u, want, got, keep, room;
+	unsigned int idx, off, old_cursor = 0u, old_scroll = 0u, restore, phys;
+	unsigned char page = 0u, res, saved = 0u, batch = 0u, want, got, keep, room;
 	char req[64], saved_name[64];
 
 	if (!panel_banks_ok(p)) { p->file_count = 0u; p->files_only_count = 0u; p->total_bytes = 0UL; panel_clamp_scroll(p); return 0u; }
@@ -723,18 +723,6 @@ unsigned char r_read_panel_dir_at(PanelState *p, const char *path, unsigned char
 			res = OS_READDIR(&g_panel_stage[0]);
 			if (res != 0u) break;
 			got = 1u;
-		}
-		else
-		{
-			pack = nco_readdir_n(g_panel_stage, want);
-			res = (unsigned char)(pack >> 8);
-			got = (unsigned char)pack;
-			if (res == 0xffu && got == want)
-			{
-				batch = 0u;
-				continue;
-			}
-			if (got == 0u) break;
 		}
 
 		keep = panel_stage_keep(got);
