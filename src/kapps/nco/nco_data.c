@@ -22,7 +22,7 @@ unsigned char g_cd_at_root; /* 1 = current dir is volume root (for hiding ..) */
 unsigned char g_cd_tmpname[64]; /* decode / match scratch (not on tiny CSTACK) */
 /* ATAPI port state for bank05 (overlays cannot own DATA). */
 unsigned int g_cd_stat, g_cd_cmd, g_cd_head, g_cd_cylhi, g_cd_cyllo;
-unsigned int g_cd_datlo, g_cd_dathi;
+unsigned int g_cd_datlo, g_cd_dathi, g_cd_err;
 unsigned char g_cd_channel;
 unsigned char g_cd_ports_ok;
 /* Open-file cache: avoid re-walking ISO dirs on every copy chunk. */

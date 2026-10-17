@@ -26,6 +26,7 @@ static void ports_nemo(void)
 	g_cd_cyllo = 0x90u;
 	g_cd_datlo = 0x10u;
 	g_cd_dathi = 0x11u;
+	g_cd_err = 0x30u;
 }
 
 static void ports_atm(void)
@@ -37,6 +38,7 @@ static void ports_atm(void)
 	g_cd_cyllo = 0xFE8Fu;
 	g_cd_datlo = 0xFE0Fu;
 	g_cd_dathi = 0xFF0Fu;
+	g_cd_err = 0xFE2Fu;
 }
 
 static unsigned char bus_alive(void)
@@ -178,6 +180,59 @@ static unsigned char atapi_read_sector(unsigned long lba)
 	if (g_cd_sec_lba == lba)
 		return 1u;
 	return atapi_read_n(lba, 1u, g_cd_sec);
+}
+
+static void cdfs_drop_mount(void)
+{
+	g_cd_mounted = 0u;
+	g_cd_file_open = 0u;
+	g_cd_sec_lba = 0xFFFFFFFFUL;
+}
+
+/* TEST UNIT READY. 0 = no disc, 1 = ready, 2 = UNIT ATTENTION (changed). */
+static unsigned char cdfs_tur_state(void)
+{
+	unsigned char pkt[12];
+	unsigned char st, err, i;
+
+	for (i = 0u; i < 12u; i++)
+		pkt[i] = 0u;
+	if (!atapi_packet_bc(pkt, 0u))
+		return 0u;
+	st = wait_bsy();
+	if (st == 0xFFu || (st & 0x01u) == 0u)
+		return (st == 0xFFu) ? 0u : 1u;
+	err = (unsigned char)(input(g_cd_err) >> 4); /* sense key */
+	if (err == 6u)
+		return 2u;
+	return 0u;
+}
+
+/*
+ * GET MEDIA STATUS (ATA 0xDA). Error register:
+ *   bit1 NM no media, bit5 MC media changed, bit2 ABRT unsupported.
+ * 0 = no disc, 1 = same disc, 2 = disc changed (caller must remount).
+ */
+static unsigned char cdfs_media_state(void)
+{
+	unsigned char st, err;
+
+	output(g_cd_head, g_cd_channel);
+	if (wait_bsy() == 0xFFu)
+		return 0u;
+	output(g_cd_head, g_cd_channel);
+	output(g_cd_cmd, 0xDAu);
+	st = wait_bsy();
+	if (st == 0xFFu)
+		return 0u;
+	err = input(g_cd_err);
+	if ((err & 0x04u) != 0u)
+		return cdfs_tur_state();
+	if ((err & 0x02u) != 0u)
+		return 0u;
+	if ((err & 0x20u) != 0u)
+		return 2u;
+	return 1u;
 }
 
 /* Short ATAPI DATA IN (e.g. READ TOC). Invalidates g_cd_sec cache. */
@@ -586,7 +641,18 @@ static unsigned char cdfs_resolve_dir(const char *path)
 	unsigned long extent, esize;
 	unsigned char match;
 	unsigned char *want;
+	unsigned char media;
 
+	if (g_cd_mounted)
+	{
+		media = cdfs_media_state();
+		if (media != 1u)
+		{
+			cdfs_drop_mount();
+			if (media == 0u)
+				return 0u; /* tray empty: do not replay the cached image */
+		}
+	}
 	if (!g_cd_mounted && !cdfs_mount_pvd())
 		return 0u;
 
@@ -855,7 +921,14 @@ static unsigned char cdfs_open_cached(const char *path)
 	unsigned int i;
 
 	if (g_cd_file_open && path_eq(path, g_cd_file_path))
+	{
+		if (cdfs_media_state() != 1u)
+		{
+			cdfs_drop_mount();
+			return 0u;
+		}
 		return 1u;
+	}
 	if (!cdfs_resolve_file(path, &g_cd_file_lba, &g_cd_file_size))
 	{
 		g_cd_file_open = 0u;

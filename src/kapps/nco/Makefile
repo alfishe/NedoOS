@@ -10,7 +10,7 @@ OVL_SYMS := bdosputs printf strncpy strncat memcpy ?STRCMP_L11 ?STRCHR_L11 \
 	OS_DELETE OS_RENAME OS_MKDIR OS_NEWAPP OS_RUNAPP OS_WAITPID OS_DROPAPP YIELD OS_GETCONFIG \
 	g_cd_sec g_cd_sec_lba g_cd_root_lba g_cd_root_size g_cd_dir_lba g_cd_dir_size g_cd_dir_off g_cd_mounted \
 	g_cd_joliet g_cd_at_root g_cd_tmpname \
-	g_cd_stat g_cd_cmd g_cd_head g_cd_cylhi g_cd_cyllo g_cd_datlo g_cd_dathi g_cd_channel g_cd_ports_ok \
+	g_cd_stat g_cd_cmd g_cd_head g_cd_cylhi g_cd_cyllo g_cd_datlo g_cd_dathi g_cd_err g_cd_channel g_cd_ports_ok \
 	g_cd_file_open g_cd_file_path g_cd_file_lba g_cd_file_size \
 	g_ini_enable_cd_mount botMenuCd nc_path_is_cd nc_panel_is_cd nc_cd_path_parent \
 	g_ui_cd_ro g_ui_cd_nodir g_ui_cd_noview \

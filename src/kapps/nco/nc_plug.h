@@ -174,7 +174,7 @@ extern unsigned char g_cd_joliet;
 extern unsigned char g_cd_at_root;
 extern unsigned char g_cd_tmpname[64];
 extern unsigned int g_cd_stat, g_cd_cmd, g_cd_head, g_cd_cylhi, g_cd_cyllo;
-extern unsigned int g_cd_datlo, g_cd_dathi;
+extern unsigned int g_cd_datlo, g_cd_dathi, g_cd_err;
 extern unsigned char g_cd_channel;
 extern unsigned char g_cd_ports_ok;
 extern unsigned char g_cd_file_open;
