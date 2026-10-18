@@ -1103,7 +1103,7 @@ void fullUpdate(void)
 	AT(1, 1);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("[%u:%u]              [FULL UPDATE - UPDATING ALL SYSTEM FILES]     ", netDriver, comType);
+	printf("[%u:%u]              [FULL UPDATE - UPDATING ALL SYSTEM FILES]                    ", netDriver, comType);
 	strcpy(cw.tittle, "nedoOS FULL updater ");
 	strcat(cw.tittle, uVer);
 	getConfig();
@@ -1149,7 +1149,7 @@ void fullUpdate(void)
 
 	BOX(1, 1, 80, 25, 40, 176);
 	drawWindow(cw);
-	printf("[%u:%u]              [FULL UPDATE - UPDATING ALL SYSTEM FILES]    [Build:%s]", netDriver, comType, __TIME__);
+	printf("[%u:%u]              [FULL UPDATE - UPDATING ALL SYSTEM FILES]                    ", netDriver, comType);
 	clearStatus();
 	AT(cw.x + 2, cw.y + 3);
 	printf("1. Downloading release.zip.");
@@ -1178,7 +1178,7 @@ void binUpdate(void)
 	AT(1, 1);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("[%u:%u]            [STANDART UPDATE - UPDATING ONLY BIN FOLDER]   [Build:%s]", netDriver, comType, __TIME__);
+	printf("[%u:%u]            [STANDART UPDATE - UPDATING ONLY BIN FOLDER]                   ", netDriver, comType);
 	strcpy(cw.tittle, "nedoOS BIN updater ");
 	strcat(cw.tittle, uVer);
 	getConfig();
@@ -1224,7 +1224,7 @@ void binUpdate(void)
 	AT(1, 1);
 	ATRIB(cw.text);
 	ATRIB(cw.back);
-	printf("[%u:%u]            [STANDART UPDATE - UPDATING ONLY BIN FOLDER]   [Build:%s]", netDriver, comType, __TIME__);
+	printf("[%u:%u]            [STANDART UPDATE - UPDATING ONLY BIN FOLDER]                   ", netDriver, comType);
 	drawWindow(cw);
 
 	ATRIB(cw.text);
