@@ -509,7 +509,7 @@ void screenRedraw(void)
   OS_SETCOLOR(103);
   spaces(80);
   OS_SETXY(0, 0);
-  printf(" UART TERMINAL FOR NedoOS %s [Build:%s %s]", uVer, __DATE__, __TIME__);
+  printf(" UART TERMINAL FOR NedoOS %s ", uVer);
   updateStatus(divider, directMode);
   redrawInputLine();
 }
