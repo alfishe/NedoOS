@@ -1,20 +1,21 @@
 +---------------------------------------------------------+
-|22.07.26     _   __         __      ____  _____          |
+| 21.10.26    _   __         __      ____  _____          |
 |            / | / /__  ____/ /___  / __ \/ ___/          |
 |           /  |/ / _ \/ __  / __ \/ / / /\__ \           |
 |          / /|  /  __/ /_/ / /_/ / /_/ /___/ /           |
 |         /_/ |_/\___/\__,_/\____/\____//____/            |
 |     Откиньтесь на спинку кресла и отдохните, пока       |
-|     nedoOS установится на ваш компьютер.                |
+|     NedoOS установится на ваш компьютер.                |
 |     Распаковка архива может занять некоторое время.     |
 +---------------------------------------------------------+
-|-Добавлены новые игры Ball Quest и Manhattan requiem     |  
-|-cdplay плеер AudioCD на IDE SLAVE                       |
-|-deltree позволяет удалить папку с ее содержимым         |
-|-nc Nedo Commander и hobeta для запуска $c               |
-|-playwav играет WAV через COVOX,ADPCM,downsamping        |
-|-atelnet telnet,ANSI, zmodem, ANSI, contacts             |
-|-ansiview просмоторщик ANSI арта                         |
-|-updater удаляется "bin.new", зеркало kulich.su (-m)     |
-|-pkzip RLE и basic deflate -tgvplay плеер zxv(no sound)  |
+|NC: оверлеи, чтение CD-ROM, "+", "-", "*", запуск $c     |  
+|GREP: утилита grep; IRC оконный клиент IRC               |
+|SCRNET: NedoRDP клиент/сервер; SXGVIEW: просмоторщик SXG |
+|NGSPLAY: проигрыватель S3M, MP3, OGG, MOD для NGS        |
+|ZIFI: клиент для сервиса zifi под ZXNETUSB/ESP-COM       |
+|TEXTVIEW: просмотр файлов.     ESPCFG: настройка ядра    |
+|J.B.Harold Case File:Kiss Of Murder; J.B Harold series 2.|
+|Manhattan requiem;TIMEGAL;bq2: игра от Sasha Bystrov     |
+|   -=[Релиз ESPNET прошивка/драйвер для ядра nedoOS]=-   |
 +---------------------------------------------------------+
+
