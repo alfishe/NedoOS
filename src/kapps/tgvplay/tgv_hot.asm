@@ -23,6 +23,8 @@
 	PUBLIC g_scr1_high
 	PUBLIC fmv_mounted
 	PUBLIC tgv_flip_halt
+	PUBLIC tgv_clear_hidden
+	PUBLIC tgv_blank_left
 	PUBLIC tgv_ev_last
 	PUBLIC tgv_qmode
 	EXTERN secbase
@@ -86,6 +88,8 @@ g_scr1_high:
 fmv_mounted:
 	DEFS 1
 tgv_flip_halt:
+	DEFS 1
+tgv_blank_left:
 	DEFS 1
 	PUBLIC tgv_frm_n
 	PUBLIC tgv_irq_n
@@ -470,7 +474,34 @@ sync_switch:
 	call nz,tgv_mark_paint
 	call tgv_switch_screen
 	call tgv_map_back
+	call tgv_blank_once
 	jp tgv_ev_poll
+
+; One hidden page, after it has been mapped. IX/IY kept for the stream.
+tgv_blank_once:
+	ld a,(tgv_blank_left)
+	or a
+	ret z
+	dec a
+	ld (tgv_blank_left),a
+tgv_clear_hidden:
+	push hl
+	push de
+	push bc
+	ld hl,8000h
+	ld de,8001h
+	ld bc,3FFFh
+	ld (hl),0
+	ldir
+	ld hl,0C000h
+	ld de,0C001h
+	ld bc,3FFFh
+	ld (hl),0
+	ldir
+	pop bc
+	pop de
+	pop hl
+	ret
 
 ; Once per displayed frame, and only while a choice window is open.
 ; Outside that window this returns without touching the keyboard.

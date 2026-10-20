@@ -1513,7 +1513,9 @@ class Desk(object):
         row.pack(fill="x", **pad)
         tk.Label(row, text="\u041f\u0430\u043f\u043a\u0430").pack(side="left")
         self.folder = tk.StringVar(value=args.frames)
-        tk.Entry(row, textvariable=self.folder, width=62).pack(side="left", padx=4)
+        folder_entry = tk.Entry(row, textvariable=self.folder, width=62)
+        folder_entry.pack(side="left", padx=4)
+        folder_entry.bind("<FocusOut>", lambda _e: self.on_folder_commit())
         tk.Button(row, text="...", command=self.browse).pack(side="left")
 
         row = tk.Frame(self.root)
@@ -1521,6 +1523,7 @@ class Desk(object):
         tk.Label(row, text="\u0418\u043c\u044f").pack(side="left")
         self.stem = tk.StringVar(value=args.stem)
         tk.Entry(row, textvariable=self.stem, width=16).pack(side="left", padx=4)
+        self.stem.trace("w", lambda *_a: self.sync_outname())
         tk.Label(row, text="\u0441 \u043a\u0430\u0434\u0440\u0430").pack(side="left")
         self.start = tk.StringVar(value=str(args.start))
         tk.Entry(row, textvariable=self.start, width=6).pack(side="left", padx=4)
@@ -1668,7 +1671,8 @@ class Desk(object):
         pal2.pack(fill="x", pady=(0, 2))
         tk.Button(pal2, text="\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c...", command=self.load_palette_file).pack(side="left")
         tk.Button(pal2, text="\u0441\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u043a\u0430\u043a...", command=self.save_palette_as).pack(side="left", padx=4)
-        tk.Label(pal2, text="txt / ddp / zxv \u2192 palette.txt \u044d\u0442\u043e\u0439 \u043f\u0430\u043f\u043a\u0438").pack(side="left")
+        self.pal_hold = tk.BooleanVar(value=False)
+        tk.Checkbutton(pal2, text="\u0437\u0430\u043c\u043e\u043a \u043f\u0430\u043b\u0438\u0442\u0440\u044b", variable=self.pal_hold).pack(side="left", padx=8)
         nav = tk.Frame(left)
         nav.pack(fill="x")
         tk.Button(nav, text="<", width=3, command=lambda: self.step_film(-1)).pack(side="left")
@@ -1688,6 +1692,7 @@ class Desk(object):
         self._install_clipboard()
         if not self.stem.get():
             self.stem.set(guess_stem(self.folder.get()))
+        self.sync_outname()
         self.load_palette_ui()
         if self.system.get():
             self.on_system()
@@ -1766,9 +1771,20 @@ class Desk(object):
         found = guess_stem(path)
         if found:
             self.stem.set(found)
+        self.sync_outname()
         self.load_palette_ui()
-        if self.system.get():
+        if self.system.get() and not self.pal_hold.get():
             self.on_system()
+
+    def on_folder_commit(self):
+        folder = self.folder.get().strip()
+        if not folder or not os.path.isdir(folder):
+            return
+        found = guess_stem(folder)
+        if found and found != self.stem.get().strip():
+            self.stem.set(found)
+        self.sync_outname()
+        self.load_palette_ui()
 
     def _apply(self):
         folder = self.folder.get()
@@ -1816,6 +1832,13 @@ class Desk(object):
         args.system = bool(self.system.get())
         args.palette = os.path.join(folder, "palette.txt")
         args.ddp = os.path.join(folder, "palette.ddp")
+        if self.pal_hold.get() and self.pal_colors and not args.system:
+            locks = list(self.pal_locks)
+            while len(locks) < len(self.pal_colors):
+                locks.append(False)
+            write_palette_txt(args.palette, args.mode, self.pal_colors, locks)
+            args.repalette = False
+        self.sync_outname()
         args.zxv = resolve_zxv(self.outname.get(), folder)
         wav = os.path.join(folder, stem + ".wav")
         return args, paths, wav
@@ -1887,7 +1910,20 @@ class Desk(object):
         if note:
             self.status.set(note)
 
+    def sync_outname(self):
+        if not hasattr(self, "outname"):
+            return
+        stem = self.stem.get().strip()
+        cur = self.outname.get().strip()
+        if cur and os.path.dirname(cur):
+            return
+        if stem:
+            self.outname.set(stem + ".zxv")
+
     def load_palette_ui(self):
+        if self.pal_hold.get() and self.pal_colors:
+            self.status.set("\u043f\u0430\u043b\u0438\u0442\u0440\u0430 \u043d\u0430 \u0437\u0430\u043c\u043a\u0435")
+            return
         path = os.path.join(self.folder.get(), "palette.txt")
         if not os.path.isfile(path):
             # Keep 16 visible slots so the strip never looks "gone".
@@ -2026,7 +2062,11 @@ class Desk(object):
         except Exception as exc:
             self.status.set(str(exc))
             return
-        if args.system:
+        if self.pal_hold.get() and self.pal_colors and not args.system:
+            mode = int(self.mode.get())
+            colors = list(self.pal_colors)
+            locks = list(self.pal_locks)
+        elif args.system:
             mode = 4096
             colors = list(SYSTEM_COLORS)
             locks = [True] * 16

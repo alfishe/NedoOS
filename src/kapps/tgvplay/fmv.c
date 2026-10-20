@@ -60,6 +60,11 @@ static unsigned char key_countdown;
 static unsigned char seen_snd;
 static unsigned char session;
 static unsigned char gfx_ready;
+/* A clip has already drawn. The next file's hidden pages start black
+   without clearing the picture that is still on screen. */
+static unsigned char pages_dirty;
+extern unsigned char tgv_blank_left;
+extern void tgv_clear_hidden(void);
 /* Task palette before any clip replaced it. A file with no lead
    palette gets this back, which is what an old clip always showed. */
 static unsigned char sys_pal[32];
@@ -253,6 +258,8 @@ void tgv_gfx_init(void)
 	tgv_map_draw();
 	tgv_int_hook();
 	gfx_ready = 1u;
+	pages_dirty = 0u;
+	tgv_blank_left = 0u;
 }
 
 void tgv_session_begin(void)
@@ -263,6 +270,8 @@ void tgv_session_begin(void)
 	tgv_ay_init();
 	session = 1u;
 	gfx_ready = 0u;
+	pages_dirty = 0u;
+	tgv_blank_left = 0u;
 	tgv_fmv_stream = 0u;
 	tgv_ev_on = 0u;
 	tgv_ev_fail = 0u;
@@ -273,6 +282,8 @@ void tgv_session_end(void)
 {
 	session = 0u;
 	gfx_ready = 0u;
+	pages_dirty = 0u;
+	tgv_blank_left = 0u;
 	tgv_fmv_stream = 0u;
 	tgv_ev_on = 0u;
 	tgv_on_sector = 0;
@@ -601,6 +612,14 @@ static int video_play(void)
 	static int r;
 
 	tgv_map_draw();
+	/* Hidden page only. The shown page is cleared once it is hidden,
+	   on the first flip, so the screen does not go black in between. */
+	if (pages_dirty)
+	{
+		tgv_clear_hidden();
+		tgv_blank_left = 1u;
+	}
+	pages_dirty = 1u;
 	key_countdown = 0u;
 
 	for (;;)
