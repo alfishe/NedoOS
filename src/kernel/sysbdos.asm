@@ -1869,6 +1869,111 @@ BDOS_readdir_noFATFS
 
 
 
+
+;Batch readdir: fetch up to N FILINFO records in one FatFs pass.
+;b=count (1..24), de=buffer. out: A=0 full batch, else error/end; B=stored (valid even if A!=0).
+BDOS_readdir_n
+        ld a,b
+        or a
+        jp z,rdn_bad
+        cp 25
+        jr c,rdn_cntok
+        ld a,24
+rdn_cntok
+        ld (rdn_max),a
+        xor a
+        ld (rdn_got),a
+        ld (rdn_err),a
+        ld (rdn_base),de
+        ld iy,(appaddr)
+        CHECKVOLUMETRDOS
+        jp c,rdn_trdos
+        GETVOLUME
+        call call_ffs_bind
+rdn_fat_loop
+        ld a,(rdn_got)
+        ld hl,rdn_max
+        cp (hl)
+        jp z,rdn_done
+        ld iy,(appaddr)
+        call rdn_entry_de
+        call BDOS_preparedepage
+        ld (rdn_remap),de
+        call count_fdir
+        ld bc,(rdn_remap)
+        call ffsfunc.f_readdir
+        or a
+        jp nz,rdn_stop
+        ld hl,(rdn_remap)
+        ld de,FILINFO_FNAME
+        add hl,de
+        ld a,(hl)
+        or a
+        jp z,rdn_endname
+        ld hl,rdn_got
+        inc (hl)
+        jr rdn_fat_loop
+rdn_endname
+        ld a,4
+rdn_stop
+        ld (rdn_err),a
+        jp rdn_done
+rdn_trdos
+        ld a,(rdn_got)
+        ld hl,rdn_max
+        cp (hl)
+        jp z,rdn_done
+        ld iy,(appaddr)
+        call rdn_entry_de
+        call BDOS_preparedepage
+        call BDOS_setdepage
+        ld (rdn_remap),de
+        ld b,d
+        ld c,e
+        call BDOS_readdir_noFATFS
+        or a
+        jp nz,rdn_stop
+        ld hl,(rdn_remap)
+        ld de,FILINFO_FNAME
+        add hl,de
+        ld a,(hl)
+        or a
+        jp z,rdn_endname
+        ld hl,rdn_got
+        inc (hl)
+        jr rdn_trdos
+rdn_bad
+        ld b,0
+        ld a,0xff
+        ret
+rdn_done
+        ld a,(rdn_got)
+        ld b,a
+        ld a,(rdn_err)
+        ret
+
+;DE = rdn_base + rdn_got * FILINFO_sz
+rdn_entry_de
+        ld hl,(rdn_base)
+        ld a,(rdn_got)
+        or a
+        jr z,rdn_entry_de_z
+        ld de,FILINFO_sz
+rdn_entry_de_m
+        add hl,de
+        dec a
+        jr nz,rdn_entry_de_m
+rdn_entry_de_z
+        ex de,hl
+        ret
+
+rdn_base        dw 0
+rdn_remap       dw 0
+rdn_max         db 0
+rdn_got         db 0
+rdn_err         db 0
+
+
 ;FILINFO_FSIZE=0;	        DWORD		;/* FILE SIZE */
 ;FILINFO_FDATE=4;	        WORD		;/* LAST MODIFIED DATE */
 ;FILINFO_FTIME=6;	        WORD		;/* LAST MODIFIED TIME */
@@ -2726,6 +2831,11 @@ call_ffs_curvol
 call_ffs	;A=логический раздел, HL=функция 
 ;портит iy! но нельзя двигать стек! в нём параметры!
 		push hl
+		call call_ffs_bind
+		pop hl
+		jp (hl)		; jump to FatFS function
+
+call_ffs_bind	; bind current volume and dir (preserves BC)
 		push bc
         ld hl,fatfsarray ;вычисляем указатель на структуру fatfs
 		sub vol_trdos

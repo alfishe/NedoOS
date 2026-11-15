@@ -1,8 +1,12 @@
 	MODULE	SHUTUPMOD
 	PUBLIC	shutup
+	EXTERN	ay_vol_a, ay_vol_b, ay_vol_c
 	RSEG	PLAYER
 shutup
 	xor a
+	ld (ay_vol_a),a
+	ld (ay_vol_b),a
+	ld (ay_vol_c),a
 	ld d,0xff
 	ld e,a
 	ld c,0xfd
@@ -41,6 +45,7 @@ ptr_increment: ;DE-count
 	PUBLIC	buf_rx, ptr_in_rx, ptr_out_rx, u32_intcount
 	PUBLIC	msg_hello, msg_framesync, syncreq
 	PUBLIC	flag_int_change, flag_syncrply
+	PUBLIC	ay_vol_a, ay_vol_b, ay_vol_c
 	EXTERN	shutup
 	RSEG	RXBUF
 buf_rx:
@@ -120,6 +125,25 @@ dump_loop
 	ld b,d
 	out (c),a
 	ld b,e
+	push af
+	cp 8
+	jr nz,dump_n8
+	ld a,(hl)
+	ld (ay_vol_a),a
+	jr dump_nxt
+dump_n8
+	cp 9
+	jr nz,dump_n9
+	ld a,(hl)
+	ld (ay_vol_b),a
+	jr dump_nxt
+dump_n9
+	cp 10
+	jr nz,dump_nxt
+	ld a,(hl)
+	ld (ay_vol_c),a
+dump_nxt
+	pop af
 	outi
 	res 4,h
 	inc a
@@ -131,7 +155,7 @@ dump_loop
 	inc hl
 	res 4,h
 	cp d
-	jr z,play_exit
+	jp z,play_exit
 	ld b,0xbf
 	out (c),a
 	jp play_exit
@@ -172,6 +196,12 @@ sync_full
 flag_syncrply
 	defb 0
 flag_int_change
+	defb 0
+ay_vol_a
+	defb 0
+ay_vol_b
+	defb 0
+ay_vol_c
 	defb 0
 msg_hello
 	defb 0x00,7,'I','\'','M',' ','Y','A','D',0x00

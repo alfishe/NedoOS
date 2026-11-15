@@ -17,4 +17,4 @@ SRCA	:= yadplay.asm
 XCLFILE	:= lnk.xcl
 
 
-include ../../dmapps/iarlib/iar.mk
+include ../../kapps/iarlib/iar.mk

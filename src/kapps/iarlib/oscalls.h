@@ -88,6 +88,7 @@ void OS_SETPG8000(unsigned char page);
 void OS_SETPGC000(unsigned char page);
 void OS_SETSCREEN(unsigned char screen); // e=screen=0..1
 unsigned char OS_READDIR(fileInfo *finfo);
+unsigned int OS_READDIRN(fileInfo *buf, unsigned char n); /* HL=(err<<8)|count; err 0=full batch, 4=no more, 0xff=bad */
 unsigned char OS_OPENDIR(unsigned char *path);
 /* IAR: DE=path, BC=&date, time* на стеке. BDOS out IX/HL -> *date,*time. */
 unsigned char OS_GETFILETIME(unsigned char *path, unsigned int *date, unsigned int *time);
