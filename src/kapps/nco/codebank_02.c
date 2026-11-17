@@ -673,8 +673,8 @@ static unsigned char panel_find_by_name(PanelState *p, const char *name, unsigne
 
 unsigned char r_read_panel_dir_at(PanelState *p, const char *path, unsigned char preserve)
 {
-	unsigned int idx, off, old_cursor = 0u, old_scroll = 0u, restore, phys, pack;
-	unsigned char page = 0u, res, saved = 0u, batch = 1u, want, got, keep, room;
+	unsigned int idx, off, old_cursor = 0u, old_scroll = 0u, restore, phys;
+	unsigned char page = 0u, res, saved = 0u, got, keep;
 	char req[64], saved_name[64];
 
 	if (!panel_banks_ok(p)) { p->file_count = 0u; p->files_only_count = 0u; p->total_bytes = 0UL; panel_clamp_scroll(p); return 0u; }
@@ -701,41 +701,13 @@ unsigned char r_read_panel_dir_at(PanelState *p, const char *path, unsigned char
 		{
 			if (++page >= PANEL_FILE_PAGES) break;
 		}
-		room = (unsigned char)(FILES_PER_PAGE - off);
-		want = PANEL_READ_STAGE;
-		if (want > room) want = room;
-		if ((unsigned int)want > MAX_FILES_PER_PANEL - idx)
-			want = (unsigned char)(MAX_FILES_PER_PANEL - idx);
-		if (want == 0u) break;
-
+		g_panel_stage[0].lfname[0] = 0;
 		if (nc_path_is_cd(req))
-		{
-			/* CDFS: one entry at a time (no BDOS batch). */
-			batch = 0u;
-			g_panel_stage[0].lfname[0] = 0;
-			res = mb_cdfs_readdir(&g_panel_stage[0]);
-			if (res != 0u) break;
-			got = 1u;
-		}
-		else if (!batch)
-		{
-			g_panel_stage[0].lfname[0] = 0;
-			res = OS_READDIR(&g_panel_stage[0]);
-			if (res != 0u) break;
-			got = 1u;
-		}
+			res = mb_cdfs_readdir(&g_panel_stage[0]);	/* CDFS: no BDOS readdir */
 		else
-		{
-			pack = OS_READDIRN(g_panel_stage, want);
-			res = (unsigned char)(pack >> 8);
-			got = (unsigned char)pack;
-			if (res == 0xffu && got == want)
-			{
-				batch = 0u;
-				continue;
-			}
-			if (got == 0u) break;
-		}
+			res = OS_READDIR(&g_panel_stage[0]);
+		if (res != 0u) break;
+		got = 1u;
 
 		keep = panel_stage_keep(got);
 		if (keep != 0u)
@@ -743,7 +715,6 @@ unsigned char r_read_panel_dir_at(PanelState *p, const char *path, unsigned char
 			panel_store_kept(p, page, idx, keep);
 			idx += keep;
 		}
-		if (batch && res != 0u) break;
 	}
 
 	p->file_count = idx;

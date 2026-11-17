@@ -935,22 +935,6 @@ OS_READDIR:
 	ret
 	ENDMOD
 	
-	MODULE OS_READDIRN	;HL=(error<<8)|count; 0=full batch, 4=no more, 0xff=bad
-	PUBLIC OS_READDIRN
-	#include "sysdefs.asm"
-	RSEG CODE
-OS_READDIRN:
-	ld b,c
-	push ix
-	push iy
-	ld c,CMD_READDIRN
-	call BDOS
-	pop iy
-	pop ix
-	ld h,a
-	ld l,b
-	ret
-	ENDMOD
 
 	MODULE OS_DIHALT
 	PUBLIC OS_DIHALT

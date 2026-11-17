@@ -123,7 +123,6 @@
 	EXTERN nco_vp
 	EXTERN g_stat_line
 	EXTERN panel_fmt_size10
-	EXTERN OS_READDIRN
 	EXTERN OS_GETCONFIG
 	EXTERN ?L_OR_L03
 	EXTERN memcpy
@@ -249,7 +248,6 @@ force_helpers:
 	ld	hl,nco_vp
 	ld	hl,g_stat_line
 	ld	hl,panel_fmt_size10
-	ld	hl,OS_READDIRN
 	ld	hl,OS_GETCONFIG
 	ld	hl,?L_OR_L03
 	ld	hl,memcpy
