@@ -6,6 +6,7 @@
 #include "pins.h"
 #include "stats.h"
 #include "webui.h"
+#include "at_cmd.h"
 
 #if defined(ARDUINO_ARCH_ESP32)
 #include <WiFi.h>
@@ -472,6 +473,15 @@ static int at_starts(const char *line, const char *pre)
 	return 1;
 }
 
+static void usb_print_log(void)
+{
+	unsigned total = stats_log_count();
+	unsigned i;
+
+	for (i = 0; i < total; i++)
+		host_debug().println(stats_log_line(i));
+}
+
 static void usb_handle_line(char *line)
 {
 	if (!line[0])
@@ -480,6 +490,8 @@ static void usb_handle_line(char *line)
 		usb_print_gmr();
 	else if (at_eq(line, "AT+STATUS") || at_eq(line, "STATUS"))
 		usb_print_status();
+	else if (at_eq(line, "AT+LOG") || at_eq(line, "LOG"))
+		usb_print_log();
 	else if (at_eq(line, "AT+SOCKS") || at_eq(line, "SOCKS"))
 		sockets_debug(host_debug());
 	else if (at_starts(line, "AT+UART")) {
@@ -501,9 +513,16 @@ static void usb_handle_line(char *line)
 	} else if (at_eq(line, "AT+WEB") || at_eq(line, "WEB")) {
 		webui_http_enable();
 		host_debug().println(F("OK"));
+	} else if (at_eq(line, "AT+ATMODE") || at_eq(line, "ATMODE")) {
+		at_enter();
+		host_debug().println(F("OK host uart -> AT mode"));
+	} else if (at_eq(line, "AT+BIN") || at_eq(line, "BIN")) {
+		at_exit();
+		host_debug().println(F("OK host uart -> binary mode"));
 	} else if (at_eq(line, "AT+HELP") || at_eq(line, "HELP")) {
-		host_debug().println(F("AT+GMR AT+STATUS AT+SOCKS AT+UART AT+UART=115200 AT+WEB AT+HELP"));
+		host_debug().println(F("AT+GMR AT+STATUS AT+SOCKS AT+LOG AT+UART AT+UART=115200 AT+WEB AT+ATMODE AT+BIN AT+HELP"));
 		host_debug().println(F("OTA espnet.local pass espnet  http off until AT+WEB"));
+		host_debug().println(F("AT+ATMODE/AT+BIN switch the host UART between AT and binary protocol"));
 	} else {
 		host_debug().println(F("ERROR"));
 	}

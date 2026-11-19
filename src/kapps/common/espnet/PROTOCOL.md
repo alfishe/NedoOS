@@ -1,10 +1,15 @@
-# ESPNET binary UART protocol (firmware 1.20)
+# ESPNET UART protocol (firmware 1.28)
 
 How to flash (Arduino IDE / OTA) and NedoOS includes: README.txt.
 
 ESP32 / ESP32-C3 / ESP8266 act as a W5300-style socket coprocessor over UART.
 Host is master: the module never sends unsolicited data (`+IPD` does not exist).
 Incoming TCP is buffered on the ESP until `CMD_READ`.
+
+The same UART can instead run a small ESP-AT text clone (`CMD_ATMODE`, 0x16).
+There the module does send unsolicited `+IPD` / `CLOSED` lines and the binary
+API is dead until `AT+BIN`. See "AT text mode" below; the rest of this file
+describes the binary mode.
 
 Baud: 115200 8N1. Hardware RTS/CTS is required.
 
@@ -141,6 +146,9 @@ as much as the UART transfer itself, so the host never turns it on.
   0x13  WIFI_DISC     empty                drops link, keeps saved AP
   0x14  WIFI_STATUS   empty                45 bytes
   0x15  UART          GET empty / SET 8    ZX UART baud; see below
+  0x16  ATMODE        empty                ack, then the host UART speaks AT
+                                           text (section below); the binary
+                                           API stays silent until AT+BIN
   0x7E  ECHO          any                  loopback
 
 Sockets: 8 on ESP32/C3, 4 on ESP8266. `CMD_INFO.max_socks` reports the limit.
@@ -190,13 +198,98 @@ value, or 115200 if unset. USB debug stays 115200. Recovery if ZX and ESP
 disagree: USB `AT+UART=115200`, then set `divider = 1` on the host.
 
 
+## AT text mode (cmd 0x16)
+
+A small ESP-AT clone on the ZX UART, for software written against ESP-AT:
+third-party AT terminals, and the ESP-COM path of getpic, gopher,
+zxart-radio, netprint, zxdb, calendar, zifi, updater, svnesp, girc.
+The binary API is not available at the same time.
+
+Enter:
+
+  1. binary `CMD_ATMODE` (0x16, empty payload). The normal 8-byte reply goes
+     out first, then the module switches (`at_pending` in espnet.ino).
+  2. USB Serial Monitor `AT+ATMODE` (USB console only, ZX UART untouched).
+
+Leave: `AT+BIN` on the ZX UART, or `AT+BIN` / `BIN` in the USB console.
+
+### Lines
+
+Commands are ASCII, closed by CR LF. The LF after the CR belongs to the
+terminator, not to the data: CIPSEND arms the byte counter on the CR, and a
+stray LF used to be pushed into the socket ahead of the payload (HTTP 400,
+then every following command one byte late).
+
+Replies are CR LF lines:
+
+  line              meaning
+  ----------------  -----
+  OK / ERROR        command accepted / rejected
+  CONNECT           CIPSTART opened the TCP link, OK follows
+  >                 CIPSEND prompt, no CRLF, then exactly n raw bytes
+  SEND OK           n bytes are in the socket
+  SEND FAIL         the socket died while writing
+  +IPD,<len>:<data> incoming TCP chunk, len <= 2048
+  CLOSED            peer closed; sent after the last +IPD of that link
+  WIFI GOT IP       answer to AT+RST, or later once STA gets an IP
+
+### Commands
+
+  command                     reply
+  --------------------------  -----
+  AT                          OK
+  ATE0 / ATE1                 OK (echo is always off)
+  AT+RST                      WIFI GOT IP when STA has an IP, else the line
+                              follows when the IP arrives
+  AT+CIPSTART="TCP","h",p     CONNECT + OK, or ERROR
+  AT+CIPSEND=<n>              OK, ">", n raw bytes, then SEND OK / SEND FAIL
+  AT+CIPCLOSE                 CLOSED + OK, or ERROR when there is no link
+  AT+CIPDINFO=0               OK (DINFO is always off)
+  AT+CIPMUX=0                 OK (one link only, CIPMUX=1 is not implemented)
+  AT+CIPSERVER=0              OK
+  AT+CIPRECVMODE=0            OK
+  AT+BIN                      OK, back to the binary protocol
+  AT+LOG                      last log lines (40 on ESP8266, 80 on ESP32),
+                              then OK
+  anything else               ERROR
+
+Not implemented on purpose: server mode (CIPSERVER / LISTEN / ACCEPT), NTP,
+CIPMUX=1, SSL, CIUPDATE. One TCP socket, no UDP.
+
+### Behaviour worth knowing
+
+- CIPSTART waits up to 600 ms for GOT_IP, retries DNS up to 3 times and
+  retries a fast (RST) connect once. A slow connect burns ESPNET_CONNECT_MS.
+- ESP8266 quirk: `WiFiClient::connect()` uses the client read timeout as the
+  SYN-ACK timeout. The AT code sets ESPNET_CONNECT_MS before connecting and
+  restores 50 ms after, otherwise every reconnect after the first page failed
+  in 50 ms (`AT CIPSTART fail 4` in the log).
+- CIPSEND buffers the payload and retries a refused write for up to 3 s.
+  One-byte writes with TCP_NODELAY dropped the tail of a request; a request
+  missing its last CRLF makes the server wait instead of answering.
+- All buffered bytes are drained before CLOSED is announced: a FIN can flip
+  `connected()` while data is still queued, and gopher (no length header)
+  would keep a truncated page.
+- Unsolicited lines (+IPD, CLOSED, WIFI GOT IP) can appear between replies.
+  A host that matches "one reply per command" must skip lines it does not
+  expect, not just read the next line.
+- `AT+LOG` exists because boards with the module soldered on (ZX-WiFi
+  ESP-12F) have no USB console, and the HTTP dashboard is off until USB
+  `AT+WEB`.
+
+Host side: `espcfg -a` sends the raw 0x16 frame, `-b` sends `AT+BIN`, and
+`-l` prints the `AT+LOG` dump on the ZX screen (no USB needed). Kernel API
+calls (`OS_GETINFO`, sockets) are not used in AT mode: they time out there.
+
+
 ## Arduino IDE 2 / OTA
 
 Board list, pins.h, Upload and ArduinoOTA: README.txt.
 
-USB Serial Monitor understands `AT+GMR`, `AT+STATUS`, `AT+SOCKS`,
-`AT+UART`, `AT+UART=115200`, `AT+WEB`, `AT+HELP`.
-Do not send AT text on the ZX UART.
+USB Serial Monitor understands `AT+GMR`, `AT+STATUS`, `AT+SOCKS`, `AT+LOG`,
+`AT+UART`, `AT+UART=115200`, `AT+WEB`, `AT+ATMODE`, `AT+BIN`, `AT+HELP`.
+AT text on the ZX UART is only valid after the switch to AT mode (binary
+0x16 or USB `AT+ATMODE`); the binary parser never sees it.
 
 After STA has an IP, ArduinoOTA starts. HTTP dashboard is off until USB
 `AT+WEB`. mDNS hostname (pins.h): `espnet-ESP32` / `espnet-C3` / `espnet-8266`.

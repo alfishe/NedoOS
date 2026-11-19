@@ -112,6 +112,17 @@ static void port_out3(unsigned char idx, unsigned char data)
 	enable_interrupt();
 }
 
+static unsigned char port_in3(unsigned char idx)
+{
+	unsigned char v;
+
+	disable_interrupt();
+	output(0xfb, idx);
+	v = (unsigned char)input(0xfa);
+	enable_interrupt();
+	return v;
+}
+
 /* Same sequence as userland uart_init (type 3 uses 16550 index). */
 static void uart_init(unsigned char div)
 {
@@ -145,6 +156,225 @@ static void uart_init(unsigned char div)
 		output(MCR, 0x2f);
 		break;
 	}
+}
+
+/*
+ * Byte-level UART access for the AT/BIN switch. The kernel API only sends the
+ * opcodes it knows, and ESPNET_CMD_ATMODE is not one of them, so the frame
+ * goes out as raw bytes. Register sequences follow ../common/esp-com.c. On
+ * Kondratyev (0) and ATM2IOESP (3) the ESP only answers while RTS strobes,
+ * so a read polls LSR and pulses MCR, as the kernel esp_fill* loops do, and
+ * a write waits CTS first, as the kernel esp_putb does.
+ */
+static void uart_wait_cts(void)
+{
+	unsigned int n;
+
+	if ((unsigned char)comType == 1 || (unsigned char)comType == 2)
+		return;
+	for (n = 0; n < 20000; n++) {
+		if ((unsigned char)comType == 3) {
+			if (port_in3(reg8(MSR)) & 0x10)
+				return;
+		} else if (input(MSR) & 0x10)
+			return;
+	}
+}
+
+static void uart_put(unsigned char data)
+{
+	uart_wait_cts();
+	switch ((unsigned char)comType) {
+	case 1:
+		disable_interrupt();
+		do {
+			input(0x55fe);
+		} while ((input(0x42fe) & 32) == 0);
+		input(0x55fe);
+		input(0x03fe);
+		input(((unsigned int)data << 8) | 0x00fe);
+		enable_interrupt();
+		break;
+	case 3:
+		while ((port_in3(reg8(LSR)) & 32) == 0) {
+		}
+		port_out3(reg8(RBR_THR), data);
+		break;
+	default:
+		while ((input(LSR) & 32) == 0) {
+		}
+		output(RBR_THR, data);
+		break;
+	}
+}
+
+/* 1 = byte in *out, 0 = nothing waiting. Never blocks. */
+static unsigned char uart_try(unsigned char *out)
+{
+	unsigned char v;
+	unsigned char q;
+
+	switch ((unsigned char)comType) {
+	case 1:
+		disable_interrupt();
+		input(0x55fe);
+		q = (unsigned char)input(0xc2fe);
+		if (q == 0) {
+			input(0x55fe);
+			input(0x43fe);
+			input(0x03fe);
+			input(0x55fe);
+			input(0x43fe);
+			input(0x00fe);
+			input(0x55fe);
+			q = (unsigned char)input(0xc2fe);
+		}
+		if (q == 0) {
+			enable_interrupt();
+			return 0;
+		}
+		input(0x55fe);
+		*out = (unsigned char)input(0x02fe);
+		enable_interrupt();
+		return 1;
+	case 3:
+		v = port_in3(reg8(LSR));
+		if ((v & 1) == 0) {
+			port_out3(reg8(MCR), 2);
+			port_out3(reg8(MCR), 0);
+			v = port_in3(reg8(LSR));
+			if ((v & 1) == 0)
+				return 0;
+		}
+		*out = port_in3(reg8(RBR_THR));
+		return 1;
+	default:
+		v = (unsigned char)input(LSR);
+		if ((v & 1) == 0 && (unsigned char)comType != 2) {
+			output(MCR, 2);
+			output(MCR, 0);
+			v = (unsigned char)input(LSR);
+			if ((v & 1) == 0)
+				return 0;
+		}
+		if ((v & 1) == 0)
+			return 0;
+		*out = (unsigned char)input(RBR_THR);
+		return 1;
+	}
+}
+
+static void uart_drain(void)
+{
+	unsigned int guard;
+	unsigned char v;
+
+	guard = 0;
+	while (uart_try(&v)) {
+		if (++guard > 4096)
+			break;
+	}
+}
+
+/* Collect until `ticks` expire or the line goes quiet for 2 ticks (40 ms). */
+static unsigned int uart_collect(unsigned char *buf, unsigned int max, long ticks)
+{
+	long start;
+	long last;
+	unsigned int n;
+	unsigned char v;
+
+	n = 0;
+	start = time();
+	last = start;
+	while ((time() - start) < ticks) {
+		if (!uart_try(&v)) {
+			YIELD();
+			if (n != 0 && (time() - last) >= 2)
+				break;
+			continue;
+		}
+		buf[n] = v;
+		n++;
+		last = time();
+		if (n >= max)
+			break;
+	}
+	return n;
+}
+
+#define MODE_OK 0
+#define MODE_NO_REPLY 1
+#define MODE_BAD_REPLY 2
+#define MODE_STATUS 3
+
+/* AT+LOG: ask the ESP for its recent log lines over the same UART. A board
+ * with the module soldered on (ESP8266 ZX-WiFi) has no USB console, so this
+ * is the only way to read what the firmware saw. */
+static unsigned int esp_log_dump(void)
+{
+	static unsigned char buf[1024];
+	static const char cmd[] = "AT+LOG\r\n";
+	unsigned int i;
+	unsigned int n;
+
+	uart_drain();
+	for (i = 0; i < 8; i++)
+		uart_put((unsigned char)cmd[i]);
+	n = uart_collect(buf, sizeof(buf) - 1, 100);
+	for (i = 0; i < n; i++)
+		putchar((char)buf[i]);
+	return n;
+}
+
+/* Binary ATMODE frame: ESP acks it, then its host UART speaks AT. */
+static unsigned char esp_enter_at(void)
+{
+	unsigned char req[7];
+	unsigned char buf[16];
+	unsigned int i;
+	unsigned int n;
+
+	uart_drain();
+	req[0] = ESPNET_SOF;
+	req[1] = ESPNET_CMD_ATMODE;
+	req[2] = ESPNET_SOCK_NONE;
+	req[3] = 0;	/* arg */
+	req[4] = 1;	/* seq */
+	req[5] = 0;	/* len lo */
+	req[6] = 0;	/* len hi */
+	for (i = 0; i < 7; i++)
+		uart_put(req[i]);
+	n = uart_collect(buf, sizeof(buf), 50);
+	for (i = 0; i + 9 <= n; i++) {
+		if (buf[i] != ESPNET_SOF || buf[i + 1] != ESPNET_CMD_ATMODE)
+			continue;
+		return buf[i + 3] ? MODE_STATUS : MODE_OK;
+	}
+	return n ? MODE_BAD_REPLY : MODE_NO_REPLY;
+}
+
+/* AT side: text is the only way back, the binary parser is off. */
+static unsigned char esp_enter_bin(void)
+{
+	unsigned char buf[16];
+	unsigned int i;
+	unsigned int n;
+
+	uart_drain();
+	uart_put('A');
+	uart_put('T');
+	uart_put('+');
+	uart_put('B');
+	uart_put('I');
+	uart_put('N');
+	uart_put('\r');
+	uart_put('\n');
+	n = uart_collect(buf, sizeof(buf), 50);
+	for (i = 0; i + 1 < n; i++)
+		if (buf[i] == 'O' && buf[i + 1] == 'K')
+			return MODE_OK;
+	return n ? MODE_BAD_REPLY : MODE_NO_REPLY;
 }
 
 static void pack_cfg(void)
@@ -322,6 +552,17 @@ static void print_wifi(unsigned char *p)
 	sgr(SGR_DIM);
 }
 
+static void print_mode(unsigned char at, unsigned char r)
+{
+	kv_s("mode", at ? "AT" : "BIN", r == MODE_OK ? SGR_OK : SGR_ERR);
+	if (r != MODE_OK) {
+		putchar(' ');
+		kv_u("err", (unsigned int)r);
+	}
+	printf("\r\n");
+	sgr(SGR_DIM);
+}
+
 static void settle(void)
 {
 	long start;
@@ -340,23 +581,41 @@ C_task main(int argc, char *argv[])
 {
 	int i;
 	char *s;
+	unsigned char a_set;
+	unsigned char b_set;
+	unsigned char l_set;
+	unsigned char r;
+	unsigned int logn;
 
 	os_initstdio();
 
 	silent = 0;
 	m_set = 0;
+	a_set = 0;
+	b_set = 0;
+	l_set = 0;
 	for (i = 1; i < argc; i++) {
 		s = argv[i];
 		if (s == 0 || (s[0] != '-' && s[0] != '/'))
 			continue;
 		if (s[1] == 'S' || s[1] == 's')
 			silent = 1;
+		else if (s[1] == 'A' || s[1] == 'a')
+			a_set = 1;
+		else if (s[1] == 'B' || s[1] == 'b')
+			b_set = 1;
+		else if (s[1] == 'L' || s[1] == 'l')
+			l_set = 1;
 		else if (s[1] == 'H' || s[1] == 'h') {
-			puts("Usage: espcfg.com [-S] [-M n]");
+			puts("Usage: espcfg.com [-S] [-M n] [-a|-b] [-l]");
 			puts("Read /ini/espcom.ini, init 16550, write UART+pktMax to kernel.");
 			puts("No args: print kernel UART, firmware version, WiFi/IP/SSID.");
 			puts("-S  silent (autoexec)");
 			puts("-M n  payload cap 64..2048 (overrides pktMax= in ini)");
+			puts("-a  switch ESP to AT (text) mode: sends binary ATMODE 0x16");
+			puts("    (the API stops answering there: at mode UART holds AT)");
+			puts("-b  switch back to binary: sends AT+BIN, then prints status");
+			puts("-l  dump the ESP log (AT+LOG) over the UART, no USB needed");
 			exit(0);
 		} else if (s[1] == 'M' || s[1] == 'm') {
 			m_set = 1;
@@ -370,6 +629,11 @@ C_task main(int argc, char *argv[])
 		}
 	}
 
+	if (a_set && b_set) {
+		puts("espcfg: -a and -b are mutually exclusive");
+		exit(1);
+	}
+
 	load_ini();
 	if (m_set)
 		pktMax = m_val;
@@ -378,11 +642,34 @@ C_task main(int argc, char *argv[])
 	pack_cfg();
 	memset(oldcfg, 0, 20);
 	OS_GETUART(oldcfg);
-	if (memcmp(oldcfg, cfg, 20) != 0) {
+	if (memcmp(oldcfg, cfg, 20) != 0 || a_set || b_set) {
 		uart_init((unsigned char)divider);
 		settle();
 		OS_SETUART(cfg);
 		settle();
+	} else if (l_set) {
+		/* Only the UART registers are needed to talk AT: skip SETUART so
+		 * the kernel does not push a binary frame into the AT parser. */
+		uart_init((unsigned char)divider);
+		settle();
+	}
+
+	if (a_set || b_set) {
+		r = a_set ? esp_enter_at() : esp_enter_bin();
+		uart_init((unsigned char)divider);
+		settle();
+		if (!silent)
+			print_mode(a_set, r);
+		if (a_set || r != MODE_OK)
+			exit(r == MODE_OK ? 0 : 1);
+		/* -b is back on the binary API: fall through to the usual status. */
+	}
+
+	if (l_set) {
+		logn = esp_log_dump();
+		if (logn == 0 && !silent)
+			puts("no reply to AT+LOG (ESP is in binary mode?)");
+		exit(logn ? 0 : 1);
 	}
 
 	if (!silent) {

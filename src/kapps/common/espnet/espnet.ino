@@ -20,6 +20,7 @@
 #include "codec.h"
 #include "sockets.h"
 #include "wifi_cmd.h"
+#include "at_cmd.h"
 #include "webui.h"
 #include "stats.h"
 
@@ -30,6 +31,7 @@ void setup()
 	host_uart_begin();
 	wifi_cmd_begin();
 	sockets_begin();
+	at_begin();
 	espnet_rx_reset();
 	webui_begin_log();
 	host_debug().println(F("ESPNET ready"));
@@ -44,6 +46,15 @@ void loop()
 #if defined(ARDUINO_ARCH_ESP8266)
 		ESP.wdtFeed();
 #endif
+		yield();
+		return;
+	}
+
+	if (at_mode()) {
+		at_poll();
+		usb_debug_poll();
+		wifi_poll();
+		webui_poll();
 		yield();
 		return;
 	}
@@ -65,7 +76,8 @@ void loop()
 			uint16_t req_n = espnet_rx_len();
 			uint16_t n = 0;
 			stats_busy(1);
-			if (!wifi_handle(req, req_n, s_rsp, &n))
+			if (!wifi_handle(req, req_n, s_rsp, &n) &&
+			    !at_handle_bin(req, req_n, s_rsp, &n))
 				n = sockets_handle(req, req_n, s_rsp, sizeof(s_rsp));
 			if (n >= ESPNET_RSP_HDR && n <= sizeof(s_rsp) - 1) {
 				espnet_tx_reply(s_rsp, n);
@@ -74,6 +86,8 @@ void loop()
 			stats_busy(0);
 			host_uart_apply_pending();
 			espnet_rx_reset();
+			if (at_pending())
+				at_enter();
 		}
 	}
 

@@ -346,6 +346,7 @@ char fillPictureEsp(void)
     {
       text_on();
       writeLog("Error in AT+CIPSTART. Not 'CONNECT'.", "fillPictureEsp ");
+      writeLog((char *)netbuf, "fillPictureEsp ");
       espReBoot();
 
       delayLongKey(1000);

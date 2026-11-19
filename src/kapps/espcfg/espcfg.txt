@@ -2,9 +2,23 @@ espcfg.com reads /ini/espcom.ini, programs the 16550, and writes
 the 20-byte UART config (ports + pktMax) into the ESPNET kernel
 (like wizcfg / net.ini).
 
-espcfg.com [-S] [-M n]
+espcfg.com [-S] [-M n] [-a|-b] [-l]
 
 No args: after SETUART, print kernel UART, firmware version (GETINFO), WiFi, IP, SSID.
 -S     silent (for autoexec.bat)
 -M n   UART payload cap per BDOS (64..2048); overrides pktMax= in ini
        Default 192 (short DI). Use 2048 for apps that send large buffers.
+
+-a     switch the ESP to AT (text) mode: send the binary ATMODE frame
+       (opcode 0x16) with raw UART I/O, wait for the ack, print mode=AT
+       and exit. The binary API stops answering in AT mode; that is
+       expected, GETINFO/GETDNS and socket calls will time out.
+-b     switch back to binary mode: send "AT+BIN" as plain text over the
+       same UART, wait for OK, then print the usual status over the API.
+-l     dump the ESP log (AT+LOG) over the UART; a board with the
+       module soldered on has no USB console, this is the way in.
+
+Exit code 0 = switched (or already fine), 1 = no/bad reply. With a
+failure the line also carries err: 1 no reply, 2 junk reply,
+3 the firmware answered the ATMODE frame with an error status.
+-a and -b are mutually exclusive; last of -S/-M still applies.

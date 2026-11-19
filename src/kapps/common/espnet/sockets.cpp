@@ -585,8 +585,16 @@ static uint16_t do_read(const uint8_t *req, uint16_t req_n, uint8_t *rsp)
 		n = (uint16_t)s->udp.read(out + ESPNET_SOCKADDR_SIZE, n);
 		if (n > 0)
 			stats_wifi_rx(n);
-		if (pkt > (int)n)
-			s->udp.clear();
+		if (pkt > (int)n) {
+			/* Tail of an oversized datagram: WiFiUDP::clear() exists
+			 * on ESP32 only (on ESP8266 flush() is tx and there is no
+			 * rx clear), so drain it through the stream API both
+			 * cores have. */
+			uint8_t drop[64];
+			while (s->udp.available() > 0)
+				if (s->udp.read(drop, sizeof(drop)) <= 0)
+					break;
+		}
 		if (n == 0)
 			return rsp_err(rsp, ESPNET_CMD_READ, sock, seq, ESPNET_ERR_EAGAIN);
 		return rsp_hdr(rsp, ESPNET_CMD_READ, sock, 0, seq, n,

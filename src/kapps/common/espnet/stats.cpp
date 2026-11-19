@@ -126,6 +126,7 @@ const char *stats_cmd_name(uint8_t cmd)
 	case ESPNET_CMD_WIFI_DISC: return "WDIS";
 	case ESPNET_CMD_WIFI_STATUS: return "WSTA";
 	case ESPNET_CMD_UART: return "UART";
+	case ESPNET_CMD_ATMODE: return "ATMODE";
 	case ESPNET_CMD_ECHO: return "ECHO";
 	default: return "???";
 	}
