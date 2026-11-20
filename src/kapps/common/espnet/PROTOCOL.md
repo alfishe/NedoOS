@@ -238,7 +238,8 @@ Replies are CR LF lines:
   command                     reply
   --------------------------  -----
   AT                          OK
-  ATE0 / ATE1                 OK (echo is always off)
+  ATE0 / ATE1                 OK; ATE1 echoes command bytes back, ATE0
+                              stops it (default after boot: off)
   AT+RST                      WIFI GOT IP when STA has an IP, else the line
                               follows when the IP arrives
   AT+CIPSTART="TCP","h",p     CONNECT + OK, or ERROR

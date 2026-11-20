@@ -3,6 +3,7 @@ ESPNET
 
 Прошивка ESP32 / ESP32-C3 / ESP8266 и драйвер NedoOS: модуль работает как
 сокет-сопроцессор по UART (как W5300), без текстовых AT+CIP* на линии к ZX.
+Для софта под AT-Firmware линию можно перевести в AT-режим - см. раздел ниже.
 
 Кадры протокола - PROTOCOL.md. Ниже - как прошить и чем пользоваться.
 
@@ -138,9 +139,11 @@ ZX-WiFi v1.6: прошивка через X2 (TTL 3.3 V), SW1 = ESP.
 3. Serial Monitor 115200. Команда AT+GMR - версия, чип, строка uart: ...
    Если uart: не ваша плата - pins.h / Board.
 
-AT только на USB. На UART к ZX их слать нельзя.
+AT в USB-консоли - всегда. По линии к ZX AT-текст имеет силу только
+после переключения в AT-режим (раздел "AT-режим" ниже).
 
-USB: AT+GMR  AT+STATUS  AT+SOCKS  AT+UART  AT+UART=115200  AT+WEB  AT+HELP
+USB: AT+GMR  AT+STATUS  AT+SOCKS  AT+LOG  AT+UART  AT+UART=115200
+     AT+WEB  AT+ATMODE  AT+BIN  AT+HELP
 
 На NedoOS: /ini/network.ini -> currentNetwork=2, утилита enet
 (скан Wi-Fi, AP пишется в NVS модуля).
@@ -176,11 +179,84 @@ HTTP не крутится, пока по ZX UART недавно были байты (~300 мс).
 - TCP/UDP-сокеты (8 на ESP32, 4 на ESP8266), DNS, bind/listen/accept.
 - Wi-Fi: scan / connect (SSID+пароль в NVS, автоreconnect) / disc / status.
 - Смена скорости UART к ZX (CMD_UART; debug USB всегда 115200).
-- Хост - master: нет незапрошенных +IPD; входящий TCP копится до READ.
+- Хост - master (бинарный режим): нет незапрошенных +IPD; входящий TCP
+  копится до READ.
 - Payload до 2048 байт, RTS/CTS, keepalive вместо вечного зависания.
 - Веб-статус и ArduinoOTA.
+- AT-режим для софта под ESP-AT: CONNECT / OK / SEND OK / +IPD / CLOSED.
 
 ICMP нет.
+
+
+AT-режим (совместимость с AT-Firmware)
+--------------------------------------
+
+По умолчанию линия к ZX - бинарный протокол (PROTOCOL.md). Для софта,
+написанного под ESP-AT (сторонние AT-терминалы и ESP-COM-путь наших
+клиентов), тот же UART переводится в текстовый AT-режим.
+
+Вход:  espcfg -a                 бинарный CMD_ATMODE (0x16)
+       USB: AT+ATMODE            только USB-консоль, линия к ZX молчит
+Выход: AT+BIN по линии к ZX
+       USB: AT+BIN или BIN
+
+В AT-режиме бинарный API не отвечает: OS_GETINFO, сокеты, GETDNS
+отваливаются по таймауту - это нормально. Один TCP-сокет, без UDP,
+без серверного режима.
+
+Команды по линии к ZX (конец строки - CR LF):
+
+  AT
+  ATE0
+  ATE1
+  AT+RST
+  AT+CIPSTART="TCP","host",port
+  AT+CIPSEND=n
+  AT+CIPCLOSE
+  AT+CIPDINFO=0
+  AT+CIPMUX=0
+  AT+CIPSERVER=0
+  AT+CIPRECVMODE=0
+  AT+BIN
+  AT+LOG
+
+Ответы модуля:
+
+  OK / ERROR          команда принята / отвергнута
+  CONNECT             CIPSTART открыл TCP, следом строка OK
+  >                   приглашение CIPSEND без CRLF, дальше ровно n байт
+  SEND OK             n байт ушли в сокет
+  SEND FAIL           сокет умер во время записи
+  +IPD,<len>:<data>   принятый кусок TCP, len до 2048
+  CLOSED              пир закрыл соединение, после последнего +IPD
+  WIFI GOT IP         ответ на AT+RST, когда STA получил IP
+
+ATE1 включает эхо вводимых в AT-режиме команд (CR отдаётся как CRLF),
+ATE0 выключает; после старта модуля эхо выключено.
+
+Незапрошенные +IPD / CLOSED могут прийти между ответами на команды:
+клиент должен пропускать неожидаемые строки, а не читать "следующую".
+
+AT+LOG - дамп последних строк лога (40 на ESP8266, 80 на ESP32) и OK.
+Нужен на платах без USB (ZX-WiFi ESP-12F): с ZX это делает espcfg -l.
+
+Не сделано намеренно: сервер (CIPSERVER/LISTEN/ACCEPT), NTP, CIPMUX=1,
+SSL, CIUPDATE.
+
+Команды USB-консоли (только отладка, линия к ZX не участвует):
+
+  AT+GMR
+  AT+STATUS
+  AT+SOCKS
+  AT+LOG
+  AT+UART
+  AT+UART=115200
+  AT+WEB
+  AT+ATMODE
+  AT+BIN
+  AT+HELP
+
+Подробности - PROTOCOL.md, раздел "AT text mode (cmd 0x16)".
 
 
 Что есть в NedoOS
@@ -221,7 +297,7 @@ Wi-Fi и COM-порт: утилита enet.
                 +IPD прилетает сам          хост спрашивает сам
   Драйвер C     esp-com.c + network.c       esp-com.c + espnet.c
                                             + espnet-net.c
-  Смешивать     (нельзя)                    AT-текст на ZX UART нельзя
+  Смешивать     (нельзя)                    AT-текст на ZX UART только в AT-режиме
   Зомби-TCP     часто только AT+RST         keepalive -> NOTCONN,
                                             без ребута модуля
   Прошивка      Espressif AT                этот скетч;
