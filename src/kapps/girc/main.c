@@ -10,7 +10,6 @@
 #include <oscalls.h>
 #include <osfs.h>
 #include <tcp.h>
-#include <espnet.h>
 #include <intrz80.h>
 
 #define true 1
@@ -277,9 +276,6 @@ void clearStatus(void)
 #include <../common/esp-com.c>
 #include <../common/esp-com2.c>
 #include <../common/network.c>
-#define ESPNET_CLIENT_ONLY 1
-#include <../common/espnet.c>
-#include <../common/espnet-net.c>
 
 /* Invert ink/paper (keep bright bits) ? text caret like term.com */
 static unsigned char inv_attr(unsigned char a)
@@ -1027,17 +1023,6 @@ static void net_init_driver(void)
 		targetadr.b1 = targetadr.b2 = targetadr.b3 = targetadr.b4 = 0;
 		set_status("ZXNETUSB ready");
 	}
-	else if (netDriver == 2)
-	{
-		/* UART + seq; without this OS_ESPDNSRESOLVE returns NOTCONN. */
-		OS_ESPINIT();
-		EspGetDns();
-		targetadr.family = AF_INET;
-		targetadr.porth = 0;
-		targetadr.portl = 0;
-		targetadr.b1 = targetadr.b2 = targetadr.b3 = targetadr.b4 = 0;
-		set_status("ESPNET ready");
-	}
 }
 
 /* BSS - never put MAX_LINE buffers on CSTACK (+300 only). */
@@ -1144,9 +1129,6 @@ static int irc_send_line(const char *line)
 	case 1:
 		result = esp_cipsend((unsigned int)g_sendline, n);
 		break;
-	case 2:
-		result = EspSend(g_sock, (unsigned int)g_sendline, n);
-		break;
 	}
 
 	return result;
@@ -1162,9 +1144,6 @@ static void net_close(void)
 	case 1:
 		sendcommand("AT+CIPCLOSE");
 		getAnswer3();
-		break;
-	case 2:
-		EspShutDown(g_sock, 0);
 		break;
 	}
 	g_sock = -1;
@@ -1211,13 +1190,6 @@ static int net_connect_host(void)
 					return 0;
 				}
 				break;
-			case 2:
-				if (!EspDnsResolve(g_host))
-				{
-					set_status("DNS failed");
-					return 0;
-				}
-				break;
 			}
 		}
 		targetadr.family = AF_INET;
@@ -1241,21 +1213,6 @@ static int net_connect_host(void)
 			s = netConnect(s, 2);
 			if (s < 0)
 			{
-				set_status("connect failed");
-				return 0;
-			}
-		}
-		else
-		{
-			s = EspOpenSock(AF_INET, SOCK_STREAM);
-			if (s < 0)
-			{
-				set_status("socket error");
-				return 0;
-			}
-			if (EspConnect(s) != 0)
-			{
-				EspShutDown(s, 0);
 				set_status("connect failed");
 				return 0;
 			}
@@ -1317,9 +1274,6 @@ static int irc_register(void)
 		break;
 	case 1:
 		r = esp_cipsend((unsigned int)g_sendline, n);
-		break;
-	case 2:
-		r = EspSend(g_sock, (unsigned int)g_sendline, n);
 		break;
 	}
 	if (r < 0)
@@ -3161,11 +3115,6 @@ void main(void)
 						esp_feed_ipd(n);
 						mouse_show();
 					}
-					break;
-				case 2:
-					n = EspRead(g_sock);
-					if (n == 0 - (int)ESPNET_ERR_EAGAIN)
-						n = 0;
 					break;
 				}
 

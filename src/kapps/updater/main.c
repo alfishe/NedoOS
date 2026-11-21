@@ -410,9 +410,6 @@ unsigned char OS_SHELL(const unsigned char *command)
 ///////////////////////////
 #include <../common/esp-com.c>
 #include <../common/network.c>
-#define ESPNET_CLIENT_ONLY 1
-#include <../common/espnet.c>
-#include <../common/espnet-net.c>
 //////////////////////////
 
 unsigned char saveBuf(unsigned char *fileNamePtr, unsigned char operation, unsigned int sizeOfBuf)
@@ -609,97 +606,6 @@ char delete(char *target_dir_ptr)
 	return 0;
 }
 
-unsigned char getFileEspNet(const unsigned char *fileLink, unsigned char *fileNamePtr)
-{
-	int todo, socket;
-	char firstPacket;
-	unsigned int fileSize1;
-	unsigned long downloaded = 0;
-	unsigned int down;
-	sprintf(netbuf, "GET %s%s", fileLink, userAgent);
-
-	if (!EspDnsResolve((char *)updateHost))
-	{
-		return false;
-	}
-
-	socket = EspOpenSock(AF_INET, SOCK_STREAM);
-	if (socket < 0)
-		return false;
-
-	todo = EspConnect(socket);
-	if (todo < 0)
-	{
-		EspShutDown(socket, 0);
-		return false;
-	}
-
-	todo = EspSend(socket, (unsigned int)&netbuf, strlen(netbuf));
-	if (todo < 0)
-	{
-		EspShutDown(socket, 0);
-		return false;
-	}
-
-	firstPacket = true;
-
-	do
-	{
-		headlng = 0;
-		if (firstPacket)
-		{
-			todo = EspReadHeader(socket);
-		}
-		else
-		{
-			do
-			{
-				todo = EspRead(socket);
-			} while (todo == 0 - ESPNET_ERR_EAGAIN);
-		}
-		if (todo < 1)
-		{
-			EspShutDown(socket, 0);
-			if (todo == 0 - (int)ESPNET_ERR_HOSTUNREACH ||
-				todo == 0 - (int)ESPNET_ERR_INTR)
-			{
-				clearStatus();
-				printf("ESPNET link lost after %lu kb", downloaded / 1024);
-				return false;
-			}
-			clearStatus();
-			printf("[%ld] Unknown error at %lu kb", todo, downloaded / 1024);
-			return false;
-		}
-		if (firstPacket)
-		{
-			firstPacket = false;
-			headlng = cutHeader();
-			todo = todo - headlng;
-			fileSize1 = contLen / 1024;
-			saveBuf(fileNamePtr, 00, 0);
-		}
-
-		downloaded = downloaded + todo;
-		down = downloaded / 1024;
-		printf("\r %5u of %5u kb     ", down, fileSize1);
-		saveBuf(fileNamePtr, 01, todo);
-		if (_low_level_get() == 27)
-		{
-			saveBuf(fileNamePtr, 02, 00);
-			fatalError("Update aborted!");
-		}
-	} while (downloaded < contLen);
-	EspShutDown(socket, 0);
-	saveBuf(fileNamePtr, 02, 00);
-
-	if (downloaded != contLen)
-	{
-		return false;
-	}
-	return true;
-}
-
 unsigned char getFileNet(const unsigned char *fileLink, unsigned char *fileNamePtr)
 {
 	int todo;
@@ -889,9 +795,6 @@ unsigned char getFile(const unsigned char *fileLink, unsigned char *fileNamePtr)
 		break;
 	case 1:
 		result = getFileEsp(fileLink, fileNamePtr);
-		break;
-	case 2:
-		result = getFileEspNet(fileLink, fileNamePtr);
 		break;
 	}
 
@@ -1473,10 +1376,6 @@ C_task main(int argc, const char *argv[])
 		loadEspConfig();
 		uart_init(divider);
 		espReBoot();
-		break;
-	case 2:
-		OS_ESPINIT();
-		EspGetDns();
 		break;
 	}
 

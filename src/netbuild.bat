@@ -2,12 +2,15 @@
 setlocal
 set "makeall=1"
 cd /d "%~dp0"
-:: --- —борка ядра (папка kernel) ---
+pushd fatfs4os 
+call build.bat
+popd
+:: --- (kernels) ---
 pushd kernel
 call build_kernel_atm2_esp.bat
 call build_kernel_evo_esp.bat
 popd
-:: --- —борка ѕриложений (папка kapps) ---
+:: --- (kapps) ---
 pushd kapps\atelnet      & call build.bat & popd
 pushd kapps\calendar     & call build.bat & popd
 pushd kapps\enet         & call build.bat & popd

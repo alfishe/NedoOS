@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include <oscalls.h>
 #include <tcp.h>
-#include <espnet.h>
 #include <osfs.h>
 
 #define true 1
@@ -206,7 +205,7 @@ static const char *const section_name[4] = {
 	"Files", "Gfx", "Music", "Press"};
 
 static const char *const drv_name[3] = {
-	"NedoNET", "ESP-COM", "ESPNET"};
+	"NedoNET", "ESP-COM"};
 
 static ITEM items[MAX_ITEMS];
 static unsigned int nitems;
@@ -278,9 +277,6 @@ void clearStatus(void);
 ///////////////////////////
 #include <../common/esp-com.c>
 #include <../common/network.c>
-#define ESPNET_CLIENT_ONLY 1
-#include <../common/espnet.c>
-#include <../common/espnet-net.c>
 //////////////////////////
 
 static void spaces(unsigned char n)
@@ -625,7 +621,7 @@ static void url_filename(const char *url, char *out)
 	{
 		c = *slash++;
 		if (c == '\\' || c == '/' || c == ':' || c == '*' || c == '?' ||
-		    c == '"' || c == '<' || c == '>' || c == '|' || c == ' ')
+			c == '"' || c == '<' || c == '>' || c == '|' || c == ' ')
 			c = '_';
 		out[n] = c;
 		n++;
@@ -728,13 +724,13 @@ static unsigned char parse_url(const char *url)
 static void build_http_req(void)
 {
 	sprintf((char *)g_httpreq,
-		"GET %s HTTP/1.0\r\n"
-		"Host: %s\r\n"
-		"User-Agent: ZiFi (NedoOS)\r\n"
-		"Accept: */*\r\n"
-		"Connection: close\r\n"
-		"\r\n",
-		g_path, g_host);
+			"GET %s HTTP/1.0\r\n"
+			"Host: %s\r\n"
+			"User-Agent: ZiFi (NedoOS)\r\n"
+			"Accept: */*\r\n"
+			"Connection: close\r\n"
+			"\r\n",
+			g_path, g_host);
 }
 
 static unsigned char dns_for_host(void)
@@ -747,11 +743,6 @@ static unsigned char dns_for_host(void)
 	if (netDriver == 0)
 	{
 		if (!dnsResolve((char *)g_host))
-			return 0;
-	}
-	else if (netDriver == 2)
-	{
-		if (!EspDnsResolve((char *)g_host))
 			return 0;
 	}
 	strcpy((char *)g_dns_host, (char *)g_host);
@@ -1072,55 +1063,6 @@ static unsigned char http_net(void)
 	return ok;
 }
 
-static unsigned char http_espnet(void)
-{
-	int socket;
-	int todo;
-	unsigned char ok;
-
-	if (!dns_for_host())
-		return 0;
-	targetadr.family = AF_INET;
-	targetadr.porth = (unsigned char)(g_port >> 8);
-	targetadr.portl = (unsigned char)g_port;
-
-	socket = EspOpenSock(AF_INET, SOCK_STREAM);
-	if (socket < 0)
-		return 0;
-	todo = EspConnect((signed char)socket);
-	if (todo < 0)
-	{
-		EspShutDown((signed char)socket, 0);
-		return 0;
-	}
-	todo = EspSend((signed char)socket, (unsigned int)g_httpreq, strlen((char *)g_httpreq));
-	if (todo < 0)
-	{
-		EspShutDown((signed char)socket, 0);
-		return 0;
-	}
-
-	ok = 1;
-	do
-	{
-		headlng = 0;
-		do
-		{
-			todo = EspRead((signed char)socket);
-		} while (todo == 0 - (int)ESPNET_ERR_EAGAIN);
-		if (todo < 1)
-			break;
-		if (!feed_body(netbuf, (unsigned int)todo))
-		{
-			ok = 0;
-			break;
-		}
-	} while (1);
-
-	EspShutDown((signed char)socket, 0);
-	return ok;
-}
-
 static unsigned char http_get(const char *url, unsigned char dest, unsigned char unzip)
 {
 	unsigned char ok;
@@ -1156,8 +1098,6 @@ static unsigned char http_get(const char *url, unsigned char dest, unsigned char
 
 	if (netDriver == 1)
 		ok = http_esp();
-	else if (netDriver == 2)
-		ok = http_espnet();
 	else
 		ok = http_net();
 
@@ -1226,7 +1166,7 @@ static unsigned char looks_utf8(unsigned char *p, unsigned char *end)
 			ok++;
 		}
 		else if ((c & 0xF0) == 0xE0 && p + 1 < end &&
-			 (p[0] & 0xC0) == 0x80 && (p[1] & 0xC0) == 0x80)
+				 (p[0] & 0xC0) == 0x80 && (p[1] & 0xC0) == 0x80)
 		{
 			p += 2;
 			ok++;
@@ -1307,9 +1247,7 @@ static unsigned int utf8_to_866(unsigned char *p, unsigned char *end)
 		}
 		if ((c & 0xF0) == 0xE0 && s + 1 < end)
 		{
-			u = ((unsigned int)(c & 0x0F) << 12)
-			    | ((unsigned int)(s[0] & 0x3F) << 6)
-			    | (unsigned int)(s[1] & 0x3F);
+			u = ((unsigned int)(c & 0x0F) << 12) | ((unsigned int)(s[0] & 0x3F) << 6) | (unsigned int)(s[1] & 0x3F);
 			s += 2;
 			*d++ = uni_to_866(u);
 			continue;
@@ -1434,9 +1372,9 @@ static unsigned char fetch_list(unsigned int page)
 	else
 	{
 		sprintf((char *)g_page_url, "%s%cp=%02u",
-			g_list_url,
-			strchr((char *)g_list_url, '?') ? '&' : '?',
-			page);
+				g_list_url,
+				strchr((char *)g_list_url, '?') ? '&' : '?',
+				page);
 		url = (char *)g_page_url;
 		g_page = page;
 	}
@@ -2639,11 +2577,6 @@ void main(void)
 		OS_CHDIR(curPath);
 		uart_init(divider);
 		espReBoot();
-	}
-	else if (netDriver == 2)
-	{
-		OS_ESPINIT();
-		EspGetDns();
 	}
 	else
 		get_dns();

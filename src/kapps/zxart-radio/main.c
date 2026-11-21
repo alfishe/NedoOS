@@ -48,7 +48,7 @@ unsigned char netbuf[4096];
 #define NETBUF_BYTES sizeof(netbuf)
 unsigned char crlf[2] = {13, 10};
 unsigned char formats[4][4] = {"pt3", "pt2", "tfc", "ts"};
-unsigned char interfaces[3][8] = {"NedoNET", "ESP-COM", "ESPNET"};
+unsigned char interfaces[3][8] = {"NedoNET", "ESP-COM"};
 unsigned char cmd[256];
 unsigned char link[512];
 unsigned char queryNum;
@@ -266,7 +266,7 @@ void printHelp(void)
   printf(" [S]  Stop player                 [R]  Repeat track mode   \r\n");
   printf(" [K]  Toggle saving tracks        [D]  Download track      \r\n");
   printf(" [Q]  Select Query type           [F]  Select tracks format\r\n");
-  printf(" [I]  ZXNETUSB/ESP-COM/ESPNET     [J]  Jump to NNNN file   \r\n");
+  printf(" [I]  NedoNET/ESP-COM/            [J]  Jump to NNNN file   \r\n");
   printf(" [O]  Show description            [M]  Minimal Rating(Q:2,3)\r\n");
 }
 
@@ -330,9 +330,6 @@ int pos(unsigned char *s, unsigned char *c, unsigned int n, unsigned int startPo
 ///////////////////////////
 #include <../common/esp-com.c>
 #include <../common/network.c>
-#define ESPNET_CLIENT_ONLY 1
-#include <../common/espnet.c>
-#include <../common/espnet-net.c>
 //////////////////////////
 
 int cutHeader(unsigned int todo)
@@ -1167,82 +1164,6 @@ unsigned int getFileEsp(void)
   return true;
 }
 
-char getFileEspNet(void)
-{
-  int todo;
-  int socket;
-  unsigned int downloaded;
-  unsigned char firstPacket;
-
-  jsonbuf[0] = 0;
-  downloaded = 0;
-  socket = EspOpenSock(AF_INET, SOCK_STREAM);
-  if (socket < 0)
-    return false;
-
-  todo = EspConnect((signed char)socket);
-  if (todo < 0)
-  {
-    EspShutDown((signed char)socket, 0);
-    return false;
-  }
-
-  todo = EspSend((signed char)socket, (unsigned int)&netbuf, strlen(netbuf));
-  if (todo < 0)
-  {
-    EspShutDown((signed char)socket, 0);
-    return false;
-  }
-
-  firstPacket = true;
-  do
-  {
-    headlng = 0;
-    if (firstPacket)
-      todo = EspReadHeader((signed char)socket);
-    else
-    {
-      do
-      {
-        todo = EspRead((signed char)socket);
-      } while (todo == 0 - (int)ESPNET_ERR_EAGAIN);
-    }
-
-    if (todo < 1)
-    {
-      EspShutDown((signed char)socket, 0);
-      return false;
-    }
-
-    if (firstPacket)
-    {
-      todo = cutHeader((unsigned int)todo);
-      firstPacket = false;
-      if (curFileStruct.httpErr != 200)
-      {
-        EspShutDown((signed char)socket, 0);
-        return false;
-      }
-    }
-
-    if ((downloaded + (unsigned int)todo) > JSON_MAX)
-    {
-      todo = (int)(JSON_MAX - downloaded);
-      if (todo <= 0)
-        break;
-    }
-    memcpy(jsonbuf + downloaded, netbuf + headlng, (unsigned int)todo);
-    downloaded = downloaded + (unsigned int)todo;
-  } while ((unsigned long)downloaded < contLen && downloaded < JSON_MAX);
-
-  EspShutDown((signed char)socket, 0);
-  if (downloaded < JSON_MAX)
-    jsonbuf[downloaded] = 0;
-  else
-    jsonbuf[JSON_MAX - 1] = 0;
-  return true;
-}
-
 long processJson(unsigned long startPos, unsigned char limit, unsigned char queryNum)
 {
   unsigned int tSize;
@@ -1286,9 +1207,6 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     break;
   case 1:
     result = getFileEsp();
-    break;
-  case 2:
-    result = getFileEspNet();
     break;
   }
 
@@ -1696,73 +1614,6 @@ unsigned char getTrack2Esp(unsigned long fileId)
   return true;
 }
 
-unsigned char getTrack2EspNet(unsigned long fileId)
-{
-  int todo;
-  int socket;
-  unsigned long downloaded;
-  unsigned char firstPacket;
-
-  clearStatus();
-  printf("Getting track...");
-  sprintf(netbuf, "GET /file/id:%lu%s", fileId, userAgent);
-
-  socket = EspOpenSock(AF_INET, SOCK_STREAM);
-  if (socket < 0)
-    return false;
-
-  todo = EspConnect((signed char)socket);
-  if (todo < 0)
-  {
-    EspShutDown((signed char)socket, 0);
-    return false;
-  }
-
-  todo = EspSend((signed char)socket, (unsigned int)&netbuf, strlen(netbuf));
-  if (todo < 0)
-  {
-    EspShutDown((signed char)socket, 0);
-    return false;
-  }
-
-  saveBuf(curFileStruct.picId, 00, 0);
-  downloaded = 0;
-  firstPacket = true;
-  do
-  {
-    headlng = 0;
-    if (firstPacket)
-      todo = EspReadHeader((signed char)socket);
-    else
-    {
-      do
-      {
-        todo = EspRead((signed char)socket);
-      } while (todo == 0 - (int)ESPNET_ERR_EAGAIN);
-    }
-
-    if (todo < 1)
-      break;
-
-    if (firstPacket)
-    {
-      todo = cutHeader((unsigned int)todo);
-      firstPacket = false;
-      if (curFileStruct.httpErr != 200)
-      {
-        EspShutDown((signed char)socket, 0);
-        return false;
-      }
-    }
-    saveBuf(curFileStruct.picId, 01, (unsigned int)todo);
-    downloaded = downloaded + (unsigned long)todo;
-  } while (downloaded < contLen);
-
-  EspShutDown((signed char)socket, 0);
-  saveBuf(curFileStruct.picId, 02, 0);
-  return true;
-}
-
 int getTrack3(long iddqd)
 {
   int errn;
@@ -1773,9 +1624,6 @@ int getTrack3(long iddqd)
     break;
   case 1:
     errn = getTrack2Esp(iddqd);
-    break;
-  case 2:
-    errn = getTrack2EspNet(iddqd);
     break;
   default:
     errn = 0;
@@ -2146,12 +1994,6 @@ C_task main(int argc, const char *argv[])
     uart_init(divider);
     espReBoot();
   }
-  else if (netDriver == 2)
-  {
-    OS_ESPINIT();
-    EspGetDns();
-    EspDnsResolve("zxart.ee");
-  }
 
   OS_HIDEFROMPARENT();
 
@@ -2485,18 +2327,10 @@ rekey:
 
       printHelp();
     }
-    else if (netDriver == 2)
-    {
-      clearStatus();
-      printf("    ESPNET mode enabled...");
-      OS_ESPINIT();
-      EspGetDns();
-      EspDnsResolve("zxart.ee");
-    }
     else
     {
       clearStatus();
-      printf("    ZXNETUSB mode enabled...");
+      printf("    NedoNET mode enabled...");
       get_dns();
       dnsResolve("zxart.ee");
     }

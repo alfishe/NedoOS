@@ -188,10 +188,6 @@ static void clearNetBuf(unsigned int size)
 
 #include <../common/esp-com.c>
 #include <../common/network.c>
-#define ESPNET_CLIENT_ONLY 1
-#include <../common/espnet.c>
-#include <../common/espnet-net.c>
-
 #define DBG_FD_MAX 6
 
 static unsigned int dbg_nfile = 0;
@@ -317,7 +313,7 @@ static unsigned char ra_wiz_refill(void)
 		readStruct.BufAdr = (unsigned int)(netbuf + left);
 		readStruct.bufsize = NETBUF_BYTES - left;
 		readStruct.protocol = SOCK_STREAM;
-		todo = (netDriver == 2) ? OS_ESPREAD(&readStruct) : OS_WIZNETREAD(&readStruct);
+		todo = OS_WIZNETREAD(&readStruct);
 		if (OS_CALL_OK(todo))
 		{
 			if (todo > 0)
@@ -416,7 +412,6 @@ static unsigned char ra_tcp_send(const unsigned char *data, unsigned int len)
 	switch (netDriver)
 	{
 	case 0:
-	case 2:
 		if (svnSocket < 0)
 			return 0;
 		/* Wiznet/ESPNET is a TCP stream: never flush RX before TX. */
@@ -428,7 +423,7 @@ static unsigned char ra_tcp_send(const unsigned char *data, unsigned int len)
 			readStruct.BufAdr = (unsigned int)(ra_txbuf + sent);
 			readStruct.bufsize = len - sent;
 			readStruct.protocol = SOCK_STREAM;
-			todo = (netDriver == 2) ? OS_ESPWRITE(&readStruct) : OS_WIZNETWRITE(&readStruct);
+			todo = OS_WIZNETWRITE(&readStruct);
 			if (OS_CALL_OK(todo) && todo > 0)
 			{
 				sent += todo;
@@ -521,39 +516,6 @@ static unsigned char ra_tcp_connect(const char *host)
 			delayLong(50);
 			return 1;
 		}
-		if (netDriver == 2)
-		{
-			if (!dns_ok)
-			{
-				if (!EspDnsResolve(host))
-				{
-					delayLong(100);
-					continue;
-				}
-				dns_ok = 1;
-			}
-			targetadr.portl = (unsigned char)(svnPort & 255);
-			targetadr.porth = (unsigned char)((svnPort >> 8) & 255);
-			svnSocket = (signed char)EspOpenSock(AF_INET, SOCK_STREAM);
-			if (svnSocket < 0)
-			{
-				delayLong(100);
-				continue;
-			}
-			dbg_sock_open(svnSocket);
-			todo = EspConnect(svnSocket);
-			if (todo < 0)
-			{
-				dbg_sock_close(svnSocket);
-				EspShutDown(svnSocket, 0);
-				svnSocket = -1;
-				dns_ok = 0;
-				delayLong(100);
-				continue;
-			}
-			delayLong(50);
-			return 1;
-		}
 		sprintf(cmd, "AT+CIPSTART=\"TCP\",\"%s\",%u", host, svnPort);
 		sendcommand(cmd);
 		if (!getAnswer3())
@@ -587,14 +549,6 @@ static void ra_tcp_close(void)
 			return;
 		dbg_sock_close(svnSocket);
 		netShutDown(svnSocket, 0);
-		svnSocket = -1;
-	}
-	else if (netDriver == 2)
-	{
-		if (svnSocket < 0)
-			return;
-		dbg_sock_close(svnSocket);
-		EspShutDown(svnSocket, 0);
 		svnSocket = -1;
 	}
 	else
@@ -2770,10 +2724,6 @@ C_task main(int argc, char *argv[])
 		OS_CHDIR(curPath);
 		uart_init(divider);
 		espReBoot();
-		break;
-	case 2:
-		OS_ESPINIT();
-		EspGetDns();
 		break;
 	default:
 		printf("unknown netDriver %u\r\n", netDriver);

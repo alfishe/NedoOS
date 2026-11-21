@@ -238,9 +238,6 @@ void printHelp(void)
 ///////////////////////////
 #include <../common/esp-com.c>
 #include <../common/network.c>
-#define ESPNET_CLIENT_ONLY 1
-#include <../common/espnet.c>
-#include <../common/espnet-net.c>
 //////////////////////////
 
 int testOperation2(const char *process, int socket)
@@ -505,79 +502,6 @@ char fillPictureNet(void)
   } while ((unsigned long)downloaded < contLen && downloaded < httpDestMax);
 
   netShutDown(socket, 0);
-  if (downloaded < httpDestMax)
-    httpDest[downloaded] = 0;
-  return true;
-}
-
-char fillPictureEspNet(void)
-{
-  int todo;
-  int socket;
-  unsigned int downloaded = 0;
-  unsigned char firstPacket;
-
-  httpDest[0] = 0;
-  socket = EspOpenSock(AF_INET, SOCK_STREAM);
-  if (socket < 0)
-    return false;
-
-  todo = EspConnect((signed char)socket);
-  if (todo < 0)
-  {
-    EspShutDown((signed char)socket, 0);
-    return false;
-  }
-
-  todo = EspSend((signed char)socket, (unsigned int)&netbuf, strlen(netbuf));
-  if (todo < 0)
-  {
-    EspShutDown((signed char)socket, 0);
-    return false;
-  }
-
-  firstPacket = true;
-  do
-  {
-    headlng = 0;
-    if (firstPacket)
-      todo = EspReadHeader((signed char)socket);
-    else
-    {
-      do
-      {
-        todo = EspRead((signed char)socket);
-      } while (todo == 0 - (int)ESPNET_ERR_EAGAIN);
-    }
-
-    if (todo < 1)
-    {
-      EspShutDown((signed char)socket, 0);
-      return false;
-    }
-
-    if (firstPacket)
-    {
-      todo = cutHeader((unsigned int)todo);
-      firstPacket = false;
-      if (curFileStruct.httpErr != 200)
-      {
-        EspShutDown((signed char)socket, 0);
-        return false;
-      }
-    }
-
-    if (downloaded + (unsigned int)todo > httpDestMax)
-    {
-      todo = (int)(httpDestMax - downloaded);
-      if (todo <= 0)
-        break;
-    }
-    memcpy(httpDest + downloaded, netbuf + headlng, (unsigned int)todo);
-    downloaded = downloaded + (unsigned int)todo;
-  } while ((unsigned long)downloaded < contLen && downloaded < httpDestMax);
-
-  EspShutDown((signed char)socket, 0);
   if (downloaded < httpDestMax)
     httpDest[downloaded] = 0;
   return true;
@@ -1036,9 +960,6 @@ long processJson(unsigned long startPos, unsigned char limit, unsigned char quer
     break;
   case 1:
     result = fillPictureEsp();
-    break;
-  case 2:
-    result = fillPictureEspNet();
     break;
   default:
     return -1;
@@ -1572,7 +1493,7 @@ void safeKeys(unsigned char keypress)
       }
       OS_CLS(0);
       OS_SETCOLOR(70);
-      
+
       if (slideShowTime != 0)
       {
         slideShowTime = userInts;
@@ -1635,13 +1556,6 @@ void safeKeys(unsigned char keypress)
       OS_CHDIR(curPath);
       uart_init(divider);
       espReBoot();
-    }
-    else if (netDriver == 2)
-    {
-      printf("    ESPNET mode enabled...\r\n");
-      OS_ESPINIT();
-      EspGetDns();
-      EspDnsResolve("zxart.ee");
     }
     else
     {
@@ -1774,12 +1688,6 @@ void init(void)
     }
     writeLog("GetPic Started & Inited.", "main           ");
     break;
-  case 2:
-    OS_ESPINIT();
-    EspGetDns();
-    EspDnsResolve("zxart.ee");
-    writeLog("GetPic ESPNET inited.", "main           ");
-    break;
   }
 }
 
@@ -1874,9 +1782,6 @@ start:
     break;
   case 1:
     result = fillPictureEsp();
-    break;
-  case 2:
-    result = fillPictureEspNet();
     break;
   }
 

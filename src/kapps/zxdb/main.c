@@ -5,7 +5,6 @@
 #include <oscalls.h>
 #include <../common/terminal.c>
 #include <tcp.h>
-#include <espnet.h>
 #include <osfs.h>
 #include <graphic.h>
 #include <ctype.h>
@@ -199,11 +198,6 @@ unsigned char delayLongKey(unsigned long counter)
 ///////////////////////////
 #include <../common/esp-com.c>
 #include <../common/network.c>
-/* 2048 UART payload: ~25 frames for 50KB. 512 was ~4x more round-trips. */
-#define ESPNET_HOST_MAX 2048
-#define ESPNET_CLIENT_ONLY 1
-#include <../common/espnet.c>
-#include <../common/espnet-net.c>
 //////////////////////////
 
 int testOperation2(const char *process, int socket)
@@ -217,72 +211,6 @@ int testOperation2(const char *process, int socket)
 		return -socket;
 	}
 	return 1;
-}
-
-/* ESPNET helpers return 0 / socket id / byte count, or negative errno. */
-static unsigned char espnet_check(const char *op, int r);
-int cutHeader(void);
-
-static unsigned char espnet_check(const char *op, int r)
-{
-	if (r >= 0)
-		return 1;
-	clearStatus();
-	OS_SETCOLOR(206);
-	OS_SETXY(0, 24);
-	printf("%s: [ERROR:", op);
-	errorPrint((unsigned int)(0 - r));
-	printf("]     ");
-	writeLog(op, "espnet_check   ");
-	delayLong(2000);
-	return 0;
-}
-
-/*
- * EspRead overwrites netbuf each call and is capped at ESPNET_HOST_MAX.
- * Collect into buf until HTTP header is complete, then cutHeader().
- * Returns body bytes already in buf[], 0 if HTTP is not 200, or <0 on net error.
- */
-static int espnet_read_header(int socket)
-{
-	int todo;
-	unsigned int got;
-	unsigned int n;
-
-	got = 0;
-	for (;;)
-	{
-		todo = EspRead((signed char)socket);
-		if (todo == 0 - (int)ESPNET_ERR_EAGAIN)
-		{
-			YIELD();
-			continue;
-		}
-		if (todo <= 0)
-			return (todo < 0) ? todo : (0 - (int)ESPNET_ERR_CONNRESET);
-		if (got + (unsigned int)todo >= sizeof(buf))
-			return 0 - (int)ESPNET_ERR_EMSGSIZE;
-		memcpy(buf + got, netbuf, (unsigned int)todo);
-		got += (unsigned int)todo;
-		buf[got] = 0;
-		if (strstr(buf, "\r\n\r\n") == 0)
-			continue;
-		n = got;
-		if (n > sizeof(netbuf) - 1)
-			n = sizeof(netbuf) - 1;
-		memcpy(netbuf, buf, n);
-		netbuf[n] = 0;
-		limiter.headLng = cutHeader();
-		if (httpErr != 200)
-			return 0;
-		if (limiter.headLng < 0 || (unsigned int)limiter.headLng > got)
-			return 0;
-		got -= (unsigned int)limiter.headLng;
-		if (got != 0)
-			memmove(buf, buf + limiter.headLng, got);
-		buf[got] = 0;
-		return (int)got;
-	}
 }
 
 static FILE *g_save_fp;
@@ -425,14 +353,6 @@ void init(void)
 		uart_init(divider);
 		espReBoot();
 		break;
-	case 2:
-		/* UART + seq; without this OS_ESPDNSRESOLVE returns NOTCONN. */
-		OS_ESPINIT();
-		targetadr.family = AF_INET;
-		targetadr.porth = 0;
-		targetadr.portl = 0;
-		targetadr.b1 = targetadr.b2 = targetadr.b3 = targetadr.b4 = 0;
-		break;
 	}
 
 	OS_SETSYSDRV();
@@ -573,7 +493,7 @@ unsigned char inputBox(const struct window *wp, const char *prefilled)
 
 					// 2. Формируем новый INK (из старого PAPER)
 					((wp->text & 0x80) >> 1) | // Старый BRIGHT_PAPER (7) двигаем на место BRIGHT_INK (6)
-					((wp->text & 0x38) >> 3)	 // Старый PAPER (5-3) двигаем на место INK (2-0)
+					((wp->text & 0x38) >> 3)   // Старый PAPER (5-3) двигаем на место INK (2-0)
 					));
 			}
 			else
@@ -1056,107 +976,6 @@ char getFileEsp(void)
 	return true;
 }
 
-char getFileEspNet(void)
-{
-	int todo, socket;
-
-	unsigned int fileSize1;
-	unsigned long downloaded = 0;
-	unsigned int down;
-
-	socket = EspOpenSock(AF_INET, SOCK_STREAM);
-	if (!espnet_check("OS_ESPSOCKET", socket))
-		return false;
-
-	todo = EspConnect((signed char)socket);
-	if (!espnet_check("OS_ESPCONNECT", todo))
-	{
-		EspShutDown((signed char)socket, 0);
-		return false;
-	}
-
-	todo = EspSend((signed char)socket, (unsigned int)&link.path, strlen(link.path));
-	if (!espnet_check("OS_ESPWRITE", todo))
-	{
-		EspShutDown((signed char)socket, 0);
-		return false;
-	}
-
-	todo = espnet_read_header(socket);
-	if (todo < 0)
-	{
-		espnet_check("OS_ESPREAD", todo);
-		EspShutDown((signed char)socket, 0);
-		return false;
-	}
-	if (httpErr != 200)
-	{
-		EspShutDown((signed char)socket, 0);
-		mainWinDraw();
-		return false;
-	}
-
-	fileSize1 = contLen / 1024;
-	if (!link.hasName)
-	{
-		curWin.w = 66;
-		curWin.x = 39 - curWin.w / 2;
-		curWin.y = 9;
-		curWin.h = 1;
-		curWin.text = 103;
-		curWin.back = 103;
-
-		strcpy(curWin.tittle, "Введите имя файла");
-		if (inputBox(&curWin, link.fname))
-		{
-			strncpy(link.fname, cmd, 64);
-			strcat(link.fname, "\0");
-		}
-	}
-	downDialog();
-	saveBuf(link.fname, 00, 0);
-	limiter.headLng = 0;
-	if (todo > 0)
-	{
-		memcpy(netbuf, buf, (unsigned int)todo);
-		saveBuf(link.fname, 01, (unsigned int)todo);
-		downloaded = (unsigned long)todo;
-		drawProgressBar(downloaded, contLen);
-	}
-
-	while (downloaded < contLen)
-	{
-		todo = EspRead((signed char)socket);
-		if (todo == 0 - (int)ESPNET_ERR_EAGAIN)
-		{
-			YIELD();
-			continue;
-		}
-		if (todo <= 0)
-			break;
-		downloaded = downloaded + (unsigned long)todo;
-		down = downloaded / 1024;
-		OS_SETCOLOR(223);
-		drawProgressBar(downloaded, contLen);
-		limiter.headLng = 0;
-		saveBuf(link.fname, 01, (unsigned int)todo);
-		drawClock();
-	}
-
-	saveBuf(link.fname, 02, 0);
-	EspShutDown((signed char)socket, 0);
-
-	if (downloaded != contLen)
-	{
-		puts("File download error!");
-		puts("File download error!");
-		puts("File download error!");
-		puts("File download error!");
-		waitKey();
-	}
-	return true;
-}
-
 char getFileNet(void)
 {
 	int todo, socket;
@@ -1324,9 +1143,6 @@ char getFile(unsigned char number)
 		case 1:
 			result = getFileEsp();
 			break;
-		case 2:
-			result = getFileEspNet();
-			break;
 		default:
 			break;
 		}
@@ -1452,95 +1268,6 @@ char makeRequestEsp(void)
 	return 2;
 }
 
-char makeRequestEspNet(void)
-{
-	int socket, todo;
-	unsigned long downloaded = 0;
-
-	{
-		unsigned char ip[4];
-		unsigned int r;
-
-		r = OS_ESPDNSRESOLVE((unsigned char *)link.host, ip);
-		if (!ESPNET_C_OK(r))
-		{
-			espnet_check("OS_ESPDNSRESOLVE", 0 - (int)ESPNET_C_ERR(r));
-			clearStatus();
-			printf("Ошибка определения адреса '%s'", link.host);
-			return false;
-		}
-		targetadr.family = AF_INET;
-		targetadr.b1 = ip[0];
-		targetadr.b2 = ip[1];
-		targetadr.b3 = ip[2];
-		targetadr.b4 = ip[3];
-	}
-
-	targetadr.porth = link.port >> 8;
-	targetadr.portl = link.port;
-
-	socket = EspOpenSock(AF_INET, SOCK_STREAM);
-	if (!espnet_check("OS_ESPSOCKET", socket))
-		return false;
-
-	todo = EspConnect((signed char)socket);
-	if (!espnet_check("OS_ESPCONNECT", todo))
-	{
-		EspShutDown((signed char)socket, 0);
-		return false;
-	}
-	todo = EspSend((signed char)socket, (unsigned int)&link.path, strlen(link.path));
-	if (!espnet_check("OS_ESPWRITE", todo))
-	{
-		EspShutDown((signed char)socket, 0);
-		return false;
-	}
-
-	todo = espnet_read_header(socket);
-	if (todo < 0)
-	{
-		espnet_check("OS_ESPREAD", todo);
-		EspShutDown((signed char)socket, 0);
-		return false;
-	}
-	if (httpErr != 200)
-	{
-		EspShutDown((signed char)socket, 0);
-		return false;
-	}
-	downloaded = (unsigned long)todo;
-
-	while (downloaded < contLen)
-	{
-		todo = EspRead((signed char)socket);
-		if (todo == 0 - (int)ESPNET_ERR_EAGAIN)
-		{
-			YIELD();
-			continue;
-		}
-		if (todo <= 0)
-		{
-			EspShutDown((signed char)socket, 0);
-			return false;
-		}
-		if (downloaded + (unsigned long)todo > sizeof(buf))
-		{
-			printf("dataBuffer overrun... %lu reached \n\r", downloaded + todo);
-			EspShutDown((signed char)socket, 0);
-			return false;
-		}
-		memcpy(buf + downloaded, netbuf, (unsigned int)todo);
-		downloaded = downloaded + (unsigned long)todo;
-	}
-
-	EspShutDown((signed char)socket, 0);
-	if (downloaded < sizeof(buf))
-		buf[downloaded] = 0;
-	if (downloaded < 2)
-		return 0;
-	return 2;
-}
-
 char makeRequestNet(void)
 {
 	int socket, todo;
@@ -1642,9 +1369,6 @@ char makeRequest(const char *request)
 		break;
 	case 1:
 		result = makeRequestEsp();
-		break;
-	case 2:
-		result = makeRequestEspNet();
 		break;
 	default:
 		return false;

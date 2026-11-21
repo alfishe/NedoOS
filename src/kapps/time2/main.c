@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <oscalls.h>
 #include <tcp.h>
-#include <espnet.h>
 #include <osfs.h>
 
 #define true 1
@@ -61,7 +60,7 @@ const unsigned char help[] =
 	"-N ntp-server default: -N2.ru.pool.ntp.org\r\n"
 	"-Z time-zone default: -Z3\r\n"
 	"-i get datetime from internet (ZXNETUSB / ESPNET)\r\n"
-	"-e get datetime from ESP (AT-Firmware; ESPNET if currentNetwork=2)";
+	"-e get datetime from ESP (AT-Firmware)";
 
 void clearStatus(void)
 {
@@ -69,11 +68,6 @@ void clearStatus(void)
 
 #include <../common/esp-com.c>
 #include <../common/network.c>
-#define ESPNET_HOST_MAX 128
-#define ESPNET_CLIENT_ONLY 1
-#define ESPNET_UDP 1
-#include <../common/espnet.c>
-#include <../common/espnet-net.c>
 #include <../common/ini.c>
 
 static void die(char *msg)
@@ -105,7 +99,7 @@ static unsigned char read_netdriver(void)
 	OS_CHDIR("/");
 	OS_CHDIR("ini");
 	if (ini_get_param((unsigned char *)"network.ini",
-			  (unsigned char *)"currentNetwork", val, sizeof(val)))
+					  (unsigned char *)"currentNetwork", val, sizeof(val)))
 		n = (unsigned char)ini_parse_uint(val);
 	OS_CHDIR(curPath);
 	return n;
@@ -202,30 +196,21 @@ void ntp_resolver(void)
 	unsigned char i, j;
 	unsigned int todo;
 	int len;
+	unsigned char dns_try;
 
 	memset(netbuf, 0, 48);
 	memcpy(netbuf, ntpnead, sizeof(ntpnead));
 
-	if (netDriver == 2)
+	get_dns();
+	for (dns_try = 0; dns_try < 4; dns_try++)
 	{
-		OS_ESPINIT();
-		if (!EspDnsResolve((char *)defntp))
-			die("error: domain name not resolved");
+		if (dnsResolve((char *)defntp))
+			break;
+		delay(500);
 	}
-	else
-	{
-		unsigned char dns_try;
+	if (dns_try >= 4)
+		die("error: domain name not resolved");
 
-		get_dns();
-		for (dns_try = 0; dns_try < 4; dns_try++)
-		{
-			if (dnsResolve((char *)defntp))
-				break;
-			delay(500);
-		}
-		if (dns_try >= 4)
-			die("error: domain name not resolved");
-	}
 	/* iarlib sockaddr_in: port is two bytes, network order (123 = 0x007B). */
 	targetadr.family = AF_INET;
 	targetadr.porth = 0;
@@ -238,10 +223,7 @@ inetloop:
 	YIELD();
 	if (i == 0)
 		die("inet error");
-	if (netDriver == 2)
-		sock = EspOpenSock(AF_INET, SOCK_DGRAM);
-	else
-		sock = OpenSock(AF_INET, SOCK_DGRAM);
+	sock = OpenSock(AF_INET, SOCK_DGRAM);
 	if (sock < 0)
 		goto inetloop;
 
@@ -249,16 +231,10 @@ inetloop:
 	readStruct.BufAdr = (unsigned int)netbuf;
 	readStruct.bufsize = 48;
 	readStruct.protocol = SOCK_DGRAM;
-	if (netDriver == 2)
-		todo = OS_ESPWRITE_UDP(&readStruct, &targetadr);
-	else
-		todo = OS_WIZNETWRITE_UDP(&readStruct, &targetadr);
+	todo = OS_WIZNETWRITE_UDP(&readStruct, &targetadr);
 	if (!OS_CALL_OK(todo))
 	{
-		if (netDriver == 2)
-			EspShutDown(sock, 0);
-		else
-			netShutDown(sock, 0);
+		netShutDown(sock, 0);
 		goto inetloop;
 	}
 	j = 50;
@@ -267,10 +243,7 @@ inetloop:
 	{
 		j--;
 		readStruct.bufsize = 48;
-		if (netDriver == 2)
-			todo = OS_ESPREAD_UDP(&readStruct, &targetadr);
-		else
-			todo = OS_WIZNETREAD_UDP(&readStruct, &targetadr);
+		todo = OS_WIZNETREAD_UDP(&readStruct, &targetadr);
 		if (!OS_CALL_OK(todo))
 		{
 			YIELD();
@@ -281,10 +254,7 @@ inetloop:
 		break;
 	}
 
-	if (netDriver == 2)
-		EspShutDown(sock, 0);
-	else
-		netShutDown(sock, 0);
+	netShutDown(sock, 0);
 	if (len <= 0)
 		die("server error");
 	secsUnix.b[3] = netbuf[40];
@@ -560,15 +530,10 @@ C_task main(int argc, char *argv[])
 	}
 	if (espInet)
 	{
-		if (netDriver == 2)
-			ntp_resolver();
-		else
-		{
-			espntp_resolver();
-			uartFlush(500);
-		}
-		apply_net_time();
+		espntp_resolver();
+		uartFlush(500);
 	}
+	apply_net_time();
 	puts("Now time:");
 	printf("%02u-%02u-%04u ", day, month, year + 1900);
 	printf("%02u:%02u:%02u\r\n", hour, minute, second);
